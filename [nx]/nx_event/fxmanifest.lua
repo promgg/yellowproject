@@ -30,5 +30,9 @@ files {
 
 dependencies {
     'vorp_core',
+    'vorp_inventory',
     'nx_cityselect',
+    'pNotify',
+    'lp_textui',
+    'lp_progbar',
 }

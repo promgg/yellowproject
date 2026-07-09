@@ -3,10 +3,21 @@
 -- State management | Scheduler | Callbacks | Rewards | Exports
 
 local Core = exports.vorp_core:GetCore()
-local Inv  = exports.nx_inventory
+-- exports.nx_inventory ไม่มี resource นี้อยู่จริงในโปรเจกต์เลย (เช็คแล้ว) ทำให้แจกรางวัล
+-- ท้ายกิจกรรม error ทุกครั้ง ทั้งโปรเจกต์ใช้ vorp_inventory เป็นระบบไอเทมหลัก
+local Inv  = exports.vorp_inventory
 
 -- ─── City cache ─────────────────────────────────────────────────────────────
 local cities = {}
+
+-- แทน vorp:TipRight เดิมทั้งหมด — ยิงตรงไปที่ pNotify ฝั่ง client
+local function Notify(source, msg, msgType, timeout)
+    TriggerClientEvent('pNotify:SendNotification', source, {
+        text    = msg,
+        type    = msgType or 'info',
+        timeout = timeout or 4000,
+    })
+end
 
 AddEventHandler('onResourceStart', function(res)
     if res ~= GetCurrentResourceName() then return end
@@ -158,8 +169,8 @@ local function StartEvent()
         total    = Config.TotalBoxes,
     })
 
-    -- Global announcement via VORP tip
-    TriggerClientEvent('vorp:TipRight', -1, Config.EventAnnouncement, 8000)
+    -- Global announcement
+    Notify(-1, Config.EventAnnouncement, 'info', 8000)
 
     print(string.format("[nx_event] Event started at %s. Boxes: %d", os.date("%H:%M:%S"), #Event.boxes))
 
@@ -208,14 +219,14 @@ Core.Callback.Register('nx_event:JoinEvent', function(source, cb)
     local cityId = exports['nx_cityselect']:GetPlayerCityId(source)
     if not cityId then
         cb({ ok = false, reason = 'no_city' })
-        TriggerClientEvent('vorp:TipRight', source, "คุณยังไม่ได้เลือกเมือง ไม่สามารถเข้าร่วมกิจกรรมได้", 4000)
+        Notify(source, "คุณยังไม่ได้เลือกเมือง ไม่สามารถเข้าร่วมกิจกรรมได้", 'error')
         return
     end
 
     local count = Event.cityCount[cityId] or 0
     if count >= Config.MaxPlayersPerCity then
         cb({ ok = false, reason = 'city_full' })
-        TriggerClientEvent('vorp:TipRight', source, "เมืองของคุณมีผู้เข้าร่วมเต็มแล้ว (" .. Config.MaxPlayersPerCity .. "/" .. Config.MaxPlayersPerCity .. ")", 4000)
+        Notify(source, "เมืองของคุณมีผู้เข้าร่วมเต็มแล้ว (" .. Config.MaxPlayersPerCity .. "/" .. Config.MaxPlayersPerCity .. ")", 'error')
         return
     end
 
@@ -353,50 +364,52 @@ local function IsAdmin(source)
     return false
 end
 
-local function AdminNotify(source, msg)
+local function AdminNotify(source, msg, msgType)
     if source == 0 then
         print("[nx_event] " .. msg)
     else
-        TriggerClientEvent('vorp:TipRight', source, "[Event] " .. msg, 4000)
+        Notify(source, "[Event] " .. msg, msgType or 'info')
     end
 end
 
 -- ─── /eventstart — เริ่มกิจกรรมทันที ────────────────────────────────────────
 RegisterCommand('eventstart', function(source)
     if not IsAdmin(source) then
-        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้")
+        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้", 'error')
+        print("คุณไม่มีสิทธิ์ใช้คำสั่งนี้")
         return
     end
     if Event.active then
-        AdminNotify(source, "มีกิจกรรมกำลังดำเนินอยู่แล้ว")
+        AdminNotify(source, "มีกิจกรรมกำลังดำเนินอยู่แล้ว", 'error')
+         print("มีกิจกรรมกำลังดำเนินอยู่แล้ว")
         return
     end
     StartEvent()
-    AdminNotify(source, "เริ่มกิจกรรมแล้ว")
+    AdminNotify(source, "เริ่มกิจกรรมแล้ว", 'success')
 end, false)
 
 -- ─── /eventstop — หยุดกิจกรรมก่อนเวลา ──────────────────────────────────────
 RegisterCommand('eventstop', function(source)
     if not IsAdmin(source) then
-        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้")
+        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้", 'error')
         return
     end
     if not Event.active then
-        AdminNotify(source, "ไม่มีกิจกรรมที่กำลังดำเนินอยู่")
+        AdminNotify(source, "ไม่มีกิจกรรมที่กำลังดำเนินอยู่", 'error')
         return
     end
     EndEvent("admin_forced")
-    AdminNotify(source, "หยุดกิจกรรมแล้ว")
+    AdminNotify(source, "หยุดกิจกรรมแล้ว", 'success')
 end, false)
 
 -- ─── /eventstatus — ดูสถานะกิจกรรม ──────────────────────────────────────────
 RegisterCommand('eventstatus', function(source)
     if not IsAdmin(source) then
-        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้")
+        AdminNotify(source, "คุณไม่มีสิทธิ์ใช้คำสั่งนี้", 'error')
         return
     end
     if not Event.active then
-        AdminNotify(source, "ไม่มีกิจกรรมที่กำลังดำเนินอยู่")
+        AdminNotify(source, "ไม่มีกิจกรรมที่กำลังดำเนินอยู่", 'error')
         return
     end
     local rem   = math.max(0, math.floor((Event.endAt - GetGameTimer()) / 1000))

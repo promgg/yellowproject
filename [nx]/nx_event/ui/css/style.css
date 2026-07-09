@@ -146,58 +146,6 @@ body {
 }
 .city-people { color: var(--muted); }
 
-/* ── Collect hint (near box) ─────────────────────────────────────────────── */
-#collect-hint {
-    position: fixed;
-    bottom: 130px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 6px 16px;
-    font-size: 12px;
-    color: var(--text);
-    animation: fadeUp 0.2s ease;
-}
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateX(-50%) translateY(6px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-.key-badge {
-    background: rgba(180,140,60,0.25);
-    border: 1px solid var(--gold-dim);
-    border-radius: 3px;
-    padding: 1px 7px;
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--gold);
-    font-family: inherit;
-}
-
-/* ── Collection progress bar ─────────────────────────────────────────────── */
-#collect-bar {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    background: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 16px;
-    text-align: center;
-}
-.collect-label {
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 7px;
-    display: block;
-}
-
 /* ── Downed overlay ──────────────────────────────────────────────────────── */
 #downed-overlay {
     position: fixed;

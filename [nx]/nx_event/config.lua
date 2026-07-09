@@ -12,8 +12,11 @@ Config.MaxPlayersPerCity = 10
 -- ─── จำนวนกล่องทั้งหมดในกิจกรรม ──────────────────────────────────────────
 Config.TotalBoxes = 5
 
--- ─── เวลากดค้างเพื่อเก็บกล่อง (มิลลิวินาที) ───────────────────────────
-Config.CollectHoldTime = 5000
+-- ─── เวลากดค้างเพื่อเก็บกล่อง (มิลลิวินาที) — phase 1: lp_textui:TextUIHold ──
+Config.CollectHoldTime = 900
+
+-- ─── เวลาเล่นอนิเมชั่นเปิดกล่องหลังกดค้างสำเร็จ (มิลลิวินาที) — phase 2: lp_progbar ──
+Config.CollectOpenTime = 5000
 
 -- ─── ระยะโต้ตอบกับกล่อง (units) ──────────────────────────────────────────
 Config.CollectRadius = 2.0
@@ -36,7 +39,8 @@ Config.BoxPositions = {
 }
 
 -- ─── Prop ของกล่อง (ชื่อ model ใน RDR2) ──────────────────────────────────
-Config.BoxProp = "p_gen_crate04x"
+-- "p_gen_crate04x" ไม่มีจริงใน RDR3 (เช็คกับ object list แล้ว) ชื่อจริงคือ p_crate04x
+Config.BoxProp = "p_crate04x"
 
 -- ─── อนิเมชั่นขณะเปิดกล่อง ─────────────────────────────────────────────
 Config.CollectAnim = {
@@ -44,9 +48,9 @@ Config.CollectAnim = {
     anim = "base",
 }
 
--- ─── ปุ่มเก็บกล่อง (ผู้เล่นปรับได้ใน Controls Settings) ─────────────────
-Config.CollectKeyName    = "collect_event_box"    -- ชื่อ command ภายใน
-Config.CollectKeyDefault = "g"                    -- ปุ่ม default (G)
+-- ─── ปุ่มเก็บกล่อง ───────────────────────────────────────────────────────
+-- ส่งให้ lp_textui:TextUIHold เป็นคน poll เอง (ปุ่ม E ค่า default ของ lp_textui เอง)
+Config.CollectKey = 0x17BEC168 -- ปุ่ม E
 
 -- ─── Blip บน minimap ──────────────────────────────────────────────────────
 Config.EventBlip = {

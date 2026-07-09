@@ -111,13 +111,15 @@ AddEventHandler('nx_event:Client:EventStart', function(data)
     })
 
     -- Blip on minimap
+    -- AddBlipForCoord/BeginTextCommandSetBlipName เป็น native ฝั่ง GTA5 ไม่มีจริงใน RedM build นี้
+    -- ใช้ pattern เดียวกับที่ยืนยันแล้วว่าใช้ได้จริงทั้งโปรเจกต์ (lp_marketplace/lp_animalFarm/MJ-Afk-Zone-ui)
     if localBlip then RemoveBlip(localBlip) end
-    localBlip = AddBlipForCoord(data.zone.x, data.zone.y, data.zone.z)
-    SetBlipSprite(localBlip, -1294772431)
+    localBlip = N_0x554d9d53f696d002(1664425300, data.zone.x, data.zone.y, data.zone.z)
+    -- sprite hash เดิม (-1294772431) ไม่ใช่ sprite ที่ถูกต้อง ทำให้ blip ไม่มีไอคอนโชว์
+    -- เปลี่ยนเป็น hash เดียวกับที่ยืนยันแล้วว่าโชว์ได้จริงในรีซอร์สอื่นทั้งโปรเจกต์
+    SetBlipSprite(localBlip, -1646261997, 1)
     SetBlipScale(localBlip, Config.EventBlip.scale)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentSubstringPlayerName(Config.EventBlip.label)
-    EndTextCommandSetBlipName(localBlip)
+    Citizen.InvokeNative(0x9CB1A1623062F402, localBlip, Config.EventBlip.label)
 
     -- Spawn box objects
     TriggerEvent('nx_event:Local:SpawnBoxes', data.boxes)

@@ -11,9 +11,6 @@
         boxesFill:    el('boxes-fill'),
         boxesCount:   el('boxes-count'),
         cityList:     el('city-list'),
-        hint:         el('collect-hint'),
-        collectBar:   el('collect-bar'),
-        collectFill:  el('collect-fill'),
         downed:       el('downed-overlay'),
         result:       el('result-panel'),
         resultList:   el('result-list'),
@@ -82,8 +79,6 @@
         clearInterval(timerHandle);
         hide(dom.hud);
         hide(dom.downed);
-        hide(dom.collectBar);
-        hide(dom.hint);
 
         dom.resultList.innerHTML = '';
 
@@ -142,34 +137,9 @@
                 showResult(msg.data);
                 break;
 
-            // ── Collect hint ─────────────────────────────────────────────
-            case 'SHOW_HINT':
-                msg.visible ? show(dom.hint) : hide(dom.hint);
-                break;
-
-            // ── Collection started ────────────────────────────────────────
-            case 'COLLECT_START':
-                dom.collectFill.style.width = '0%';
-                show(dom.collectBar);
-                break;
-
-            // ── Collection progress ───────────────────────────────────────
-            case 'COLLECT_PROGRESS':
-                dom.collectFill.style.width = ((msg.progress || 0) * 100).toFixed(1) + '%';
-                break;
-
-            // ── Collection done / cancelled ───────────────────────────────
-            case 'COLLECT_DONE':
-            case 'COLLECT_CANCEL':
-                hide(dom.collectBar);
-                dom.collectFill.style.width = '0%';
-                break;
-
             // ── Player downed / alive ─────────────────────────────────────
             case 'PLAYER_DOWNED':
                 show(dom.downed);
-                hide(dom.hint);
-                hide(dom.collectBar);
                 break;
 
             case 'PLAYER_ALIVE':
