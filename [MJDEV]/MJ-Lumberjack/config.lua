@@ -2,7 +2,7 @@ Config = {}
 
 Lang = "English"
 
-Config.Axe = "hatchet"            -- Item you want to use as an axe, same DB
+Config.Axe = "tool_axe"            -- Item you want to use as an axe, same DB
 
 -- false = ซื้อขวานครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง (แค่เช็คว่ามีขวานไหมก่อนตัด)
 -- true  = เปิดระบบ durability ลดทุกครั้งที่ฟัน แล้วมีโอกาสหักตอน durability ต่ำกว่า 20

@@ -1,6 +1,6 @@
 Config = {}
 
-Config.Pickaxe   = "pickaxe"
+Config.Pickaxe   = "tool_pickaxe"
 
 -- false = ซื้อจอบครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง (แค่เช็คว่ามีจอบไหมก่อนขุด)
 -- true  = เปิดระบบ durability ลดทุกครั้งที่ขุด แล้วมีโอกาสหักตอน durability ต่ำกว่า 20
