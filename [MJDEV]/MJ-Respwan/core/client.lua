@@ -451,6 +451,7 @@ CreateThread(function()
 
                 local deathCause = GetPedCauseOfDeath(PlayerPedId())
                 takeScreenshotAndSend(Config.DISCORD_WEBHOOK)
+                print(('[MJ-Respwan] DEATH HANDLER fired: killerServerId=%s deathCause=%s -> firing vorp_core:Server:OnPlayerDeath'):format(tostring(killerServerId), tostring(deathCause)))
                 TriggerServerEvent("vorp_core:Server:OnPlayerDeath", killerServerId, deathCause)
                 TriggerEvent("vorp_core:Client:OnPlayerDeath", killerServerId, deathCause)
                 TriggerEvent("vorp_inventory:CloseInv")
