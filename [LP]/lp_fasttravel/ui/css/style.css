@@ -1,0 +1,173 @@
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+  font-family: 'Kanit', sans-serif;
+}
+
+#root {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+#root.hidden { display: none; }
+
+#panel {
+  width: 1300px;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+/* ── Header banner ── */
+#header-banner {
+  background: rgba(19, 19, 19, 0.85);
+  border: 1px solid rgba(240, 202, 120, 0.4);
+  border-radius: 6px;
+  padding: 14px 60px;
+}
+#header-title {
+  font-family: 'Copperplate Gothic Bold', sans-serif;
+  font-size: 30px;
+  letter-spacing: 2px;
+  color: #f0ca78;
+  text-align: center;
+}
+
+/* ── Cooldown banner ── */
+#cooldown-banner {
+  width: 100%;
+  text-align: center;
+  background: rgba(180, 60, 60, 0.25);
+  border: 1px solid rgba(220, 100, 100, 0.5);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #f0a0a0;
+}
+#cooldown-banner.hidden { display: none; }
+
+/* ── Station grid ── */
+#station-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+/* การ์ดแบ่ง 3 ชั้น: รูปเด่นด้านบน / เนื้อหา / ปุ่มเต็มความกว้างด้านล่าง */
+.station-card {
+  background: rgba(19, 19, 19, 0.7);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.station-card:hover {
+  border-color: #f0ca78;
+  transform: translateY(-2px);
+}
+
+.card-image {
+  height: 150px;
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid rgba(240, 202, 120, 0.25);
+}
+
+.card-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-grow: 1;
+}
+
+.card-title {
+  font-weight: 700;
+  font-size: 22px;
+  color: #f0ca78;
+}
+
+.card-desc {
+  font-size: 12px;
+  color: #ccc7c7;
+  line-height: 1.4;
+  flex-grow: 1;
+}
+
+.card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  color: #ccc7c7;
+}
+.stat-val {
+  font-weight: 700;
+  color: white;
+}
+.stat-val.gold { color: #f0ca78; }
+
+/* ปุ่ม/label เต็มความกว้างชิดขอบล่างสุดของการ์ดเสมอ */
+.confirm-btn {
+  width: 100%;
+  background: #f0ca78;
+  border: none;
+  padding: 14px 12px;
+  color: #131313;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.confirm-btn:hover { background: #ffd98f; }
+.confirm-btn.disabled {
+  background: rgba(240, 202, 120, 0.25);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.current-label {
+  width: 100%;
+  text-align: center;
+  font-style: italic;
+  font-size: 13px;
+  color: #a4a4a4;
+  padding: 14px 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Close hint ── */
+#close-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}
