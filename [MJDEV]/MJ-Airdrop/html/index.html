@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MJ Airdrop UI</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Chonburi&family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link href="./css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+    <div class="airdrop-container">
+        <!-- Filled by script.js -->
+    </div>
+
+    <!-- Loot Progress (hold-to-loot) -->
+    <div id="lootProgress" class="loot-progress is-hidden">
+        <div class="loot-progress__card">
+            <div class="loot-progress__title" id="lootProgressTitle">กำลังเปิดแอร์ดรอป</div>
+            <div class="loot-progress__players" id="lootProgressPlayers"></div>
+            <div class="loot-progress__bar">
+                <div class="loot-progress__fill" id="lootProgressFill"></div>
+            </div>
+            <div class="loot-progress__meta">
+                <span id="lootProgressPct">0%</span>
+                <span id="lootProgressHint">ปล่อยปุ่ม = ยกเลิก</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loot Hint (bottom-center prompt) -->
+    <div id="lootHint" class="loot-hint is-hidden">
+        <div class="loot-hint__card">
+            <div class="loot-hint__key" id="lootHintKey">G</div>
+            <div class="loot-hint__text">
+                <div class="loot-hint__title" id="lootHintTitle">กดค้าง G เพื่อเก็บ Airdrop</div>
+                <div class="loot-hint__sub" id="lootHintSub">ปล่อยปุ่ม/โดนดาเมจ = ยกเลิก</div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="sndIn" src="./sounds/in.mp3" preload="auto"></audio>
+    <audio id="sndOut" src="./sounds/out.mp3" preload="auto"></audio>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="./js/script.js" type="text/javascript"></script>
+    <script src="./js/progress.js" type="text/javascript"></script>
+    <script src="./js/hint.js" type="text/javascript"></script>
+</body>
+</html>

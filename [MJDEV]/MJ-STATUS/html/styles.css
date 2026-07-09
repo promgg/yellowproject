@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.cdnfonts.com/css/pricedown');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Yantramanav:wght@100;300;400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Yantramanav:wght@100;300;400;500;700;900&display=swap');
+@import url('https://fonts.cdnfonts.com/css/western');
+
+#main-container {
+  width: 100%;
+  height: auto;
+}
+
+#playerhud {
+  position: absolute;
+  display: flex;
+  flex-flow: column; /* จัดเรียงเป็นแนวตั้ง */
+  justify-content: flex-end; /* ให้จัดเรียงจากด้านบน */
+  left: 0; /* ตำแหน่งอยู่ด้านซ้าย */
+  top: 58%; /* ให้เริ่มจากด้านบน */
+  margin: auto;
+  width: 100px; /* ขนาดของคอนเทนเนอร์ */
+}
+
+.progress {
+  margin-bottom: 5px !important;
+}
+
+.slide-fade-enter-active {
+  transition: all .3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all .8s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}

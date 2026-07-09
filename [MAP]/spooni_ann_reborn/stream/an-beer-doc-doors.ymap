@@ -1,0 +1,495 @@
+<?xml version="1.0"?>
+<CMapData>
+	<flags value="2"/>
+	<contentFlags value="65"/>
+	<streamingExtentsMin x="2517.764648" y="939.057617" z="-356.259998"/>
+	<streamingExtentsMax x="3369.459473" y="1760.532227" z="451.331966"/>
+	<entitiesExtentsMin x="2867.764648" y="1289.057617" z="-6.259998"/>
+	<entitiesExtentsMax x="3019.459473" y="1410.532227" z="101.331966"/>
+	<entities>
+		<Item type="CEntityDef">
+			<archetypeName>p_doorsaloon02x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2957.381836" y="1341.192993" z="43.740002"/>
+			<rotation w="0.819152" x="0.000000" y="-0.000000" z="-0.573576"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_doorsaloon02x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_doorsaloon02x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-kitchen-door1</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_doorsaloon02x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2957.889404" y="1342.554199" z="43.740002"/>
+			<rotation w="0.573578" x="-0.000000" y="0.000000" z="0.819151"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_doorsaloon02x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_doorsaloon02x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-kitchen-door2</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_dooraberdeen01x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2956.260254" y="1348.793945" z="48.007763"/>
+			<rotation w="0.175365" x="0.000000" y="-0.000000" z="-0.984503"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_dooraberdeen01x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_dooraberdeen01x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door1</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_door13x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2959.100830" y="1351.764038" z="48.007763"/>
+			<rotation w="0.983888" x="-0.000000" y="0.000000" z="0.178789"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door2</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_dooraberdeen03x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2964.746094" y="1357.672607" z="43.782475"/>
+			<rotation w="0.173649" x="0.000000" y="-0.000000" z="-0.984808"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_dooraberdeen03x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_dooraberdeen03x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door3</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_dooraberdeen03x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2967.638184" y="1350.393188" z="43.782475"/>
+			<rotation w="0.819152" x="0.000000" y="-0.000000" z="-0.573576"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_dooraberdeen03x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_dooraberdeen03x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door4</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_door10x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2960.772705" y="1348.681641" z="43.856785"/>
+			<rotation w="0.571741" x="-0.000000" y="0.000000" z="0.820434"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_door10x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="true" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_door10x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door5</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_door13x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2956.537598" y="1352.707397" z="48.007763"/>
+			<rotation w="0.983888" x="-0.000000" y="0.000000" z="0.178789"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door6</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_door13x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2958.849854" y="1347.871948" z="48.007763"/>
+			<rotation w="0.176864" x="0.000000" y="-0.000000" z="-0.984235"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_door13x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door7</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>p_dooraberdeen01x</archetypeName>
+			<flags value="1572897"/>
+			<position x="2957.236572" y="1340.478394" z="43.849651"/>
+			<rotation w="0.984808" x="-0.000000" y="0.000000" z="0.173648"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>p_dooraberdeen01x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>p_dooraberdeen01x</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door8</Id>
+                </Item>
+        </extensions>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>ann_jail_main_door_01</archetypeName>
+			<flags value="1572897"/>
+			<position x="2964.826660" y="1342.754150" z="43.826275"/>
+			<rotation w="0.819152" x="0.000000" y="-0.000000" z="-0.573576"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>ann_jail_main_door_01</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>ann_jail_main_door_01</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beer-door9</Id>
+                </Item>
+        </extensions>
+		</Item>
+	</entities>
+</CMapData>

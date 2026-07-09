@@ -1,0 +1,17 @@
+# ไฟล์ config server (มี path/secret เฉพาะเครื่อง)
+server.cfg
+
+# ข้อมูล runtime ที่สคริปต์เขียนทับเอง (ไม่ควร sync ข้ามเครื่อง)
+**/used_codes.json
+**/*.db
+**/*.sqlite
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node (ถ้ามีรีซอร์สที่ build ด้วย npm)
+node_modules/
+dist/

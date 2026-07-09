@@ -1,0 +1,358 @@
+PlayerStatus = {}
+isdead = false 
+starve = false
+notifstarve = false
+notifthirst = false
+notifstress = false  
+foodtime = Config.HungerTickInterval -- Hunger tick every 90 seconds
+thirsttime = Config.ThirstTickInterval -- Thirst tick every 75 seconds
+stresstime = Config.StressTickInterval 
+
+RegisterNetEvent('vorp:PlayerForceRespawn', function(status)
+    PlayerStatus["Thirst"] = Config.MaxHunger;
+    PlayerStatus["Hunger"] = Config.MaxThirst;
+    PlayerStatus["Stress"] = Config.MinStress;
+end)
+
+RegisterNetEvent('vorp:SelectedCharacter', function(charId)
+    isLoggedIn = true
+end)
+
+RegisterNetEvent("MJ-STATUS:setStatus")
+AddEventHandler("MJ-STATUS:setStatus", function(status)
+    if (#status < 2) then
+        return
+    end
+    isLoggedIn = true
+    PlayerStatus = json.decode(status)
+    print("Hunger: " .. PlayerStatus.Hunger .. ", Thirst: " .. PlayerStatus.Thirst .. ", Stress: " .. PlayerStatus.Stress)
+end)
+
+RegisterNetEvent("MJ-STATUS:getStatus")
+AddEventHandler("MJ-STATUS:getStatus", function()
+    TriggerServerEvent("MJ-STATUS:saveStatus", PlayerStatus)
+end)
+
+RegisterNetEvent("vorpmetabolism:changeValue")
+AddEventHandler("vorpmetabolism:changeValue", function(a,b)
+    if PlayerStatus and next(PlayerStatus) and isLoggedIn then
+        if PlayerStatus.Hunger == a and PlayerStatus.Hunger > b then
+            PlayerStatus.Hunger = b
+        elseif PlayerStatus.Thirst == a and PlayerStatus.Thirst > b then
+            PlayerStatus.Thirst = b
+        elseif PlayerStatus.Stress == a and PlayerStatus.Stress < b then
+            PlayerStatus.Stress = b
+        end
+    end
+end)
+
+
+CreateThread(function()
+    while true do
+        Wait(3000)
+
+        if PlayerStatus and next(PlayerStatus) and isLoggedIn then
+            local ped = PlayerPedId()
+
+            --  ลดเลือดหากหิว ≤ 10%
+            if PlayerStatus.Hunger <= (Config.MaxHunger * 0.01) then
+                local newHealth = GetEntityHealth(ped) - 2  -- ลดเลือดทีละ 5
+                if newHealth < 1 then
+                    ApplyDamageToPed(ped, 500000, false, true, true)
+                    SetEntityHealth(ped, 0)
+                else
+                    SetEntityHealth(ped, newHealth)
+                end
+            end
+
+            --  ลดเลือดหากกระหาย ≤ 10%
+            if PlayerStatus.Thirst <= (Config.MaxThirst * 0.01) then
+                local newHealth = GetEntityHealth(ped) - 3  -- ลดเลือดทีละ 5
+                if newHealth < 1 then
+                    ApplyDamageToPed(ped, 500000, false, true, true)
+                    SetEntityHealth(ped, 0)
+                else
+                    SetEntityHealth(ped, newHealth)
+                end
+            end
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        Wait(10000)
+        if PlayerStatus and next(PlayerStatus) and isLoggedIn then
+            local playerPed = PlayerPedId()
+            local currentHealth = GetEntityHealth(playerPed)
+
+            --  เช็ค & แจ้งเตือนความหิว
+            -- print((Config.MaxHunger * 0.02))
+            if PlayerStatus.Hunger <= (Config.MaxHunger * 0.02) and not notifstarve then
+                exports['MJ-Showitem']:Notification({
+                    position = 'middleRight',
+                    image = '',
+                    title = 'Food',
+                    description = '⚠ คุณกำลังหิวมาก! รีบหาอะไรกินด่วน!',
+                    type = 'alert',
+                    time = 5000
+                })
+                notifstarve = true
+            else
+                notifstarve = false
+            end
+
+            --  เช็ค & แจ้งเตือนความกระหายน้ำ
+            if PlayerStatus.Thirst <= (Config.MaxThirst * 0.02) and not notifthirst then
+                exports['MJ-Showitem']:Notification({
+                    position = 'middleRight',
+                    image = '',
+                    title = 'Water',
+                    description = '⚠ คุณกระหายน้ำมาก! รีบดื่มน้ำด่วน!',
+                    type = 'alert',
+                    time = 5000
+                })
+                notifthirst = true
+            else
+                notifthirst = false
+            end
+
+            --  จำกัดค่าหิว/กระหายน้ำไม่ให้เกิน Max
+            PlayerStatus.Hunger = math.max(math.min(PlayerStatus.Hunger - 10, Config.MaxHunger), 0)
+            PlayerStatus.Thirst = math.max(math.min(PlayerStatus.Thirst - 10, Config.MaxThirst), 0)
+
+            -- จำกัดค่า Hunger/Thirst ไม่ให้เกิน Max
+            if PlayerStatus.Hunger > Config.MaxHunger then
+                PlayerStatus.Hunger = Config.MaxHunger
+            end
+
+            if PlayerStatus.Thirst > Config.MaxThirst then
+                PlayerStatus.Thirst = Config.MaxThirst
+            end
+        end
+    end
+end)
+
+
+CreateThread(function()
+    while true do
+        Wait(1000)  -- ตรวจสอบทุก 1 วินาที
+        if PlayerStatus and next(PlayerStatus)and isLoggedIn then
+            -- ตรวจสอบสถานะการเคลื่อนไหว
+            Wait(Config.StressTickInterval)
+            local playerPed = PlayerPedId()
+            local isRunning = IsPedRunning(playerPed)
+            local isWalking = IsPedWalking(playerPed)
+
+            -- เพิ่มความเครียดตามสถานะการเคลื่อนไหว
+            if isRunning then
+                -- ถ้าวิ่งเพิ่มความเครียด 20%
+                PlayerStatus.Stress = PlayerStatus.Stress + 2
+            elseif isWalking then
+                -- ถ้าเดินเพิ่มความเครียด 10%
+                PlayerStatus.Stress = PlayerStatus.Stress + 1
+            end
+
+            -- ตรวจสอบว่าเครียดเกิน 90 หรือไม่
+            if PlayerStatus.Stress >= (Config.MaxStress * 0.02) and not isdead then
+                exports['MJ-Showitem']:Notification({
+                    position = 'middleRight',
+                    image = '',
+                    title = 'Stress',
+                    description = 'คุณรู้สึกเครียดมากเกินไป!!',
+                    type = 'alert',
+                    time = 5000
+                })
+                isdead = true  -- ตั้งค่า dead เป็น true เมื่อเครียดมากเกินไป
+            end
+
+            -- ตรวจสอบว่าเครียดถึง 100 หรือไม่
+            if PlayerStatus.Stress >= (Config.MaxStress * 0.02) then
+                if not notifstress then
+                    exports['MJ-Showitem']:Notification({
+                        position = 'middleRight',
+                        image = '',
+                        title = 'Stress',
+                        description = 'คุณเสียชีวิตจากความเครียด!!!',
+                        type = 'alert',
+                        time = 5000
+                    })
+                    notifstress = true
+                    local newHealth = GetEntityHealth(playerPed) - 20
+                    if newHealth < 1 then
+                        ApplyDamageToPed(playerPed, 500000, false, true, true)
+                        SetEntityHealth(playerPed, 0)
+                    end
+                    SetEntityHealth(playerPed, newHealth)
+                    isdead = true  -- ผู้เล่นตายแล้วตั้งค่า dead เป็น true
+                end
+            else
+                -- ถ้าความเครียดลดลงไป, รีเซ็ตสถานะการแจ้งเตือนและการตาย
+                PlayerStatus.Stress = PlayerStatus.Stress + 0.1
+                notifstress = false
+                if isdead then
+                    -- รีเซ็ตสถานะการตายเมื่อความเครียดไม่ถึง 100
+                    isdead = false
+                end
+            end
+        end
+    end
+end)
+
+-- Prevent hunger and thirst from exceeding limits
+CreateThread(function()
+    while true do
+        Wait(5000)  -- Wait 5 seconds before checking again
+        if PlayerStatus and next(PlayerStatus) and isLoggedIn then
+            PlayerStatus.Hunger = math.min(PlayerStatus.Hunger, 100000)
+            PlayerStatus.Thirst = math.min(PlayerStatus.Thirst, 100000)
+            PlayerStatus.Stress = math.min(PlayerStatus.Stress, 100000)
+        end
+    end
+end)
+
+RegisterNetEvent("MJ-STATUS:useItem")
+AddEventHandler("MJ-STATUS:useItem", function(index, hunger, thirst, stress, stamina, eatAnimDict, eatAnimName)
+    local playerPed = PlayerPedId()
+    local PlayerId = PlayerId()
+    -- Retrieve the prop name from the Config based on itemType (bread, apple, etc.)
+    local itemConfig = Config.FoodItems[index]
+    if not itemConfig then
+        print("Invalid item type!")
+        return
+    end
+    
+    local prop_name = itemConfig.prop_name  -- Get the prop name Config.FoodItems
+    if (Config["FoodItems"][index]["Animation"] == "eat") then
+        PlayAnimEat(prop_name)
+    else
+        PlayAnimDrink(prop_name)
+    end
+
+    if (Config["FoodItems"][index]["Effect"] ~= "") then
+        ScreenEffect(Config["FoodItems"][index]["Effect"], Config["FoodItems"][index]["EffectDuration"])
+    end
+
+    local currentHunger = PlayerStatus.Hunger
+    local currentThirst = PlayerStatus.Thirst
+    local currentStress = PlayerStatus.Stress
+    local currentStamina = GetPlayerStamina(playerPed)
+
+    -- Calculate new values after using the item
+    local newHunger = math.min(Config.MaxHunger, currentHunger + hunger)
+    local newThirst = math.min(Config.MaxThirst, currentThirst + thirst)
+    local newStress = math.max(Config.MinStress, currentStress + stress)
+    local newStamina = math.min(Config.MaxStamina, currentStamina + stamina)
+
+    local status = {
+        ['Hunger'] = newHunger,
+        ['Thirst'] = newThirst,
+        ['Stress'] = newStress
+    }
+    Citizen.InvokeNative(0xFECA17CF3343694B, PlayerId, newStamina)
+    TriggerServerEvent("MJ-STATUS:saveStatus", status)
+end)
+
+function ScreenEffect(effect, durationMinutes)
+    local durationMilliseconds = durationMinutes * 60*1000 -- Convert minutes to milliseconds
+    AnimpostfxPlay(effect)
+    Citizen.Wait(durationMilliseconds)
+    AnimpostfxStop(effect)
+end
+
+function PlayAnimDrink(propName)
+    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId()))
+    local dict = "amb_rest_drunk@world_human_drinking@male_a@idle_a"
+    local anim = "idle_a"
+
+    -- if (not IsPedMale(PlayerPedId())) then
+    --     dict = "amb_rest_drunk@world_human_drinking@female_a@idle_b"
+    --     anim = "idle_b"
+    -- end
+
+    RequestAnimDict(dict)
+    while (not HasAnimDictLoaded(dict)) do
+        Wait(100)
+    end
+
+    local hashItem = GetHashKey(propName)
+
+    local prop = CreateObject(hashItem, x, y, z + 0.2, true, true, false, false, true)
+    local boneIndex = GetEntityBoneIndexByName(PlayerPedId(), "SKEL_R_Finger12")
+
+    Wait(1000)
+
+    TaskPlayAnim(PlayerPedId(), dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
+    AttachEntityToEntity(prop, PlayerPedId(), boneIndex, 0.02, 0.028, 0.001, 15.0, 175.0, 0.0, true, true, false, true, 1,true)
+    Wait(6000)
+
+    DeleteObject(prop)
+    ClearPedSecondaryTask(PlayerPedId())
+end
+
+function PlayAnimEat(propName)
+    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId()))
+    local dict = "mech_inventory@eating@multi_bite@wedge_a4-2_b0-75_w8_h9-4_eat_cheese"
+    local anim = "quick_right_hand"
+
+    --if (!IsPedMale(PlayerPedId())) then
+    --    dict = "amb_rest_drunk@world_human_drinking@female_a@idle_b"
+    --    anim = "idle_b"
+    --end
+
+    RequestAnimDict(dict)
+    while (not HasAnimDictLoaded(dict)) do
+        Wait(100)
+    end
+
+    local hashItem = GetHashKey(propName)
+
+    local prop = CreateObject(hashItem, x, y, z + 0.2, true, true, false, false, true)
+    local boneIndex = GetEntityBoneIndexByName(PlayerPedId(), "SKEL_R_Finger12")
+
+    Wait(1000)
+
+    TaskPlayAnim(PlayerPedId(), dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
+    AttachEntityToEntity(prop, PlayerPedId(), boneIndex, 0.02, 0.028, 0.001, 15.0, 175.0, 0.0, true, true, false, true, 1, true)
+    Wait(6000)
+
+    DeleteObject(prop)
+    ClearPedSecondaryTask(PlayerPedId())
+end
+
+-- Play an animation
+function TaskAnim(animDict, animName, flags, duration)
+    if not HasAnimDictLoaded(animDict) then
+        RequestAnimDict(animDict)
+        while not HasAnimDictLoaded(animDict) do
+            Wait(0)
+        end
+    end
+
+    TaskPlayAnim(PlayerPedId(), animDict, animName, 8.0, 3.0, duration, flags, 0, 0, 0, 0)
+    RemoveAnimDict(animDict)
+end
+
+exports('setThirst', function() return PlayerStatus.Thirst end)
+exports('setHunger', function() return PlayerStatus.Hunger end)
+exports('setStress', function() return PlayerStatus.Stress end) 
+exports('setTemp', function() return temperature end)
+
+------------------------------------------------
+-- Export เพิ่มความเหนื่อยล้า
+------------------------------------------------
+exports("AddStress", function(amount)
+    PlayerStatus.Stress = math.min(Config.MaxStress, PlayerStatus.Stress + amount)
+end)
+
+AddEventHandler("onResourceStart", function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        AnimpostfxStop("PlayerHealthPoor")
+        AnimpostfxStop("MissionChoice")
+        AnimpostfxStop("MP_MoonshinerDisorient")
+        if PlayerStatus and not next(PlayerStatus) then
+            Wait(2000)
+            TriggerServerEvent("MJ-STATUS:loadStatus")
+        end
+    end
+end)

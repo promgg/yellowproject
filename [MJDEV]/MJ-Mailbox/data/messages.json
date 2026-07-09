@@ -1,0 +1,35 @@
+{
+    "steam:1100001155a11da": [
+        {
+            "coords": "X:68.74 Y:-28.29 Z:103.52",
+            "timestamp": "2025-05-27 15:10:48",
+            "id": 4,
+            "receiver": "steam:1100001155a11da",
+            "isRead": true,
+            "subject": "กฟหกฟกฟหกฟห",
+            "sender": "MJ DEV",
+            "message": "ฟหกฟหกฟหกฟห",
+            "mailID": "304"
+        },
+        {
+            "id": 5,
+            "message": "ฟหกฟหก",
+            "timestamp": "2025-05-27 15:12:30",
+            "mailID": "304",
+            "isRead": true,
+            "sender": "MJ DEV",
+            "subject": "กฟหก",
+            "receiver": "steam:1100001155a11da"
+        },
+        {
+            "id": 7,
+            "message": "ฟหกฟหกฟ",
+            "timestamp": "2025-05-27 15:14:41",
+            "mailID": "304",
+            "isRead": true,
+            "sender": "MJ DEV",
+            "subject": "กฟกฟห",
+            "receiver": "steam:1100001155a11da"
+        }
+    ]
+}

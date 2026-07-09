@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nx_inventory</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main id="inventory-root" class="inventory-root is-hidden" aria-live="polite">
+        <section class="inventory-shell" aria-label="Inventory">
+            <aside class="fast-panel" aria-label="Fast slots">
+                <div id="fast-slots" class="fast-slots"></div>
+            </aside>
+
+            <section class="main-panel" aria-label="Player inventory">
+                <header class="inventory-header">
+                    <div class="title-block">
+                        <h1 id="inventory-title">กระเป๋า</h1>
+                        <p>INVENTORY</p>
+                    </div>
+                    <div class="weight-block">
+                        <div class="weight-track">
+                            <div id="weight-fill" class="weight-fill"></div>
+                        </div>
+                        <span id="weight-text">0 / 0 KG</span>
+                    </div>
+                </header>
+
+                <section class="inventory-grid-wrap">
+                    <div id="inventory-grid" class="inventory-grid"></div>
+                    <p id="inventory-empty" class="empty-state">No items</p>
+                </section>
+
+                <section id="selected-panel" class="selected-panel is-hidden" aria-label="Selected item actions">
+                    <div>
+                        <strong id="selected-name"></strong>
+                        <span id="selected-meta"></span>
+                    </div>
+                    <div id="action-strip" class="action-strip"></div>
+                </section>
+
+                <footer class="inventory-footer">
+                    <img class="footer-divider" src="assets/spacebuttom.png" alt="">
+                    <div class="footer-row">
+                        <div class="money-display" aria-label="Money">
+                            <span class="money-icon" aria-hidden="true"></span>
+                            <span id="money-value">0</span>
+                        </div>
+                        <div id="player-id" class="player-id">ID : 0</div>
+                    </div>
+                </footer>
+            </section>
+
+            <aside id="secondary-panel" class="secondary-panel is-hidden" aria-label="Secondary inventory">
+                <header>
+                    <strong id="secondary-title">Storage</strong>
+                    <span id="secondary-capacity"></span>
+                </header>
+                <div id="secondary-grid" class="secondary-grid"></div>
+                <p id="secondary-empty" class="empty-state">No items</p>
+            </aside>
+        </section>
+
+        <nav id="context-menu" class="context-menu is-hidden" aria-label="Item actions"></nav>
+
+        <section id="player-modal" class="modal-backdrop is-hidden" aria-label="Nearby players">
+            <div class="player-modal">
+                <button id="player-modal-close" type="button" class="modal-close" aria-label="Close">X</button>
+                <h2 id="player-modal-title">Select player</h2>
+                <div id="player-list" class="player-list"></div>
+            </div>
+        </section>
+
+        <section id="quantity-modal" class="modal-backdrop is-hidden" aria-label="Quantity">
+            <form id="quantity-form" class="quantity-modal">
+                <button id="quantity-close" type="button" class="modal-close" aria-label="Close">X</button>
+                <h2 id="quantity-title">Amount</h2>
+                <input id="quantity-input" type="number" min="1" step="1" value="1">
+                <button type="submit">OK</button>
+            </form>
+        </section>
+
+        <section id="transaction-loader" class="transaction-loader is-hidden" aria-label="Transaction">
+            <div class="loader-mark"></div>
+            <span id="transaction-text">Loading</span>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

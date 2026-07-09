@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<CMapData>
+	<flags value="2"/>
+	<contentFlags value="65"/>
+	<streamingExtentsMin x="2521.931396" y="902.607910" z="-357.221531"/>
+	<streamingExtentsMax x="3384.108643" y="1784.266113" z="452.571430"/>
+	<entitiesExtentsMin x="2871.931396" y="1252.607910" z="-7.221531"/>
+	<entitiesExtentsMax x="3034.108643" y="1434.266113" z="102.571430"/>
+	<entities>
+		<Item type="CEntityDef">
+			<archetypeName>door8</archetypeName>
+			<flags value="1572897"/>
+			<position x="2952.041016" y="1352.885010" z="43.873001"/>
+			<rotation w="0.573577" x="-0.000000" y="0.000000" z="0.819152"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="500"/>
+			<childLodDist value="500"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+			<extensions>
+                <Item type="CExtensionDefDoor">
+                <name>door8</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <ELUGHoA_0xDAF8214E value="false" />
+                <enableLimitAngle value="true" />
+                <EFwMwAA_0x091A42D0 value="false" />
+                <startsLocked value="false" />
+                <canBreak value="false" />
+                <PkpciBA_0xA37CAB71 value="false" />
+                <dKbmTLA_0xCFE37BDB value="1.470796" />
+                <nuskEbA_0xA0CF3C8D value="1.470796" />
+                <RbUnQLA_0x9C555ECF value="0" />
+                <OPkNlHA_0xBCA0289E value="0" />
+                <doorTargetRatio value="0" />
+                <audioHash>ismdclsa_0x725d11b6</audioHash>
+                <doorTags>
+                    <Item />
+                    <Item />
+                    <Item />
+                    <Item />
+                </doorTags>
+                </Item>
+                <Item type="SSxlGTA_0xDB12012B">
+                <name>door8</name>
+                <offsetPosition x="0" y="0" z="0" />
+                <Id>ann-beerhall-door-front</Id>
+                </Item>
+        </extensions>
+		</Item>
+	</entities>
+</CMapData>

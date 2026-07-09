@@ -1,0 +1,359 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700;800&display=swap');
+*{
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'Kanit', sans-serif;
+}
+
+.hud-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.containner {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    justify-content: flex-start;
+    align-items: flex-end;
+    overflow: hidden;
+}
+
+.hud {
+    position: relative;
+    display: flex;
+    width: 40vmin;
+    height: 15vmin;
+    right: 1vh;
+    transition: transform 0.4s ease;
+}  
+
+.box_status {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-end;
+    width: 100%;
+    height: 100%;
+}
+
+.MJDev-profile-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 9vh;
+    height: 9vh;
+    background: #000000;
+    margin-left: 2vh;
+    margin-bottom: 1vh;
+    border-radius: 1vh 1vh 0 1vh;
+}
+
+.MJDev-profile-wrapper:before {
+    content: '';
+    position: absolute;
+    width: .3vh;
+    height: 80%;
+    left: -.2vh;
+    border-radius: 10vh;
+    background: var(--base-primary-color);
+}
+
+.MJDev-status-wrapper {
+    position: relative;
+    width: 27vh;
+    height: 5vh;
+    border-radius: 0 1vh 1vh 0;
+    margin-bottom: 1vh;
+    background: #000000;
+}
+
+.Profile-Box {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 8vh;
+    height: 8vh;
+    border-radius: 1vh;
+    background-size: cover;
+    overflow: hidden;
+}
+
+.Profile-Box:before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+}
+
+#Profile-Player {
+    position: relative;
+    width: 10vh;
+}
+
+.MJDev-timedate-info-wrapper {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    height: 1.8vh;
+    left: -.8vh;
+    top: -2.1vh;
+    scale: 1.2
+}
+
+.MJDev-temp-box {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    height: 100%;
+    border-radius: .5vh;
+    font-size: .9vh;
+    padding: 0 .5vh;
+    bottom: 2vh;
+    left: -2.8vh;
+    background: #000000;
+}
+
+.MJDev-uid-box {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    height: 100%;
+    border-radius: .5vh;
+    font-size: .9vh;
+    padding: 0 .5vh;
+    background: #000000;
+}
+
+.MJDev-uid-box, .MJDev-temp-box, .MJDev-voice-info-wrapper > span {
+    color: #fff;
+}
+
+.MJDev-voice-info-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    height: 100%;
+    border-radius: .5vh;
+    font-size: .9vh;
+    padding: 0 .5vh;
+    margin-left: .5vh;
+    background: #000000;
+}
+
+.MJDev-voice-info-wrapper > i {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4vh;
+    color: #fff;
+}
+
+.MJDev-time-data-info-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    height: 100%;
+    border-radius: .5vh;
+    font-size: .9vh;
+    padding: 0 .5vh;
+    margin-left: .5vh;
+    background: #000000;
+}
+
+.MJDev-time-data-info-wrapper > div {
+    color: #fff;
+}
+
+.MJDev-time-data-info-wrapper > i {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2vh;
+    margin-right: .2vh;
+    color: #fff;
+}
+
+.space {
+    position: relative;
+    margin: 0 .2vh;
+}
+
+.MJDev-health-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 96%;
+    height: 2vh;
+    left: .1vh;
+    top: .5vh;
+    border-radius: .7vh;
+    background: #1d1d1d;
+}
+
+#data-healthload {
+    position: absolute;
+    width: 90%;
+    height: 100%;
+    left: 0;
+    border-radius: .7vh;
+    transition: .3s ease-in-out;
+    background: var(--base-healthload-color);
+}
+
+
+#data-healtprecent {
+    position: absolute;
+    color: #fff;
+    font-size: 1.2vh;
+    margin-left: 1vh;
+    z-index: 10;
+}
+
+.MJDev-armor-stamina-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    width: 96%;
+    height: 1.7vh;
+    top: 1vh;
+}
+
+.MJDev-armor-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 55%;
+    height: .6vh;
+    border-radius: .7vh;
+    background: #1d1d1d;
+    margin-right: .5vh;
+}
+
+#data-armorload {
+    position: absolute;
+    width: 0%;
+    height: 100%;
+    left: 0;
+    border-radius: .7vh;
+    transition: .3s ease-in-out;
+    background: var(--base-armorload-color);
+}
+
+.MJDev-stemina-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 30%;
+    height: .6vh;
+    border-radius: .7vh;
+    background: #1d1d1d;
+}
+
+#data-steminaload {
+    position: absolute;
+    width: 0%;
+    height: 100%;
+    left: 0;
+    border-radius: .7vh;
+    transition: .3s ease-in-out;
+    background: var(--base-steminaload-color);
+}
+
+.MJDev-armor-stamina-wrapper > i {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2vh;
+    color: #fff;
+    margin-right: .5vh;
+}
+
+.MJDev-Status-All-Box-main {
+    position: absolute;
+    width: 13vh;
+    height: 5vh;
+    right: -11.5vh;
+    bottom: 1vh;
+}
+
+.MJDev-Status-Horse-Box-main {
+    position: absolute;
+    width: 13vh;
+    height: 5vh;
+    left: 50.5vh;
+    bottom: 1vh;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    display: none; /* เริ่มต้นไม่แสดง */
+}
+
+.statusall {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.data,
+.data2,
+.data3 {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    /* margin: 0 .3vh; */
+    width: 3.9vh;
+    height: 3.9vh;
+    border-radius: 10vh;
+    border: .3vh solid #000000;
+    background-color: rgb(29, 29, 29);
+}
+
+.poss {
+    width: 100%;
+    height: 100%;
+}
+
+.statusicon {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 2.6vh;
+    height: 2.6vh;
+    border-radius: 10vh;
+    background: #000000;
+}
+
+.statusicon > i {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-size: 1.4vh;
+}

@@ -1,0 +1,319 @@
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+#root {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+}
+
+#root.hidden { display: none; }
+
+/* Background */
+#bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  object-fit: cover;
+  pointer-events: none;
+  display: none;
+
+}
+
+/* Rotated overlay panel */
+#panel-overlay {
+  position: absolute;
+  left: 51px; top: -10px;
+  width: 1795px; height: 1035px;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#panel-overlay img {
+  width: 1775px; height: 999px;
+  object-fit: cover;
+  opacity: 0.9;
+  transform: rotate(1.17deg);
+}
+
+/* Header slider */
+#header-image {
+  position: absolute;
+  left: 360px; top: 218px;
+  width: 1179px; height: 307px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#slider-track {
+  display: flex;
+  width: 100%; height: 100%;
+  transition: transform 0.5s ease;
+}
+
+.slide {
+  min-width: 1179px;
+  height: 307px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+.slide img {
+  width: 100%;
+  height: 216%;
+  object-fit: cover;
+  position: absolute;
+  top: -97%; left: 0;
+  pointer-events: none;
+}
+
+/* Slider buttons */
+#slide-prev, #slide-next {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(240,202,120,0.4);
+  color: #f0ca78;
+  font-size: 32px;
+  line-height: 1;
+  width: 36px; height: 60px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+  z-index: 10;
+  padding: 0;
+}
+#slide-prev { left: 8px; }
+#slide-next { right: 8px; }
+#slide-prev:hover, #slide-next:hover {
+  background: rgba(0,0,0,0.7);
+  border-color: #f0ca78;
+}
+
+/* Dots */
+#slide-dots {
+  position: absolute;
+  bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 6px;
+  z-index: 10;
+}
+.slide-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.slide-dot.active {
+  background: #f0ca78;
+}
+
+/* Deco line & dot under player menu label */
+#deco-line-h {
+  position: absolute;
+  left: 445px; top: 173.5px;
+  width: 97px; height: 1px;
+  background: #a4a4a4;
+}
+#deco-dot-h {
+  position: absolute;
+  left: 539px; top: 171px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #a4a4a4;
+}
+
+/* ALLMENU label */
+#lbl-allmenu {
+  position: absolute;
+  left: 360px; top: 176px;
+  font-family: 'Copperplate Gothic Bold', sans-serif;
+  font-size: 14px;
+  color: #ae8e6a;
+  line-height: 40px;
+  pointer-events: none;
+}
+
+/* Player menu title */
+#lbl-player-menu {
+  position: absolute;
+  left: 360px; top: 160px;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 400;
+  font-size: 20px;
+  color: white;
+  pointer-events: none;
+}
+
+/* Player section top right */
+#player-section {
+    position: absolute;
+    right: 400px;
+    top: 139px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    pointer-events: none;
+}
+#player-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+#player-name {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: white;
+  text-align: right;
+}
+#player-id {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: white;
+  text-align: right;
+}
+#player-avatar {
+  width: 61px; height: 61px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid white;
+  flex-shrink: 0;
+}
+#player-avatar img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* Content area */
+#content-area {
+  position: absolute;
+  left: 360px; top: 538px;
+  display: flex;
+  gap: 11px;
+}
+
+/* Big left card */
+.card-big {
+  width: 313px;
+  height: 346px;
+  flex-shrink: 0;
+}
+
+/* Right grid */
+#right-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 277px);
+  grid-template-rows: repeat(2, 167px);
+  gap: 11px;
+}
+
+/* Menu card base */
+.menu-card {
+  background: rgba(19, 19, 19, 0.7);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, border-color 0.2s;
+  user-select: none;
+  padding: 14px 16px;
+}
+.menu-card:hover {
+  background: rgba(40, 35, 25, 0.85);
+  transform: scale(1.02);
+  border: 2px solid #f0ca78;
+}
+.menu-card:active { transform: scale(0.98); }
+
+/* Card background image */
+.card-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.menu-card {
+  position: relative;
+}
+.menu-card:hover .card-bg { opacity: 0.55; }
+.card-title, .card-sub { position: relative; z-index: 1; }
+
+/* Gold border card */
+.card-gold {
+  border: 2px solid transparent;
+}
+
+.card-icon {
+  font-size: 36px;
+  display: none;
+}
+.card-big .card-icon { font-size: 52px; }
+
+.card-title {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: white;
+  text-align: right;
+  line-height: 1.2;
+}
+.card-big .card-title { font-size: 28px; }
+
+.card-sub {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #ccc7c7;
+  text-align: right;
+  line-height: 1.3;
+}
+
+/* Preview overlay */
+#preview-overlay {
+  display: none;
+  position: fixed;
+  left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  background: url('../assets/AllMenu.png') no-repeat center center / cover;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Close hint */
+#close-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Kanit', sans-serif;
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  pointer-events: none;
+}

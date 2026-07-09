@@ -1,0 +1,341 @@
+/* ███╗░░░███╗░░░░░██╗██████╗░███████╗██╗░░░██╗
+    ████╗░████║░░░░░██║██╔══██╗██╔════╝██║░░░██║
+    ██╔████╔██║░░░░░██║██║░░██║█████╗░░╚██╗░██╔╝
+    ██║╚██╔╝██║██╗░░██║██║░░██║██╔══╝░░░╚████╔╝░
+    ██║░╚═╝░██║╚█████╔╝██████╔╝███████╗░░╚██╔╝░░
+    ╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚══════╝░░░╚═╝░░░
+    Discord: https://discord.gg/gHRNMDQKzb 
+    ลิขสิทธิ์ © 2026 MJDev | All rights reserved 
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;700&display=swap');
+
+:root {
+    --gold: #cba657;
+    --gold-bright: #f0d58e;
+    --gold-dark: #8B7355;
+    --border-color: rgba(203, 166, 87, 0.2);
+    --green-reward: #28a745;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Oswald', sans-serif;
+    background: transparent;
+}
+
+/* 🟢 CONTAINER: จัดตำแหน่งไว้ขอบล่างจอ */
+#ui-container {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.85);
+    transform-origin: bottom center;
+    width: auto;
+    min-width: 950px;
+}
+
+/* 🟢 WRAPPER: แถบดำทองแนวนอน */
+.main-wrapper {
+    background: linear-gradient(90deg,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.95) 10%,
+            rgba(0, 0, 0, 0.95) 90%,
+            rgba(0, 0, 0, 0) 100%);
+    border-top: 2px solid var(--gold);
+    border-bottom: 2px solid var(--gold);
+    padding: 15px 40px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 1);
+}
+
+/* 🟢 LIST: ความสูงเพื่อให้ภาพใหญ่ขึ้น */
+#recipes-list {
+    max-height: 450px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+#recipes-list::-webkit-scrollbar {
+    width: 1px;
+}
+
+#recipes-list::-webkit-scrollbar-thumb {
+    background: var(--gold);
+}
+
+/* 🟢 ROW: รายการแต่ละแถว (Stack บนลงล่าง) */
+.recipe-row {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid var(--border-color);
+    margin-bottom: 12px;
+    padding: 12px;
+    transition: 0.2s;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.recipe-row:hover {
+    background: rgba(203, 166, 87, 0.02);
+    border-color: rgba(203, 166, 87, 0.4);
+}
+
+/* 🟢 TOP AREA: วัตถุดิบ & แถบเวลา */
+.recipe-top-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* 🟢 LEFT: INPUT */
+.recipe-input-area {
+    display: flex;
+    align-items: center;
+    width: 30%; /* 🟢 ลดจาก 35% เหลือ 30% เพื่อขยับหลอดมาทางซ้าย */
+}
+
+/* ขยายกรอบและรูปไอเทม INPUT */
+.icon-box-input {
+    width: 65px;
+    height: 65px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--gold);
+    margin-right: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.icon-box-input img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.info-box-input {
+    display: flex;
+    flex-direction: column;
+}
+
+.label-top {
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    text-transform: uppercase;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+/* 🟢 ตัวหนังสือบอกจำนวน IN POCKET */
+.item-stock { 
+    font-size: 11px; 
+    color: rgba(255, 255, 255, 0.6); 
+    margin-top: 2px; 
+    font-weight: 700; 
+    letter-spacing: 1px; 
+}
+
+/* 🟢 CENTER: PROGRESS & BUTTONS */
+.recipe-process-area {
+    display: flex;
+    align-items: center;
+    width: 70%; /* 🟢 ขยายเป็น 70% เพื่อเติมเต็มพื้นที่ (30+70 = 100%) */
+    padding-right: 5px; /* เว้นระยะห่างขอบขวาเล็กน้อย */
+    gap: 15px;
+}
+
+.progress-bar-bg {
+    flex-grow: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(203, 166, 87, 0.15);
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+    box-shadow: 0 0 8px var(--gold);
+}
+
+.btn-group-input {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 5px 15px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: #fff;
+    font-size: 12px;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: 0.1s;
+    min-width: 80px;
+}
+
+.btn:hover {
+    background: var(--gold);
+    color: #000;
+    box-shadow: 0 0 5px var(--gold);
+}
+
+.btn-auto {
+    background: rgba(203, 166, 87, 0.1);
+}
+
+/* 🔴 ปุ่ม Cancel */
+.btn-cancel {
+    background: rgba(200, 0, 0, 0.1);
+    border-color: #ff4d4d;
+    color: #ffcccc;
+}
+
+.btn-cancel:hover {
+    background: #ff4d4d;
+    color: #fff;
+    box-shadow: 0 0 8px #ff4d4d;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 🔙 BOTTOM AREA: OUTPUT/STASH */
+.recipe-bottom-group {
+    width: 100%;
+    border-top: 1px solid rgba(203, 166, 87, 0.1);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.output-header-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+/* 🟢 ปุ่ม CLAIM REWARDS */
+.btn-claim {
+    background: linear-gradient(180deg, #2d7a2d, #1a4d1a);
+    border: 1px solid #3eb03e;
+    color: white;
+    font-size: 11px;
+    padding: 4px 15px;
+    cursor: pointer;
+    border-radius: 1px;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 1px;
+    transition: 0.1s;
+    align-self: center;
+}
+
+.btn-claim:hover {
+    background: #3eb03e;
+    box-shadow: 0 0 8px #3eb03e;
+}
+
+/* 🟢 รายการรางวัลเรียงแนวนอน */
+.rewards-wrapper-group {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}
+
+/* ขยายกรอบและรูปไอเทม OUTPUT */
+.reward-item {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 5px 12px;
+    width: auto;
+    min-width: 70px;
+    gap: 8px;
+    position: relative;
+}
+
+.reward-item:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.reward-item img {
+    width: 35px;
+    height: 35px;
+    object-fit: contain;
+}
+
+.reward-amount {
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 700;
+}
+
+/* 🟢 ตัวเลขบอกจำนวนสะสม */
+.pending-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--green-reward);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 1px solid #1a4d1a;
+    font-family: 'Oswald', sans-serif;
+    z-index: 5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* 🟢 MISC */
+.close-hint {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.2);
+    margin-top: 12px;
+    letter-spacing: 2px;
+}
+
+.key-x {
+    color: var(--gold);
+    font-weight: bold;
+    border: 1px solid var(--gold);
+    padding: 0 4px;
+    margin: 0 3px;
+}
+
+.disabled {
+    pointer-events: none;
+    opacity: 0.15;
+    filter: grayscale(1);
+}

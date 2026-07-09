@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="da-DK">
+
+<head>
+    <meta charset="utf-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://kit.fontawesome.com/723d9b901d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.0.0/animate.min.css" />
+    <link rel="stylesheet" href="style.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="board-container fixed-size">
+        <div class="header">
+            <img src="/html/image/logo.png" class="logo" />
+            <h1>MESSAGE BOARD</h1>
+            <h2>𝐑𝐞𝐝𝐌 𝐍𝐨𝐌𝐞𝐫𝐜𝐲</h2>
+        </div>
+
+        <div class="filter-buttons">
+            <button id="allBtn" class="btn red">ประกาศทั้งหมด</button>
+            <button id="mineBtn" class="btn black">ประกาศของฉัน</button>
+        </div>
+
+        <div id="post-list" class="post-list">
+            <!-- ประกาศจะแสดงที่นี่ -->
+        </div>
+
+        <button id="addPostBtn" class="btn send-btn" onclick="openPostModal()">เพิ่มประกาศใหม่</button>
+
+        <!-- Modal Form -->
+        <div id="postModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>WRITE POST</h2>
+                <input type="text" id="postText" placeholder="คุณกำลังคิดอะไรอยู่..." />
+                <input type="text" id="imageUrl" placeholder="URL รูปภาพ" />
+                <div class="form-buttons">
+                    <button class="btn black" onclick="closePostModal()">ยกเลิก</button>
+                    <button class="btn red" onclick="submitPost()">เขียนประกาศ</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

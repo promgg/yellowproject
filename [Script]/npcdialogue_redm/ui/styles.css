@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500&family=Roboto:ital,wght@0,100;0,400;1,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rye&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hepta+Slab:wght@1;100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@200;400;600;800&display=swap');
+
+:root {
+    --gold-color: rgb(255,180,55);
+    --gold2-color: rgba(255,180,55,0.4);
+    --dark-color: rgba(24, 24, 24, 0.856);
+    --dark2-color: rgba(0, 0, 0, 0);
+    --dark3-color: rgb(0, 0, 0);
+    --light-color: rgb(220, 220, 220);
+    --red-color: rgb(100, 0, 0);
+    --red2-color: rgba(100, 0, 0, 0.5);
+    --light2-color: rgba(220, 220, 220, 0.75);
+    --light3-color: rgba(220, 220, 220, 0.25);
+    --light4-color: rgba(220, 220, 220, 0.05);
+    --cash-color: rgb(90, 150, 60);
+    --cash2-color: rgba(90, 150, 60, 0.5);
+    --pink-color: rgb(200, 100, 150);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(30px); opacity: 0; }
+}
+
+.buttonkanka {
+    display: flex;
+    background: var(--dark-color);
+    width: 22vh;
+    margin: 5px 9px 10px 0px;
+    padding: 12px 3px 10px 0px;
+    transition: 0.4s;
+    animation: slideIn 0.3s ease forwards;
+}
+
+.buttonkanka.hide {
+    animation: slideOut 0.3s ease forwards;
+}
+
+body{
+    display: none;
+    margin: 0;
+    padding: 0;
+    background-color: #1e1e1e00;
+    background-repeat: no-repeat;
+    background-size: cover;
+    font-family: 'Hepta Slab', 'Sarabun', serif;
+    color: #d2d2d5;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+}
+
+.container {
+    position: absolute;
+    top: 76vh;
+    left: 68vh;
+    align-items: center;
+    justify-content: center;
+    animation: slideUp 0.5s ease forwards;
+}
+
+.container.hide {
+    animation: slideDown 0.5s ease forwards;
+}
+
+
+.esc {
+    position: absolute;
+    top: 36px;
+    right: 46px;
+    width: 32px;
+    height: 24px;
+    background-color: var(--red-color);
+    box-shadow: 0px 0px 18px 0px var(--red2-color);
+    padding: 5px;
+    border-radius: 3px;
+}
+
+.ucgensey {
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 13px 13px 0 0;
+    border-color: var(--dark2-color) transparent transparent transparent;
+    transform: rotate(0deg);
+}
+
+.vinyet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-shadow: 0px -20px 600px 125px rgb(0, 0, 0) inset;
+}
+
+.background {
+    width: 537px;
+    height: 233px;
+    border-radius: 21px;
+    background: var(--dark3-color);
+    position: absolute;
+}
+
+.npcnedio {
+    display: flex;
+    background: var(--dark-color);
+    padding: 6px;
+    width: 481px;
+    margin-bottom: 6px;
+}
+
+#npcismiaq {
+    font-size: 27px;
+    font-family: 'Rye', cursive;
+    text-transform: uppercase;
+    font-size: 3vh;
+    color: var(--gold-color);
+}
+
+.icindekicontainer {
+    margin-top: 15px;
+    margin-left: 21px;
+    width: 464px;
+    height: 10px;
+}
+
+.buttonkanka {
+    display: flex;
+    background: var(--dark-color);
+    width: 22vh;
+    margin: 5px 9px 10px 0px;
+    padding: 12px 3px 10px 0px;
+    /* justify-content: center; */
+    transition: 0.4s;
+}
+
+.buttonkanka:hover {
+    transform: scale(1.03);
+    transition: 0.4s;
+}
+
+.buttonsayi {
+    transition: opacity 1s ease;
+    /* Geçiş efekti için */
+    justify-items: center;
+    text-align: center;
+    justify-content: center;
+    background: var(--dark3-color);
+    color: var(--gold2-color);
+    float: left;
+    padding: 2px;
+    font-size: 17px;
+    margin: -3px 9px 8px 8px;
+    width: 25px;
+    height: 25px;
+}
+
+#npcmeslekamk {
+    font-size: 13px;
+    background-color: var(--dark2-color);
+    color: var(--cash-color);
+    padding: 4px 11px;
+    justify-items: center;
+    justify-content: center;
+    margin: 0px 0px 12px 1.5999999999999996vh;
+}
+
+.npcbilgileri {
+    display: flex;
+}
+
+.buttonlar {
+    display: flex;
+}
+
+.sagtaraf {
+    float: right;
+}
+
+.soltaraf {
+    float: left;
+}

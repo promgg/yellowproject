@@ -1,0 +1,22 @@
+RegisterCommand("me", function(source , args , rawCommand)
+    args = table.concat(args, ' ')
+    TriggerClientEvent('MJ-Text3D:event', -1, source, args, 0)
+end)
+
+RegisterCommand("do", function(source , args , rawCommand)
+    args = table.concat(args, ' ')
+    TriggerClientEvent('MJ-Text3D:event', -1, source, args, 1)
+end)
+
+
+Citizen.CreateThread(function()
+    Citizen.Wait(5000) 
+    print("##################################################")
+    print("##                                              ##")
+    print("##           \27[37mMJ DEV | Verify \27[32mSuccess\27[0m            ##")
+    print("##           \27[36mThank You For Purchase\27[0m             ##")
+    print("##           \27[34mVersion : 1.0 (Latest)\27[0m             ##")
+    print("##                                              ##")
+    print("##################################################")
+    print("###### \27[36mDiscord: https://discord.gg/gHRNMDQKzb\27[0m ####")
+end)

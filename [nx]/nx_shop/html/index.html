@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>nx_shop</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main id="shop" class="shop hidden" aria-hidden="true">
+        <section class="shop-shell">
+            <header class="shop-header">
+                <div>
+                    <div class="title-row">
+                        <h1 id="shopTitle">ร้านค้า</h1>
+                        <span class="line"></span>
+                        <span class="dot"></span>
+                    </div>
+                    <h2 id="shopSubtitle">BLACKWATER STORE</h2>
+                </div>
+            </header>
+
+            <nav id="categories" class="categories"></nav>
+
+            <section class="content-frame">
+                <div class="items-panel">
+                    <div id="items" class="items-grid"></div>
+                </div>
+
+                <aside class="cart-panel">
+                    <h3>SHOP CART</h3>
+                    <div id="cart" class="cart-list"></div>
+
+                    <div class="totals">
+                        <div class="total-row">
+                            <span>TOTAL MONEY</span>
+                            <i class="coin cash"></i>
+                            <strong id="cashTotal">0</strong>
+                        </div>
+                        <div class="total-row">
+                            <span>TOTAL BLACK<br>MONEY</span>
+                            <i class="coin black"></i>
+                            <strong id="blackTotal">0</strong>
+                        </div>
+                        <label class="bank-row">
+                            <input id="useBank" type="checkbox">
+                            <span></span>
+                            <b id="bankLabel">PAY WITH BANK + VAT 7%(0)</b>
+                        </label>
+                        <div class="actions">
+                            <button id="payBtn" class="pay" type="button">PAY</button>
+                            <button id="cancelBtn" class="cancel" type="button">CANCEL</button>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+        </section>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>

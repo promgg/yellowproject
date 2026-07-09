@@ -1,0 +1,103 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Kanit', sans-serif;
+  color: #ffffff;
+  background: transparent;
+  overflow: hidden;
+}
+
+.lt-prompt {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: 14vh;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 8px;
+  animation: lt-fade-in 160ms ease-out;
+}
+
+.lt-prompt.lt-mounted { bottom: 18vh; }
+
+.lt-prompt.lt-show { display: inline-flex; }
+
+/* โหมด world: ลอยติดพิกัดโลก (GetScreenCoordFromWorldCoord) แทนตำแหน่งกลางล่างจอปกติ —
+   left/top เป็น % ที่ Lua ส่งมาทุกเฟรม (worldPos), anchor จุดกึ่งกลางล่างของกล่องให้ลอยอยู่เหนือพิกัดพอดี */
+.lt-prompt.lt-world {
+  position: absolute;
+  bottom: auto;
+  left: 0; top: 0;
+  transform: translate(-50%, -100%);
+  animation: none;
+}
+
+.lt-prompt.lt-world.lt-mounted { bottom: auto; }
+
+.lt-badge {
+  position: relative;
+  width: 42px; height: 42px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(19, 19, 19, 0.9);
+  border-radius: 50%;
+}
+
+.lt-ring {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+}
+
+.lt-ring-track {
+  fill: none;
+  stroke: #2a2a2a;
+  stroke-width: 3;
+}
+
+.lt-ring-fill {
+  fill: none;
+  stroke: #f0ca78;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 113.1;
+  stroke-dashoffset: 0;
+}
+
+.lt-key {
+  position: relative;
+  z-index: 1;
+  min-width: 22px; height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #937036, #573d18);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.lt-textbox {
+  min-width: 110px;
+  width: fit-content;
+  height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(19, 19, 19, 0.9);
+  border: 1px solid #7c5526;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+
+.lt-text {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap;
+  color: #d9d9d9;
+}
+
+.lt-text .lt-hl { color: #f0ca78; font-weight: 700; }
+
+@keyframes lt-fade-in {
+  from { opacity: 0; transform: translate(-50%, 5px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}

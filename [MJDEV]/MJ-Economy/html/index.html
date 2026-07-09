@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="preview-overlay"><img src="img/preview.png" alt=""></div>
+
+<div id="app">
+
+  <!-- Modal backdrop -->
+  <div id="modal-backdrop"></div>
+
+  <div id="ui-root">
+
+  <!-- Main panel wooden texture -->
+  <img id="bg-panel" src="img/bg-panel.png" alt="">
+
+  <!-- Outer border area -->
+  <div id="content-border"></div>
+
+  <!-- Item grid -->
+  <div id="item-grid-wrap"><div id="item-grid"></div></div>
+
+  <!-- Title -->
+  <p id="title-th">ศูนย์กลางสินค้าส่งออก</p>
+  <p id="title-en">ECONOMY</p>
+  <div id="title-line"></div>
+  <div id="title-dot"></div>
+
+  <!-- ITEMS LIST ECONOMY (right of item grid, within main panel) -->
+  <p id="eco-label">ITEMS LIST ECONOMY</p>
+  <div id="eco-list"></div>
+
+  <!-- Bottom bar -->
+  <p id="lbl-sell-all-title">SELL ALL ITEMS</p>
+  <p id="lbl-total-price-bottom">TOTAL PRICE</p>
+  <p id="sell-all-total">0 $</p>
+  <button id="btn-sell-all">SELL ALL</button>
+
+  <!-- MENU SELL ALL floating panel -->
+  <div id="panel-sell-all">
+    <p id="lbl-psa-title" class="modal-title">MENU SELL ALL</p>
+    <div id="psa-items-box">
+      <p id="lbl-items-list">ITEMS LIST</p>
+      <div id="psa-items"></div>
+    </div>
+    <p id="lbl-psa-total-price">TOTAL PRICE</p>
+    <p id="psa-total">200,000 $</p>
+    <button class="confirm-btn" id="btn-confirm-all">CONFIRM</button>
+  </div>
+
+  <!-- MENU SELL floating panel (single item) -->
+  <div id="panel-sell">
+    <p id="lbl-ps-title" class="modal-title">MENU SELL</p>
+    <div id="ps-preview-box">
+      <img id="ps-item-img" src="" alt="">
+      <p id="ps-item-name">ชื่อไอเทม</p>
+      <p id="ps-item-price">1,000 $</p>
+    </div>
+    <p id="lbl-ps-items-count">ITEMS COUNT</p>
+    <div id="ps-qty-wrap">
+      <input id="qty-input" type="number" value="1" min="1">
+    </div>
+    <div id="ps-minmax">
+      <div id="ps-min-box"><button id="btn-min">MIN</button></div>
+      <div id="ps-max-box"><button id="btn-max">MAX</button></div>
+    </div>
+    <!-- <p id="ps-min-lbl">MIN</p>
+    <p id="ps-max-lbl">MAX</p> -->
+    <p id="lbl-ps-total-price">TOTAL PRICE</p>
+    <p id="ps-total">1,000 $</p>
+    <button class="confirm-btn" id="btn-confirm">CONFIRM</button>
+  </div>
+
+  </div><!-- /ui-root -->
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>

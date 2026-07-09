@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CMapTypes>
+  <extensions />
+  <archetypes>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="499"/>
+      <flags value="0" />
+      <loadFlags value="0x0000000000000000" />
+      <specialAttribute value="0" />
+      <bbMin x="-194.1738" y="-176.37909" z="-59.116606" />
+      <bbMax x="189.65826" y="183.19269" z="84.783297" />
+      <bsCentre x="-0.2577705" y="-0.593201" z="0.8333454" />
+      <bsRadius value="189.06546" />
+      <hdTextureDist value="60.0"/>
+      <name>valstreet_full</name>
+      <textureDictionary>val_street</textureDictionary>
+      <physicsDictionary />
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>valstreet_full</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+  </archetypes>
+  <name>valstreet_full</name>
+  <dependencies />
+  <compositeEntityTypes itemType="CCompositeEntityType" />
+</CMapTypes>

@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CMapTypes>
+  <extensions />
+  <archetypes>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-1.6086783" y="-3.59375" z="-0.2669127" />
+      <bbMax x="1.6945443" y="2.463379" z="3.5270326" />
+      <bsCentre x="0.042932987" y="-0.56518555" z="1.63006" />
+      <bsRadius value="3.936817" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco01</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco01</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco01</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+	<Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-1.6086783" y="-3.59375" z="-0.2669127" />
+      <bbMax x="1.6945443" y="2.463379" z="3.5270326" />
+      <bsCentre x="0.042932987" y="-0.56518555" z="1.63006" />
+      <bsRadius value="3.936817" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco02</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco02</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco02</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-3.7082925" y="-0.69565535" z="-0.21978831" />
+      <bbMax x="2.4025474" y="0.5094228" z="3.4057002" />
+      <bsCentre x="-0.65287256" y="-0.09311628" z="1.592956" />
+      <bsRadius value="3.603427" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco03</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco03</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco03</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-3.7082925" y="-0.69565535" z="-0.21978831" />
+      <bbMax x="2.4025474" y="0.5094228" z="3.4057002" />
+      <bsCentre x="-0.65287256" y="-0.09311628" z="1.592956" />
+      <bsRadius value="3.603427" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco04</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco04</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco04</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.7188644" y="-0.8964844" z="-0.16071832" />
+      <bbMax x="1.9930496" y="0.8964844" z="2.807055" />
+      <bsCentre x="-0.3629074" y="0.0" z="1.3231683" />
+      <bsRadius value="2.9250877" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco05</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco05</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco05</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.7188644" y="-0.8964844" z="-0.16071832" />
+      <bbMax x="1.9930496" y="0.8964844" z="2.807055" />
+      <bsCentre x="-0.3629074" y="0.0" z="1.3231683" />
+      <bsRadius value="2.9250877" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco06</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco06</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco06</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-5.7890625" y="-1.1616211" z="-1.7636719" />
+      <bbMax x="6.0024414" y="0.59716797" z="2.0927734" />
+      <bsCentre x="0.10668945" y="-0.28222656" z="0.16455078" />
+      <bsRadius value="6.2650833" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco07</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco07</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco07</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-5.7890625" y="-1.1616211" z="-1.7636719" />
+      <bbMax x="6.0024414" y="0.59716797" z="2.0927734" />
+      <bsCentre x="0.10668945" y="-0.28222656" z="0.16455078" />
+      <bsRadius value="6.2650833" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco08</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco08</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco08</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-5.7890625" y="-1.1616211" z="-1.7636719" />
+      <bbMax x="6.0024414" y="0.59716797" z="2.0927734" />
+      <bsCentre x="0.10668945" y="-0.28222656" z="0.16455078" />
+      <bsRadius value="6.2650833" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco09</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco09</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco09</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-1.8749312" y="-6.304199" z="-1.9648438" />
+      <bbMax x="1.8272426" y="6.304199" z="2.0710685" />
+      <bsCentre x="-0.023844302" y="0.0" z="0.053112388" />
+      <bsRadius value="6.8732524" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco10</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco10</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco10</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-1.8749312" y="-6.304199" z="-1.9648438" />
+      <bbMax x="1.8272426" y="6.304199" z="2.0710685" />
+      <bsCentre x="-0.023844302" y="0.0" z="0.053112388" />
+      <bsRadius value="6.8732524" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gardendeco11</name>
+      <textureDictionary>tex_gardendeco</textureDictionary>
+      <physicsDictionary>ntc_gardendeco11</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gardendeco11</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.8131447" y="-3.6029706" z="-0.3006208" />
+      <bbMax x="3.8767967" y="3.099666" z="3.2272112" />
+      <bsCentre x="0.531826" y="-0.25165224" z="1.4632952" />
+      <bsRadius value="5.052877" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_pavillion05</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_pavillion05</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_pavillion05</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.8131447" y="-3.6029706" z="-0.3006208" />
+      <bbMax x="3.8767967" y="3.099666" z="3.2272112" />
+      <bsCentre x="0.531826" y="-0.25165224" z="1.4632952" />
+      <bsRadius value="5.052877" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_pavillion06</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_pavillion06</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_pavillion06</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.8131447" y="-3.6029706" z="-0.3006208" />
+      <bbMax x="3.8767967" y="3.099666" z="3.2272112" />
+      <bsCentre x="0.531826" y="-0.25165224" z="1.4632952" />
+      <bsRadius value="5.052877" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_pavillion07</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_pavillion07</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_pavillion07</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-4.494629" y="-5.3125" z="-0.08070326" />
+      <bbMax x="4.495117" y="5.301758" z="14.450546" />
+      <bsCentre x="0.00024414062" y="-0.0053710938" z="7.1849213" />
+      <bsRadius value="10.057774" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gazebo08</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_gazebo08</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gazebo08</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-2.3759766" y="-2.1279364" z="0.010905743" />
+      <bbMax x="2.3354492" y="2.2661066" z="5.5362964" />
+      <bsCentre x="-0.020263672" y="0.06908512" z="2.773601" />
+      <bsRadius value="4.2436743" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gazebo09</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_gazebo09</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gazebo09</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-5.3432617" y="-2.241211" z="0.04720664" />
+      <bbMax x="5.3999023" y="9.015625" z="7.9822655" />
+      <bsCentre x="0.028320312" y="3.387207" z="4.014736" />
+      <bsRadius value="8.733514" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gazebo10</name>
+      <textureDictionary>tex_gazebo</textureDictionary>
+      <physicsDictionary>ntc_gazebo10</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gazebo10</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+    <Item type="CBaseArchetypeDef">
+      <guid value="0"/>
+      <lodDist value="50.00000000"/>
+      <flags value="570556416" />
+      <loadFlags value="570556416" />
+      <specialAttribute value="0" />
+      <bbMin x="-11.731445" y="-11.531738" z="-1.4990234" />
+      <bbMax x="11.769043" y="11.478516" z="6.349121" />
+      <bsCentre x="0.018798828" y="-0.026611328" z="2.4250488" />
+      <bsRadius value="16.906641" />
+      <hdTextureDist value="60.0"/>
+      <name>ntc_gazeboarea01</name>
+      <textureDictionary>tex_gazeboarea</textureDictionary>
+      <physicsDictionary>ntc_gazeboarea01</physicsDictionary>
+      <clipDictionary />
+      <drawableDictionary />
+      <assetType>ASSET_TYPE_DRAWABLE</assetType>
+      <assetName>ntc_gazeboarea01</assetName>
+      <extensions />
+      <redm_loves_you_a68fd88a5afa0b22 />
+    </Item>
+  </archetypes>
+  <name>ntc_gardenpack_v2</name>
+  <dependencies />
+  <compositeEntityTypes itemType="CCompositeEntityType" />
+</CMapTypes>

@@ -1,0 +1,99 @@
+@import url(https://fonts.googleapis.com/css2?family=Kanit:wght@450;500&display=swap);
+*
+{
+    user-select: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Kanit', sans-serif;
+    color: #FFF;
+}
+body
+{
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 100vh;
+    background-size: cover;
+}
+
+.container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 50vh;
+    height: 10vh;
+    margin-bottom: 0vh;
+    top: -13vh;
+}
+
+.bg{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60%;
+    height: 3.5vh;
+    margin-top: 2vh;
+    border-radius: .5vh;
+    /* background-color: rgba(0, 0, 0, 0.8); */
+}
+
+.progress {
+    overflow: hidden;
+    width: 95%;
+    height: 25%;
+    border-radius: 1vh;
+    background-color: rgba(0, 0, 0, 0.544);
+    padding: .25vh .5vh;
+    display: flex;
+    align-items: center;
+    /* border: 1px solid red; */
+}
+
+.text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    left: 20%;
+    top: 3.2vh;
+    width: auto;
+    height: auto;
+    border-radius: .5vh;
+    left: 50%;
+    transform: translateX(-50%);
+    text-shadow: 0 0 .5vh black;
+}
+
+.text span {
+    padding-left: 1vh;
+    font-size: 1.2vh;
+}
+.text img {
+    margin-right: 1vh;
+    margin-left: .5vh;
+    width: 1.5vh;
+    height: 1.5vh;
+    animation: x 2s linear infinite;
+}
+
+#progress-bar {
+    width: 100%;
+    height: 100%;
+    border-radius: 1vh;
+    /* background: linear-gradient(90deg,rgb(128, 187, 255),rgb(20, 83, 126)); */
+    
+    background: rgb(225, 0, 255);
+    background: linear-gradient(45deg, rgb(247, 0, 255) 22%, rgba(19,172,252,1) 100%);
+}
+
+@keyframes x {
+    from{
+        transform: rotate(0deg);
+    }
+    to{
+        transform: rotate(360deg);
+    }
+}

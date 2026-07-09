@@ -1,0 +1,466 @@
+@import url('https://fonts.googleapis.com/css2?family=Mitr:wght@300;500&display=swap');
+
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+:root {
+    --main-color1: rgba(17, 17, 17, 0.808);
+    --inner-color1: rgba(31, 31, 31, 0.9);
+    --inner-color2: rgba(0, 0, 0, 0.5);
+    --solid-main-color1: solid 1.5px rgba(255, 72, 72, 0.5);
+    --solid-main-color2: solid 3px rgba(194, 34, 34, 0.637);
+    --main-button1: rgba(163, 0, 30, 0.8);
+    --solid-main-button1: solid 1.5px rgb(242, 42, 79);
+    --main-color2: rgb(242, 42, 79);
+    --text-main-color: #fff;
+}
+
+body {
+    font-family: 'Mitr';
+    user-select: none;
+	-o-user-select:none;
+	-moz-user-select: none;
+	-khtml-user-select: none;
+	-webkit-user-select: none;
+    /* background-color: bisque; */
+}
+
+.container{
+    display: none;
+    position: absolute;
+    transform: translateX(-50%);
+    left: 50%;
+    bottom: 2%;
+    height: 200px;
+    width: 1950px;
+}
+
+.background-inner {
+    position: absolute;
+    transform: translateX(-50%);
+    left: 50%;
+    bottom: -10%;
+    height: 270px;
+    width: 1050px;
+    border-radius: 20px;
+    background-image: url('/html/img/aBG.png');
+    background-size: cover;
+}
+
+.header-main {
+    position: absolute;
+    left: 0%;
+    top: -5%;
+    border-radius: 10px;
+    background: var(--main-color1);
+    border: var(--solid-main-color2);
+    width: 960px;
+    height: 50px;
+    display: flex;             /* ใช้ Flexbox */
+    align-items: center;      /* จัดแนวแนวตั้งให้อยู่ตรงกลาง */
+    justify-content: center;  /* จัดแนวแนวนอนให้อยู่ตรงกลาง */
+    color: #fff;              /* สีข้อความ (สามารถเปลี่ยนตามต้องการ) */
+    font-size: 16px;          /* ขนาดฟอนต์ (ปรับตามที่ต้องการ) */
+}
+
+.background{
+    position: absolute;
+    transform: translate(-50%, -50%);
+    left: 50%;
+    top: 50%;
+}
+
+.leftbox{
+    display: inline-block;
+    position: relative;
+    width: 150px;
+    height: 179px;
+    /* background-color: blue; */
+}
+
+.centerbox{
+    display: inline-block;
+    position: relative;
+    min-width: 650px;
+    height: 225px;
+    /* background-color: #f2002d; */
+}
+
+.rightbox{
+    display: inline-block;
+    position: relative;
+    width: 150px;
+    height: 179px;
+    /* background-color: blue; */
+}
+
+.centerbox .header{
+    position: absolute;
+    width: 100%;
+    height: 20%;
+    border-top-right-radius: 10px;
+    border-top-left-radius: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    font-size: 18px;
+    font-weight: bold;
+    color: rgb(255, 255, 255);
+
+}
+
+.centerbox .section{
+    position: absolute;
+    top: 21%;
+    right: 10%;
+    width: 100%;
+    height: 15%;
+}
+
+.centerbox .body{
+    position: absolute;
+    top: 37%;
+    width: 100%;
+    height: 63%;
+    background: var(--inner-color2);
+    border-radius: 10px;
+}
+
+.centerbox .header span i {
+    font-size: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.centerbox .AnimalBox {
+    display: inline-block;
+    position: relative;
+    width: 116.5px;
+    height: 92%;
+    margin-top: 5px;
+    margin-left: 5px;
+    background: var(--inner-color1);
+
+    border-radius: 10px;
+    border: var(--solid-main-color1);
+}
+
+.centerbox .AnimalBox .header {
+    position: absolute;
+    width: 100%;
+    height: 20%;
+
+    border-top-right-radius: 10px;
+    border-top-left-radius: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: rgb(255, 255, 255);
+}
+
+.centerbox .AnimalBox .animal {
+    top: 20%;
+    position: absolute;
+    width: 100%;
+    height: 65%;
+
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    font-weight: bold;
+    color: rgb(255, 255, 255);
+}
+
+.centerbox .AnimalBox .animal:hover{
+    cursor: pointer;
+}
+
+.centerbox .AnimalBox .footer{
+    top: 85%;
+    position: absolute;
+    width: 100%;
+    height: 15%;
+
+    border-bottom-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+.centerbox .AnimalBox .footer .loadbar {
+    margin: 5px;
+    position: absolute;
+    width: 92%;
+    height: 60%;
+    background-color: var(--main-color1);
+    border-radius: 20px;
+}
+.centerbox .AnimalBox .footer .loadbar2 {
+    width: 0%;
+    height: 100%;
+    background-color: var(--main-color2);
+    border-radius: 20px;
+}
+
+.centerbox .animalcount{
+    position: absolute;
+    width: 50px;
+    height: 100%;
+    right: 0px;
+    font-family: 'Mitr';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: rgb(255, 255, 255);
+}
+
+.centerbox .animalline{
+    position: absolute;
+    width: 400px;
+    height: 2px;
+    background-color: #d81212;
+    border-radius: 5px;
+    left: 30%;
+    top: 49%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.centerbox .animalprice{
+    position: absolute;
+    width: 50px;
+    height: 100%;
+    left: 135px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Mitr';
+    font-weight: 300;
+    font-size: 18px;
+    color: rgb(255, 255, 255);
+}
+
+.leftbox .header{
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 135px;
+    height: 40px;
+
+    border-radius: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: rgb(255, 255, 255);
+}
+
+.leftbox .body{
+    position: absolute;
+    top: 2%;
+    width: 100%;
+    height: 98%;
+    background: var(--inner-color2);
+
+    border-radius: 10px;
+
+    align-items: center;
+    justify-content: left;
+    font-size: 14px;
+    color: rgb(255, 255, 255);
+    font-weight: 300;
+}
+.leftbox .body i {
+    font-size: 20px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.leftbox .body-text{
+    margin-top: 60px;
+    margin-left: 5px;
+}
+
+.rightbox .header{
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 135px;
+    height: 40px;
+    border-radius: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: rgb(255, 255, 255);
+}
+
+.rightbox .body{
+    position: absolute;
+    top: 2%;
+    width: 100%;
+    height: 98%;
+    background: var(--inner-color2);
+
+    border-radius: 10px;
+
+    align-items: center;
+    justify-content: left;
+    font-size: 14px;
+    font-weight: 300;
+    color: rgb(255, 255, 255);
+}
+.rightbox .body i {
+    font-size: 20px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.rightbox .body img {
+    margin-top: 10px;
+    margin-left: 40px;
+}
+
+.rightbox .body-text{
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#animal {
+    animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+    0% {
+        transform: translateY(0); /* เริ่มต้นที่ตำแหน่งเดิม */
+    }
+    25% {
+        transform: translateY(-10px); /* ขยับขึ้น */
+    }
+    50% {
+        transform: translateY(0); /* กลับมาที่ตำแหน่งเดิม */
+    }
+    75% {
+        transform: translateY(10px); /* ขยับลง */
+    }
+    100% {
+        transform: translateY(0); /* กลับมาที่ตำแหน่งเดิม */
+    }
+}
+
+@keyframes zoomInOut {
+    0% {
+        transform: scale(1); /* เริ่มต้นขนาดปกติ */
+    }
+    50% {
+        transform: scale(1.2); /* ซูมเข้าขนาด 1.2 เท่า */
+    }
+    100% {
+        transform: scale(1); /* กลับไปขนาดปกติ */
+    }
+}
+
+#AnimalFeed {
+    animation: zoomInOut 1s infinite; /* ความเร็ว 1 วินาที และวนซ้ำตลอดเวลา */
+}
+
+.pet-alert {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(17, 17, 17, 0.719);
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    display: none; /* ซ่อนเริ่มต้น */
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    animation: fadein 0.5s ease-in-out;
+}
+
+.pet-alert img {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+}
+
+@keyframes fadein {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+i.fa-plus {
+    transition: transform 0.3s ease;
+}
+
+i.fa-plus:hover {
+    transform: scale(1.1);
+}
+
+/* Style for the loading icon */
+.loading-icon {
+    display: inline-block;
+    width: 30px;
+    height: 20px;
+    justify-content: space-between;
+    position: relative;
+}
+
+.line {
+    width: 8px;
+    height: 8px;
+    background-color: #fff;  /* White or any color of your choice */
+    border-radius: 50%;
+    position: absolute;
+    animation: bounce 0.8s infinite alternate;
+}
+
+.line:nth-child(1) {
+    left: 0;
+    animation-delay: 0s;
+}
+
+.line:nth-child(2) {
+    left: 12px;
+    animation-delay: 0.2s;
+}
+
+.line:nth-child(3) {
+    left: 24px;
+    animation-delay: 0.4s;
+}
+
+/* Keyframe for the bounce animation */
+@keyframes bounce {
+    0% {
+        top: 0;
+    }
+    50% {
+        top: -10px;
+    }
+    100% {
+        top: 0;
+    }
+}
+
+.delete-btn {
+    font-size: 20px;  /* ปรับขนาดไอคอนถังขยะ */
+    cursor: pointer;  /* เปลี่ยนเคอร์เซอร์เมื่อชี้ที่ไอคอน */
+    transition: transform 0.3s ease;  /* เพิ่มการเปลี่ยนแปลงเมื่อชี้ที่ไอคอน */
+}
+
+.delete-btn:hover {
+    transform: scale(1.2);  /* ขยายขนาดเล็กน้อยเมื่อชี้ที่ไอคอน */
+    color: #ff0000;
+}

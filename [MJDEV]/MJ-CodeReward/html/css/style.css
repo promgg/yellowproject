@@ -1,0 +1,218 @@
+@font-face {
+  font-family: 'Copperplate Gothic';
+  src: url('../copperplategothic_bold.ttf') format('truetype');
+  font-weight: bold;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+#app {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+}
+#app.hidden { display: none; }
+
+#preview-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  background: url('../preview.png') no-repeat center/cover;
+  opacity: 0.5;
+  pointer-events: none;
+  display: none;
+}
+
+#bg-img {
+  position: absolute;
+  inset: 0;
+  width: 1920px; height: 1080px;
+  object-fit: cover;
+  pointer-events: none;
+  display: none;
+}
+
+/* ── Player panel (dark box) ── */
+#playerPanel {
+  position: absolute;
+  left: 810px; top: 515px;
+  width: 300px; height: 79px;
+  background: rgba(15, 13, 10, 0.9);
+  border: 2px solid rgba(255, 149, 0, 0.1);
+  border-radius: 10px;
+}
+#playerPanel.hidden { display: none; }
+
+/* ── Gold dot  (relative to panel) ── */
+#deco-gold-dot {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 9px;
+  height: 9px;
+  background: #e5c275;
+  border-radius: 50%;
+  box-shadow: 0 0 10px 0 rgb(255 246 0 / 50%);
+}
+
+/* ── Labels (relative to panel) ── */
+#lbl-title-th {
+  position: absolute;
+  left: 26px;
+  top: -9px;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: #ffffff;
+  line-height: 40px;
+  white-space: nowrap;
+}
+
+#lbl-title-en {
+  position: absolute;
+  left: 26px;
+  top: 4px;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 10px;
+  color: #ae8e6a;
+  line-height: 40px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Separator (relative to panel) ── */
+#deco-line {
+  position: absolute;
+  left: 128px;
+  top: 11px;
+  width: 46px; height: 1px;
+  background: #a4a4a4;
+}
+
+#deco-circle {
+  position: absolute;
+    left: 174px;
+    top: 9.5px;
+    width: 3.5px;
+    height: 3.5px;
+    background: #a4a4a4;
+    border-radius: 50%;
+}
+
+/* ── Input (relative to panel) ── */
+#playerCode {
+  position: absolute;
+  left: 15px; top: 35px;
+  width: 270px; height: 34px;
+  background: #453727;
+  border: none;
+  border-radius: 5px;
+  padding: 0 10px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 12px;
+  color: #ffffff;
+  text-align: center;
+  outline: none;
+  transition: box-shadow 0.2s;
+}
+#playerCode::placeholder {
+  color: rgba(229, 194, 117, 0.35);
+  font-size: 11px;
+}
+#playerCode:focus {
+  box-shadow: 0 0 8px rgba(255, 149, 0, 0.35);
+}
+
+/* ── Admin panel ── */
+#adminPanel {
+  position: absolute;
+  left: 810px; top: 420px;
+  width: 300px;
+  background: rgba(15, 13, 10, 0.9);
+  border: 2px solid rgba(255, 149, 0, 0.1);
+  border-radius: 10px;
+  padding: 38px 15px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+#adminPanel.hidden { display: none; }
+
+/* decorative elements ใน admin — ใช้ style เดียวกับ playerPanel */
+.admin-gold-dot {
+  position: absolute;
+  left: 10px; top: 10px;
+  width: 9px; height: 9px;
+  background: #e5c275;
+  border-radius: 50%;
+  box-shadow: 0 0 10px 0 rgba(255, 246, 0, 0.5);
+}
+.admin-lbl-en {
+  position: absolute;
+  left: 26px;
+  top: 6px;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 10px;
+  color: #ae8e6a;
+  line-height: 40px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-lbl-th {
+  position: absolute;
+  left: 26px; top: -9px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 12px;
+  color: #ffffff;
+  line-height: 40px;
+  white-space: nowrap;
+}
+.admin-deco-line {
+  position: absolute;
+  left: 128px; top: 14px;
+  width: 46px; height: 1px;
+  background: #a4a4a4;
+}
+.admin-deco-circle {
+  position: absolute;
+  left: 174px; top: 12.5px;
+  width: 3.5px; height: 3.5px;
+  background: #a4a4a4;
+  border-radius: 50%;
+}
+
+#generatedCode {
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px;
+  color: #e5c275;
+  letter-spacing: 1px;
+  min-height: 20px;
+  text-align: center;
+}
+
+.btn-generate, .btn-cancel, .btn-copy {
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #9a7853;
+  transition: filter 0.15s;
+  color: #ffffff;
+}
+.btn-generate { background: linear-gradient(180deg, #937036 0%, #573d18 100%); }
+.btn-cancel   { background: linear-gradient(180deg, #444 0%, #2a2a2a 100%); border-color: #555; }
+.btn-copy     { background: linear-gradient(180deg, #937036 0%, #573d18 100%); }
+.btn-generate:hover, .btn-cancel:hover, .btn-copy:hover { filter: brightness(1.15); }

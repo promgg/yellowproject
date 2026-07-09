@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<CMapData>
+	<flags value="2"/>
+	<contentFlags value="65"/>
+	<streamingExtentsMin x="2509.669922" y="946.758911" z="-357.057796"/>
+	<streamingExtentsMax x="3347.797607" y="1782.478394" z="446.948242"/>
+	<entitiesExtentsMin x="2859.669922" y="1296.758911" z="-7.057796"/>
+	<entitiesExtentsMax x="2997.797607" y="1432.478394" z="96.948242"/>
+	<entities>
+		<Item type="CEntityDef">
+			<archetypeName>schrank29</archetypeName>
+			<flags value="1572897"/>
+			<position x="2924.260010" y="1364.089966" z="44.160000"/>
+			<rotation w="0.173648" x="0.000000" y="-0.000000" z="-0.984808"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>schrank32</archetypeName>
+			<flags value="1572897"/>
+			<position x="2925.219971" y="1368.339966" z="44.160000"/>
+			<rotation w="0.986104" x="-0.000000" y="0.000000" z="0.166130"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>schrank27</archetypeName>
+			<flags value="1572897"/>
+			<position x="2925.389404" y="1372.079956" z="44.119999"/>
+			<rotation w="0.986286" x="-0.000000" y="0.000000" z="0.165048"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>schrank32</archetypeName>
+			<flags value="1572897"/>
+			<position x="2925.468506" y="1369.132080" z="44.160000"/>
+			<rotation w="0.165047" x="0.000000" y="-0.000000" z="-0.986286"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>schrank28</archetypeName>
+			<flags value="1572897"/>
+			<position x="2927.080078" y="1365.420044" z="44.160000"/>
+			<rotation w="0.166395" x="0.000000" y="-0.000000" z="-0.986059"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+		<Item type="CEntityDef">
+			<archetypeName>schrank33</archetypeName>
+			<flags value="1572897"/>
+			<position x="2930.379883" y="1370.369995" z="44.110001"/>
+			<rotation w="0.983255" x="-0.000000" y="0.000000" z="0.182236"/>
+			<scaleXY value="1"/>
+			<scaleZ value="1"/>
+			<parentIndex value="-1"/>
+			<lodDist value="50"/>
+			<childLodDist value="0"/>
+			<lodLevel>LODTYPES_DEPTH_HD</lodLevel>
+			<numChildren value="0"/>
+			<ambientOcclusionMultiplier value="255"/>
+			<artificialAmbientOcclusion value="255"/>
+		</Item>
+	</entities>
+</CMapData>

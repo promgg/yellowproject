@@ -1,0 +1,235 @@
+/* ================================================
+   MJ-Planting NUI — 1920×1080
+   ================================================ */
+
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+#preview-overlay {
+  position: absolute; left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  background-image: url('../assets/preview.png');
+  background-size: 1920px 1080px;
+  opacity: 0.5; pointer-events: none; z-index: 999; display: none;
+}
+
+#root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+#root.hidden { display: none; }
+.hidden { display: none !important; }
+
+/* ════════════════════════════════════════
+   DROP PANEL  left:41 top:437 w:233 h:121
+   ════════════════════════════════════════ */
+#drop-panel {
+  position: absolute;
+  left: 41px; top: 437px;
+  width: 233px; height: 121px;
+  border: 1px solid rgba(237,184,126,0.5);
+  border-radius: 20px;
+  box-shadow: 0 0 5px #94583d;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 100%),
+    radial-gradient(ellipse at bottom center, #be893b 0%, rgba(143,103,44,0.75) 25%, rgba(95,69,30,0.5) 50%, rgba(48,34,15,0.25) 75%, transparent 100%);
+}
+
+#dp-title {
+  position: absolute; left: 14px; top: 16px;
+  font-family: 'Kanit', sans-serif; font-size: 12px; color: #fff; white-space: nowrap;
+}
+#dp-label {
+  position: absolute; left: 15px; top: 35px;
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 10px; color: #ae8e6a; letter-spacing: 1px;
+}
+#dp-line { position: absolute; left: 99px; top: 27px; width: 47px; height: 1px; background: #a4a4a4; }
+#dp-dot  { position: absolute; left: 144px; top: 25px; width: 3.5px; height: 3.5px; border-radius: 50%; background: #a4a4a4; }
+
+#dp-slots { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+
+.dp-slot {
+  position: absolute; background: #131313; border: 1px solid #434343;
+  display: flex; align-items: center; justify-content: center;
+}
+.dp-slot.has-item { border: 1px solid transparent; border-image: linear-gradient(180deg, #434343 0%, #F0CA78 100%) 1; }
+.dp-slot img { width: 80%; height: 80%; object-fit: contain; }
+.dp-slot-label {
+  position: absolute; bottom: 1px; right: 2px;
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 7px; color: #f0ca78; line-height: 1;
+}
+
+/* 4 slots in a single row */
+.dp-slot:nth-child(1) { left: 16px;  top: 57px; width: 42px; height: 37px; }
+.dp-slot:nth-child(2) { left: 67px;  top: 57px; width: 42px; height: 37px; }
+.dp-slot:nth-child(3) { left: 116px; top: 57px; width: 44px; height: 37px; }
+.dp-slot:nth-child(4) { left: 168px; top: 57px; width: 41px; height: 37px; }
+
+/* ════════════════════════════════════════
+   ACTION BAR  (fishing style — transparent)
+   ════════════════════════════════════════ */
+#action-bar {
+  position: absolute;
+  left: 677px; top: 840px;
+  width: 567px; height: 112px;
+}
+
+.key-hint {
+  position: absolute;
+  left: 213px;
+  top: 0px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ════════════════════════════════════════
+   PER-PLANT FLOATING PANELS
+   ════════════════════════════════════════ */
+#plant-panels { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+
+.pp-anchor {
+  position: absolute;
+  transform-origin: 0 50%;
+  display: flex;
+  align-items: center;
+  transition: left 80ms linear, top 80ms linear, opacity 400ms linear;
+  will-change: left, top, opacity;
+}
+.pp-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(240,202,120,0.85);
+  box-shadow: 0 0 4px rgba(240,202,120,0.6);
+}
+.pp-line {
+  width: 28px; height: 1px; flex-shrink: 0;
+  background: linear-gradient(to right, rgba(240,202,120,0.7), rgba(240,202,120,0.2));
+}
+.pp-card {
+  width: 196px;
+  background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,15,8,0.9) 100%);
+  border: 1px solid rgba(237,184,126,0.55);
+  border-radius: 10px;
+  padding: 7px 9px 6px;
+  box-shadow: 0 0 8px rgba(148,88,61,0.3);
+  position: relative; overflow: hidden;
+}
+.pp-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: 10px;
+  background: radial-gradient(ellipse at bottom center, rgba(190,137,59,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.pp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid rgba(174,142,106,0.3);
+  padding-bottom: 4px; margin-bottom: 5px;
+}
+.pp-name { font-family: 'Kanit', sans-serif; font-size: 12px; font-weight: 500; color: #f0ca78; letter-spacing: 0.5px; }
+.pp-id   { font-family: monospace; font-size: 9px; color: #7a6a4a; letter-spacing: 0.5px; }
+.pp-body { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.pp-slots { display: flex; gap: 4px; flex-shrink: 0; }
+.pp-slot {
+  width: 28px; height: 26px; background: #131313; border: 1px solid #434343;
+  border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.pp-slot img { width: 80%; height: 80%; object-fit: contain; }
+.pp-vdiv { width: 1px; height: 26px; background: rgba(174,142,106,0.3); flex-shrink: 0; }
+.pp-progress { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.pp-pct-label {
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 8px; color: #ae8e6a; text-transform: uppercase; letter-spacing: 0.8px;
+}
+.pp-pct-val { font-family: 'Kanit', sans-serif; font-size: 17px; font-weight: 500; color: #f0e0b0; line-height: 1; }
+.pp-bar-track { height: 3px; background: #262626; border-radius: 2px; overflow: hidden; }
+.pp-bar-fill {
+  height: 100%; border-radius: 2px;
+  background: linear-gradient(to right, rgba(172,132,86,0.9), rgba(240,202,120,0.9));
+  transition: width 0.8s linear;
+}
+.pp-hint {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding-top: 4px; border-top: 1px solid rgba(174,142,106,0.2);
+}
+.pp-key {
+  width: 16px; height: 16px; border-radius: 3px;
+  background: #f0ca78; box-shadow: inset 0 0 4px rgba(0,0,0,0.4);
+  font-family: 'Kanit', sans-serif; font-size: 10px; font-weight: 500; color: #3a2a00;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pp-hint-text { font-family: 'Kanit', sans-serif; font-size: 10px; color: #d4c4a0; letter-spacing: 0.3px; }
+
+.key-btn {
+  width: 24px; height: 31px;
+  background: #be986d; border-radius: 5px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.6);
+  font-family: 'Kanit', sans-serif; font-size: 15px; color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.kh-text {
+  font-family: 'Kanit', sans-serif; font-size: 15px; color: #eff2f9;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.63); white-space: nowrap;
+  line-height: 31px;
+}
+
+/* ── Hint positions (ย้าย E ลงมา top:42px เหมือน mining) ── */
+#hint-mode      { top: 42px; }
+#pb-cancel-hint { top: 42px; left: 213px; gap: 8px; }
+
+/* ── Progress bar ── */
+#pb-wrap {
+  position: absolute;
+  left: 0; top: 80px;
+  width: 560px; height: 32px;
+}
+#pb-icon-box {
+  position: absolute; left: 0; top: 0;
+  width: 32px; height: 32px;
+  border-radius: 6px; border: 0.5px solid rgba(200,200,200,0.4);
+  background: #3b2915;
+  display: flex; align-items: center; justify-content: center; z-index: 1;
+}
+#pb-icon-inner {
+  width: 27px; height: 27px; border-radius: 4px; border: 3px solid transparent;
+  background:
+    linear-gradient(135deg, rgba(150,97,0,0.85) 0%, rgba(59,41,21,0.9) 60%) padding-box,
+    linear-gradient(to bottom, #F0CA78, #FCE7AA 32%, #D7A757 64%, #BE893B) border-box;
+  display: flex; align-items: center; justify-content: center;
+}
+#pb-icon-inner svg {
+  width: 16px; height: 16px;
+  animation: spin 2s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+#pb-track {
+  position: absolute; left: 14px; top: 9px;
+  width: 553px; height: 13px;
+  border: 0.5px solid #CBCBCB; border-radius: 2.75px;
+  background: rgba(47,47,47,0.8); overflow: hidden; padding: 1px;
+}
+#pb-fill {
+  height: 100%; width: 0%; border-radius: 2px;
+  background: linear-gradient(to right, #BE893B 0%, #FCE7AA 35%, #F0CA78 68%, #7C5526 100%);
+  transition: width 0.1s linear;
+}
+.key-btn-xs {
+  width: 20px; height: 24px; flex-shrink: 0;
+  background: #be986d; border-radius: 4px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.6);
+  font-family: 'Kanit', sans-serif; font-size: 13px; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}

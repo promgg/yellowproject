@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nx_inventory mock preview</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background:
+                linear-gradient(90deg, rgba(0, 0, 0, 0.36), rgba(0, 0, 0, 0.1)),
+                #171411;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+            background-size: 48px 48px;
+        }
+    </style>
+    <script>
+        window.GetParentResourceName = function () {
+            return "nx_inventory";
+        };
+
+        const nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+
+        window.fetch = function (input, init) {
+            const url = String(input || "");
+
+            if (!url.startsWith("https://nx_inventory/")) {
+                return nativeFetch ? nativeFetch(input, init) : Promise.reject(new Error("fetch unavailable"));
+            }
+
+            const callbackName = url.replace("https://nx_inventory/", "");
+            const body = init && init.body ? JSON.parse(init.body) : {};
+
+            if (callbackName === "getActionsConfig") {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({}),
+                    text: () => Promise.resolve("{}"),
+                });
+            }
+
+            if (callbackName === "GetNearPlayers") {
+                setTimeout(() => {
+                    window.dispatchEvent(new MessageEvent("message", {
+                        data: {
+                            action: "nearPlayers",
+                            players: [
+                                { player: 12, label: "ID 12 - Test Player" },
+                                { player: 44, label: "ID 44 - Nearby Player" },
+                            ],
+                            item: body.item,
+                            id: body.id,
+                            count: body.count,
+                            type: body.type,
+                            hash: body.hash,
+                            what: body.what,
+                        },
+                    }));
+                }, 120);
+            }
+
+            if (callbackName === "NUIFocusOff") {
+                setTimeout(() => {
+                    window.dispatchEvent(new MessageEvent("message", { data: { action: "hide" } }));
+                }, 80);
+            }
+
+            console.log("[nx_inventory mock]", callbackName, body);
+
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ ok: true }),
+                text: () => Promise.resolve("ok"),
+            });
+        };
+    </script>
+</head>
+<body>
+    <main id="inventory-root" class="inventory-root is-hidden" aria-live="polite">
+        <section class="inventory-shell" aria-label="Inventory">
+            <aside class="fast-panel" aria-label="Fast slots">
+                <div id="fast-slots" class="fast-slots"></div>
+            </aside>
+
+            <section class="main-panel" aria-label="Player inventory">
+                <header class="inventory-header">
+                    <div class="title-block">
+                        <h1 id="inventory-title">Inventory</h1>
+                        <p>INVENTORY</p>
+                    </div>
+                    <div class="weight-block">
+                        <div class="weight-track">
+                            <div id="weight-fill" class="weight-fill"></div>
+                        </div>
+                        <span id="weight-text">0 / 0 KG</span>
+                    </div>
+                </header>
+
+                <section class="inventory-grid-wrap">
+                    <div id="inventory-grid" class="inventory-grid"></div>
+                    <p id="inventory-empty" class="empty-state">No items</p>
+                </section>
+
+                <section id="selected-panel" class="selected-panel is-hidden" aria-label="Selected item actions">
+                    <div>
+                        <strong id="selected-name"></strong>
+                        <span id="selected-meta"></span>
+                    </div>
+                    <div id="action-strip" class="action-strip"></div>
+                </section>
+
+                <footer class="inventory-footer">
+                    <img class="footer-divider" src="assets/spacebuttom.png" alt="">
+                    <div class="footer-row">
+                        <div class="money-display" aria-label="Money">
+                            <span class="money-icon" aria-hidden="true"></span>
+                            <span id="money-value">0</span>
+                        </div>
+                        <div id="player-id" class="player-id">ID : 0</div>
+                    </div>
+                </footer>
+            </section>
+
+            <aside id="secondary-panel" class="secondary-panel is-hidden" aria-label="Secondary inventory">
+                <header>
+                    <strong id="secondary-title">Storage</strong>
+                    <span id="secondary-capacity"></span>
+                </header>
+                <div id="secondary-grid" class="secondary-grid"></div>
+                <p id="secondary-empty" class="empty-state">No items</p>
+            </aside>
+        </section>
+
+        <nav id="context-menu" class="context-menu is-hidden" aria-label="Item actions"></nav>
+
+        <section id="player-modal" class="modal-backdrop is-hidden" aria-label="Nearby players">
+            <div class="player-modal">
+                <button id="player-modal-close" type="button" class="modal-close" aria-label="Close">X</button>
+                <h2 id="player-modal-title">Select player</h2>
+                <div id="player-list" class="player-list"></div>
+            </div>
+        </section>
+
+        <section id="quantity-modal" class="modal-backdrop is-hidden" aria-label="Quantity">
+            <form id="quantity-form" class="quantity-modal">
+                <button id="quantity-close" type="button" class="modal-close" aria-label="Close">X</button>
+                <h2 id="quantity-title">Amount</h2>
+                <input id="quantity-input" type="number" min="1" step="1" value="1">
+                <button type="submit">OK</button>
+            </form>
+        </section>
+
+        <section id="transaction-loader" class="transaction-loader is-hidden" aria-label="Transaction">
+            <div class="loader-mark"></div>
+            <span id="transaction-text">Loading</span>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        const mockItems = [
+            {
+                id: 101,
+                name: "bread",
+                label: "Bread",
+                count: 8,
+                limit: 10,
+                weight: 0.2,
+                type: "item_standard",
+                metadata: { description: "Fresh food for testing." },
+            },
+            {
+                id: 102,
+                name: "water",
+                label: "Clean Water",
+                count: 5,
+                limit: 10,
+                weight: 0.4,
+                type: "item_standard",
+                metadata: { description: "Mock usable drink item." },
+            },
+            {
+                id: 103,
+                name: "bandage",
+                label: "Bandage",
+                count: 3,
+                limit: 20,
+                weight: 0.1,
+                type: "item_standard",
+                metadata: { description: "Medical item with metadata." },
+            },
+            {
+                id: 501,
+                name: "weapon_revolver_cattleman",
+                label: "Cattleman Revolver",
+                count: 1,
+                limit: 1,
+                weight: 2.5,
+                type: "item_weapon",
+                used: true,
+                serial_number: "NX-MOCK-1849",
+                metadata: { description: "Mock equipped weapon." },
+            },
+            {
+                id: 104,
+                name: "goldbar",
+                label: "Gold Bar",
+                count: 2,
+                limit: 5,
+                weight: 1.0,
+                type: "item_standard",
+            },
+            {
+                id: 105,
+                name: "pickaxe",
+                label: "Pickaxe",
+                count: 1,
+                limit: 1,
+                weight: 3.0,
+                type: "item_standard",
+                metadata: { description: "Durability 82%" },
+            },
+            {
+                id: 106,
+                name: "apple",
+                label: "Apple",
+                count: 12,
+                limit: 20,
+                weight: 0.1,
+                type: "item_standard",
+            },
+            {
+                id: 107,
+                name: "wood",
+                label: "Wood",
+                count: 24,
+                limit: 50,
+                weight: 0.3,
+                type: "item_standard",
+            },
+            {
+                id: 108,
+                name: "coal",
+                label: "Coal",
+                count: 6,
+                limit: 25,
+                weight: 0.5,
+                type: "item_standard",
+            },
+            {
+                id: 109,
+                name: "iron",
+                label: "Iron",
+                count: 4,
+                limit: 25,
+                weight: 0.8,
+                type: "item_standard",
+            },
+        ];
+
+        function sendMock(data) {
+            window.dispatchEvent(new MessageEvent("message", { data }));
+        }
+
+        function loadMockInventory() {
+            sendMock({
+                action: "initiate",
+                language: { toplayerpromptitle: "Select player" },
+                config: {
+                    DoubleClickToUse: true,
+                    WeightMeasure: "KG",
+                    MaxItemTransferAmount: 50,
+                },
+            });
+
+            sendMock({ action: "display", type: "main" });
+            sendMock({ action: "changecheck", check: 20.5, info: 40 });
+            sendMock({ action: "updateStatusHud", money: 25000, gold: 12, rol: 4, id: 999 });
+            sendMock({ action: "setItems", itemList: mockItems });
+            sendMock({
+                action: "setFastSlots",
+                slots: [
+                    { slot: 1, item: mockItems[0] },
+                    { slot: 2, item: mockItems[1] },
+                    { slot: 3, item: mockItems[2] },
+                    { slot: 4, item: mockItems[3] },
+                    { slot: 5, item: mockItems[6] },
+                    { slot: 6, item: mockItems[7] },
+                ],
+            });
+
+            setTimeout(() => {
+                const firstCard = document.querySelector(".item-card");
+                if (firstCard) firstCard.click();
+            }, 150);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(loadMockInventory, 80);
+        });
+    </script>
+</body>
+</html>
