@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Dashboard.md",
+                "file": "Alljob.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Dashboard"
+              "title": "Alljob"
             }
           }
         ]
@@ -182,8 +182,9 @@
   },
   "active": "64e210a3507f13ac",
   "lastOpenFiles": [
-    "RedM-Todo.md",
     "Dashboard.md",
+    "Alljob.md",
+    "RedM-Todo.md",
     "ยังไม่ได้ตั้งชื่อ.base"
   ]
 }
