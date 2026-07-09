@@ -14,7 +14,6 @@ body {
   bottom: 14vh;
   transform: translateX(-50%);
   align-items: center;
-  gap: 8px;
   animation: lt-fade-in 160ms ease-out;
 }
 
@@ -41,6 +40,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   background: rgba(19, 19, 19, 0.9);
   border-radius: 50%;
+  left: 10px;
 }
 
 .lt-ring {

@@ -19,11 +19,16 @@ local function sendAllZoneProgress()
             required = data.duration
         }
     end
-    SendNUIMessage({ action = "updateProgressAll", zones = progressData })
+    -- ส่ง currentZone ไปด้วย ให้ NUI รู้ว่ากำลังยืนอยู่โซนไหนจริง (ก่อนหน้านี้ NUI เดาเอาจากโซน
+    -- ที่มี time สะสมสูงสุด ทำให้เห็นเวลาโซนเก่าค้างไม่ขยับตอนเริ่ม AFK ที่โซนใหม่)
+    SendNUIMessage({ action = "updateProgressAll", zones = progressData, currentZone = currentZone })
 end
 
 -- ── ลุกขึ้น: เล่นแอนิเมชั่นลุกแบบ blend ออก คุมด้วย prog bar ที่กดยกเลิกไม่ได้ กันขยับ/สั่งงานซ้อนระหว่างยืน ──
 local function exitAfk()
+    -- หยุดนับเวลาทันทีตอนกด X เดิม isAFKActive ถูกตั้ง false ใน callback หลังแอนิเมชั่นยืนจบ (9 วิ)
+    -- ทำให้ Thread 3 ยังเห็น isAFKActive == true แล้วบวกเวลาต่อไปอีก ~9 วิหลังกดออก
+    isAFKActive = false
     ClearPedTasks(PlayerPedId())
     exports.lp_progbar:Progress({
         duration = 9*1000,
@@ -31,7 +36,6 @@ local function exitAfk()
         canCancel = false,
         controlDisables = { disableMovement = true, disableCombat = true },
     }, function()
-        isAFKActive = false
         SendNUIMessage({ action = "hideAFK" })
         afkPromptShown = false
     end)

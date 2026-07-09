@@ -48,15 +48,17 @@ function setRingProgress(pct) {
 }
 
 /* ---- NUI actions ---- */
-function onUpdateProgressAll(zones) {
+function onUpdateProgressAll(zones, currentZoneName) {
   state.zones = zones || [];
   if (!state.afkActive || state.zones.length === 0) return;
 
-  var activeZone = null, maxTime = -1;
+  // เดิมเลือกโซนที่มี time สะสมสูงสุดมาโชว์ ทำให้เห็นเวลาโซนเก่าค้างไม่ขยับตอนเริ่ม AFK
+  // ที่โซนใหม่ (โซนใหม่ time ยังน้อยกว่าโซนเก่าที่เคยสะสมไว้) — ต้องหาโซนที่ยืนอยู่จริงแทน
+  var activeZone = null;
   for (var i = 0; i < state.zones.length; i++) {
-    if (state.zones[i].time > maxTime) {
-      maxTime = state.zones[i].time;
+    if (state.zones[i].name === currentZoneName) {
       activeZone = state.zones[i];
+      break;
     }
   }
   if (!activeZone) return;
@@ -103,10 +105,13 @@ window.addEventListener('message', function(event) {
   var data = event.data || {};
   switch (data.action) {
     case 'updateProgressAll':
-      onUpdateProgressAll(data.zones);
-      if (!state.afkActive && data.zones && data.zones.length > 0) {
-        // Low fix: แสดง label ของ zone ที่มี time สูงสุด (zone ที่ player อยู่จริง)
-        var activeZ = data.zones.reduce(function(a, b) { return (b.time > a.time) ? b : a; }, data.zones[0]);
+      onUpdateProgressAll(data.zones, data.currentZone);
+      if (!state.afkActive && data.zones && data.zones.length > 0 && data.currentZone) {
+        // แสดง label ของโซนที่ยืนอยู่จริง (currentZone จาก client.lua) ไม่ใช่โซนที่ time สูงสุด
+        var activeZ = null;
+        for (var i = 0; i < data.zones.length; i++) {
+          if (data.zones[i].name === data.currentZone) { activeZ = data.zones[i]; break; }
+        }
         if (activeZ && activeZ.label) { zoneLabel.textContent = activeZ.label; zoneLabel.classList.remove('hidden'); }
       }
       break;

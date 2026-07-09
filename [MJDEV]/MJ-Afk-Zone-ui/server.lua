@@ -84,10 +84,11 @@ end)
 RegisterNetEvent("MJ-Afk-Zone-ui:claimReward")
 AddEventHandler("MJ-Afk-Zone-ui:claimReward", function(zoneName)
     local src = source
-    -- Critical: getUsedCharacter ต้องเรียกเป็น function
     local userObj = VORPcore.getUser(src)
     if not userObj then return end
-    local user = userObj.getUsedCharacter()
+    -- getUsedCharacter เป็น property (table ตัวละครโดยตรง) ไม่ใช่ function — ห้ามใส่ ()
+    -- ใส่ () แล้ว error "attempt to call a table value" ทุกครั้งที่ claim ทำให้แจกของไม่เคยทำงาน
+    local user = userObj.getUsedCharacter
     if not user or not zoneName then return end
 
     local zoneData = Config.AFKZones[zoneName]

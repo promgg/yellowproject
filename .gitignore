@@ -3,6 +3,7 @@ server.cfg
 
 # ข้อมูล runtime ที่สคริปต์เขียนทับเอง (ไม่ควร sync ข้ามเครื่อง)
 **/used_codes.json
+**/user_afk.json
 **/*.db
 **/*.sqlite
 
