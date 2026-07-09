@@ -211,23 +211,27 @@ Config = {
     Hospitals                = {                                     -- Spawn points for players respawning at hospitals.
         Valentine = {
             name = "Valentine",
-            pos = vector4(-283.83, 806.4, 119.38, 321.76), -- Vector4 coordinates: x, y, z, heading.
+            pos = vector4(-288.2027, 805.0736, 119.3859, 282.0851), -- Vector4 coordinates: x, y, z, heading.
         },
-        SaintDenis = {
-            name = "Saint Denis",
-            pos = vector4(2721.4562, -1446.0975, 46.2303, 321.76),
-        },
-        Armadillo = {
-            name = "Armadillo",
-            pos = vector4(-3742.5, -2600.9, -13.23, 321.76),
-        },
-        Blackwater = {
-            name = "Black water",
-            pos = vector4(-723.9527, -1242.8358, 44.7341, 321.76),
-        },
+        -- SaintDenis = {
+        --     name = "Saint Denis",
+        --     pos = vector4(2721.4562, -1446.0975, 46.2303, 321.76),
+        -- },
+        -- Armadillo = {
+        --     name = "Armadillo",
+        --     pos = vector4(-3742.5, -2600.9, -13.23, 321.76),
+        -- },
+        -- Blackwater = {
+        --     name = "Black water",
+        --     pos = vector4(-723.9527, -1242.8358, 44.7341, 321.76),
+        -- },
         Rhodes = {
             name = "Rhodes",
-            pos = vector4(1229.0, -1306.1, 76.9, 321.76),
+            pos = vector4(1369.7628, -1310.8749, 77.9377, 142.9065),
+        },
+        Annesburg = {
+            name = "Annesburg",
+            pos = vector4(2926.7612, 1351.8997, 44.4271, 270.7908),
         },
     },
     ActiveEagleEye           = true,  -- Enables or disables Eagle Eye feature.
