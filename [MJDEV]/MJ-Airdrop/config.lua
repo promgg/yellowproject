@@ -1,0 +1,117 @@
+-- ███╗░░░███╗░░░░░██╗██████╗░███████╗██╗░░░██╗
+-- ████╗░████║░░░░░██║██╔══██╗██╔════╝██║░░░██║
+-- ██╔████╔██║░░░░░██║██║░░██║█████╗░░╚██╗░██╔╝
+-- ██║╚██╔╝██║██╗░░██║██║░░██║██╔══╝░░░╚████╔╝░
+-- ██║░╚═╝░██║╚█████╔╝██████╔╝███████╗░░╚██╔╝░░
+-- ╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚══════╝░░░╚═╝░░░
+-- Discord: https://discord.gg/gHRNMDQKzb
+--
+-- MJ-Airdrop | VORP RedM RDR3
+-- - Hold-to-loot + progress bar
+-- - Cancel loot on damage / shot / death / move away
+
+Config = {}
+
+-- === Discord Notifications ===
+-- ตั้งค่าจริงผ่าน convar ใน server.cfg: set mj_airdrop_discord_webhook "https://discord.com/api/webhooks/..."
+Config["DiscordWebhook"] = GetConvar("mj_airdrop_discord_webhook", "")
+Config["DiscordBotName"] = "Airdrop Alert"
+Config["DiscordAvatar"] = "https://cdn.discordapp.com/attachments/1419418766042730669/1420401036224495837/MJ SHOP.png?ex=696d884c&is=696c36cc&hm=9066f1de93b4a3a34fe0937605ab73aeb15e1176698b2221ff48bca78f7819ec&"
+Config["NotifyLoot"] = true
+Config["NotifyClaim"] = true
+
+-- === Timing / Misc ===
+Config["AutoTime"] = true
+Config["TimeAirdrop"] = {"13:00", "18:00", "20:30", "21:00", "21:30", "22:00", "22:30", "01:00"} -- HH:MM
+Config['Command'] = 'ap'                       -- คำสั่งแอดมินเรียกอีเวนต์
+Config["Prop"] = "mp008_p_mp_valuables02x"    -- โมเดลวัตถุของกล่อง airdrop
+
+-- === Airdrop Box FX (PTFX) ===
+Config["Ptfx"] = {
+    Enabled = true,
+    Asset = "SCR_ADV_SOK",
+    FxName = "scr_adv_sok_torchsmoke",
+    Scale = 1.0,
+    Color = { r = 255, g = 120, b = 0 },
+    Duration = 0, -- seconds; 0 = loop while crate exists
+    GroundSnap = true,
+    ZOffset = 0.0
+}
+
+
+-- === Timers (milliseconds) ===
+Config["TimeToUnlock"] = 10 * 60 * 1000        -- วอร์มอัปก่อนเปิดได้
+Config["TimeToRemove"] = 30 * 60 * 1000        -- เวลาก่อนลบกล่อง
+
+-- ระยะเวลากดค้างเพื่อเปิดกล่อง (Hold-to-loot)
+Config["TimeToPickingAirdrop"] = 5 * 1000     -- 10 วินาที (ปรับได้)
+Config["LabelToPickingAirdrop"] = "กำลังเปิดแอร์ดรอป"
+
+-- === Loot behaviour ===
+
+-- ใช้ Prompt แบบ Native (RDR2) พร้อมวงกลมกดค้าง
+-- ถ้าต้องการ “ข้อความกด G” กลางล่าง + แถบ process ให้ปิด Native prompt แล้วเปิด Progress UI
+Config['UseNativeLootPrompt'] = false
+-- ถ้าอยากได้แถบ Progress NUI (แนะนำ: true เมื่อปิด Native prompt)
+Config['ShowLootProgressUI'] = true
+-- ข้อความบน Prompt
+Config['NativePromptText'] = 'เก็บ Airdrop'
+
+-- Loot/Claim key (Native Prompt)
+-- 0x760A9C6F = INPUT_INTERACT_OPTION1 (G)
+-- 0xCEFD9220 = INPUT_CONTEXT (E)
+Config["LootKey"] = 0x760A9C6F                 -- INPUT_INTERACT_OPTION1 (G)
+Config["LootDistance"] = 2.0                   -- ระยะที่เริ่มเปิดได้
+Config["CancelLootOnDamage"] = true            -- โดนยิง/โดนตี/โดนดาเมจ -> ยกเลิก
+Config["CancelLootOnMoveAway"] = true          -- เดินหนี -> ยกเลิก
+
+-- === Gameplay ===
+Config["Radius"] = 100.0
+
+-- === Airdrop Points and Rewards ===
+Config["Airdrop"] = {
+    [1] = {
+        ['Label'] = "Airdrop",
+        ['MaxPlayer'] = 20,
+        ['MainBlip'] = {
+            sprite = 615597833,
+            scale = 1.0,
+            color = 26,
+            text = 'Airdrop'
+        },
+        ['Coords'] = {
+            {x = -1207.56, y = -1628.48, z = 81.88}
+        },
+        Item = {
+            {
+                -- Money รองรับ {fixed} หรือ {min,max}
+                Money = {1500},
+                Percent = 100
+            },
+            {
+                Item = "a_c_fishmuskie_01_lg",
+                Count = {1, 10},
+                Percent = 100
+            },
+            {
+                Weapon = "death_token",
+                Count = 1,
+                Percent = 100
+            },
+        },
+    },
+}
+
+-- =========================
+-- Zone Lock (หลังหมดเวลาเปิด / TimeToUnlock == 0)
+-- - คนนอกห้ามเข้าวง
+-- - คนในห้ามออกวง (ออกแล้วห้ามกลับเข้า + โดนลดเลือดจนตาย)
+-- =========================
+Config["ZoneLockEnabled"] = true
+Config["ZoneLockDeniedTitle"] = "คุณไม่มีสิทธิ์เข้าร่วม"
+Config["ZoneLockDeniedSub"] = ""
+Config["ZoneLockEjectBuffer"] = 1.5
+
+Config["ZoneLeaveDamageEvery"] = 1000   -- ms
+Config["ZoneLeaveDamage"] = 10
+Config["ZoneLeaveNoReturn"] = true

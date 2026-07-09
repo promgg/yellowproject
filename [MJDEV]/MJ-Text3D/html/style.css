@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit&display=swap');
+
+* {
+  font-family: 'Kanit', sans-serif;
+  font-size: 20px;
+  text-shadow: 1px 1px 1px #000;
+  color: #f1e6d6;
+  letter-spacing: 1px;
+}
+
+p {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(139, 0, 0, 0.6);
+  border: 1px solid rgba(200, 150, 100, 0.4);
+  animation: flicker 2s infinite;
+  font-size: 19.5px;
+  transform: rotate(-0.5deg);
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}

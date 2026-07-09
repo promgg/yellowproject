@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>Animal Farm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;700&family=Cinzel:wght@400;600;700&family=Kanit:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ZONE HINT (แสดงเมื่ออยู่ใน zone, ซ่อนเมื่อเปิด panel) -->
+  <div id="zone-hint" class="hidden">
+    <div class="key-hint">
+      <span class="kh-text">กด</span>
+      <div class="key-btn">E</div>
+      <span id="hint-label" class="kh-text">เพื่อเปิดเมนู</span>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <!-- BACKGROUND -->
+    <div id="mockup-bg"></div>
+    <div id="bg-panel">
+      <div id="bg-image"></div>
+    </div>
+
+    <!-- LEFT PANEL OUTER TITLES -->
+    <div id="title-thai">ข้อมูลสัตว์ในโซน</div>
+    <div id="title-english">ANIMAL INFO</div>
+    <div id="title-divider"></div>
+    <div id="title-dot"></div>
+
+    <!-- LEFT CONTAINER -->
+    <div id="left-container">
+
+      <!-- ANIMAL INFO section -->
+      <div class="section-en" id="lbl-animal-info">ANIMAL INFO</div>
+      <div class="section-th" id="lbl-animal-info-th">ข้อมูลสัตว์เลี้ยง</div>
+
+      <!-- ITEM FEED section -->
+      <div class="section-en" id="lbl-feed">ITEM FEED</div>
+      <div class="section-th" id="lbl-feed-th">ไอเท็มที่ใช้เลี้ยงสัตว์</div>
+      <div class="slots-row" id="feed-slots"></div>
+
+      <!-- ITEM REWARDS section -->
+      <div class="section-en" id="lbl-rewards">ITEM REWARDS</div>
+      <div class="section-th" id="lbl-rewards-th">ไอเท็มที่จะได้รับ</div>
+      <div class="slots-row" id="reward-slots-1"></div>
+      <div class="slots-row" id="reward-slots-2"></div>
+
+      <!-- Add Animals button -->
+      <button id="btn-add">Add Animals</button>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="right-container">
+      <div id="animal-list"></div>
+    </div>
+
+    <!-- FRAME OVERLAY -->
+    <div id="frame-overlay"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

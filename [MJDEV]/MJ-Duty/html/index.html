@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MJDev Duty</title>
+    <script src="nui://game/ui/jquery.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.1.1/howler.min.js" type="text/javascript"></script>
+    <link href='https://fonts.googleapis.com/css?family=Kanit&subset=thai,latin' rel='stylesheet' type='text/css'>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="index.css" type="text/css">
+</head>
+
+<body>
+    <div class="box-ui" id="duty-ui">
+        <img id="img" src="" alt="logo" />
+        <div id="textduty">ข้อความจุดเข้า-ออกเวร</div>
+
+        <!-- ปุ่มเดียว ใช้ toggle พร้อมไอคอน -->
+        <button id="duty-toggle">
+            <i class="fas fa-briefcase-medical"></i> เข้าเวร
+        </button>
+
+        <button id="checktime" class="time-button">
+            <i class="fas fa-clock"></i> เช็คเวลา
+        </button>
+
+        <!-- ปุ่มปิด UI ด้านนอก -->
+        <button id="close-ui" class="close-ui-btn">
+            <i class="fas fa-times"></i> ปิด UI
+        </button>
+
+        <!-- modal popup สำหรับโชว์เวลา -->
+        <div class="modal-bg" id="modal-time" style="display:none;">
+            <div class="modal-content">
+                <div id="modal-text">เวลาที่เข้าเวร: 00:00:00</div>
+                <button id="modal-close">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./index.js" type="text/javascript"></script>
+</body>
+
+
+</html>

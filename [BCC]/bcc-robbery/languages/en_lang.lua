@@ -1,0 +1,17 @@
+Locales["en_lang"] = {
+    RobberyStart = 'Robbery Started!',
+    OnCooldown = 'This location has been robbed recently!',
+    LootMarked = 'Begin Looting!',
+    HoldOutBeforeLooting = 'Wait',
+    HoldOutBeforeLooting2 = 'Seconds Before Looting',
+    RobberyFail = 'Robbery Failed!',
+    Rob = 'LockPick',
+    Robbery = 'LockBox',
+    PickFailed = 'Lockpicking Failed Lock Broken',
+    RobberyEnable = 'Robberies enabled, shoot a gun at a valid location to start a robbery!',
+    RobberyDisable = 'Robberies Disabled',
+    WrongJob = 'You can not start robberies due to your job!',
+    youTook = 'You took ',
+    NotEnoughPolice = 'There are not enough police officers to start this robbery',
+    NoSpace = 'No room for other items!',
+}

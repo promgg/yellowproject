@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #compass {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            color: white;
+            background: rgba(0, 0, 0, 0.76);
+            padding: 10px 20px;
+            border-radius: 15px;
+        }
+
+        #arrow {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            transform: rotate(0deg);
+            transition: transform 0.2s linear;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="compass" style="display:none; align-items:center;">
+        <img id="arrow" src="arrow.png" style="transform: rotate(0deg);">
+        <span id="distance">0 m</span>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

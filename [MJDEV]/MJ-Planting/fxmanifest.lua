@@ -1,0 +1,46 @@
+
+
+-- ███╗░░░███╗░░░░░██╗██████╗░███████╗██╗░░░██╗
+-- ████╗░████║░░░░░██║██╔══██╗██╔════╝██║░░░██║
+-- ██╔████╔██║░░░░░██║██║░░██║█████╗░░╚██╗░██╔╝
+-- ██║╚██╔╝██║██╗░░██║██║░░██║██╔══╝░░░╚████╔╝░
+-- ██║░╚═╝░██║╚█████╔╝██████╔╝███████╗░░╚██╔╝░░
+-- ╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚══════╝░░░╚═╝░░░
+-- Discord: https://discord.gg/gHRNMDQKzb 
+
+fx_version 'adamant'
+games {'rdr3'}
+rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aware my resources *will* become incompatible once RedM ships.'
+
+name '!MJ-Planting'
+author 'MJDEV&JKDEV'
+repository 'https://discord.gg/gHRNMDQKzb'
+version '1.0.0'
+lua54 "yes"
+
+ui_page 'html/index.html'
+
+files {
+  'html/index.html',
+  'html/css/*.css',
+  'html/js/*.js',
+  'html/assets/*.png',
+  'html/copperplategothic_bold.ttf',
+}
+
+-- Client Scripts
+client_scripts {
+    'config.lua',
+    'core/client_core.lua',
+    'core/client.lua',
+    'core/client_nui.lua',
+    'core/client_waterrefill.lua',
+}
+
+-- Server Scripts
+server_scripts {
+    'config.lua',
+    'core/server.lua',
+}
+
+dependencies { 'vorp_core', 'vorp_inventory', 'lp_progbar', 'lp_rewardpanel', 'lp_textui', 'pNotify' }

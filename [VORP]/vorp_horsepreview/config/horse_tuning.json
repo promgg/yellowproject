@@ -1,0 +1,12 @@
+{
+    "a_c_horse_americanpaint_splashedwhite": {
+        "acceleration": 2,
+        "stamina": 4,
+        "courage": 4,
+        "agility": 3,
+        "health": 2,
+        "speed": 2,
+        "specialability": false,
+        "bonding": false
+    }
+}

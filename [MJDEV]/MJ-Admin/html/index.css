@@ -1,0 +1,886 @@
+
+@charset "utf-8";
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Cookie');
+
+* {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Rye', cursive;
+    overflow: hidden;
+    height: 100%;
+    width: 100%
+}
+
+#container {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 82vh;
+    width: 80vh;
+    background-color: rgba(32, 32, 32, 0.712);
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.innen_box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+    border-radius: 15px;
+    height: 80vh;
+    width: 78vh;
+}
+
+#inner {
+    width: 108vh;
+    position: absolute;
+    top: 1vh;
+    left: .7vh;
+    height: 53vh;
+    border-radius: 15px;
+}
+
+header {
+    width: 100%;
+    height: 5vh;
+    color: #fff;
+    font-size: 2vh;
+    overflow: hidden;
+}
+
+main {
+    position: absolute;
+    z-index: 1;
+    width: 50vh;
+    height: 76.8vh;
+    top: 1vh;
+    right: 32vh;
+    margin-right: .5%;
+    letter-spacing: .09em;
+    border-radius: 15px;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+#search {
+    left: 1vh;
+    position: absolute;
+    border: 2px solid rgb(182, 0, 0);
+    padding: 1vh;
+    font-size: 1.2vh;
+    display: inline-block;
+    box-sizing: border-box;
+    color: white;
+    text-align: center;
+    font-family: 'Rye', cursive;
+    background: rgb(0, 0, 0);
+    width: 22vh;
+    border-radius: 5px;
+    float: right;
+}
+
+/* #search::-webkit-input-placeholder {
+    text-align: center;
+    color: #c8c8c8
+} */
+
+.fa-bars {
+    font-size: 2vh;
+}
+
+.grid-container {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    padding: 1vh;
+    top: 0.5vh;
+    flex-wrap: wrap;
+}
+
+.grid-container>div {
+    text-align: center;
+    padding: .3vh;
+}
+
+.action-button {
+    width: 100px;
+    height: 100px
+}
+
+#actions,
+#server,
+#weapons {
+    display: none;
+    height: calc(100% - 80px);
+    overflow-x: scroll;
+    overflow-x: hidden
+}
+
+#actions:focus {
+    outline: 0
+}
+
+#server {
+    display: block;
+}
+
+footer {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #ffffff;
+}
+
+.btn {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+    font-family: 'Rye', cursive;
+    text-align: left;
+    border: none;
+    color: #fff;
+    width: 14vh;
+    height: 3.5vh;
+    padding-left: 10%;
+    font-size: 1.2vh;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-top: 0%;
+}
+
+/* ปุ่ม ban และ kick */
+.btn.ban,
+.btn.kick {
+    width: 15vh;
+    margin-bottom: 0vh;
+    font-family: 'Kanit', sans-serif;
+    background: linear-gradient(45deg, #ff0000, #ff6666); /* เพิ่มการไล่สีจากแดงเข้มไปแดงอ่อน */
+    color: #fff;
+    border: 2px solid rgba(255, 0, 0, .7); /* ขอบปุ่มที่สีสวย */
+    border-radius: 5px;
+    transition: all 0.3s ease; /* การเปลี่ยนแปลงที่นุ่มนวลเมื่อ hover หรือ active */
+}
+
+.btn.disabled {
+    background: 0 0;
+    border: 2px dashed rgba(165, 0, 0, 0.8);
+    color: #ffffff;
+    width: 100px;
+    height: 100px;
+    font-size: 16px;
+    cursor: not-allowed; /* ทำให้ cursor เป็นแบบไม่สามารถคลิกได้ */
+    border-radius: 5px;
+    transition: all 0.3s ease; /* การเปลี่ยนแปลงที่นุ่มนวล */
+}
+
+/* ปุ่ม permaban */
+.btn.permaban {
+    width: 15vh;
+    margin-left: 0vh;
+    background-color: rgba(255, 0, 0, .4);
+    color: #fff;
+    margin-bottom: 0vh;
+    transition: all 0.3s ease; /* การเปลี่ยนแปลงที่นุ่มนวล */
+}
+
+/* เอฟเฟกต์เมื่อ hover */
+.btn:hover {
+    transform: scale(1.05); /* ทำให้ปุ่มขยายเล็กน้อย */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* เพิ่มเงาเล็กน้อย */
+}
+
+/* เอฟเฟกต์เมื่อคลิก */
+.btn:active {
+    transform: scale(0.98); /* ให้ปุ่มย่อเล็กน้อยเมื่อคลิก */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* เพิ่มเงาเมื่อคลิก */
+}
+
+/* ทำให้การเปลี่ยนแปลงนุ่มนวล */
+.btn {
+    transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.btn .fas {
+    position: relative;
+    font-size: 1.4vh !important;
+    padding-bottom: 0.2vh;
+    background: linear-gradient(45deg, #ff0000, #ff6666); /* สร้างเฉดสีแดง */
+    -webkit-background-clip: text; /* ใช้แค่ตัวอักษร */
+    color: transparent; /* ทำให้ข้อความโปร่งใส */
+    margin-right: 1vh; /* เพิ่มระยะห่างจากขวา */
+}
+
+#playerlist {
+    position: absolute;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+    letter-spacing: 0.1vh;
+    margin-left: auto;
+    overflow: hidden;
+    height: 76.8vh;
+    width: 24vh;
+    top: 1vh;
+    left: 1vh;
+    border-radius: 10px;
+}
+
+.ptitle {
+    min-width: 9vh;
+    height: 10vh;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+    padding: 1.2vh;
+    margin: auto;
+    line-height: 4.5vh;
+    border-radius: 10px 10px 0vh 0vh;
+}
+
+.pname {
+    position: absolute;
+    color: #fff;
+    font-size: 2.5vh;
+    float: left;
+    width: 22vh;
+    top: 5vh;
+    text-align: center;
+    font-family: 'Cookie', cursive;
+    border-bottom: 0.2vh solid #ff0000;
+}
+
+#listname {
+    height: calc(100% - 12.5vh);  /* ความสูงตามหน้าจอ */
+    width: 24vh;  /* ความกว้างเท่าเดิม */
+    margin-top: 0;
+    overflow-y: auto;  /* เลื่อนในแนวตั้งเท่านั้น */
+    overflow-x: hidden;  /* ปิดการเลื่อนแนวนอน */
+    padding-right: 1vh;  /* เพิ่มระยะห่างจากขอบขวา */
+    scrollbar-width: thin;  /* ทำให้ scrollbar บางลง (เฉพาะ Firefox) */
+    scrollbar-color: rgba(0, 0, 0, 0.8) transparent;  /* สี scrollbar */
+}
+
+/* สำหรับ WebKit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+    width: 0.5vh;
+}
+
+:-webkit-scrollbar-thumb {
+    background-color: rgba(255, 37, 37, 0.8);
+    border-radius: 1vh;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}
+
+.selected {
+    background: #1a1a1ada;
+}
+
+/* รูปแบบปกติของ item */
+.banitem,
+.item {
+    height: 4vh;
+    position: relative;
+    display: inline-block;
+    font-size: 1.2vh;
+    left: 0;
+    line-height: 4vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    color: #fff;
+    transition: .3s ease;
+    margin: 0.7vh;
+    border-radius: 5px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+}
+
+/* สำหรับ banitem */
+.banitem {
+    background-color: rgba(28, 28, 28, .8);
+    font-family: 'Kanit', sans-serif;
+}
+
+/* การเปลี่ยนแปลงเมื่อ hover สำหรับ .item */
+.item:hover {
+    background-color: rgba(187, 0, 0, 0.911);
+    color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* เพิ่มเงาให้ดูน่าสนใจ */
+    transform: scale(1.02); /* ขยายขนาดเล็กน้อยเมื่อ hover */
+}
+
+/* การเปลี่ยนแปลงเมื่อ hover สำหรับ .banitem */
+.banitem:hover {
+    background-color: rgba(82, 82, 82, .8);
+    color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* เพิ่มเงาให้ดูน่าสนใจ */
+    transform: scale(1.02); /* ขยายขนาดเล็กน้อยเมื่อ hover */
+}
+
+/* การจัดรูปแบบข้อความใน item */
+.item span {
+    float: left;
+    margin-left: 1vh;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.3s ease; /* การเปลี่ยนแปลงที่นุ่มนวลเมื่อ hover */
+}
+
+/* การเปลี่ยนแปลงเมื่อ hover สำหรับข้อความ */
+.item:hover span {
+    color: #ffdd57; /* เปลี่ยนสีข้อความเป็นสีทองเมื่อ hover */
+}
+
+/* เพิ่มเอฟเฟกต์เลื่อนให้กับข้อความ */
+.item span:hover {
+    transform: translateX(5px); /* เลื่อนข้อความเล็กน้อยเมื่อ hover */
+}
+
+.bannedplayer {
+    width: 140px
+}
+
+.banitem .time {
+    color: #ca0b00 !important;
+    width: 140px;
+    font-weight: 700
+}
+
+.banitem .reason {
+    padding-right: 10px;
+    width: 250px
+}
+
+.banitem span {
+    display: inline-block;
+    font-size: 14px;
+    margin-left: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.playerid {
+    display: inline-block;
+    min-width: 4vh;
+    line-height: 2.2vh;
+    border-radius: 15px;
+    background-color: #fff;
+    color: #292929;
+    text-align: center;
+}
+
+.menutitle {
+    position: absolute;
+    display: inline-block;
+    height: 2.5vh;
+    top: 1vh;
+    width: 47vh;
+    left: 0vh;
+    text-align: left;
+    line-height: 2vh;
+    font-size: 3vh;
+    margin-left: 1%;
+    padding: 1%;
+    font-family: 'Cookie', cursive;
+    font-style: italic;
+    background-image: linear-gradient(to right, #ff0000 0%, #bb0000 74%);
+    -webkit-text-fill-color: transparent;
+    -webkit-background-clip: text;
+}
+
+.headername {
+    display: none;
+    padding-left: 15px;
+    color: #1f1f1f;
+}
+
+.sectiontitle {
+    display: block;
+    width: 100%;
+    margin-top: 0.8vh;
+    font-size: 2vh;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.hl {
+    position: relative;
+    width: 100%;
+    font-size: 2vh;
+    text-align: center;
+    margin-bottom: 1vh;
+    color: #fff;
+}
+
+.description {
+    color: #fff;
+    padding-left: 0vh;
+    position: relative;
+    width: 17vh;
+}
+
+input,
+select {
+    background-color: rgba(44, 44, 44, .8);
+    border: 0.1vh solid #00000000;
+    width: 15vh;
+    padding: 1vh;
+    font-size: 1.3vh;
+    font-weight: 600;
+    display: inline-block;
+    box-sizing: border-box;
+    text-align: center;
+    color: #fff;
+    border-radius: 15px;
+}
+
+.dropdown {
+    margin: 0vh;
+    text-align: center;
+    width: 20vh;
+    border-radius: 15px;
+}
+
+#row {
+    height: 3vh;
+}
+
+.button {
+    font-family: 'Rye', cursive;
+    background-color: transparent;
+    border: none;
+    float: left;
+    display: block;
+    font-size: 1.5vh;
+    height: 25px;
+    color: #fff;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    padding: 5px;
+    margin: 10px;
+    outline: 0
+}
+
+.button:hover {
+    background-color: rgba(120, 120, 120, .2);
+    color: #fff
+}
+
+.btn.confirm {
+    background-color: rgba(120, 120, 120, .2);
+    color: #ffffff !important;
+    height: auto;
+    width: 15vh;
+    margin: 1.2vh;
+    padding: .5vh;
+    font-size: 1.5vh;
+    text-align: center;
+}
+
+#datainput {
+    background-color: rgba(17, 17, 17, 0.849);
+    width: 280px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    float: left
+}
+
+#datainput::-webkit-input-placeholder,
+#search::-webkit-input-placeholder {
+    color: rgba(255, 0, 0, 0.863)
+}
+
+#inputtitle {
+    width: 100%;
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #fff
+}
+
+#buttonwrap {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+#confirmaction,
+#inputmanager {
+    display: none;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    backdrop-filter: blur(24px);
+    background-color: rgba(44, 44, 44, .8);
+    z-index: 1
+}
+
+#inputwrap {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%)
+}
+
+#confirminput,
+#cancelinput {
+    background-color: rgba(120, 120, 120, .2);
+    margin-top: 10px;
+}
+
+#confirm {
+    background-color: #fff;
+    color: #000 !important
+}
+
+#cancelinput,
+#confirm,
+#confirminput {
+    height: auto !important;
+    /* margin-top: 1.5vh; */
+    margin-right: 1.5vh;
+    color: #fff;
+    padding: 1vh;
+}
+
+#button:hover,
+.back:hover {
+    background-color: rgba(120, 120, 120, .2);
+    color: white;
+    text-decoration: none;
+}
+
+#perms {
+    margin-top: 0vh;
+}
+
+/* การจัดรูปแบบ #info */
+#info {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* ใช้ gradient เพื่อสร้างพื้นหลังสีดำและแดง */
+    border-radius: 10px;
+    color: #ffffff;
+    height: 12vh;
+    margin-left: 1%;
+    margin-right: 1%;
+    padding: 1.5vh 1.5vh 1vh; /* เพิ่ม padding เล็กน้อย */
+    letter-spacing: 0.5px; /* เพิ่มระยะห่างระหว่างตัวอักษร */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* เพิ่มเงาให้กับกล่อง */
+    transition: all 0.3s ease; /* เพิ่มการแอนิเมชันสำหรับการเปลี่ยนแปลง */
+}
+
+/* การจัดรูปแบบภายใน #info */
+#info .inner {
+    padding-left: 1.2vh;
+    margin-top: 2vh; /* ลดระยะห่างให้ดูสมดุล */
+}
+
+/* การจัดรูปแบบ titlebox */
+#info .titlebox {
+    position: relative;
+    font-size: 2.5vh;
+    text-align: left;
+    left: 1vh;
+    top: 0.8vh;
+    font-family: 'Kanit', sans-serif; /* เปลี่ยนฟอนต์ให้เหมาะสม */
+    color: #ffcc00; /* เปลี่ยนสีตัวอักษรเป็นสีทองเพื่อทำให้เด่น */
+}
+
+.title {
+    display: inline-block;
+    padding-right: 0.6vh;
+    padding-left: 1.2vh;
+    color: #ffffff;
+}
+
+.back {
+    position: relative;
+    display: none;
+    font-family: 'Rye', cursive;
+    font-style: italic;
+    text-decoration: none;
+    color: #fff;
+    top: 1.5vh;
+    right: 1vh;
+    font-size: 1.5vh;
+    background-color: rgb(0 0 0 / 100%);
+    border-radius: 5px;
+    padding: 0.3vh 1vh 0.3vh 1vh;
+    margin-left: 2%;
+    z-index: 2;
+    float: right
+}
+
+#button,
+#page {
+    background-color: rgb(0 0 0 / 100%);
+    text-decoration: none;
+    color: #fff;
+    font-size: 1.5vh;
+    right: 1vh;
+    top: 1.5vh;
+    padding: 0.3vh 1vh 0.3vh 1vh;
+    border-radius: 15px;
+    position: relative;
+    float: right;
+}
+
+.help #button {
+    margin: 0
+}
+
+.fad {
+    color: #ffffff;
+}
+
+/* ซ่อน #bans, #items, #vehicles */
+#bans, #items, #itemsall, #vehicles {
+    display: none;
+    grid-template-columns: repeat(3, 1fr); 
+    width: 100%;
+    top: 1.5%;
+    height: calc(97% - 65px);
+    color: #fff; /* สีตัวอักษร */
+    overflow: auto;
+}
+
+#qty,
+#qty2 {
+    max-width: 10vh;
+}
+
+/* ตั้งค่าให้รายการไอเทม, ยานพาหนะ และอาวุธใช้ flex layout และมีพื้นหลัง gradient */
+
+#vehiclelist,
+#weaponlist,
+#itemlist,
+#itemlistall {
+    position: relative;
+    flex-direction: row;
+    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    width: 100%;
+    top: 1.5%;
+    height: calc(97% - 65px); 
+    overflow: auto;
+    color: #fff; /* สีตัวอักษร */
+}
+
+#itemlist::before,
+#itemlistall::before {
+    content: '';
+    width: 0;
+    padding-bottom: 100%;
+    grid-row: 1 / 1;
+    grid-column: 1 / 1;
+}
+
+#itemlist>*:first-child,
+#itemlistall>*:first-child {
+    grid-row: 1 / 1;
+    grid-column: 1 / 1;
+}
+
+
+#banlist {
+    height: calc(100% - 85px); /* ปรับความสูงให้เหมาะสม */
+    overflow-x: hidden; /* ป้องกันการเลื่อนในแนวนอน */
+    overflow-y: auto; /* เปิดการเลื่อนในแนวตั้ง */
+    scroll-behavior: smooth; /* เพิ่มความนุ่มนวลในการเลื่อน */
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(128, 0, 0, 0.7)); /* พื้นหลังแบบ gradient */
+}
+
+#itemamount {
+    width: 100%;
+    font-size: 2vh;
+    text-align: center;
+    position: relative;
+    margin-bottom: 1vh;
+    color: #ffffff;
+}
+
+#inventoryitemwrap {
+    margin: 5px;
+}
+
+.inventoryitem {
+    width: 15vh;
+    height: 15vh;
+    transition: .2s;
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    overflow: hidden;
+    border-radius: 10px;
+    position: relative; /* ต้องกำหนดเพื่อให้ .name ใช้ absolute ได้ */
+    background: linear-gradient(90deg, rgba(14, 14, 14, 0.8) 0%, rgba(20, 20, 20, 0.8));
+}
+
+.inventoryitem:active {
+    transition: .1s;
+}
+
+.inventoryitem:hover {
+    cursor: pointer;
+    transition: .3s;
+    transform: translateY(-0.25em);
+    box-shadow: 0 4px 15px 0 rgba(255, 0, 0, 0.75);
+    background-color: rgba(255, 0, 0, 0.418);
+    transition: .2s;
+}
+
+.inventoryitem .img {
+    position: relative;
+    height: 11vh;
+}
+
+.inventoryitem img {
+    position: relative;
+    display: block;
+    width: 60%;
+    top: 20%;
+    margin: auto;
+}
+
+/* ทำให้ชื่อแสดงอยู่ด้านล่างของไอเทม */
+.inventoryitem .name {
+    position: absolute;
+    bottom: 5px; /* กำหนดระยะห่างจากด้านล่าง */
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-family: 'Rye', cursive;
+    font-size: 1.2vh;
+    width: 100%;
+    z-index: 10; /* ให้อยู่เหนือไอคอน */
+    background: linear-gradient(90deg, #ff0000, #ff9900, #ffff00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.8); /* ช่วยให้ข้อความอ่านง่ายขึ้น */
+}
+
+.help {
+    color: #fff;
+    text-align: center
+}
+
+.centered {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%)
+}
+
+.coords {
+    display: inline-block;
+    font-size: 2vh;
+    margin-bottom: 1vh;
+}
+
+.clipboard {
+    display: inline-block;
+    text-decoration: none;
+    color: #fff;
+    padding: 0.5vh;
+    font-size: 1.5vh;
+}
+
+.clipboard:hover {
+    /* background-color: #fff; */
+    color: #ff0000
+}
+
+.drag {
+    border: 2px dashed #848484 !important
+}
+
+.sectiontitle {}
+
+div#section {
+    position: relative;
+    margin-top: -0.2vh;
+    top: 1.5vh;
+    font-size: 1.5vh;
+}
+
+.sectiontitle1 {
+    position: absolute;
+    left: 0vh;
+    width: 100%;
+    font-size: 2vh;
+    color: white;
+    text-align: center;
+    top: 36vh;
+}
+
+
+/* กำหนดสไตล์ให้กับ box-search */
+.box-search {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+}
+
+/* สไตล์สำหรับ input ของช่องค้นหา */
+.sk-search input {
+    width: 70%;
+    max-width: 300px; /* ขนาดสูงสุดของช่องค้นหา */
+    padding: 5px 10px;
+    font-size: 1.2rem;
+    border: 2px solid #4b4b4b; /* สีขอบ */
+    border-radius: 10px; /* มุมโค้ง */
+    background-color: rgba(255, 255, 255, 0.1); /* สีพื้นหลังโปร่งใส */
+    color: #ffffff; /* สีตัวอักษร */
+    outline: none; /* เอาขอบเมื่อคลิกออก */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* เงารอบๆ ช่องค้นหา */
+    transition: all 0.3s ease; /* การเปลี่ยนแปลงที่นุ่มนวล */
+}
+
+/* เปลี่ยนสีขอบเมื่อมีการโฟกัสในช่องค้นหา */
+.sk-search input:focus {
+    border-color: #e94e77; /* เปลี่ยนสีขอบเมื่อโฟกัส */
+    background-color: rgba(255, 255, 255, 0.2); /* เปลี่ยนพื้นหลัง */
+    box-shadow: 0 0 15px rgba(233, 78, 119, 0.6); /* เพิ่มเงาเมื่อโฟกัส */
+}
+
+/* สไตล์สำหรับ placeholder */
+.sk-search input::placeholder {
+    color: #ddd; /* สี placeholder */
+    font-style: italic; /* ทำให้ placeholder เป็นตัวเอียง */
+}
+
+.righttopbar {
+    position: absolute;
+    width: 100%;
+    height: 5.3%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 1.5vmin;
+    color: white;
+}
+
+.left {
+    position: relative;
+    text-align: center;
+    top: 260%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+    letter-spacing: .2vmin;
+}

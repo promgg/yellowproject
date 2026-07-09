@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MJ-LoadingScreen</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="bg-container"></div>
+    <div class="overlay"></div>
+
+    <div class="top-links">
+        <div class="link-btn" id="discord-btn"><i class="fab fa-discord"></i> <span id="discord-text">discord.gg/yourlink</span></div>
+        <div class="link-btn" id="website-btn"><i class="fas fa-globe"></i> <span id="website-text">yourwebsite.com</span></div>
+    </div>
+
+    <div class="rules-panel">
+        <h2 class="rules-title"><i class="fas fa-scroll"></i> SERVER RULES</h2>
+        <ul id="rules-list"></ul>
+    </div>
+
+    <div class="center-logo">
+        <h1 id="server-title">MJ</h1>
+        <h3 id="server-subtitle">D E V E L O P M E N T</h3>
+    </div>
+
+    <div class="bottom-container">
+        <div class="music-player">
+            <button id="play-pause-btn"><i class="fas fa-pause"></i></button>
+            <div class="music-info">
+                <div class="music-title" id="music-title">RDR2 Theme Ambient</div>
+                <div class="music-author" id="music-author">Red Dead Redemption</div>
+            </div>
+            <div class="volume-control">
+                <i class="fas fa-volume-up"></i>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+            </div>
+        </div>
+
+        <div class="tips-container">
+            <i class="far fa-lightbulb"></i> <span id="tip-text">Loading tips...</span>
+        </div>
+
+        <div class="loading-wrapper">
+            <div class="loading-text">LOADING... <span id="progress-text">0%</span></div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bgm" loop></audio>
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

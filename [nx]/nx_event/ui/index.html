@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nx_event</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ── Event HUD panel (right side) ──────────────────────────────────── -->
+    <div id="event-hud" class="hidden">
+        <div class="hud-header">
+            <span class="hud-icon">⚔</span>
+            <span class="hud-title">สมบัติแห่งสัญญา</span>
+        </div>
+
+        <div class="hud-timer-row">
+            <span class="label-muted">เหลือเวลา</span>
+            <span id="timer-value">10:00</span>
+        </div>
+
+        <div class="hud-boxes-row">
+            <span class="label-muted">กล่อง</span>
+            <div class="bar-track">
+                <div id="boxes-fill" class="bar-fill gold"></div>
+            </div>
+            <span id="boxes-count" class="val-gold">0/5</span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <!-- City rows rendered by JS -->
+        <div id="city-list"></div>
+    </div>
+
+    <!-- ── Collect hint (near a box) ─────────────────────────────────────── -->
+    <div id="collect-hint" class="hidden">
+        <kbd class="key-badge">G</kbd>
+        <span>ค้างเพื่อเก็บกล่อง</span>
+    </div>
+
+    <!-- ── Collection progress bar (bottom center) ───────────────────────── -->
+    <div id="collect-bar" class="hidden">
+        <span class="collect-label">กำลังเปิดกล่อง...</span>
+        <div class="bar-track wide">
+            <div id="collect-fill" class="bar-fill amber"></div>
+        </div>
+    </div>
+
+    <!-- ── Downed overlay ────────────────────────────────────────────────── -->
+    <div id="downed-overlay" class="hidden">
+        <div class="downed-title">☠ คุณถูกทำให้สลบ</div>
+        <div class="downed-sub">รอเพื่อนมาช่วยเหลือ หรือรอกิจกรรมสิ้นสุด</div>
+    </div>
+
+    <!-- ── Result panel ──────────────────────────────────────────────────── -->
+    <div id="result-panel" class="hidden">
+        <div class="result-title">⚔ กิจกรรมสิ้นสุดแล้ว</div>
+        <div id="result-list"></div>
+        <div class="result-note">รางวัลถูกส่งไปยังกระเป๋าของคุณแล้ว</div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>MJ Reward Code System</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div id="app" class="hidden">
+
+    <!-- Background -->
+    <img id="bg-img" src="./bg.png" alt="">
+
+    <!-- Preview overlay (mockup) -->
+    <div id="preview-overlay"></div>
+
+    <!-- PLAYER PANEL -->
+    <div id="playerPanel">
+      <div id="deco-gold-dot"></div>
+      <div id="lbl-title-th">กรอกโค๊ดรับรางวัล</div>
+      <div id="lbl-title-en">REDEEM CODE</div>
+      <div id="deco-line"></div>
+      <div id="deco-circle"></div>
+      <input
+        type="text"
+        id="playerCode"
+        placeholder="พิมพ์โค๊ดตรงนี้ .....เสร็จแล้วกด ENTER"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" class="hidden">
+      <div class="admin-gold-dot"></div>
+      <div class="admin-lbl-en">ADMIN PANEL</div>
+      <div class="admin-lbl-th">ระบบออกโค้ดรางวัล</div>
+      <!-- <div class="admin-deco-line"></div>
+      <div class="admin-deco-circle"></div> -->
+      <button class="btn-generate" onclick="generateCode()">Generate New Code</button>
+      <p id="generatedCode"></p>
+      <div id="codeContainer"></div>
+      <button class="btn-cancel" onclick="closeUI('adminPanel')">Close</button>
+    </div>
+
+  </div>
+
+  <script src="nui://game/ui/jquery.js" type="text/javascript"></script>
+  <script src="./js/script.js" type="text/javascript"></script>
+</body>
+</html>

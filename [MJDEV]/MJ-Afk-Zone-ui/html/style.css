@@ -1,0 +1,170 @@
+/* ========================================================
+   MJ-Afk-Zone-ui — RedM Western AFK Panel
+   1920x1080 canvas — auto-scaled via JS
+   ======================================================== */
+
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('fonts/copperplategothic_bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: 'Kanit', 'Copperplate Gothic Bold', 'Copperplate', Georgia, serif;
+  color: #fff;
+}
+
+.hidden { display: none !important; }
+
+/* Main wrapper — 1920x1080 fixed, JS scales to fit */
+#app {
+  position: fixed;
+  top: 50%; left: 50%;
+  width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--s, 1));
+  transform-origin: center center;
+}
+
+/* Preview overlay */
+#preview-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  background: url('image/preview.png') no-repeat center/cover;
+  opacity: 0.5;
+  pointer-events: none;
+  display: none;
+  z-index: 999;
+}
+
+/* Background */
+#afk-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  object-fit: cover;
+  pointer-events: none;
+  display: none;
+}
+
+/* Character (1433,287) 554x316 */
+#afk-char-wrap {
+  position: absolute;
+  left: 1433px; top: 287px;
+  width: 554px; height: 316px;
+  display: flex;
+  align-items: center; justify-content: center;
+  opacity: 0.9;
+}
+#afk-char-rot { flex: none; transform: rotate(0.57deg); }
+#afk-char { display: block; width: 551px; height: 310px; object-fit: cover; }
+
+/* Deco line (1715,344) */
+#afk-deco-line {
+  position: absolute;
+  left: 1715px; top: 344px;
+  width: 97px; height: 1px;
+  background: #a4a4a4;
+}
+
+/* Deco dot (1809,341) */
+#afk-deco-dot {
+  position: absolute;
+  left: 1809px; top: 341px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #a4a4a4;
+}
+
+/* AFK ZONE title */
+#afk-title-en {
+  position: absolute;
+  left: 1345px;
+  top: 347px;
+  width: 329px; height: 40px;
+  font-family: 'Copperplate Gothic Bold', 'Copperplate', Georgia, serif;
+  font-size: 14px; line-height: 40px;
+  color: #ae8e6a;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+/* Thai subtitle */
+#afk-title-th {
+  position: absolute;
+  left: 1374px;
+  top: 323px;
+  width: 329px; height: 40px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 24px; line-height: 40px;
+  color: #fff;
+  text-align: right;
+}
+
+/* Progress ring (1647,390) */
+#afk-ring-wrap {
+  position: absolute;
+  left: 1647px; top: 390px;
+  width: 126px; height: 126px;
+}
+#afk-ring { display: block; width: 100%; height: 100%; }
+#afk-ring-bg { fill: #8D8D8D; fill-opacity: 0.5; }
+#afk-ring-progress { transition: stroke-dashoffset 0.5s ease; }
+
+/* Gift icon (1681,425) */
+#afk-gift-wrap {
+  position: absolute;
+  left: 1681px; top: 425px;
+  width: 57px; height: 57px;
+}
+#afk-gift { display: block; width: 100%; height: 100%; }
+
+/* Timer badge (1627,534) */
+#afk-timer-badge {
+  position: absolute;
+  width: 165px; height: 30px;
+  display: flex;
+  align-items: center; justify-content: center;
+  border: 2px solid rgba(0,0,0,0.1);
+  border-radius: 5px;
+  background: rgba(124,85,46,0.3);
+  left: 1626px;
+  top: 532px;
+}
+
+/* Timer text (1652,537) */
+#afk-timer {
+  position: absolute;
+  width: 116px; height: 23px;
+  font-family: 'Copperplate Gothic Bold', 'Copperplate', Georgia, serif;
+  font-size: 24px; line-height: 23px;
+  color: #e5c275;
+  text-shadow: 0 0 10px rgba(255,246,0,0.5);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Zone label */
+#afk-zone-label {
+  position: fixed;
+  top: 20px; right: 20px;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid rgba(174,142,106,0.4);
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 16px;
+  color: #ae8e6a;
+  z-index: 1001;
+  pointer-events: none;
+  display: none;
+}
+
+/* hint "กด G เพื่อเริ่มพักผ่อน" ย้ายไปใช้ lp_textui แล้ว */

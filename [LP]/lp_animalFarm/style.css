@@ -1,0 +1,563 @@
+﻿@font-face {
+  font-family: 'Copperplate Gothic';
+  src: url('assets/copperplategothic_bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Zone Hint — โครงสร้างตรงกับ fishing/mining: container 677px, hint content +213px */
+#zone-hint {
+  position: absolute;
+  left: 677px; top: 840px;
+  width: 567px; height: 112px;
+  pointer-events: none;
+}
+#zone-hint.hidden { display: none; }
+.key-hint {
+  position: absolute;
+  left: 213px; top: 0px;
+  display: flex; align-items: center; gap: 8px;
+}
+.key-btn {
+  width: 24px; height: 31px;
+  background: #be986d; border-radius: 5px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.6);
+  font-family: 'Kanit', sans-serif; font-size: 15px; color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.kh-text {
+  font-family: 'Kanit', sans-serif; font-size: 15px; color: #eff2f9;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.63); white-space: nowrap; line-height: 31px;
+}
+
+#app {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  transition: opacity 0.2s ease;
+}
+#app.hidden { opacity: 0; pointer-events: none; }
+
+#mockup-bg {
+  position: absolute; inset: 0;
+  background: url('assets/mockgame.png') center/cover no-repeat;
+  background-size: 1920px 1080px;
+  display: none;
+}
+
+#bg-panel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 857.77px;
+  height: 675.6px;
+  left: 531px;
+  top: 202px;
+}
+
+#bg-image {
+  width: 853.86px;
+  height: 670.61px;
+  flex-shrink: 0;
+  transform: rotate(-0.34deg);
+  background: url('assets/bg.png') no-repeat;
+  background-size: 100% 100%;
+  opacity: 0.8;
+}
+
+#title-thai {
+  position: absolute;
+  left: 31.46%; right: 60.18%;
+  top: 25.37%; bottom: 72.59%;
+  display: flex; align-items: center;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 400; font-size: 24px;
+  line-height: 40px; color: #FFFFFF;
+}
+
+#title-english {
+  position: absolute;
+  left: 31.46%; right: 60.18%;
+  top: 27.87%; bottom: 70.09%;
+  display: flex; align-items: center;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 17px;
+  color: #AE8E6A;
+}
+
+#title-divider {
+  position: absolute;
+  left: 764.7px; top: 286.47px;
+  width: 46.36px; height: 1px;
+  background: #A4A4A4;
+}
+
+#title-dot {
+  position: absolute;
+  left: 809.63px; top: 285.04px;
+  width: 3.35px; height: 3.35px;
+  border-radius: 50%;
+  background: #A4A4A4;
+}
+
+#left-container {
+  box-sizing: border-box;
+  position: absolute;
+  width: 215px; height: 454px;
+  left: 599px; top: 337px;
+  background:
+    linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+    radial-gradient(100% 100% at 50.32% 100%, rgba(190, 137, 59, 0.5) 0%, rgba(0, 0, 0, 0) 100%);
+  border: 1px solid rgba(237,184,126,0.5);
+  box-shadow: 0px 0px 5px #94583D;
+  border-radius: 20px;
+}
+
+.section-en {
+  position: absolute;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-weight: 400; font-size: 12px;
+  line-height: normal; color: #FFFFFF;
+  text-transform: uppercase;
+}
+
+.section-th {
+  position: absolute;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 400; font-size: 10px;
+  line-height: normal; color: #A1A1A1;
+  text-transform: uppercase;
+}
+
+#lbl-animal-info    { left: 15px; top: 23px; }
+#lbl-animal-info-th { left: 15px; top: 37.5px; }
+#lbl-feed           { left: 14px; top: 67.5px; }
+#lbl-feed-th        { left: 15px; top: 81px; }
+#lbl-rewards        { left: 15px; top: 158px; }
+#lbl-rewards-th     { left: 16px; top: 171px; }
+
+.slots-row {
+  position: absolute;
+  display: flex;
+  gap: 7px;
+}
+
+#feed-slots      { left: 15px; top: 103px; }
+#reward-slots-1  { left: 15px; top: 193px; }
+#reward-slots-2  { left: 15px; top: 235px; }
+
+.item-slot {
+  width: 39px; height: 36px;
+  background: #131313;
+  border: 1px solid #424547;
+  display: flex;
+  align-items: center; justify-content: center;
+}
+
+.item-slot.has-item {
+  border: 1px solid transparent;
+  border-image: linear-gradient(180deg, #434343 0%, #F0CA78 100%) 1;
+}
+
+.item-slot img {
+  width: 31px; height: 31px;
+  object-fit: contain;
+}
+
+
+#btn-add {
+  position: absolute;
+  left: 15px; top: 387px;
+  width: 185px; height: 39px;
+  background: linear-gradient(180deg, #937036 0%, #573d18 100%);
+  border: 2px solid #9a7853;
+  border-radius: 10px;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 15px; color: #FFFFFF;
+  text-align: center;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+#btn-add:hover { filter: brightness(1.15); }
+
+#right-container {
+  position: absolute;
+  left: 827px; top: 335px;
+  width: 487px; height: 454px;
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), radial-gradient(100% 100% at 50.32% 100%, rgba(190, 137, 59, 0.5) 0%, rgba(0, 0, 0, 0) 100%);
+  border: 1px solid rgba(102,102,102,0.5);
+}
+
+#animal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px 8px 0;
+}
+
+.animal-card {
+  position: relative;
+  width: 470px; height: 80px;
+  flex-shrink: 0;
+  background:
+    linear-gradient(-45deg, rgba(0,0,0,0) 0%, rgba(202,108,0,0.1) 52.89%),
+    linear-gradient(90deg, #131313 0%, #131313 100%);
+  border: 1px solid rgba(237,184,126,0.5);
+  border-radius: 10px;
+  display: flex;
+  overflow: hidden;
+}
+
+.card-icon {
+  width: 75px; min-width: 75px;
+  display: flex;
+  align-items: center; justify-content: center;
+  position: relative;
+}
+
+.card-icon-inner {
+  width: 64px; height: 64px;
+  background: rgba(0,0,0,0);
+  border: 0.5px solid rgba(142,142,142,0.53);
+  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center; justify-content: center;
+}
+
+.card-icon-inner img {
+  width: 50px; height: 50px;
+  object-fit: contain;
+}
+
+.card-info {
+  flex: 1;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2.3px;
+  padding: 4px 2px 0;
+
+}
+
+.card-name-cat {
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 13px;
+  background: linear-gradient(270deg, #7C5526 0%, #F0CA78 32.21%, #FCE7AA 64.9%, #BE893B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-type {
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 13px;
+  color: #FFFFFF;
+}
+
+.card-stage-label {
+  font-family: 'Kanit', sans-serif;
+  font-size: 10px;
+  color: #FFFFFF;
+}
+
+.card-stage-bg {
+  background: rgba(0,0,0,0.5);
+  padding: 0 3px;
+}
+
+.card-stage-value {
+  font-family: 'Kanit', sans-serif;
+  font-size: 8px;
+  color: #FFFFFF;
+}
+
+.card-bars {
+  display: flex;
+  flex-direction: column;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0px 0;
+
+}
+
+.bar-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center; justify-content: center;
+}
+
+.bar-icon-hp {
+  width: 25px; height: 12px;
+}
+
+.bar-icon-exp {
+  width: 25px; height: 25px;
+}
+
+.bar-icon img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+
+.hp-bar-track {
+  
+  width: 229px;
+  height: 8px;
+  background: #262626;
+  overflow: hidden;
+}
+
+.hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(172,132,86,0.8) 0%, rgba(255,229,200,0.8) 100%);
+  transition: width 0.4s ease;
+}
+
+.bar-pct {
+  font-family: 'Arial', sans-serif;
+  font-size: 10px;
+  color: #FFFFFF;
+  min-width: 28px;
+}
+
+.exp-bar-track {
+  width: 229px;
+  height: 6px;
+  display: flex;
+  gap: 1px;
+}
+
+.exp-seg {
+  flex: 1;
+  height: 100%;
+  background: #262626;
+}
+
+.exp-seg.lit {
+  background: #AE8E6A;
+}
+
+.card-action {
+  width: 105px; min-width: 105px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 5px 0px 0px;
+}
+
+.spinner-wrap {
+  width: 36px; height: 38px;
+  overflow: hidden;
+  display: flex;
+  align-items: center; justify-content: center;
+}
+
+.spinner-wrap img {
+  width: 58px; height: 38px;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.timer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.timer-time {
+  font-family: 'Alexandria', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: #FFFFFF;
+}
+
+.timer-label {
+  font-family: 'Arial', sans-serif;
+  font-size: 8px;
+  color: #848181;
+  text-transform: uppercase;
+}
+
+@keyframes blink-red {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.timer-hungry {
+  color: #E82938;
+  animation: blink-red 0.9s ease-in-out infinite;
+}
+
+.timer-label-hungry {
+  color: #E82938;
+  animation: blink-red 0.9s ease-in-out infinite;
+}
+
+.btn-receive {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  gap: 8px;
+  width: 62px;
+  height: 20px;
+  background: linear-gradient(180deg, #937036 0%, #573D18 100%);
+  border: 1px solid #9A7853;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: filter 0.1s;
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 120%;
+  text-align: center;
+  color: #FFFFFF;
+}
+.btn-receive:hover { filter: brightness(1.15); }
+
+.btn-feed {
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 10px;
+  cursor: pointer;
+  border: 1px solid #9a7853;
+  border-radius: 5px;
+  transition: filter 0.1s;
+  background: linear-gradient(180deg, #937036 0%, #573d18 100%);
+  color: #FFFFFF;
+}
+.btn-feed:hover { filter: brightness(1.15); }
+.btn-feed-disabled {
+  font-family: 'Copperplate Gothic', 'Cinzel', serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 10px;
+  cursor: not-allowed;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #444 0%, #2a2a2a 100%);
+  color: #888;
+  opacity: 0.6;
+}
+
+.receive-icon {
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center; justify-content: center;
+}
+.receive-icon img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+
+.animal-card.state-dead {
+  border-color: rgba(141,141,141,0.75);
+}
+
+.animal-card.state-dead .card-name-cat,
+.animal-card.state-dead .card-type {
+  opacity: 0.5;
+}
+
+.animal-card.state-dead .hp-bar-fill {
+  opacity: 0.3;
+}
+
+.animal-card.state-dead .exp-seg.lit {
+  opacity: 0.3;
+}
+
+/* dead icon — hover to delete */
+.animal-card.state-dead .card-icon {
+  cursor: pointer;
+}
+
+.animal-card.state-dead .card-icon .dead-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: rgba(0,0,0,0.6);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.animal-card.state-dead .card-icon:hover .dead-overlay {
+  opacity: 1;
+}
+
+.dead-overlay .dead-x-icon {
+  width: 44px; height: 44px;
+  display: flex;
+  align-items: center; justify-content: center;
+}
+
+.dead-overlay .dead-x-icon img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+
+.dead-overlay .dead-label {
+  font-family: 'Kanit', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #E82938;
+  letter-spacing: 0.05em;
+  margin-top: 1px;
+}
+
+/* ─── FRAME OVERLAY ────────────────────────────────── */
+#frame-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  background: url('assets/Frame 2384.png') center/cover no-repeat;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.5;
+  display: none;
+}

@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
+*
+{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Special Elite', cursive;
+    color: #FFF;
+    font-size: 1.5vh;
+}
+
+body {
+    user-select: none;
+    display: none;
+    justify-content: flex-end;
+    align-items: start;
+    min-height: 100vh;
+    background: radial-gradient(rgba(43, 26, 14, 0.7), #0a0a0a);
+    z-index: -1;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    flex-direction: column;
+    width: 30vh;
+    height: 30vh;
+    margin-top: 70vh;
+    margin-right: 4vh;
+}
+
+.time {
+    font-size: 2vh;
+    /* margin-right: 5.5vh; */
+}
+
+.main {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: auto;
+    height: 3vh;
+    background-color: #2d1b0f; /* น้ำตาลเข้มเหมือนไม้ไหม้ */
+    box-shadow: 0 0 .5vh #000000aa;
+    border-radius: .3vh;
+}
+
+.text {
+    font-size: 1.2vh;
+    padding: .2vh 4vh;
+    border-left: solid #a52a2a .4vh;
+    border-right: solid #a52a2a .4vh;
+    text-shadow: 1px 1px #000;
+}
+
+.id span {
+    color: #ff0000;
+    font-size: 1.5vh;
+}
+
+.id p {
+    padding: 1vh;
+    font-size: 1.5vh;
+}
+
+/* ปุ่ม .x และ .y ถูกย้ายไว้ด้านล่างสุด */
+.x {
+    width: 2.3vh;
+    text-align: center;
+    height: 2vh;
+    background-color: #8b5a2b; /* สีน้ำตาลทองแดง */
+    border: none;
+    font-size: 1.2vh;
+    margin: .5vh;
+    border-radius: .3vh;
+}
+
+.y {
+    width: 2.3vh;
+    text-align: center;
+    height: 2vh;
+    background-color: #a52a2a; /* สีเลือดหมูเข้ม */
+    border: none;
+    font-size: 1.2vh;
+    margin: .5vh;
+    border-radius: .3vh;
+}

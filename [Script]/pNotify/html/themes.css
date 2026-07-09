@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+
+/* ══════════════════════════════════════════════════════════
+   Theme "lp" — การ์ดมุมมน โปร่งเข้ม แถบสีซ้ายบอกประเภท (success/error/info/warning)
+   ไม่มีป้าย "แจ้งเตือน" ที่ noty.js ฝัง markup มาแบบ hardcode (ซ่อนด้วย .header ด้านล่าง)
+   ══════════════════════════════════════════════════════════ */
+.noty_theme__lp.noty_bar {
+    /* display:table = หดตามความยาวข้อความจริง (ไม่ยืดเต็ม 325px ของ container เสมอ)
+       margin-left:auto ดันการ์ดให้ชิดขอบขวาของ container เหมือนเดิม แม้จะแคบลง */
+    display: table;
+    margin: 8px 0 8px auto;
+    max-width: 100%;
+    min-width: 160px;
+    border-radius: 10px;
+    background: rgba(24, 26, 30, 0.92);
+    border-left: 4px solid #9aa0a6;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+.noty_theme__lp.noty_bar .header { display: none; }
+.noty_theme__lp.noty_bar .noty_body {
+    padding: 12px 14px;
+    font-family: 'Kanit', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #f4ead8;
+    line-height: 1.5;
+}
+.noty_theme__lp.noty_bar .noty-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(244, 234, 216, 0.6);
+}
+.noty_theme__lp.noty_bar .noty_buttons { padding: 0 12px 10px; }
+.noty_theme__lp.noty_bar .noty_progressbar {
+    position: absolute; left: 0; bottom: 0;
+    height: 2px; width: 100%;
+    background: rgba(240, 202, 120, 0.6);
+}
+
+.noty_theme__lp.noty_type__success { border-left-color: #3ecf8e; }
+.noty_theme__lp.noty_type__error   { border-left-color: #ff5c5c; }
+.noty_theme__lp.noty_type__warning { border-left-color: #f0ca78; }
+.noty_theme__lp.noty_type__info,
+.noty_theme__lp.noty_type__information { border-left-color: #9aa0a6; }
+.noty_theme__lp.noty_type__alert,
+.noty_theme__lp.noty_type__notification { border-left-color: #f0ca78; }
+
+.noty_theme__gta.noty_bar {
+    margin: 7px 0;
+    overflow: hidden;
+    border-radius: 1px;
+    position: relative;
+    height: auto;
+    word-wrap: break-word;
+    
+}
+
+.header{
+    padding: 3px 5px;
+    background: rgba(34, 33, 33, 0.849);
+    border-radius: 5px;
+    color: #2594ee;
+}
+
+.noty_theme__gta.noty_bar .noty_body {
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 400;
+    margin-right: 10px;
+    font-family: 'Kanit', sans-serif;
+    border-radius: 5px;
+}
+
+.noty_theme__gta.noty_bar .noty_buttons {
+    padding: 0px; 
+}
+
+.noty_theme__gta.noty_bar .noty_progressbar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 1px;
+    width: 100%;
+    background-color: rgb(255, 255, 255);
+    transform: rotate(180deg);
+    opacity: 0.8;
+    filter: alpha(opacity=80);
+}
+
+.noty_theme__gta.noty_type__alert,
+.noty_theme__gta.noty_type__notification {
+    background: rgb(0, 0, 0);
+    color: white;
+    border-radius: 5px;
+}
+
+.noty_theme__gta.noty_type__warning {
+    background: rgb(0, 0, 0);
+    color: rgb(228, 162, 21);
+    border-radius: 5px;
+}
+
+.noty_theme__gta.noty_type__error {
+    background: rgb(0, 0, 0);
+    color: rgb(253, 0, 0);
+    border-radius: 5px;
+}
+
+.noty_theme__gta.noty_type__info,
+.noty_theme__gta.noty_type__information {
+    background: rgb(0, 0, 0);
+    color: rgb(207, 207, 207);
+    border-radius: 5px;
+}
+
+.noty_theme__gta.noty_type__success {
+    background: rgb(0, 0, 0);
+    color: rgb(49, 224, 14);
+    border-radius: 5px;
+}
+
+.gta_effects_open {
+    opacity: 0;
+    -webkit-transform: translate(50%);
+    -ms-transform: translate(50%);
+    transform: translate(50%);
+    -webkit-animation: noty_anim_in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);
+    animation: noty_anim_in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards;
+}
+
+.gta_effects_close {
+    -webkit-animation: noty_anim_out 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: noty_anim_out 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards; 
+}
+
+@-webkit-keyframes noty_anim_out_left {
+  100% {
+    -webkit-transform: translate(-50%);
+            transform: translate(-50%);
+    opacity: 0; } }
+
+@keyframes noty_anim_out_left {
+  100% {
+    -webkit-transform: translate(-50%);
+            transform: translate(-50%);
+    opacity: 0; } }
+
+.gta_effects_open_left {
+    opacity: 0;
+    -webkit-transform: translate(-50%);
+    -ms-transform: translate(-50%);
+    transform: translate(-50%);
+    -webkit-animation: noty_anim_in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);
+    animation: noty_anim_in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards;
+}
+
+.gta_effects_close_left {
+    -webkit-animation: noty_anim_out_left 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: noty_anim_out_left 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    -webkit-animation-fill-mode: backwards;
+    animation-fill-mode: backwards; 
+}
+
+@-webkit-keyframes noty_anim_fade_in {
+  100% { opacity: 1; } }
+
+@keyframes noty_anim_fade_in {
+  100% { opacity: 1; } }
+
+@-webkit-keyframes noty_anim_fade_out {
+  100% { opacity: 0; } }
+
+@keyframes noty_anim_fade_out {
+  100% { opacity: 0; } }
+
+.gta_effects_fade_in {
+    opacity: 0;
+    animation: noty_anim_fade_in 0.5s;
+}
+
+.gta_effects_fade_out {
+    opacity: 1;
+    animation: noty_anim_fade_out 0.5s;
+}

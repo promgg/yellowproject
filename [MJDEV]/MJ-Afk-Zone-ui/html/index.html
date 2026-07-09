@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFK Zone</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ====== Main App Wrapper 1920×1080 ====== -->
+  <div id="app" class="hidden">
+
+    <!-- Preview overlay (mockup) — toggle P -->
+    <div id="preview-overlay"></div>
+
+    <!-- Background image -->
+    <img id="afk-bg" src="image/afk_bg.png" alt="">
+
+    <!-- Character image — container(554×316) > rotate > img(551×310) -->
+    <div id="afk-char-wrap">
+      <div id="afk-char-rot">
+        <img id="afk-char" src="image/afk_char.png" alt="">
+      </div>
+    </div>
+
+    <!-- Decorative line -->
+    <div id="afk-deco-line"></div>
+
+    <!-- Decorative dot -->
+    <div id="afk-deco-dot"></div>
+
+    <!-- Titles -->
+    <p id="afk-title-en">AFK ZONE</p>
+    <p id="afk-title-th">โซนพักผ่อน</p>
+
+    <!-- Circular progress ring -->
+    <div id="afk-ring-wrap">
+      <svg id="afk-ring" viewBox="0 0 126 126">
+        <path id="afk-ring-bg"
+          d="M126 63C126 97.7939 97.7939 126 63 126C28.2061 126 0 97.7939 0 63C0 28.2061 28.2061 0 63 0C97.7939 0 126 28.2061 126 63ZM9.22318 63C9.22318 92.7001 33.2999 116.777 63 116.777C92.7001 116.777 116.777 92.7001 116.777 63C116.777 33.2999 92.7001 9.22318 63 9.22318C33.2999 9.22318 9.22318 33.2999 9.22318 63Z"/>
+        <circle id="afk-ring-progress" cx="63" cy="63" r="58.4"
+          fill="none" stroke="url(#goldGradient)" stroke-width="9.2"
+          stroke-linecap="round" stroke-dasharray="366.9" stroke-dashoffset="366.9"
+          transform="rotate(-90 63 63)"/>
+        <defs>
+          <linearGradient id="goldGradient" gradientUnits="userSpaceOnUse" x1="126" x2="0" y1="63" y2="63">
+            <stop stop-color="#7C5526"/>
+            <stop offset="0.322" stop-color="#F0CA78"/>
+            <stop offset="0.649" stop-color="#FCE7AA"/>
+            <stop offset="1" stop-color="#BE893B"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- Gift icon -->
+    <div id="afk-gift-wrap">
+      <svg id="afk-gift" viewBox="0 0 57 57" fill="none">
+        <path
+          d="M51.3 14.25H47.8515C48.222 13.0815 48.45 11.685 48.45 9.975C48.45 4.4745 43.9755 0 38.475 0C33.858 0 30.78 4.218 28.785 8.8065C26.8185 4.503 23.5695 0 18.525 0C13.0245 0 8.55 4.4745 8.55 9.975C8.55 11.685 8.778 13.0815 9.1485 14.25H5.7C2.565 14.25 0 16.815 0 19.95C0 23.085 2.565 25.65 5.7 25.65H51.3C54.435 25.65 57 23.085 57 19.95C57 16.815 54.435 14.25 51.3 14.25ZM38.475 5.7C40.8405 5.7 42.75 7.6095 42.75 9.975C42.75 14.25 40.9545 14.25 39.9 14.25H32.832C34.2855 9.747 36.3945 5.7 38.475 5.7ZM14.25 9.975C14.25 7.6095 16.1595 5.7 18.525 5.7C21.0615 5.7 23.3985 10.0605 24.795 14.25H17.1C16.0455 14.25 14.25 14.25 14.25 9.975ZM8.55 31.35H5.7V51.3C5.7 54.435 8.265 57 11.4 57H25.65V31.35H8.55ZM45.6 31.35H31.35V57H45.6C48.735 57 51.3 54.435 51.3 51.3V31.35H45.6Z"
+          fill="url(#giftGradient)"/>
+        <defs>
+          <linearGradient id="giftGradient" gradientUnits="userSpaceOnUse" x1="57" x2="0" y1="28.5" y2="28.5">
+            <stop stop-color="#7C5526"/>
+            <stop offset="0.322" stop-color="#F0CA78"/>
+            <stop offset="0.649" stop-color="#FCE7AA"/>
+            <stop offset="1" stop-color="#BE893B"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- Timer badge -->
+    <div id="afk-timer-badge">
+      <p id="afk-timer">00:00:00</p>
+    </div>
+
+  </div><!-- #app -->
+
+  <!-- ====== Zone label when in zone but not AFK ====== -->
+  <div id="afk-zone-label"></div>
+
+  <!-- hint "กด G เพื่อเริ่มพักผ่อน" ย้ายไปใช้ lp_textui แล้ว (ดู client.lua) -->
+
+  <audio id="rewardSound" src="sounds/reward.mp3" preload="auto"></audio>
+  <script src="script.js"></script>
+</body>
+</html>

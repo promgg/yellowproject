@@ -1,0 +1,282 @@
+body {
+  font-family: 'Kanit', sans-serif;
+  /* background-color: #111; */
+  color: #fff;
+  margin: 0;
+  padding: 0;
+}
+
+.board-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  background-color: #000000d0;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(255, 10, 10, 0.651);
+  /* ถ้าต้องการจัดกึ่งกลางแนวนอนก็ใช้ margin: auto; แบบนี้ก็พอแล้ว */
+}
+
+/* กรณี fixed-size ให้จัดกึ่งกลางทั้งแนวตั้งและแนวนอน */
+.board-container.fixed-size {
+  width: 900px !important;
+  height: 820px !important;
+  overflow: auto;
+  max-width: none !important;
+  /* auto ไม่ใช่ค่านิยมของ max-width ต้องใช้ none */
+  max-height: none !important;
+
+  /* กำหนดตำแหน่งกึ่งกลางหน้าจอทั้งแนวตั้งและแนวนอน */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  /* ลบ margin เดิมออก */
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e74c3c;  /* เส้นขีดตรงสีแดงสด */
+  background-color: #000000;
+  position: relative;
+}
+
+/* โลโก้ขนาดเพิ่มเล็กน้อย */
+.logo {
+  width: 100px;
+  height: auto;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 4px #e74c3c); /* เงาแดงนิดๆ */
+}
+
+/* หัวข้อใหญ่ */
+h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #e74c3c;
+  letter-spacing: 3px;
+  text-shadow: 1px 1px 3px #a93226;
+  font-weight: 700;
+}
+
+/* หัวข้อรอง */
+h2 {
+  margin-top: 6px;
+  font-size: 20px;
+  color: #ddd;
+  font-weight: 500;
+  font-style: italic;
+  text-shadow: 0 0 4px #e74c3c99;
+}
+
+.filter-buttons {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.btn {
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.btn.red {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.btn.red:hover {
+  background-color: #c0392b;
+}
+
+.btn.black {
+  background-color: #333;
+  color: #fff;
+}
+
+.btn.black:hover {
+  background-color: #222;
+}
+
+.post-author {
+  position: absolute;
+  top: 10px;
+  left: 13px;
+  padding: 4px 8px;
+  /* background-color: #e74c3c;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px; */
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 4px #fff;
+  animation: rgbGlow 3s infinite linear;
+}
+
+/* แอนิเมชันเรืองแสงแบบ RGB */
+@keyframes rgbGlow {
+  0% {
+    text-shadow: 0 0 6px red;
+    color: red;
+  }
+  33% {
+    text-shadow: 0 0 6px lime;
+    color: lime;
+  }
+  66% {
+    text-shadow: 0 0 6px cyan;
+    color: cyan;
+  }
+  100% {
+    text-shadow: 0 0 6px red;
+    color: red;
+  }
+}
+
+.send-btn:hover {
+  background-color: #d40000;
+}
+
+.post-list {
+  margin-top: 20px;
+}
+
+.post {
+  position: relative; /* เพิ่มเพื่อให้ตำแหน่ง absolute ทำงานภายใน post นี้ */
+  background-color: #222;
+  border-left: 4px solid #e74c3c;
+  margin-bottom: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.post-text {
+  font-size: 16px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.post img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  /* ให้รูปครอบเต็มพื้นที่ โดยไม่ผิดเพี้ยนสัดส่วน */
+  border-radius: 6px;
+  border: 1px solid #444;
+  margin-bottom: 10px;
+}
+
+.post-time {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ff6b6b;
+  font-style: italic;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+}
+
+.delete-btn:hover {
+  background-color: #a93226;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background-color: #000000c9;
+  padding: 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.modal-content input[type="text"] {
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  background-color: #333;
+  color: #fff;
+}
+
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.post-list {
+  max-height: 400px;
+  overflow-y: auto;
+
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+
+  padding-right: 10px;
+
+  /* Scrollbar สำหรับ Chrome, Edge, Safari */
+  scrollbar-width: thin;              /* Firefox */
+  scrollbar-color: #e74c3c transparent; /* Firefox */
+}
+
+/* Chrome, Edge, Safari */
+.post-list::-webkit-scrollbar {
+  width: 6px;            /* ความกว้าง scrollbar */
+}
+
+.post-list::-webkit-scrollbar-track {
+  background: transparent;   /* สีพื้นหลังแทร็ค */
+}
+
+.post-list::-webkit-scrollbar-thumb {
+  background-color: #e74c3c; /* สี thumb (แถบเลื่อน) เป็นสีแดง */
+  border-radius: 3px;        /* มุมโค้ง */
+  border: 1px solid transparent; /* ขอบบางๆ เพื่อความสวย */
+}
+
+/* ถ้าต้องการเปลี่ยนสีตอน hover */
+.post-list::-webkit-scrollbar-thumb:hover {
+  background-color: #c0392b;
+}

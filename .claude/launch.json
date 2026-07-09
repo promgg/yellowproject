@@ -1,0 +1,77 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "LP_reserver",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5500", "D:/project/txData/VORPCore/resources/[standalone]/LP_reserver/html"],
+      "port": 5500
+    },
+    {
+      "name": "MJ-Deletehorse",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5501", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-Deletehorse/html"],
+      "port": 5501
+    },
+    {
+      "name": "Gacha",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5502", "D:/project/txData/VORPCore/resources/UI/Gacha/html"],
+      "port": 5502
+    },
+    {
+      "name": "lp_marketplace",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5503", "D:/project/txData/VORPCore/resources/[Script]/lp_marketplace/nui"],
+      "port": 5503
+    },
+    {
+      "name": "MJ-Lumberjack",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5504", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-Lumberjack/html"],
+      "port": 5504
+    },
+    {
+      "name": "lp_progbar",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5505", "D:/project/txData/VORPCore/resources/[Script]/lp_progbar/html"],
+      "port": 5505
+    },
+    {
+      "name": "lp_textui",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5506", "D:/project/txData/VORPCore/resources/[Script]/lp_textui/nui"],
+      "port": 5506
+    },
+    {
+      "name": "lp_minigame",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5507", "D:/project/txData/VORPCore/resources/[Script]/lp_minigame/html"],
+      "port": 5507
+    },
+    {
+      "name": "MJ-AfkFishing",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5508", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-AfkFishing/html"],
+      "port": 5508
+    },
+    {
+      "name": "lp_rewardpanel",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5509", "D:/project/txData/VORPCore/resources/[Script]/lp_rewardpanel/html"],
+      "port": 5509
+    },
+    {
+      "name": "MJ-Airdrop",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5510", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-Airdrop/html"],
+      "port": 5510
+    },
+    {
+      "name": "MJ-Planting",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5511", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-Planting/html"],
+      "port": 5511
+    }
+  ]
+}

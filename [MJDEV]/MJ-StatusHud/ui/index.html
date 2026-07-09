@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+	<link rel="stylesheet" href="style.css">
+	<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.7/dist/iconify-icon.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+	<title>MJ Statushud</title>
+</head>
+
+<body>
+	<div class="containner">
+		<div class="hud">
+			<div class="box_status">
+				<div class="MJDev-profile-wrapper">
+					<div class="Profile-Box">
+						<img id="Profile-Player" src="img/logo.png">
+					</div>
+				</div>
+				<div class="MJDev-status-wrapper">
+					<div class="MJDev-health-bar">
+						<div id="data-healthload"></div>
+						<div id="data-healtprecent">100%</div>
+					</div>
+					<div class="MJDev-armor-stamina-wrapper">
+						<i><iconify-icon icon="mdi:shield"></iconify-icon></i>
+						<div class="MJDev-armor-bar">
+							<div id="data-armorload"></div>
+						</div>
+						<i style="color: #49c501;"><iconify-icon icon="ion:flash-sharp"></iconify-icon></i>
+						<div class="MJDev-stemina-bar">
+							<div id="data-steminaload"></div>
+						</div>
+					</div>
+					<div class="MJDev-timedate-info-wrapper">
+						<div class="MJDev-temp-box">
+							<i><iconify-icon icon="wi:thermometer"></iconify-icon></i>
+							<!-- <span style="color: var(--base-primary-color); margin-right: .2vh;">TEMP:</span> -->
+							<!-- <span id="temp">99</span> -->
+							<div id="temp">99</div>
+						</div>
+						<div class="MJDev-uid-box">
+							<span style="color: var(--base-primary-color); margin-right: .2vh;">UID:</span>
+							<span id="id">99</span>
+						</div>
+						<div class="MJDev-voice-info-wrapper">
+							<i><iconify-icon icon="stash:mic-light"></iconify-icon></i>
+							<span id="data-voice">ปกติ</span>
+						</div>
+						<div class="MJDev-time-data-info-wrapper">
+							<i><iconify-icon icon="mingcute:time-line"></iconify-icon></i>
+							<div id="time">99</div>
+							<div class="space"></div>
+							<i><iconify-icon icon="lets-icons:date-range-light"></iconify-icon></i>
+							<div id="calendar">?</div>
+						</div>
+					</div>
+				</div>
+				<div class="MJDev-Status-All-Box-main">
+					<div class="statusall">
+						<div class="data">
+							<div class="poss" id="thirst"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="twemoji:cup-with-straw"></iconify-icon></i>
+							</div>
+						</div>
+						<div class="data2">
+							<div class="poss" id="hunger"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="zondicons:location-food"></iconify-icon></i>
+							</div>
+						</div>
+						<div class="data3">
+							<div class="poss" id="stress"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="lucide:brain"></iconify-icon></i>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="MJDev-Status-Horse-Box-main">
+					<div class="statusall">
+						<div class="data">
+							<div class="poss" id="horsehealth"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="fa6-solid:heart-pulse"></iconify-icon></i>
+							</div>
+						</div>
+						<div class="data2">
+							<div class="poss" id="horsestamina"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="ph:lightning-fill"></iconify-icon></i>
+							</div>
+						</div>
+						<div class="data3">
+							<div class="poss" id="horseclean"></div>
+							<div class="statusicon">
+								<i><iconify-icon icon="mdi:shower"></iconify-icon></i>
+							</div>
+						</div>
+					</div>
+				</div>
+
+
+			</div>
+		</div>
+	</div>
+	<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+	<script src="js/script.js"></script>
+</body>
+
+</html>

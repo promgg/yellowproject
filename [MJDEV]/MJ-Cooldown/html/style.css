@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Kanit', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 14vw;
+    height: 2.2vw;
+    border-radius: 0.4vw;
+    background: rgba(30, 30, 30, 0.95);
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+    position: absolute;
+    top: 2vw; /* Repositioned to the top-center */
+    left: 50%;
+    transform: translateX(-50%) translateY(0); /* Center horizontally */
+    margin-left: 0;
+    animation: slideIn 1s ease-out forwards; /* Slide-in animation */
+}
+
+.cooldown-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6vw;
+    padding: 0.4vw 0.8vw;
+    background: linear-gradient(145deg, #242424de, #000000e0); /* Gray gradient */
+    border-radius: 0.3vw;
+    position: relative;
+}
+
+.text {
+    font-size: 0.85vw;
+    color: #ffffff;
+    text-shadow: 0 0 4px rgba(255, 0, 0, 0.6);
+}
+
+.icon {
+    font-size: 1.2vw;
+    color: white;
+    filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.6));
+}
+
+#cooldown {
+    padding: 0.1vw 0.6vw;
+    background: #363636cc; /* Gray color for cooldown */
+    border-radius: 0.3vw;
+    font-size: 0.85vw;
+    color: white;
+    box-shadow: 0px 4px 8px rgba(141, 127, 127, 0.5);
+    animation: glow 1s infinite alternate;
+}
+
+@keyframes slideIn {
+    0% {
+        top: -10vw; /* Start from above the screen */
+    }
+    100% {
+        top: 2vw; /* Slide into the top-center */
+    }
+}
+
+@keyframes glow {
+    0% {
+        box-shadow: 0 0 8px rgba(231, 76, 60, 0.5), 0 0 15px rgba(255, 99, 71, 0.6); /* Red shades */
+    }
+    100% {
+        box-shadow: 0 0 15px rgba(231, 76, 60, 1), 0 0 30px rgba(255, 99, 71, 0.9); /* Brighter red shades */
+    }
+}

@@ -1,0 +1,625 @@
+local VORPInv = {}
+VORPInv = exports.vorp_inventory:vorp_inventoryApi()
+
+local VORPcore = {}
+
+TriggerEvent("getCore", function(core)
+    VORPcore = core
+end)
+
+RegisterServerEvent("MJ-Police:grabdata") -- Go on duty, add cop count, restrict based off Max cop count event
+AddEventHandler("MJ-Police:grabdata", function(id)
+    local _source = source
+    local player = VORPcore.getUser(id).getUsedCharacter
+    local playermoney = player.money
+    TriggerClientEvent('MJ-Police:senddata', _source, playermoney)
+end)
+
+RegisterServerEvent("MJ-Police:synsociety", function(status)
+    local _source = source
+    local player = VORPcore.getUser(_source).getUsedCharacter
+    local job = player.job
+    exports["syn_society"]:SetPlayerDuty(_source, job, status, nil)
+end)
+
+RegisterServerEvent('MJ-Police:checkjob') -- Get id event currently not used/ *now fixed
+AddEventHandler('MJ-Police:checkjob', function()
+    local _source = source
+    local User = VORPcore.getUser(_source)
+    local Character = User.getUsedCharacter
+    local job = Character.job
+    local jobgrade = Character.jobGrade
+    TriggerClientEvent('MJ-Police:badgeon', _source, job, jobgrade)
+end)
+
+
+RegisterServerEvent('MJ-Police:FinePlayer') --Fine a player event, this is the one that removes right from pockets
+AddEventHandler('MJ-Police:FinePlayer', function(source, player, amount)
+    local _source = source
+    local target = VORPcore.getUser(player).getUsedCharacter
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    local username = user.firstname .. ' ' .. target.lastname
+    local Job = user.job
+    local targetname = target.firstname .. ' ' .. target.lastname
+
+    local fine = tonumber(amount)
+
+    for i, v in pairs(OnDutyJobs) do
+        if v == user.job then
+            local pJob = v
+            local Society_Account = pJob
+            if user.job == Society_Account then
+                if target.money < fine then
+                    target.removeCurrency(0, target.money)
+                    exports.ghmattimysql:executeSync(
+                        'UPDATE society_ledger SET ledger = ledger + @fine WHERE job = @job'
+                        , { fine = target.money, job = Society_Account })
+                else
+                    target.removeCurrency(0, fine)
+                    exports.ghmattimysql:executeSync(
+                        'UPDATE society_ledger SET ledger = ledger + @fine WHERE job = @job'
+                        , { fine = fine, job = Society_Account })
+                end
+
+                if ConfigWebhook.UseWebhook then
+                    VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.FineTitle, ConfigWebhook.WebhookInfo.FineWebhook,
+                        Job .. ' ' .. username .. _U('gaveafine') .. amount .. _U('to') .. targetname,
+                        ConfigWebhook.WebhookInfo.FineColor,
+                        ConfigWebhook.WebhookInfo.FineName, ConfigWebhook.WebhookInfo.FineLogo,
+                        ConfigWebhook.WebhookInfo.FineFooterLogo,
+                        ConfigWebhook.WebhookInfo.FineAvatar)
+                end
+
+                VORPcore.NotifyBottomRight(_source,
+                    _U('youfined') .. target.firstname .. ' ' .. target.lastname .. _U('currency') .. amount, 4000)
+                VORPcore.NotifyBottomRight(player, _U('recievedfine') .. fine, 4000)
+            end
+        end
+    end
+end)
+
+RegisterServerEvent('MJ-Police:JailPlayer') --Jail player event
+AddEventHandler('MJ-Police:JailPlayer', function(source, player, amount, loc)
+    local _source = source
+    local target = VORPcore.getUser(player).getUsedCharacter
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    local username = user.firstname .. ' ' .. target.lastname
+    local Job = user.job
+    local targetname = target.firstname .. ' ' .. target.lastname
+    local steam_id = target.identifier
+    local Character = target.charIdentifier
+    -- TIME
+    local amount = amount * 60
+    local timestamp = getTime() + amount
+
+    exports.ghmattimysql:execute(
+        "INSERT INTO jail (identifier, characterid, name, time, time_s, jaillocation) VALUES (@identifier, @characterid, @name, @timestamp, @time, @jaillocation)"
+        ,
+        {
+            ["@identifier"] = steam_id,
+            ["@characterid"] = Character,
+            ["@name"] = targetname,
+            ["@timestamp"] = timestamp,
+            ["@time"] = amount,
+            ["@jaillocation"] = loc
+        })
+    TriggerClientEvent("MJ-Police:JailPlayer", player, amount, loc)
+
+    if ConfigWebhook.UseWebhook then
+        VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.JailTitle, ConfigWebhook.WebhookInfo.JailWebhook,
+            Job .. ' ' .. username .. _U('sentto') .. targetname .. _U('tojailfor') .. amount .. _U('seconds'),
+            ConfigWebhook.WebhookInfo.JailColor,
+            ConfigWebhook.WebhookInfo.JailName, ConfigWebhook.WebhookInfo.JailLogo,
+            ConfigWebhook.WebhookInfo.JailFooterLogo,
+            ConfigWebhook.WebhookInfo.JailAvatar)
+    end
+end)
+
+RegisterServerEvent('MJ-Police:CommunityService') --Start community Service event
+AddEventHandler('MJ-Police:CommunityService', function(player, chore, amount)
+    local _source = source
+    local target = VORPcore.getUser(player).getUsedCharacter
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    local username = user.firstname .. ' ' .. target.lastname
+    local Job = user.job
+    local targetname = target.firstname .. ' ' .. target.lastname
+    local steam_id = target.identifier
+    local Character = target.charIdentifier
+
+    exports.ghmattimysql:execute(
+        "INSERT INTO communityservice (identifier, characterid, name, communityservice, servicecount) VALUES (@identifier, @characterid, @name, @communityservice, @servicecount)"
+        ,
+        {
+            ["@identifier"] = steam_id,
+            ["@characterid"] = Character,
+            ["@name"] = targetname,
+            ["@communityservice"] = chore,
+            ["@servicecount"] = amount
+        })
+
+    TriggerClientEvent("MJ-Police:ServicePlayer", player, chore, amount)
+    VORPcore.NotifyBottomRight(player, _U('givenservice'), 4000)
+
+    if ConfigWebhook.UseWebhook then
+        VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.ServiceTitle, ConfigWebhook.WebhookInfo.ServiceWebhook,
+            Job .. " " .. username .. _U('gaveservice') .. targetname .. amount .. _U('ofchores'),
+            ConfigWebhook.WebhookInfo.ServiceColor,
+            ConfigWebhook.WebhookInfo.ServiceName, ConfigWebhook.WebhookInfo.ServiceLogo,
+            ConfigWebhook.WebhookInfo.ServiceFooterLogo,
+            ConfigWebhook.WebhookInfo.ServiceAvatar)
+    end
+end)
+
+RegisterServerEvent("MJ-Police:finishedjail") --Unjail event
+AddEventHandler("MJ-Police:finishedjail", function(target_id)
+    local target = VORPcore.getUser(target_id).getUsedCharacter
+    local steam_id = target.identifier
+    local Character = target.charIdentifier
+    exports.ghmattimysql:execute("SELECT * FROM `jail` WHERE characterid = @characterid",
+        { ["@characterid"] = Character }
+        , function(result)
+            if result[1] then
+                local loc = result[1]["jaillocation"]
+                TriggerClientEvent("MJ-Police:UnjailPlayer", target_id, loc)
+            end
+        end)
+    exports.ghmattimysql:execute("DELETE FROM jail WHERE identifier = @identifier AND characterid = @characterid",
+        { ["@identifier"] = steam_id,["@characterid"] = Character })
+end)
+
+RegisterServerEvent("MJ-Police:unjailed") --Unjail event
+AddEventHandler("MJ-Police:unjailed", function(source, target_id, loc)
+    local _source = source
+    local target = VORPcore.getUser(target_id).getUsedCharacter
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    local username = user.firstname .. ' ' .. target.lastname
+    local Job = user.job
+    local targetname = target.firstname .. ' ' .. target.lastname
+    local steam_id = target.identifier
+    local Character = target.charIdentifier
+    exports.ghmattimysql:execute("SELECT * FROM `jail` WHERE characterid = @characterid",
+        { ["@characterid"] = Character }
+        , function(result)
+            if result[1] then
+                local loc = result[1]["jaillocation"]
+                TriggerClientEvent("MJ-Police:UnjailPlayer", target_id, loc)
+            end
+        end)
+    exports.ghmattimysql:execute("DELETE FROM jail WHERE identifier = @identifier AND characterid = @characterid",
+        { ["@identifier"] = steam_id,["@characterid"] = Character })
+
+    if ConfigWebhook.UseWebhook then
+        VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.JailTitle, ConfigWebhook.WebhookInfo.JailWebhook,
+            Job .. " " .. username .. _U('unjailed') .. targetname, ConfigWebhook.WebhookInfo.JailColor,
+            ConfigWebhook.WebhookInfo.JailName, ConfigWebhook.WebhookInfo.JailLogo,
+            ConfigWebhook.WebhookInfo.JailFooterLogo,
+            ConfigWebhook.WebhookInfo.JailAvatar)
+    end
+end)
+
+RegisterServerEvent('MJ-Police:GetID') -- Get id event currently not used/ *now fixed
+AddEventHandler('MJ-Police:GetID', function(player)
+    local _source = tonumber(source)
+
+    local User = VORPcore.getUser(player)
+    local Target = User.getUsedCharacter
+
+    VORPcore.NotifyLeft(_source, _U('idcheck'),
+        _U('name') .. Target.firstname .. ' ' .. Target.lastname .. "             " .. _U('job') .. Target.job,
+        "toasts_mp_generic", "toast_mp_customer_service", 8000, "COLOR_WHITE")
+end)
+
+RegisterServerEvent('MJ-Police:getVehicleInfo') --Get vehicle/horse owner event
+AddEventHandler('MJ-Police:getVehicleInfo', function(player, mount)
+    local _source = tonumber(source)
+
+    local User = VORPcore.getUser(player)
+    local Character = User.getUsedCharacter
+
+    exports.ghmattimysql:execute("SELECT * FROM `horses` WHERE charid=@identifier",
+        { identifier = Character.charIdentifier }
+        , function(result)
+            local found = false
+            if result[1] then
+                for i, v in pairs(result) do
+                    if GetHashKey(v.model) == mount then
+                        found = true
+                        VORPcore.NotifyLeft(_source, _U('idcheck'),
+                            _U('name') .. Character.firstname .. ' ' .. Character.lastname .. '', "toasts_mp_generic",
+                            "toast_mp_customer_service", 8000, "COLOR_WHITE")
+                    end
+                end
+            end
+            if not found then
+                VORPcore.NotifyLeft(_source, _U('idcheck'), _U('notowned'), "toasts_mp_generic",
+                    "toast_mp_customer_service"
+                    , 8000, "COLOR_WHITE")
+            end
+        end)
+end)
+
+RegisterServerEvent('MJ-Police:handcuff', function(player)
+    TriggerClientEvent('MJ-Police:handcuff', player)
+end)
+
+RegisterServerEvent('MJ-Police:lockpicksv') --Lockpick Handcuff event
+AddEventHandler('MJ-Police:lockpicksv', function(player)
+    local _source = source
+    local chance = math.random(1, 100)
+    if chance < 5 then
+        VORPInv.subItem(_source, 'lockpick', 1)
+        VORPcore.NotifyBottomRight(_source, _U('lockpickbroke'), 4000)
+    else
+        TriggerClientEvent('MJ-Police:lockpicked', player)
+    end
+end)
+
+RegisterServerEvent('MJ-Police:drag') --Drag Event
+AddEventHandler('MJ-Police:drag', function(target)
+    local _source = source
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    for i, v in pairs(OnDutyJobs) do
+        if user.job == v then
+            TriggerClientEvent('MJ-Police:drag', target, _source)
+        end
+    end
+end)
+
+RegisterServerEvent("MJ-Police:updateservice") --Update chore amount when chore is completed event
+AddEventHandler("MJ-Police:updateservice", function()
+    local _source = source
+    Citizen.Wait(2000)
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute(
+        "SELECT * FROM communityservice WHERE identifier = @identifier AND characterid = @characterid"
+        , { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+            if result[1] ~= nil then
+                local count = result[1]["servicecount"]
+                local identifier = result[1]["identifier"]
+                local charid = result[1]["characterid"]
+                exports.ghmattimysql:execute(
+                    "UPDATE communityservice SET servicecount = @count WHERE identifier = @identifier AND characterid = @characterid"
+                    , { ["@identifier"] = identifier,["@characterid"] = charid,["@count"] = count - 1 })
+            end
+        end)
+end)
+
+RegisterNetEvent("MJ-Police:endservice") -- Finished Community Service Event
+AddEventHandler("MJ-Police:endservice", function()
+    local _source = source
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute(
+        "DELETE FROM communityservice WHERE identifier = @identifier AND characterid = @characterid"
+        , { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+            if result[1] ~= nil then
+                VORPcore.NotifyBottomRight(_source, _U('servicecomplete'), 4000)
+            end
+        end)
+end)
+
+RegisterNetEvent("MJ-Police:jailedservice") --Jailed from breaking community service event
+AddEventHandler("MJ-Police:jailedservice", function()
+    local _source = source
+
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute(
+        "DELETE FROM communityservice WHERE identifier = @identifier AND characterid = @characterid"
+        , { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+            if result[1] ~= nil then
+                VORPcore.NotifyBottomRight(_source, _U('jailed'), 4000)
+            end
+        end)
+end)
+
+
+RegisterServerEvent("MJ-Police:check_jail") --Check if jailed when selecting character event
+AddEventHandler("MJ-Police:check_jail", function()
+    local _source = source
+    Wait(2000)
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute("SELECT * FROM jail WHERE identifier = @identifier AND characterid = @characterid",
+        { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+            if result[1] ~= nil then
+                local time = result[1]["time_s"]
+                local identifier = result[1]["identifier"]
+                exports.ghmattimysql:execute("UPDATE jail SET time = @time WHERE identifier = @identifier",
+                    { ["@time"] = getTime() + time,["@identifier"] = identifier })
+                time = tonumber(time)
+                TriggerClientEvent("MJ-Police:JailPlayer", _source, time)
+                TriggerEvent("MJ-Police:wear_prison", _source)
+            end
+        end)
+end)
+
+RegisterNetEvent("MJ-Police:jailbreak") --Jail break event, deletes time in jail
+AddEventHandler("MJ-Police:jailbreak", function()
+    local _source = source
+    Wait(1000)
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute("DELETE FROM jail WHERE identifier = @identifier AND characterid = @characterid",
+        { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+        end)
+end)
+
+RegisterServerEvent("MJ-Police:taketime") --Updates timer of how long left in jail defined by player
+AddEventHandler("MJ-Police:taketime", function()
+    local _source = source
+    local User = VORPcore.getUser(_source)
+    local CharInfo = User.getUsedCharacter
+    local steam_id = CharInfo.identifier
+    local Character = CharInfo.charIdentifier
+    exports.ghmattimysql:execute("SELECT * FROM jail WHERE identifier = @identifier AND characterid = @characterid",
+        { ["@identifier"] = steam_id,["@characterid"] = Character }, function(result)
+            if result[1] ~= nil then
+                local time = result[1]["time_s"]
+                local newtime = time - 30
+                local identifier = result[1]["identifier"]
+                exports.ghmattimysql:execute("UPDATE jail SET time_s = @time WHERE identifier = @identifier",
+                    { ["@time"] = newtime,["@identifier"] = identifier })
+            end
+        end)
+end)
+
+RegisterServerEvent("MJ-Police:guncabinet") -- Adds weapon from gun cabinet
+AddEventHandler("MJ-Police:guncabinet", function(weapon, ammoList, compList)
+    local _source = source
+    VORPInv.createWeapon(_source, weapon, ammoList, compList)
+end)
+
+RegisterServerEvent("MJ-Police:addammo") -- Adds weapon from gun cabinet
+AddEventHandler("MJ-Police:addammo", function(ammotype)
+    local _source = source
+    VORPInv.addItem(_source, ammotype, 1)
+end)
+
+function getTime() -- GEt time function
+    return os.time(os.date("!*t"))
+end
+
+RegisterServerEvent('MJ-Police:lockpick:break') --Lockpick broke event
+AddEventHandler('MJ-Police:lockpick:break', function()
+    local _source = source
+    VORPInv.subItem(_source, "lockpick", 1)
+    VORPcore.NotifyBottomRight(_source, _U('lockpickbroke'), 4000)
+end)
+
+VORPInv.RegisterUsableItem("lockpick", function(data) --Lockpick usable
+    VORPInv.CloseInv(data.source)
+    TriggerClientEvent("MJ-Police:lockpick", data.source)
+end)
+
+VORPInv.RegisterUsableItem("handcuffs", function(data) --Handcuffs usable
+    VORPInv.CloseInv(data.source)
+    TriggerClientEvent("MJ-Police:cuffs", data.source)
+end)
+
+function CheckTable(table, element)
+    for k, v in pairs(table) do
+        if v == element then
+            return true
+        end
+    end
+    return false
+end
+
+RegisterServerEvent("MJ-Police:policenotify")
+AddEventHandler("MJ-Police:policenotify", function(coords)
+    for z, m in ipairs(GetPlayers()) do
+        local User = VORPcore.getUser(m)
+        local used = User.getUsedCharacter
+        if CheckTable(OnDutyJobs, used.job) then -- if job exist in table then pass
+            Wait(200)
+            TriggerClientEvent("MJ-Police:witness", m, coords)
+        end
+    end
+end)
+
+RegisterCommand(ConfigMain.finecommand, function(source, args, rawCommand)
+    local _source = source -- player source
+    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local target = args[1]
+    local fine = args[2]
+    if Character.group == "admin" or CheckTable(OnDutyJobs, Character.job) then
+        TriggerEvent("MJ-Police:FinePlayer", _source, tonumber(target), tonumber(fine))
+    end
+end)
+
+RegisterCommand(ConfigMain.jailcommand, function(source, args, rawCommand)
+    local _source = source -- player source
+    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local target = args[1]
+    local jailtime = args[2]
+    local jailid = args[3]
+    if jailid == nil then
+        jailid = 'sk'
+    end
+    if Character.group == "admin" or CheckTable(OnDutyJobs, Character.job) then
+        TriggerEvent('MJ-Police:JailPlayer', _source, tonumber(target), tonumber(jailtime), jailid)
+    end
+end)
+
+RegisterCommand(ConfigMain.unjailcommand, function(source, args, rawCommand)
+    local _source = source -- player source
+
+    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local target = tonumber(args[1])
+    if target then
+        if VORPcore.getUser(target) then
+            if Character.group == "admin" or CheckTable(OnDutyJobs, Character.job) then
+                TriggerEvent("MJ-Police:unjailed",_source, target)
+            end
+        end
+    end
+end)
+
+RegisterServerEvent('MJ-Police:PlayerJob')
+AddEventHandler('MJ-Police:PlayerJob', function()
+    local _source = source
+    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local CharacterJob = Character.job
+    TriggerClientEvent('MJ-Police:PlayerJob', _source, CharacterJob)
+end)
+
+RegisterServerEvent("MJ-Police:GetPlayerWagonID") -- Take out vehicle event not currently used
+AddEventHandler("MJ-Police:GetPlayerWagonID", function(player)
+    if player ~= nil then
+        TriggerClientEvent('MJ-Police:PlayerInWagon', player)
+    end
+end)
+
+RegisterServerEvent('syn_search:TakeFromsteal')
+AddEventHandler('syn_search:TakeFromsteal', function(obj)
+    local _source = source
+    TriggerClientEvent('MJ-Police:GetSearch', _source, obj)
+    TriggerClientEvent("vorp_inventory:CloseInv", _source)
+end)
+
+RegisterServerEvent('MJ-Police:TakeFrom')
+AddEventHandler('MJ-Police:TakeFrom', function(obj, steal_source)
+    local _steal_source = steal_source
+    local _source = source
+    local target = VORPcore.getUser(_steal_source).getUsedCharacter
+    local targetname = target.firstname .. ' ' .. target.lastname
+    local user = VORPcore.getUser(_source).getUsedCharacter
+    local username = user.firstname .. ' ' .. user.lastname
+    local Job = user.job
+
+    local decode_obj = json.decode(obj)
+
+    if decode_obj.type ~= 'item_weapon' and tonumber(decode_obj.number) > 0 and
+        tonumber(decode_obj.number) <= tonumber(decode_obj.item.count) then
+        local canCarry = VORPInv.canCarryItem(_source, decode_obj.item.name, decode_obj.number)
+        if canCarry then
+            VORPInv.subItem(_steal_source, decode_obj.item.name, decode_obj.number, decode_obj.item.metadata)
+            VORPInv.addItem(_source, decode_obj.item.name, decode_obj.number, decode_obj.item.metadata)
+            VORPcore.NotifyBottomRight(_source, _U('took') .. decode_obj.number .. " " .. decode_obj.item.label, 4000)
+            Wait(100)
+            TriggerEvent('MJ-Police:ReloadInventory', _steal_source, _source)
+            if ConfigWebhook.UseWebhook then
+                VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.SearchedTitle, ConfigWebhook.WebhookInfo.SearchedWebhook,
+                    Job ..
+                    " " ..
+                    username ..
+                    _U('took') .. decode_obj.number .. " " .. decode_obj.item.label .. _U('from') .. targetname,
+                    ConfigWebhook.WebhookInfo.SearchedColor,
+                    ConfigWebhook.WebhookInfo.SearchedName, ConfigWebhook.WebhookInfo.SearchedLogo,
+                    ConfigWebhook.WebhookInfo.SearchedFooterLogo,
+                    ConfigWebhook.WebhookInfo.SearchedAvatar)
+            end
+        else
+        end
+    elseif decode_obj.type == 'item_weapon' then
+        VORPInv.canCarryWeapons(_source, decode_obj.number, function(cb)
+            local canCarry = cb
+            if canCarry then
+                VORPInv.subWeapon(_steal_source, decode_obj.item.id)
+                VORPInv.giveWeapon(_source, decode_obj.item.id, 0)
+                VORPcore.NotifyBottomRight(_source, _U('took') .. decode_obj.item.label .. _U('from') .. targetname, 4000)
+
+                Wait(100)
+                TriggerEvent('MJ-Police:ReloadInventory', _steal_source, _source)
+                if ConfigWebhook.UseWebhook then
+                    VORPcore.AddWebhook(ConfigWebhook.WebhookInfo.SearchedTitle,
+                        ConfigWebhook.WebhookInfo.SearchedWebhook,
+                        Job ..
+                        " " ..
+                        username ..
+                        _U('took') .. decode_obj.number .. " " .. decode_obj.item.label .. _U('from') .. targetname,
+                        ConfigWebhook.WebhookInfo.SearchedColor,
+                        ConfigWebhook.WebhookInfo.SearchedName, ConfigWebhook.WebhookInfo.SearchedLogo,
+                        ConfigWebhook.WebhookInfo.SearchedFooterLogo,
+                        ConfigWebhook.WebhookInfo.SearchedAvatar)
+                end
+            else
+            end
+        end)
+    end
+end)
+
+RegisterServerEvent('MJ-Police:ReloadInventory')
+AddEventHandler('MJ-Police:ReloadInventory', function(steal_source, player_source)
+    local _steal_source = steal_source
+    local _source
+    if not player_source then
+        _source = source
+    else
+        _source = player_source
+    end
+    local inventory = {}
+
+    TriggerEvent('vorpCore:getUserInventory', tonumber(_steal_source), function(getInventory)
+        for _, item in pairs(getInventory) do
+            local data_item = {
+                count = item.count,
+                name = item.name,
+                limit = item.limit,
+                type = item.type,
+                label = item.label,
+                metadata = item.metadata,
+            }
+            table.insert(inventory, data_item)
+        end
+    end)
+    TriggerEvent('vorpCore:getUserWeapons', tonumber(_steal_source), function(getUserWeapons)
+        for _, weapon in pairs(getUserWeapons) do
+            local data_weapon = {
+                count = -1,
+                name = weapon.name,
+                limit = -1,
+                type = 'item_weapon',
+                label = '',
+                id = weapon.id,
+            }
+            table.insert(inventory, data_weapon)
+        end
+    end)
+
+    local data = {
+        itemList = inventory,
+        action = 'setSecondInventoryItems',
+    }
+    TriggerClientEvent('vorp_inventory:ReloadstealInventory', _source, json.encode(data))
+end)
+
+
+----- Commisary add item ----
+RegisterServerEvent('MJ-Police:CommisaryAddItem', function()
+    local _source = source
+    VORPInv.addItem(_source, ConfigJail.Jails.sisika.Commisary.FoodItem, 1)
+    VORPInv.addItem(_source, ConfigJail.Jails.sisika.Commisary.WaterItem, 1)
+end)
+----- check handcuffs are in inv ----
+
+
+RegisterServerEvent('MJ-Police:CheckHandcuffs')
+AddEventHandler('MJ-Police:CheckHandcuffs', function()
+    local _source = source
+    local hasHandcuffs = false
+
+    TriggerEvent('vorpCore:getUserInventory', tonumber(_source), function(inventory)
+        for _, item in pairs(inventory) do
+            if item.name == 'handcuffs' then
+                hasHandcuffs = true
+                break
+            end
+        end
+
+        TriggerClientEvent('MJ-Police:HandcuffsChecked', _source, hasHandcuffs)
+    end)
+end)
