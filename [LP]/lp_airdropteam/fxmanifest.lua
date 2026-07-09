@@ -12,7 +12,7 @@ games {"rdr3"}
 rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aware my resources *will* become incompatible once RedM ships.'
 lua54 'yes'
 this_is_a_map 'yes'
-description 'lp_airdropteam : clone of MJ-Airdrop with nx_cityselect-based teams (A/B/C)'
+description 'lp_airdropteam : clone of MJ-Airdrop; battle zone by nx_cityselect city, entry/return by chosen NPC station'
 
 version '1.0'
 ui_page 'html/index.html'

@@ -751,6 +751,11 @@ local function startZoneDot(airdropId)
     airdropId = tonumber(airdropId) or airdropId
     if not airdropId then return end
 
+    -- อย่าลงโทษผู้เล่นที่ออกจากรอบทีมไปแล้ว (ตายครั้งที่ 2 / ใช้ /backapt แล้วถูกวาร์ปไปจุดเข้าร่วม
+    -- ซึ่งอยู่ไกลนอก Radius) ระบบ ZoneLock เดิมของ MJ-Airdrop เช็คแค่ระยะห่างจากกล่อง ไม่รู้ว่า
+    -- ผู้เล่นออกจากรอบไปอย่างถูกต้องแล้ว จึงจะพยายามเริ่ม DoT ใส่คนที่ไม่ได้อยู่ในรอบอีกต่อไป
+    if IsPlayerInTeamRound and not IsPlayerInTeamRound() then return end
+
     -- If the player already died once from this punishment, do not restart DoT.
     if ZonePunished[airdropId] then return end
 
@@ -762,7 +767,8 @@ local function startZoneDot(airdropId)
         local dmg = (Config and Config["ZoneLeaveDamage"]) or 10
         local diedFromDot = false
 
-        while AirdropState and AirdropState[airdropId] and ZoneDotActive[airdropId] do
+        while AirdropState and AirdropState[airdropId] and ZoneDotActive[airdropId]
+            and not (IsPlayerInTeamRound and not IsPlayerInTeamRound()) do
             Citizen.Wait(every)
             local ped = PlayerPedId()
             if IsEntityDead(ped) then

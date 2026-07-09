@@ -3,6 +3,13 @@
 -- native/param สำหรับ ResurrectPed ยืนยันแล้วจากของจริงในโปรเจกต์: vorp_core/client/respawnsystem.lua
 
 local joinedTeamId  = nil -- teamId ที่เข้าร่วมอยู่ตอนนี้ (nil = ยังไม่เข้าร่วม/ออกจากรอบแล้ว)
+
+-- global (ไม่ local) ให้ client.lua เรียกเช็คได้ข้ามไฟล์ในรีซอร์สเดียวกัน — ใช้กันระบบ ZoneLock/DoT
+-- เดิมของ MJ-Airdrop (เช็คแค่ระยะห่างจากกล่อง) ลงโทษผู้เล่นที่ออกจากรอบทีมไปแล้วอย่างถูกต้อง
+-- (ตายครั้งที่ 2 หรือใช้ /backapt แล้วถูกวาร์ปไปจุดเข้าร่วมที่อยู่ไกลนอก Radius)
+function IsPlayerInTeamRound()
+    return joinedTeamId ~= nil
+end
 local zoneSpawnPos  = nil -- vector3 จุดศูนย์กลาง safe zone ของทีมที่เข้าร่วม
 local zoneOpened    = false
 local spawnedNpcs   = {}
@@ -180,6 +187,8 @@ local function JoinTeam(team)
 end
 
 -- ─── กดค้างเข้าร่วมทีม ผ่าน lp_textui:TextUIHold ลอยติดพิกัดจุด NPC ────────────────
+-- เข้าร่วมได้ที่ NPC จุดไหนก็ได้ ไม่ผูกกับเมืองของผู้เล่น — teamId ที่ join ขึ้นกับ NPC ที่กดจริง
+-- (server เชื่อ teamId ที่ client ส่งมาตรงๆ) ดังนั้นจุดที่กดเข้าร่วมคือจุดที่จะถูกส่งกลับไปเสมอ
 CreateThread(function()
     local heldId = nil
 

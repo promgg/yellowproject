@@ -1,6 +1,8 @@
 -- core/server_team.lua
 -- lp_airdropteam — Team join validation | Safe zone timer | Death/respawn/elimination | Round cleanup
--- แบ่งทีมตามเมืองที่ผู้เล่นสังกัดใน nx_cityselect (ดู Config.Team ใน config.lua)
+-- 2 แกนแยกอิสระ: โซนสู้กัน (battle team) ผูกกับเมืองใน nx_cityselect เสมอ ส่วนจุดเข้า/จุดออก
+-- (entry team) คือ NPC สถานีที่กดค้างเข้าร่วมจริง เข้าได้ทุกสถานีไม่ว่าเมืองอะไร แต่ออกจากรอบทาง
+-- ไหนก็ตามจะกลับไปที่สถานีเดิมที่เข้ามาเสมอ ดู Config.Team ใน config.lua
 
 local TeamsById = {}
 for _, t in ipairs(Config.Team.teams) do
@@ -12,22 +14,30 @@ for _, t in ipairs(Config.Team.teams) do
     CityToTeam[t.cityId] = t.id
 end
 
-local PlayerTeam     = {} -- [src] = teamId
-local PlayerRespawns = {} -- [src] = count
-local RoundActive    = false
-local JoiningLocked  = false
-local ZoneOpenAt     = 0  -- GetGameTimer() timestamp (ms) เมื่อ safe zone จะหมดเวลา
+local PlayerTeam      = {} -- [src] = battle teamId (โซนสู้กัน/เกิดใหม่ในรอบ — ผูกกับเมือง)
+local PlayerEntryTeam = {} -- [src] = entry teamId (จุดเข้า/จุดออก — ผูกกับ NPC ที่กดจริง)
+local PlayerRespawns  = {} -- [src] = count
+local RoundActive     = false
+local JoiningLocked   = false
+local ZoneOpenAt      = 0  -- GetGameTimer() timestamp (ms) เมื่อ safe zone จะหมดเวลา
 
 local function DBG(fmt, ...)
     print(('[lp_airdropteam:team] ' .. fmt):format(...))
 end
 
 local function ResetTeamState()
-    PlayerTeam     = {}
-    PlayerRespawns = {}
-    RoundActive    = false
-    JoiningLocked  = false
-    ZoneOpenAt     = 0
+    PlayerTeam      = {}
+    PlayerEntryTeam = {}
+    PlayerRespawns  = {}
+    RoundActive     = false
+    JoiningLocked   = false
+    ZoneOpenAt      = 0
+end
+
+-- จุดที่จะส่งผู้เล่นกลับไปเมื่อออกจากรอบ (ตายครั้งที่ 2 / backapt / จบรอบ): สถานีที่เข้ามาจริง
+-- ถ้าหาไม่เจอ (ไม่ควรเกิด) fallback กลับไปใช้ battle team กันเหตุ error
+local function ReturnTeamFor(src)
+    return TeamsById[PlayerEntryTeam[src]] or TeamsById[PlayerTeam[src]]
 end
 
 DBG('server_team.lua loaded OK (teams=%d)', #Config.Team.teams)
@@ -54,26 +64,28 @@ function StartTeamRound()
 end
 
 -- ─── จบรอบทีม: เรียกจาก AirdropAutoDelete()/GameFinish() ใน server.lua ────────
--- วาปทุกคนที่ยังอยู่ในรอบ (ยังไม่ถูกเด้งออก) กลับจุดเข้าร่วมของทีมตัวเอง
+-- วาปทุกคนที่ยังอยู่ในรอบ (ยังไม่ถูกเด้งออก) กลับสถานีที่เข้ามา
 function EndTeamRound()
     if not (Config.Team and Config.Team.enabled) then return end
     if not RoundActive and next(PlayerTeam) == nil then return end
 
     local n = 0
-    for src, teamId in pairs(PlayerTeam) do
-        local team = TeamsById[teamId]
-        if team then
+    for src in pairs(PlayerTeam) do
+        local returnTeam = ReturnTeamFor(src)
+        if returnTeam then
             n = n + 1
-            TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, team.joinCoords, true)
+            TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, returnTeam.joinCoords, true)
         end
     end
-    DBG('EndTeamRound: sent %d player(s) back to their join point', n)
+    DBG('EndTeamRound: sent %d player(s) back to their entry station', n)
 
     ResetTeamState()
 end
 
--- ─── เข้าร่วมทีม (client ยิงตอนกดค้าง prompt ที่จุด NPC) ──────────────────────
-VORPcore.Callback.Register('lp_airdropteam:JoinTeam', function(source, cb)
+-- ─── เข้าร่วมทีม (client ยิงตอนกดค้าง prompt ที่จุด NPC สถานีไหนก็ได้) ─────────────────
+-- entryTeamId = สถานีที่กดค้างจริง (ใช้เป็นจุดกลับตอนออกจากรอบ)
+-- battle teamId = derive จากเมืองใน nx_cityselect เสมอ (ใช้เป็นโซนสู้กัน/เกิดใหม่ในรอบ)
+VORPcore.Callback.Register('lp_airdropteam:JoinTeam', function(source, cb, entryTeamId)
     if not (Config.Team and Config.Team.enabled) or not RoundActive then
         cb({ ok = false, reason = 'no_round' })
         return
@@ -87,25 +99,32 @@ VORPcore.Callback.Register('lp_airdropteam:JoinTeam', function(source, cb)
         return
     end
 
-    local cityId = exports['nx_cityselect']:GetPlayerCityId(source)
-    local teamId = cityId and CityToTeam[cityId]
-    if not teamId then
+    local entryTeam = TeamsById[entryTeamId]
+    if not entryTeam then
         cb({ ok = false, reason = 'no_team' })
         return
     end
 
-    local team = TeamsById[teamId]
-    PlayerTeam[source]     = teamId
-    PlayerRespawns[source] = 0
+    local cityId = exports['nx_cityselect']:GetPlayerCityId(source)
+    local battleTeamId = cityId and CityToTeam[cityId]
+    local battleTeam = battleTeamId and TeamsById[battleTeamId]
+    if not battleTeam then
+        cb({ ok = false, reason = 'no_team' })
+        return
+    end
+
+    PlayerTeam[source]      = battleTeamId
+    PlayerEntryTeam[source] = entryTeamId
+    PlayerRespawns[source]  = 0
 
     local remainingMs = math.max(0, ZoneOpenAt - GetGameTimer())
-    DBG('src=%d joined team=%s city=%s remainingMs=%d', source, teamId, cityId, remainingMs)
+    DBG('src=%d entry=%s battle=%s(city=%s) remainingMs=%d', source, entryTeamId, battleTeamId, tostring(cityId), remainingMs)
 
     cb({
         ok             = true,
-        teamId         = teamId,
-        label          = team.label,
-        coords         = team.zoneSpawn,
+        teamId         = battleTeamId,
+        label          = battleTeam.label,
+        coords         = battleTeam.zoneSpawn,
         remainingMs    = remainingMs,
         safeZoneRadius = Config.Team.safeZoneRadius,
     })
@@ -113,8 +132,8 @@ end)
 
 -- ─── ตาย: hook event ที่ MJ-Respwan/core/client.lua ยิงจริง (บรรทัด TriggerServerEvent
 -- ("vorp_core:Server:OnPlayerDeath", ...) ในเธรด DEATH HANDLER ของมัน) ─────────────────
--- ตายครั้งที่ <= maxRespawns -> เกิดใหม่ในโซนได้อีก
--- ตายเกิน maxRespawns -> เด้งกลับจุดเข้าร่วม ออกจากรอบถาวร
+-- ตายครั้งที่ <= maxRespawns -> เกิดใหม่ในโซนสู้กัน (battle team) ได้อีก
+-- ตายเกิน maxRespawns -> เด้งกลับสถานีที่เข้ามา ออกจากรอบถาวร
 RegisterNetEvent('vorp_core:Server:OnPlayerDeath')
 AddEventHandler('vorp_core:Server:OnPlayerDeath', function(killerServerId, deathCause)
     local src = source
@@ -140,18 +159,21 @@ AddEventHandler('vorp_core:Server:OnPlayerDeath', function(killerServerId, death
     if PlayerRespawns[src] <= Config.Team.maxRespawns then
         TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, team.zoneSpawn, false)
     else
-        PlayerTeam[src] = nil
-        TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, team.joinCoords, true)
+        local returnTeam = ReturnTeamFor(src)
+        PlayerTeam[src]      = nil
+        PlayerEntryTeam[src] = nil
+        TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, returnTeam.joinCoords, true)
     end
 end)
 
 AddEventHandler('playerDropped', function()
     local src = source
-    PlayerTeam[src]     = nil
-    PlayerRespawns[src] = nil
+    PlayerTeam[src]      = nil
+    PlayerEntryTeam[src] = nil
+    PlayerRespawns[src]  = nil
 end)
 
--- ─── /backapt: ผู้เล่นขอออกจากรอบเองได้ตลอดเวลา วาปกลับจุดเข้าร่วมของทีมตัวเอง ──────────
+-- ─── /backapt: ผู้เล่นขอออกจากรอบเองได้ตลอดเวลา วาปกลับสถานีที่เข้ามา ──────────────────
 RegisterCommand('backapt', function(source, args, rawCommand)
     local src = source
     local teamId = PlayerTeam[src]
@@ -161,11 +183,12 @@ RegisterCommand('backapt', function(source, args, rawCommand)
         return
     end
 
-    local team = TeamsById[teamId]
-    if not team then return end
+    local returnTeam = ReturnTeamFor(src)
+    if not returnTeam then return end
 
-    DBG('src=%d used /backapt, leaving team=%s voluntarily', src, teamId)
+    DBG('src=%d used /backapt, leaving battleTeam=%s entry=%s', src, teamId, tostring(PlayerEntryTeam[src]))
 
-    PlayerTeam[src] = nil
-    TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, team.joinCoords, true)
+    PlayerTeam[src]      = nil
+    PlayerEntryTeam[src] = nil
+    TriggerClientEvent('lp_airdropteam:CL:ReviveAt', src, returnTeam.joinCoords, true)
 end, false)
