@@ -95,12 +95,19 @@ local function giveReward(src, reward)
     TriggerClientEvent('fishing:rewardGiven', src, reward.item)
 end
 
+-- เช็คว่ามีเบ็ดตกปลาติดตัวไหม (server-side, กันไคลเอนต์โกงข้าม client-side check)
+local function hasFishingRod(src)
+    local item = exports.vorp_inventory:getItem(src, Config.RodItem)
+    return item ~= nil and item ~= false
+end
+
 RegisterServerEvent('fishing:giveReward')
 AddEventHandler('fishing:giveReward', function(rawZoneHashes)
     local src = source
     if not checkRewardCooldown(src, Config.FishingTime * 800) then return end
     local zoneHashes = sanitizeZoneHashes(rawZoneHashes)
     if not isNearZone(zoneHashes) then return end
+    if not hasFishingRod(src) then return end
 
     local User = VORPcore.getUser(src)
     if not User or not User.getUsedCharacter then return end
@@ -116,6 +123,7 @@ AddEventHandler('fishing:giveRewardMini', function(isHit, rawZoneHashes)
     if not checkRewardCooldown(src, Config.MiniGameTime * 800) then return end
     local zoneHashes = sanitizeZoneHashes(rawZoneHashes)
     if not isNearZone(zoneHashes) then return end
+    if not hasFishingRod(src) then return end
 
     local User = VORPcore.getUser(src)
     if not User or not User.getUsedCharacter then return end

@@ -15,7 +15,17 @@ local function getBaitCount()
     return 0
 end
 
+-- เช็คว่ามีเบ็ดตกปลาติดตัวไหม (เหมือน Config.Axe ของ MJ-Lumberjack — เช็คว่ามี ไม่หัก ไม่ถูกหักออกตอนตกปลา)
+local function hasFishingRod()
+    local item = exports["vorp_inventory"]:getInventoryItem(Config.RodItem)
+    return item ~= nil and item ~= false
+end
+
 local function showIdleHint()
+    if not hasFishingRod() then
+        exports.lp_textui:TextUI('ต้องมีเบ็ดตกปลาถึงจะตกปลาได้')
+        return
+    end
     exports.lp_textui:TextUI(('[E] เริ่มตกปลา | เหยื่อ: %d'):format(getBaitCount()))
 end
 
@@ -198,6 +208,7 @@ end
 
 local function startMini()
     if fishingActive then return end
+    if not hasFishingRod() then notify('warning', 'ต้องมีเบ็ดตกปลาถึงจะตกปลาได้!', 3000); return end
     if getBaitCount() <= 0 then notify('warning', 'ไม่มีเหยื่อ!', 3000); return end
     fishingActive = true
     refreshAvailableItems()
@@ -208,6 +219,7 @@ end
 
 local function startAfk()
     if fishingActive then return end
+    if not hasFishingRod() then notify('warning', 'ต้องมีเบ็ดตกปลาถึงจะตกปลาได้!', 3000); return end
     if getBaitCount() <= 0 then notify('warning', 'ไม่มีเหยื่อ!', 3000); return end
     fishingActive = true
     isAfk         = true
