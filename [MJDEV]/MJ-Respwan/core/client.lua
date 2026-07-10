@@ -61,6 +61,12 @@ local angleY = 0.0
 local angleZ = 0.0
 local passive = false
 local isDead = false
+-- ต้องอยู่ scope บนสุดเดียวกับ isDead (ไม่ใช่ local แยกไว้ตรง DEATH HANDLER ด้านล่าง) เพราะทุก
+-- จุดที่ตั้ง isDead = false (E-press, item revive, admin revive, vorp_core:respawnPlayer,
+-- playerSpawned) ต้อง reset ตัวนี้ด้วย ไม่งั้น DEATH HANDLER ที่ท้ายไฟล์จะไม่ยอมเช็ค isDead ซ้ำ
+-- ตอนตายรอบถัดไป (sentDeathLog ค้างที่ true ตลอด เพราะ path ปกติของมันเช็คแค่ isDead ที่ถูกรีเซ็ต
+-- ไปก่อนหน้านี้แล้วจากที่อื่น เลยไม่มีจังหวะไหนที่ isDead ยังเป็น true ตอน IsPlayerDead() กลับเป็น false)
+local sentDeathLog = false
 local helpRequested = false
 -- วนตรวจจับการกดปุ่ม
 local CoolDown = 60
@@ -225,6 +231,7 @@ RegisterNetEvent("vorp_core:respawnPlayer", function()
     CloseUi()
     EndDeathCam()
     isDead = false
+    sentDeathLog = false
 end)
 AddEventHandler('playerSpawned', function()
     DoScreenFadeOut(0)
@@ -233,6 +240,7 @@ AddEventHandler('playerSpawned', function()
     CloseUi()
     EndDeathCam()
     isDead = false
+    sentDeathLog = false
 end)
 
 local function playAnimation(dict, anim, duration)
@@ -296,6 +304,7 @@ AddEventHandler('MJ-ReSpwan:revive:DeadRedM', function(A)
             TriggerServerEvent("vorp_core:PlayerRespawnInternal", true)
             FreezeEntityPosition(PlayerPedId(), false)
             isDead = false
+            sentDeathLog = false
         end)
     end
 end)
@@ -324,6 +333,7 @@ RegisterNetEvent('MJ-ReSpwan:client:adminRevive', function()
     CloseUi()
     EndDeathCam()
     isDead = false
+    sentDeathLog = false
     TriggerServerEvent("vorp:ImDead", false)
     LocalPlayer.state:set('isDead', false, true)
     TriggerServerEvent("mj:discordReviveLog", "ถูกแอดมินชุบชีวิต") -- เพิ่มบรรทัดนี้
@@ -406,6 +416,7 @@ function StartAutoRespawn()
 
                     DoScreenFadeIn(1500)
                     isDead = false
+                    sentDeathLog = false
                     CloseUi()
 
                     TriggerServerEvent("vorp:ImDead", false)
@@ -423,8 +434,7 @@ function StartAutoRespawn()
 end
 
 
--- DEATH HANDLER
-local sentDeathLog = false -- เพิ่มตัวแปรนี้
+-- DEATH HANDLER (sentDeathLog ประกาศไว้บนสุดของไฟล์แล้ว ดู scope note ตรง local isDead)
 
 CreateThread(function()
     repeat Wait(1000) until LocalPlayer.state.IsInSession
