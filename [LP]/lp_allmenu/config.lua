@@ -23,7 +23,7 @@ Config.Items = {
     title  = 'แบทเทิลพาส',
     desc   = 'อัพเลเวลเพื่อรับของรางวัล Last Paradise',
     image  = 'assets/img/battlepass.png',
-    action = nil,
+    action = { type = 'command', name = 'battlepass' }, -- lp_battlepass
   },
   {
     id     = 'guide',

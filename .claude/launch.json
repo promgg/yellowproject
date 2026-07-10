@@ -90,6 +90,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "5514", "D:/project/txData/VORPCore/resources/[LP]/lp_welfarelogin/html"],
       "port": 5514
+    },
+    {
+      "name": "lp_battlepass",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5515", "D:/project/txData/VORPCore/resources/[LP]/lp_battlepass/nui"],
+      "port": 5515
     }
   ]
 }

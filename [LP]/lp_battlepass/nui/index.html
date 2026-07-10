@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="root" class="hidden">
+
+  <div id="panel">
+    <img id="panel-bg" src="assets/panel-bg.png" alt="">
+
+    <div id="title-th">แบทเทิลพาส</div>
+    <div id="title-en">BATTLE PASS</div>
+    <div id="title-line"></div>
+    <div id="title-dot"></div>
+
+    <div id="season-tag"><span class="dot"></span><span id="season">-</span></div>
+    <div id="close-btn">✕</div>
+
+    <!-- Row 1: Standard track (levels 1..30) -->
+    <div id="std-tag">STANDARD</div>
+    <div id="std-section">
+      <div id="std-cards" class="cards-row"></div>
+    </div>
+    <div id="scroll-track-top" class="scroll-track"><div class="scroll-thumb"></div></div>
+
+    <!-- Row 2: Premium track (levels 1..30) -->
+    <div id="vip-tag">PREMIUM</div>
+    <div id="vip-section">
+      <div id="vip-cards" class="cards-row"></div>
+    </div>
+    <div id="scroll-track-bot" class="scroll-track"><div class="scroll-thumb"></div></div>
+  </div>
+
+  <!-- Status bar: LEVEL + XP progress + daily EXP + claim-all -->
+  <div id="status-bar">
+    <div id="status-lvl">
+      <div class="status-lvl__label">LEVEL</div>
+      <div class="status-lvl__val" id="level">1</div>
+    </div>
+    <div id="status-xp">
+      <div id="status-xp-top">
+        <span id="xp-text">0 / 100 XP</span>
+        <span id="daily-text"></span>
+      </div>
+      <div id="xp-line"><div id="xp-line-fill"></div></div>
+    </div>
+    <button id="btn-claimall">รับทั้งหมด</button>
+  </div>
+
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>

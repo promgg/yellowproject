@@ -1,0 +1,343 @@
+/* lp_battlepass — reskinned to match lp_welfarelogin (ล็อคอินรายวัน) design language
+   fixed 1920×1080 canvas, dark-gold, panel-bg.png frame, custom horizontal scrollbars */
+
+/* ── bundled local fonts (no external Google Fonts — NUI CSP safe) ── */
+@font-face {
+  font-family: 'Kanit';
+  src: url('../fonts/kanit_regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Kanit';
+  src: url('../fonts/kanit_medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal;
+}
+@font-face {
+  font-family: 'Alexandria';
+  src: url('../fonts/alexandria_regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../fonts/copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+#root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+#root.hidden { display: none; }
+.hidden { display: none !important; }
+
+/* ══════════════════════════════════════
+   MAIN PANEL  left:430 top:212 w:1060 h:596
+   ══════════════════════════════════════ */
+#panel {
+  position: absolute;
+  left: 430px; top: 212px;
+  width: 1060px; height: 596px;
+}
+#panel-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1060px; height: 596px;
+  object-fit: cover;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* ── Title ── */
+#title-th {
+  position: absolute;
+  left: 199px; top: 76px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 24px; color: #fff;
+  white-space: nowrap; line-height: 1;
+}
+#title-en {
+  position: absolute;
+  left: 200px; top: 105px;
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 14px; color: #ae8e6a;
+  letter-spacing: 1px; line-height: 1;
+}
+#title-line {
+  position: absolute;
+  left: 345px; top: 88px;
+  width: 97px; height: 1px;
+  background: #a4a4a4;
+}
+#title-dot {
+  position: absolute;
+  left: 441px; top: 85px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #a4a4a4;
+}
+
+/* ── Season chip (top-right, before close) ── */
+#season-tag {
+  position: absolute;
+  right: 214px; top: 78px;
+  display: flex; align-items: center; gap: 7px;
+  height: 26px; padding: 0 12px;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 12px; color: #f0ca78;
+  border: 1px solid #4a4133;
+  background: rgba(0,0,0,0.45);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+#season-tag .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #f0ca78; box-shadow: 0 0 6px rgba(240,202,120,0.7);
+}
+
+/* ── Close button ── */
+#close-btn {
+  position: absolute;
+  right: 176px; top: 78px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 14px; color: #c9c9c9;
+  border: 1px solid #4a4133;
+  background: rgba(0,0,0,0.45);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#close-btn:hover { color: #fff; border-color: #ae8e6a; background: rgba(174,142,106,0.2); }
+
+/* ── Row tags ── */
+#std-tag, #vip-tag {
+  position: absolute;
+  left: 186px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 12px; line-height: 1;
+  letter-spacing: 0.5px;
+}
+#std-tag { top: 121px; color: #c9c9c9; }
+#vip-tag { top: 327px; color: #f0ca78; text-shadow: 0 0 5px rgba(240,202,120,0.4); }
+
+/* ══════════════════════════════════════
+   CARD SECTIONS
+   ══════════════════════════════════════ */
+#std-section {
+  position: absolute;
+  left: 186px; top: 135px;
+  width: 688px; height: 194px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #232323;
+}
+#vip-section {
+  position: absolute;
+  left: 186px; top: 341px;
+  width: 688px; height: 194px;
+  background:
+    linear-gradient(0deg, rgba(200,147,89,0.16) 0%, rgba(55,29,0,0) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 100%);
+  border: 1px solid #232323;
+}
+.cards-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 16px 14px 0 14px;
+  overflow-x: scroll;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  width: 100%; height: 100%;
+  box-sizing: border-box;
+}
+.cards-row::-webkit-scrollbar { display: none; }
+
+/* custom horizontal scrollbars */
+.scroll-track {
+  position: absolute;
+  left: 287px;
+  width: 488px; height: 7px;
+  background: rgba(35,35,35,0.85);
+  border-radius: 3.5px;
+  z-index: 10;
+}
+#scroll-track-top { top: 305px; }
+#scroll-track-bot { top: 515px; }
+
+.scroll-thumb {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: #8b6c49;
+  border-radius: 3.5px;
+  min-width: 30px;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════ */
+.card {
+  flex-shrink: 0;
+  width: 101px; height: 136px;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.card-num {
+  position: absolute;
+  left: 0; right: 0; top: 10px;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 12px; text-align: center; line-height: 1;
+}
+.card-qty {
+  position: absolute;
+  left: 8px; top: 8px;
+  min-width: 18px; height: 16px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 10px; line-height: 1; color: #fff;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  z-index: 3;
+}
+.card-img {
+  position: absolute;
+  left: 10px; top: 26px;
+  width: 80px; height: 80px;
+  object-fit: cover; pointer-events: none;
+}
+.card-label {
+  position: absolute;
+  left: 50%; bottom: 11px;
+  transform: translateX(-50%);
+  font-family: 'Kanit', 'Alexandria', sans-serif;
+  font-size: 10px; color: #fff;
+  text-align: center; white-space: nowrap;
+  width: 92px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* — state: current (claimable) — */
+.card.state-current {
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 0 6px rgba(180,180,180,0.6);
+  background: radial-gradient(ellipse at bottom, rgba(255,255,255,0.05) 0%, transparent 80%);
+  cursor: pointer;
+}
+.card.state-current .card-num { color: #fff; text-shadow: 0 0 5px #cacaca; }
+.card.state-current:hover { box-shadow: 0 0 10px rgba(240,202,120,0.8); border-color: #f0ca78; }
+
+/* VIP claimable = gold glow */
+#vip-cards .card.state-current {
+  border: 1px solid #edb87e;
+  box-shadow: 0 0 6px #94583d;
+  background: radial-gradient(ellipse at bottom, rgba(190,137,59,0.25) 0%, transparent 80%);
+}
+#vip-cards .card.state-current .card-num { color: #f0ca78; text-shadow: 0 0 5px #ac8253; }
+
+/* — state: completed (claimed) — */
+.card.state-completed {
+  border: 1px solid #edb87e;
+  box-shadow: 0 0 5px #94583d;
+  background: radial-gradient(ellipse at bottom, rgba(190,137,59,0.2) 0%, rgba(143,103,44,0.12) 30%, rgba(95,69,30,0.06) 60%, transparent 100%);
+}
+.card.state-completed .card-num { color: #d7a757; text-shadow: 0 0 5px #ac8253; }
+.card.state-completed::after {
+  content: '✓';
+  position: absolute; right: 8px; top: 8px;
+  font-family: 'Alexandria', sans-serif; font-size: 12px;
+  color: #f0ca78; text-shadow: 0 0 4px #000;
+  z-index: 3;
+}
+
+/* — state: locked — */
+.card.state-locked {
+  border: 1px solid #685540;
+  background:
+    linear-gradient(rgba(156,156,156,0.05) 0%, rgba(156,156,156,0.12) 100%),
+    rgba(0,0,0,0.4);
+}
+.card.state-locked .card-num { color: #766242; }
+.card.state-locked .card-img { opacity: 0.5; }
+.card.state-locked .card-qty { opacity: 0.6; }
+
+/* — VIP row without vip_card: lock overlay — */
+.card.vip-locked { cursor: default; }
+.card.vip-locked .card-img { opacity: 0.35; }
+.card.vip-locked .card-label { color: #9c9c9c; }
+.card-lock {
+  position: absolute;
+  left: 50%; top: 52%;
+  transform: translate(-50%, -50%);
+  width: 26px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 4; pointer-events: none;
+  filter: drop-shadow(0 1px 3px #000);
+}
+
+/* ══════════════════════════════════════
+   STATUS BAR  left:615 top:808 w:691 h:88
+   (repurposed from welfare score-bar)
+   ══════════════════════════════════════ */
+#status-bar {
+  position: absolute;
+  left: 615px; top: 808px;
+  width: 691px; height: 88px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #232323;
+  display: flex; align-items: center;
+  gap: 20px; padding: 0 22px;
+}
+
+#status-lvl {
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  width: 74px; height: 60px;
+  border: 1px solid #edb87e;
+  border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(190,137,59,0.28) 0%, rgba(0,0,0,0.2) 80%);
+}
+.status-lvl__label {
+  font-family: 'Alexandria', sans-serif;
+  font-size: 9px; letter-spacing: 2px; color: #ae8e6a;
+}
+.status-lvl__val {
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 30px; line-height: 1; color: #f0ca78;
+  text-shadow: 0 0 6px rgba(240,202,120,0.4);
+}
+
+#status-xp { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+#status-xp-top {
+  display: flex; justify-content: space-between;
+  font-family: 'Kanit', 'Alexandria', sans-serif;
+  font-size: 12px; color: #c9c9c9;
+}
+#status-xp-top #daily-text { color: #ae8e6a; }
+#xp-line {
+  width: 100%; height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px; overflow: hidden;
+}
+#xp-line-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #be893b, #f0ca78);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+#btn-claimall {
+  flex-shrink: 0;
+  height: 40px; padding: 0 18px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px; font-weight: 500; color: #1a1206;
+  background: linear-gradient(180deg, #f0ca78, #d7a757);
+  border: 1px solid #edb87e;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#btn-claimall:hover { background: linear-gradient(180deg, #ffe0a0, #edb87e); box-shadow: 0 0 10px rgba(240,202,120,0.5); }
