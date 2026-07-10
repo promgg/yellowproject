@@ -5,6 +5,7 @@
 local isOpen = false
 
 local function openUI(payload)
+    exports.vorp_inventory:closeInventory() -- ปิด UI กระเป๋าก่อน กันซ้อนกับ NUI กาชา
     isOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', data = payload })
