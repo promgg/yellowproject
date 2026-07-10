@@ -1387,12 +1387,12 @@ end
             return
         end
 
-        local lootKey = (Config and Config["LootKey"]) or Keys["E"]
-        if not IsControlPressed(0, lootKey) then
-            TriggerServerEvent(script_name .. ":SV:ReleaseLoot", airdropId)
-            resetLootPrompt()
-            return
-        end
+        -- เดิมเช็ค IsControlPressed(0, lootKey) ตรงนี้ด้วย (ต้องถือปุ่มค้างอยู่ ณ ตอน server ตอบ) แต่เป็น
+        -- ของดีไซน์เก่าที่ต้องกดค้างต่อเนื่องตลอดกระบวนการ — ไม่จำเป็นแล้วในดีไซน์ 2-phase ปัจจุบัน
+        -- (grip 800ms ของ lp_textui ยืนยันเจตนาไปแล้ว) และพังถาวรเมื่อมีม้าใกล้ๆ เพราะ native
+        -- context-prompt ของเกมเรียก DisableControlAction ทับปุ่มนี้ต่อเนื่องเอง ทำให้ IsControlPressed
+        -- อ่านเป็น false ตลอดแม้จะถือปุ่มจริงอยู่ (ต้องเช็ค IsDisabledControlPressed ถึงจะถูก แต่ก็ไม่มีประโยชน์
+        -- อยู่ดีเพราะ intent ถูกยืนยันแล้วตั้งแต่ grip phase) — เช็คระยะห่าง/ตาย/มีกล่องจริงด้านล่างพอแล้ว
 
         local sc = v.SpawnCoords
         if not sc then

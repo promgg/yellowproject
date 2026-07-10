@@ -125,6 +125,44 @@ local function setSitRestScenariosBlocked(blocked)
     SetPedConfigFlag(ped, 475, blocked) -- PCF_DisableAutoRestingScenarios
 end
 
+-- ม้า/NPC ใกล้ๆ ขโมยปุ่ม E ไปตอนถือค้าง (native ambient action ของเกม — ขึ้นม้า, จับคอ/บีบคอ NPC —
+-- เป็นระบบ context-prompt คนละระบบกับ DisableControlAction/IsDisabledControlPressed
+-- ต้องกันที่ ped config flag ของเป้าหมายเอง)
+-- flag 136 = PCF_CannotBeMounted (ม้า, ใช้จริงใน bcc-stables), flag 169 = PCF_DisableGrappleByPlayer
+-- (NPC จับคอ/บีบคอ — คนละ flag กับม้า) 3m ครอบคลุมระยะที่ native เริ่มขึ้น prompt เผื่อไว้พอดี
+-- เก็บค่าเดิมของแต่ละตัวไว้ก่อนแก้ (GetPedConfigFlag) แล้วคืนค่าจริงตอนจบ ไม่ยิง false มั่ว
+-- เพราะบาง ped (เช่นม้าคนอื่นที่ไม่ใช่เจ้าของ) ปกติก็ตั้ง flag ป้องกันไว้อยู่แล้วโดย default
+local guardedPeds = {} -- [pedHandle] = { flag = 136|169, original = bool }
+
+local function blockNearbyAmbientPrompts(blocked)
+    if not blocked then
+        for ped, data in pairs(guardedPeds) do
+            if DoesEntityExist(ped) then
+                SetPedConfigFlag(ped, data.flag, data.original)
+            end
+        end
+        guardedPeds = {}
+        return
+    end
+
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    for _, entity in pairs(GetGamePool('CPed')) do
+        if DoesEntityExist(entity) and not IsPedAPlayer(entity) and guardedPeds[entity] == nil then
+            local dist = #(playerCoords - GetEntityCoords(entity))
+            if dist <= 3.0 then
+                -- IsThisModelAHorse คืนค่าเป็นเลข 0/1 ไม่ใช่ boolean จริง — ใน Lua เลข 0 เป็น truthy
+                -- (ต่างจากภาษาอื่น) เช็คแบบ `if IsThisModelAHorse(...)` เฉยๆ จะติด true เสมอ ต้อง
+                -- เทียบค่าตรงๆ กับ true/1 เท่านั้นถึงจะถูก
+                local isHorseRaw = IsThisModelAHorse(GetEntityModel(entity))
+                local isHorse = isHorseRaw == true or isHorseRaw == 1
+                local flag = isHorse and 136 or 169
+                guardedPeds[entity] = { flag = flag, original = GetPedConfigFlag(entity, flag, true) }
+                SetPedConfigFlag(entity, flag, true)
+            end
+        end
+    end
+end
+
 -- ── Mode 2: hold-to-interact — polls controlCode itself, drives the ring,
 -- fires callback() only on a full, uninterrupted hold. Release early = reset.
 local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
@@ -136,6 +174,7 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
     holdGen    = holdGen + 1
     local gen  = holdGen
     setSitRestScenariosBlocked(true)
+    blockNearbyAmbientPrompts(true)
 
     Citizen.CreateThread(function()
         local heldStart = nil
@@ -153,6 +192,7 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
                     holdActive = false
                     HideUI()
                     setSitRestScenariosBlocked(false)
+                    blockNearbyAmbientPrompts(false)
                     -- callback may be a cross-resource funcref that's since gone away
                     local ok, err = pcall(callback)
                     if not ok then print('[lp_textui] TextUIHold callback error: ' .. tostring(err)) end
@@ -172,7 +212,15 @@ local function CancelHold()
     holdGen    = holdGen + 1
     HideUI()
     setSitRestScenariosBlocked(false)
+    blockNearbyAmbientPrompts(false)
 end
+
+-- กัน ped ที่ถูกกันไว้ค้าง flag ถาวรถ้า resource นี้ restart กลางที่ถือค้างพอดี
+-- (guardedPeds เป็น local state หายตอน restart แต่ flag บนตัว ped ในโลกยังอยู่ ต้องคืนค่าก่อน)
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    blockNearbyAmbientPrompts(false)
+end)
 
 exports('TextUI', TextUI)
 exports('HideUI', HideUI)

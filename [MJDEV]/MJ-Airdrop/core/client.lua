@@ -265,6 +265,11 @@ local Loot = {
     startHP = 0,
 }
 
+-- Phase 1 grip state (lp_textui:TextUIHold) + phase 2 progress id (lp_progbar)
+local LootHoldActive = false
+local LootHoldAirdropId = nil
+local LootProgId = nil
+
 -- Prevent spammy stacked notifications when a loot is repeatedly cancelled (e.g. DoT ticks)
 local _lastLootCancel = { at = 0, reason = "" }
 
@@ -552,6 +557,17 @@ local function resetLocalState()
     Loot.coords = nil
     Loot.startMs = 0
     Loot.startHP = 0
+
+    if LootHoldActive then
+        exports.lp_textui:CancelHold()
+    end
+    LootHoldActive = false
+    LootHoldAirdropId = nil
+    if LootProgId then
+        exports.lp_progbar:CancelProgress(LootProgId)
+        LootProgId = nil
+    end
+
     OutZoneAi = {}
 	-- Reset zone-lock punishment state for new events
 	ZoneDotActive = {}
@@ -613,6 +629,12 @@ local function cancelLoot(reason)
 
     local id = Loot.airdropId
 
+    -- phase 2 (lp_progbar) แถบเปิดกล่อง: สั่งยกเลิก (no-op ถ้าจบไปแล้ว/ไม่มี id)
+    if LootProgId then
+        exports.lp_progbar:CancelProgress(LootProgId)
+        LootProgId = nil
+    end
+
     -- release looting lock + stop marker + restore props (server-driven)
     if Loot.airdropId then
         TriggerServerEvent(script_name .. ":SV:ReleaseLoot", Loot.airdropId)
@@ -664,17 +686,37 @@ local function startLootForAirdrop(v)
     end
 
     hideTextUI()
-    -- Hide bottom hint while looting
+    -- Hide bottom hint + phase 1 grip UI while phase 2 (opening) runs
     nuiLootHint(false, v.id)
-    TaskPlayAnims(true)
+    if LootHoldActive then
+        exports.lp_textui:CancelHold()
+    end
+    LootHoldActive = false
+    LootHoldAirdropId = nil
     resetLootPrompt()
 
-    local players = (ZoneCount and ZoneCount[v.id]) or 0
-    local maxPlayers = (Config and Config['Airdrop'] and Config['Airdrop'][v.id] and Config['Airdrop'][v.id].MaxPlayer) or 0
+    -- Phase 2: lp_progbar owns the timer, cancel key, movement/combat lock, and anim (แบบ nx_event)
+    LootProgId = exports.lp_progbar:Progress({
+        duration = (Config and Config['TimeToPickingAirdrop']) or 5000,
+        label = (Config and Config['LabelToPickingAirdrop']) or "กำลังเปิดแอร์ดรอป",
+        canCancel = true,
+        controlDisables = { disableMovement = true, disableCombat = true },
+        animation = { animDict = 'amb_work@world_human_farmer_weeding@male_a@idle_a', anim = 'idle_a' },
+    }, function(cancelled)
+        LootProgId = nil
+        if cancelled then
+            cancelLoot("ยกเลิก")
+            return
+        end
 
-    if USE_LOOT_PROGRESS_UI then
-        nuiLootProgress(true, Config['LabelToPickingAirdrop'], Config['TimeToPickingAirdrop'], players, maxPlayers)
-    end
+        local airdropId = Loot.airdropId
+        Loot.active = false
+        if airdropId then
+            SuppressLootPrompt[airdropId] = true
+            TriggerServerEvent(script_name .. ':SV:ClaimAirdrop', airdropId)
+        end
+        Loot.airdropId = nil
+    end)
 end
 
 local function Outzone(zoneId)
@@ -999,39 +1041,50 @@ elseif dist <= Radius then
                             TriggerServerEvent(script_name .. ':SV:TryLoot', v.id)
                         end
                     else
-                        -- NUI bottom hint (no 2D text)
-                        -- Fix UX: once the player starts looting (or is waiting for the server mutex),
-                        -- hide the "press/hold G" hint so it doesn't overlap with the progress UI.
+                        -- Phase 1 (grip): lp_textui:TextUIHold ลอยเหนือกล่อง -> ขอ lock จาก server
+                        -- Phase 2 (opening): lp_progbar ใน startLootForAirdrop() แบบ nx_event 2 phase
                         if Loot.active and Loot.airdropId == v.id then
-                            nuiLootHint(false, v.id)
-                        elseif Loot.requesting and Loot.requestId == v.id then
-                            nuiLootHint(false, v.id)
-                        else
-                            local k = keyLabelForControlHash(lootKey)
-                            nuiLootHint(
-                                true,
-                                v.id,
-                                ("กดค้าง %s เพื่อเก็บ Airdrop"):format(k),
-                                ("ผู้เล่นในวง: %d/%d"):format(players, maxPlayers),
-                                k,
-                                "is-ready"
-                            )
-
-                            -- Request server mutex once when the player starts holding
-                            if not Loot.requesting and IsControlJustPressed(0, lootKey) then
-                                Loot.requesting = true
-                                Loot.requestId = v.id
-                                -- Hide hint immediately when the attempt starts
-                                nuiLootHint(false, v.id)
-                                TriggerServerEvent(script_name .. ':SV:TryLoot', v.id)
-                                SendNUIMessage({ action = "LootHint", show = false })
+                            if LootHoldActive and LootHoldAirdropId == v.id then
+                                exports.lp_textui:CancelHold()
+                                LootHoldActive = false
+                                LootHoldAirdropId = nil
                             end
+                        elseif Loot.requesting and Loot.requestId == v.id then
+                            if LootHoldActive and LootHoldAirdropId == v.id then
+                                LootHoldActive = false
+                                LootHoldAirdropId = nil
+                            end
+                        elseif not LootHoldActive then
+                            local k = keyLabelForControlHash(lootKey)
+                            LootHoldActive = true
+                            LootHoldAirdropId = v.id
+
+                            exports.lp_textui:TextUIHold(
+                                ("[%s] ค้างเพื่อเก็บ Airdrop (%d/%d)"):format(k, players, maxPlayers),
+                                (Config and Config["LootGripHoldTime"]) or 800,
+                                function()
+                                    LootHoldActive = false
+                                    LootHoldAirdropId = nil
+                                    if not Loot.active and not Loot.requesting then
+                                        Loot.requesting = true
+                                        Loot.requestId = v.id
+                                        TriggerServerEvent(script_name .. ':SV:TryLoot', v.id)
+                                    end
+                                end,
+                                lootKey,
+                                { coords = v.SpawnCoords, offset = vector3(0.0, 0.0, 0.5) }
+                            )
                         end
                     end
                 else
                     if USE_NATIVE_LOOT_PROMPT then
                         hideLootPromptFor(v.id)
                     else
+                        if LootHoldActive and LootHoldAirdropId == v.id then
+                            exports.lp_textui:CancelHold()
+                            LootHoldActive = false
+                            LootHoldAirdropId = nil
+                        end
                         if busyHere then
                             local n = select(1, getLootBusyName(v.id))
                             local title = "มีคนกำลังเปิด Airdrop อยู่"
@@ -1051,6 +1104,11 @@ elseif dist <= Radius then
                     hideLootPromptFor(v.id)
                 else
                     nuiLootHint(false, v.id)
+                    if LootHoldActive and LootHoldAirdropId == v.id then
+                        exports.lp_textui:CancelHold()
+                        LootHoldActive = false
+                        LootHoldAirdropId = nil
+                    end
                 end
                 if OutZoneAi[v.id] and not IsEntityDead(PlayerPedId()) then
                     if promptShown then
@@ -1092,85 +1150,38 @@ end
 
 -- =========================
 -- Loot monitor loop (cancel rules)
--- - Cancel if release key / death / damage
--- - Complete when native prompt hold finishes
+-- - Phase 1 (grip) hold-to-confirm + phase 2 (opening) timer/cancel-key/anim are now owned by
+--   lp_textui:TextUIHold / lp_progbar respectively (see startLootForAirdrop / the ready-branch above).
+-- - This loop only watches for death/damage during phase 2 and during the brief server round-trip
+--   while Loot.requesting waits for CL:LootLockResult.
 -- =========================
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
 
-        -- If we're waiting for the server mutex but the player releases the key or dies,
-        -- cancel the attempt so the UI never gets stuck hidden.
         if Loot.requesting then
             local ped = PlayerPedId()
-            local lootKey = (Config and Config["LootKey"]) or Keys["E"]
-            if IsEntityDead(ped) or (not IsControlPressed(0, lootKey)) then
+            if IsEntityDead(ped) then
                 Loot.requesting = false
                 Loot.requestId = nil
-                -- Ensure any progress/hints are not left stuck
-                if USE_LOOT_PROGRESS_UI then nuiLootProgress(false) end
                 nuiLootHint(false, nil)
-                resetLootPrompt()
             end
         end
 
         if Loot.active then
             local ped = PlayerPedId()
 
-            -- key must be held
-            local lootKey = (Config and Config["LootKey"]) or Keys["E"]
-            if not IsControlPressed(0, lootKey) then
-                cancelLoot("ยกเลิก")
-            end
-
-            -- death
-            if Loot.active and IsEntityDead(ped) then
+            if IsEntityDead(ped) then
                 cancelLoot("ยกเลิก: คุณตายแล้ว")
-            end
-
-            -- damage cancels
-            if Loot.active and Config and Config["CancelLootOnDamage"] then
+            elseif Config and Config["CancelLootOnDamage"] then
                 local hp = GetEntityHealth(ped)
                 if hp < (Loot.startHP or hp) then
                     cancelLoot("ยกเลิก: คุณได้รับความเสียหาย")
-                end
-
-                if Loot.active and (((HasEntityBeenDamagedByAnyPed) and HasEntityBeenDamagedByAnyPed(ped)) or ((HasEntityBeenDamagedByAnyObject) and HasEntityBeenDamagedByAnyObject(ped))) then
+                elseif ((HasEntityBeenDamagedByAnyPed) and HasEntityBeenDamagedByAnyPed(ped)) or ((HasEntityBeenDamagedByAnyObject) and HasEntityBeenDamagedByAnyObject(ped)) then
                     if ClearEntityLastDamageEntity then
                         ClearEntityLastDamageEntity(ped)
                     end
                     cancelLoot("ยกเลิก: คุณถูกโจมตี")
-                end
-            end
-
-            -- completed
-            -- - Native prompt: waits for PromptHasHoldModeCompleted
-            -- - Screen-bottom prompt: completes after TimeToPickingAirdrop ms while key is still held
-            local completed = false
-            if USE_NATIVE_LOOT_PROMPT then
-                completed = lootPromptCompleted()
-            else
-                local duration = (Config and Config["TimeToPickingAirdrop"]) or 5000
-                if duration < 250 then duration = 250 end
-                completed = (GetGameTimer() - (Loot.startMs or GetGameTimer())) >= duration
-            end
-
-            if Loot.active and completed then
-                local airdropId = Loot.airdropId
-
-                if airdropId then
-                    SuppressLootPrompt[airdropId] = true
-                    hideLootPromptFor(airdropId)
-                    nuiLootHint(false, airdropId)
-                end
-                resetLootPrompt()
-
-                Loot.active = false
-                if USE_LOOT_PROGRESS_UI then nuiLootProgress(false) end
-                ClearPedTasksImmediately(ped)
-
-                if airdropId then
-                    TriggerServerEvent(script_name .. ':SV:ClaimAirdrop', airdropId)
                 end
             end
         end
@@ -1383,12 +1394,12 @@ end
             return
         end
 
-        local lootKey = (Config and Config["LootKey"]) or Keys["E"]
-        if not IsControlPressed(0, lootKey) then
-            TriggerServerEvent(script_name .. ":SV:ReleaseLoot", airdropId)
-            resetLootPrompt()
-            return
-        end
+        -- เดิมเช็ค IsControlPressed(0, lootKey) ตรงนี้ด้วย (ต้องถือปุ่มค้างอยู่ ณ ตอน server ตอบ) แต่เป็น
+        -- ของดีไซน์เก่าที่ต้องกดค้างต่อเนื่องตลอดกระบวนการ — ไม่จำเป็นแล้วในดีไซน์ 2-phase ปัจจุบัน
+        -- (grip 800ms ของ lp_textui ยืนยันเจตนาไปแล้ว) และพังถาวรเมื่อมีม้าใกล้ๆ เพราะ native
+        -- context-prompt ของเกมเรียก DisableControlAction ทับปุ่มนี้ต่อเนื่องเอง ทำให้ IsControlPressed
+        -- อ่านเป็น false ตลอดแม้จะถือปุ่มจริงอยู่ (ต้องเช็ค IsDisabledControlPressed ถึงจะถูก แต่ก็ไม่มีประโยชน์
+        -- อยู่ดีเพราะ intent ถูกยืนยันแล้วตั้งแต่ grip phase) — เช็คระยะห่าง/ตาย/มีกล่องจริงด้านล่างพอแล้ว
 
         local sc = v.SpawnCoords
         if not sc then

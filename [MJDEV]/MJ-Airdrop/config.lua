@@ -43,8 +43,10 @@ Config["Ptfx"] = {
 Config["TimeToUnlock"] = 10 * 60 * 1000        -- วอร์มอัปก่อนเปิดได้
 Config["TimeToRemove"] = 30 * 60 * 1000        -- เวลาก่อนลบกล่อง
 
--- ระยะเวลากดค้างเพื่อเปิดกล่อง (Hold-to-loot)
-Config["TimeToPickingAirdrop"] = 5 * 1000     -- 10 วินาที (ปรับได้)
+-- 2 phase แบบ nx_event: phase 1 = lp_textui:TextUIHold (จับ/grip ลอยเหนือกล่อง)
+-- -> ขอ lock จาก server -> phase 2 = lp_progbar (แถบเปิดกล่อง + ท่าอนิเมชั่น)
+Config["LootGripHoldTime"] = 800              -- ms, phase 1: lp_textui:TextUIHold
+Config["TimeToPickingAirdrop"] = 5 * 1000     -- ms, phase 2: lp_progbar (ปรับได้)
 Config["LabelToPickingAirdrop"] = "กำลังเปิดแอร์ดรอป"
 
 -- === Loot behaviour ===
@@ -60,7 +62,7 @@ Config['NativePromptText'] = 'เก็บ Airdrop'
 -- Loot/Claim key (Native Prompt)
 -- 0x760A9C6F = INPUT_INTERACT_OPTION1 (G)
 -- 0xCEFD9220 = INPUT_CONTEXT (E)
-Config["LootKey"] = 0x760A9C6F                 -- INPUT_INTERACT_OPTION1 (G)
+Config["LootKey"] = 0xCEFD9220                 -- INPUT_CONTEXT (E)
 Config["LootDistance"] = 2.0                   -- ระยะที่เริ่มเปิดได้
 Config["CancelLootOnDamage"] = true            -- โดนยิง/โดนตี/โดนดาเมจ -> ยกเลิก
 Config["CancelLootOnMoveAway"] = true          -- เดินหนี -> ยกเลิก

@@ -36,7 +36,12 @@ files {
     'html/index.html',
     'html/css/*.css',
     'html/js/*.js',
-    'html/img/*.png',  
+    'html/img/*.png',
     'html/sounds/*.mp3',
-    -- 'stream/*.ydr', 
+    -- 'stream/*.ydr',
+}
+
+dependencies {
+    'lp_textui',
+    'lp_progbar',
 }
