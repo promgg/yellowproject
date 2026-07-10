@@ -1578,6 +1578,7 @@ end
         if not id then return end
         if AirdropState[id] then
             local v = AirdropState[id]
+            if not v.SpawnCoords then return end -- ป้องกัน error ตอน crate ถูกลบไปแล้ว/ยังไม่เคยเริ่มรอบ (SpawnCoords ยังไม่ถูกตั้งค่า)
             local playerPed = PlayerPedId()
             local playerCoords = GetEntityCoords(playerPed)
             local dist = Vdist(v.SpawnCoords.x, v.SpawnCoords.y, v.SpawnCoords.z, playerCoords.x, playerCoords.y, playerCoords.z)
