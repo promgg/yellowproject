@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gacha</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="root" class="hidden">
+  <div id="preview-overlay"></div>
+    <!-- ===== TITLE ===== -->
+    <div id="title">
+      <img id="title-banner" src="assets/title_banner.png" alt="" />
+      <div id="title-text">DONATE SS1</div>
+      <div id="currency">
+        <span id="currency-label">จำนวนที่มี</span>
+        <span id="currency-value">200 EA</span>
+      </div>
+    </div>
+
+    <!-- ===== DROP RATE / ITEMS LIST ===== -->
+    <button id="chance-btn" type="button" aria-expanded="false">
+      <span id="chance-avatar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M9 7H11V5H9M10 18C5.59 18 2 14.41 2 10C2 5.59 5.59 2 10 2C14.41 2 18 5.59 18 10C18 14.41 14.41 18 10 18ZM10 0C8.68678 0 7.38642 0.258658 6.17317 0.761205C4.95991 1.26375 3.85752 2.00035 2.92893 2.92893C1.05357 4.8043 0 7.34784 0 10C0 12.6522 1.05357 15.1957 2.92893 17.0711C3.85752 17.9997 4.95991 18.7362 6.17317 19.2388C7.38642 19.7413 8.68678 20 10 20C12.6522 20 15.1957 18.9464 17.0711 17.0711C18.9464 15.1957 20 12.6522 20 10C20 8.68678 19.7413 7.38642 19.2388 6.17317C18.7362 4.95991 17.9997 3.85752 17.0711 2.92893C16.1425 2.00035 15.0401 1.26375 13.8268 0.761205C12.6136 0.258658 11.3132 0 10 0ZM9 15H11V9H9V15Z" fill="#1D1D1D"/>
+        </svg>
+      </span>
+      <span>มีโอกาสได้รับ</span>
+    </button>
+    <div id="items-list" class="hidden">
+      <div id="items-list-header">ITEMS LIST</div>
+      <div id="items-list-body"><!-- rows injected by JS --></div>
+    </div>
+
+    <!-- ===== SPIN BELT ===== -->
+    <div id="belt-wrap">
+      <div id="belt-bg"></div>
+      <div id="belt-viewport">
+        <div id="belt-strip"><!-- cards injected by JS --></div>
+      </div>
+      <div id="belt-center-line"></div>
+      <img id="belt-logo" src="assets/logo.png" alt="" />
+      <img id="belt-divider" src="assets/gold_divider.png" alt="" />
+    </div>
+
+    <!-- ===== ACTIONS ===== -->
+    <div id="actions">
+      <div id="spin-bar">
+        <!-- ปุ่มหลักปุ่มเดียว = หมุนทันทีด้วยจำนวนที่ตั้งไว้ล่าสุด -->
+        <button id="spin-main" type="button">
+          <span id="spin-main-qty">เริ่มลุ้นไอเทม (1)</span>
+        </button>
+        <!-- ปุ่มเล็กแยกต่างหาก ไม่ใช่ split-button ก้อนเดียว กันกดโซนผิดพลาด — กดเพื่อเปิด modal กรอกจำนวนเท่านั้น ไม่หมุนทันที -->
+        <button id="spin-qty-toggle" type="button" aria-haspopup="dialog" aria-label="กรอกจำนวนที่จะเปิด" title="กรอกจำนวนเอง">
+          <span class="spin-qty-toggle-label">เปิดหลายชิ้น</span>
+        </button>
+      </div>
+      <!-- toggle นี้คือ "ข้ามอัตโนมัติ" ตอนหมุน ไม่ใช่ค่าตั้งค่าอื่น — แถวแยกใต้ปุ่มหมุน ไม่งั้นแถวเดียวกว้างเกินไป -->
+      <label id="auto-skip-toggle" class="qty-toggle">
+        <input type="checkbox" id="auto-skip-checkbox" />
+        <span class="qty-toggle-track"><span class="qty-toggle-thumb"></span></span>
+        <span class="qty-toggle-label">ข้ามอัตโนมัติ</span>
+      </label>
+      <span id="insufficient-msg" class="hidden">เหรียญไม่พอ</span>
+    </div>
+
+    <!-- ===== QUANTITY MODAL ===== -->
+    <div id="qty-modal" class="hidden" role="dialog" aria-modal="true" aria-label="กรอกจำนวนที่ต้องการเปิด">
+      <div id="qty-modal-bg"></div>
+      <div id="qty-modal-panel">
+        <div id="qty-modal-text">กรอกจำนวนที่ต้องการเปิด.....เสร็จแล้วกด ENTER</div>
+        <div id="qty-modal-row">
+          <button id="qty-modal-min" type="button" aria-label="ต่ำสุด 1 ชิ้น">MIN</button>
+          <input id="qty-modal-input" type="number" min="1" max="100" step="1" inputmode="numeric" value="1" />
+          <button id="qty-modal-max" type="button" aria-label="สูงสุด 100 ชิ้น">MAX</button>
+        </div>
+        <div id="qty-modal-hint" class="hidden">1-100 เท่านั้น</div>
+        <div id="qty-modal-actions">
+          <button id="qty-modal-confirm" type="button">ตกลง</button>
+          <button id="qty-modal-cancel" type="button">ยกเลิก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RESULT MODAL ===== -->
+    <div id="result" class="hidden">
+      <img id="result-bg" src="assets/torn_panel.png" alt="" />
+      <div id="result-head">
+        <div id="result-head-th">สิ่งของที่ได้รับ</div>
+        <div id="result-head-en">RECEIVE ITEMS</div>
+      </div>
+      <div id="result-grid"><!-- cards injected by JS --></div>
+      <button id="result-close">CLOSE</button>
+    </div>
+
+  </div>
+
+
+
+  <script src="js/app.js"></script>
+</body>
+</html>
