@@ -78,6 +78,18 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "5512", "D:/project/txData/VORPCore/resources/[LP]/lp_fasttravel/ui"],
       "port": 5512
+    },
+    {
+      "name": "lp_gacha",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5513", "D:/project/txData/VORPCore/resources/[LP]/lp_gacha/html"],
+      "port": 5513
+    },
+    {
+      "name": "lp_welfarelogin",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5514", "D:/project/txData/VORPCore/resources/[LP]/lp_welfarelogin/html"],
+      "port": 5514
     }
   ]
 }

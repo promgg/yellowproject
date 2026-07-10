@@ -51,7 +51,7 @@ Config.Items = {
     title  = 'ล็อคอิน',
     desc   = 'เปิดเมนูล็อคอิน',
     image  = 'assets/img/login.png',
-    action = nil,
+    action = { type = 'command', name = 'welfare' }, -- lp_welfarelogin
   },
   {
     id     = 'market',

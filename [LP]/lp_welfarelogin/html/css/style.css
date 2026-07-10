@@ -1,0 +1,345 @@
+/* ── bundled local fonts (no external Google Fonts — NUI CSP safe) ── */
+@font-face {
+  font-family: 'Kanit';
+  src: url('../fonts/kanit_regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Kanit';
+  src: url('../fonts/kanit_medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal;
+}
+@font-face {
+  font-family: 'Alexandria';
+  src: url('../fonts/alexandria_regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../fonts/copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+#root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+#root.hidden { display: none; }
+.hidden { display: none !important; }
+
+#preview-overlay {
+  position: absolute; left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  background-image: url('../assets/preview.png');
+  background-size: 1920px 1080px;
+  opacity: 0.5; pointer-events: none; z-index: 999; display: none;
+}
+
+/* ══════════════════════════════════════
+   MAIN PANEL  left:430 top:212 w:1060 h:596
+   ══════════════════════════════════════ */
+#panel {
+  position: absolute;
+  left: 430px; top: 212px;
+  width: 1060px; height: 596px;
+}
+#panel-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1060px; height: 596px;
+  object-fit: cover;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* ── Title ── */
+#title-th {
+  position: absolute;
+  left: 199px; top: 76px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 24px; color: #fff;
+  white-space: nowrap; line-height: 1;
+}
+#title-en {
+  position: absolute;
+  left: 200px; top: 105px;
+  font-family: 'Copperplate Gothic Bold', Georgia, serif;
+  font-size: 14px; color: #ae8e6a;
+  letter-spacing: 1px; line-height: 1;
+}
+#title-line {
+  position: absolute;
+  left: 345px; top: 88px;
+  width: 97px; height: 1px;
+  background: #a4a4a4;
+}
+#title-dot {
+  position: absolute;
+  left: 441px; top: 85px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #a4a4a4;
+}
+
+/* ── Close button ── */
+#close-btn {
+  position: absolute;
+  right: 176px; top: 78px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 14px; color: #c9c9c9;
+  border: 1px solid #4a4133;
+  background: rgba(0,0,0,0.45);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#close-btn:hover { color: #fff; border-color: #ae8e6a; background: rgba(174,142,106,0.2); }
+
+/* ── Row tags ── */
+#free-tag, #vip-tag {
+  position: absolute;
+  left: 186px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 12px; line-height: 1;
+  letter-spacing: 0.5px;
+}
+#free-tag { top: 121px; color: #c9c9c9; }
+#vip-tag  { top: 327px; color: #f0ca78; text-shadow: 0 0 5px rgba(240,202,120,0.4); }
+
+/* ══════════════════════════════════════
+   CARD SECTIONS
+   ══════════════════════════════════════ */
+#daily-section {
+  position: absolute;
+  left: 186px; top: 135px;
+  width: 688px; height: 194px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #232323;
+}
+#reward-section {
+  position: absolute;
+  left: 186px; top: 341px;
+  width: 688px; height: 194px;
+  background:
+    linear-gradient(0deg, rgba(200,147,89,0.16) 0%, rgba(55,29,0,0) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 100%);
+  border: 1px solid #232323;
+}
+#daily-cards, #reward-cards {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 16px 14px 0 14px;
+  overflow-x: scroll;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  width: 100%; height: 100%;
+  box-sizing: border-box;
+}
+#daily-cards::-webkit-scrollbar,
+#reward-cards::-webkit-scrollbar { display: none; }
+
+/* custom horizontal scrollbars */
+.scroll-track {
+  position: absolute;
+  left: 287px;
+  width: 488px; height: 7px;
+  background: rgba(35,35,35,0.85);
+  border-radius: 3.5px;
+  z-index: 10;
+}
+#scroll-track-top { top: 305px; }
+#scroll-track-bot { top: 515px; }
+
+.scroll-thumb {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: #8b6c49;
+  border-radius: 3.5px;
+  min-width: 30px;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════ */
+.card {
+  flex-shrink: 0;
+  width: 101px; height: 136px;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.card.card-last { width: 101px; }
+
+.card-num {
+  position: absolute;
+  left: 0; right: 0; top: 10px;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 12px; text-align: center; line-height: 1;
+}
+.card-img {
+  position: absolute;
+  left: 10px; top: 21px;
+  width: 80px; height: 80px;
+  object-fit: cover; pointer-events: none;
+}
+.card.card-last .card-img {
+  left: 10px;
+  width: 80px; height: 80px;
+  object-fit: cover;
+}
+.card-label {
+  position: absolute;
+  left: 50%; bottom: 11px;
+  transform: translateX(-50%);
+  font-family: 'Alexandria', sans-serif;
+  font-size: 9px; color: #fff;
+  text-align: center; white-space: nowrap;
+  width: 88px;
+}
+
+/* — state: current (claimable) — */
+.card.state-current {
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 0 6px rgba(180,180,180,0.6);
+  background: radial-gradient(ellipse at bottom, rgba(255,255,255,0.05) 0%, transparent 80%);
+  cursor: pointer;
+}
+.card.state-current .card-num { color: #fff; text-shadow: 0 0 5px #cacaca; }
+.card.state-current:hover { box-shadow: 0 0 10px rgba(240,202,120,0.8); border-color: #f0ca78; }
+
+/* VIP claimable = gold glow */
+#reward-cards .card.state-current {
+  border: 1px solid #edb87e;
+  box-shadow: 0 0 6px #94583d;
+  background: radial-gradient(ellipse at bottom, rgba(190,137,59,0.25) 0%, transparent 80%);
+}
+#reward-cards .card.state-current .card-num { color: #f0ca78; text-shadow: 0 0 5px #ac8253; }
+
+/* — state: inactive — */
+.card.state-inactive { border: 1px solid rgba(255,255,255,0.5); }
+.card.state-inactive .card-num { color: #cdcdcd; }
+.card.state-inactive .card-img { opacity: 0.5; }
+
+/* — state: completed (claimed) — */
+.card.state-completed {
+  border: 1px solid #edb87e;
+  box-shadow: 0 0 5px #94583d;
+  background: radial-gradient(ellipse at bottom, rgba(190,137,59,0.2) 0%, rgba(143,103,44,0.12) 30%, rgba(95,69,30,0.06) 60%, transparent 100%);
+}
+.card.state-completed .card-num { color: #d7a757; text-shadow: 0 0 5px #ac8253; }
+.card.state-completed::after {
+  content: '✓';
+  position: absolute; right: 8px; top: 8px;
+  font-family: 'Alexandria', sans-serif; font-size: 12px;
+  color: #f0ca78; text-shadow: 0 0 4px #000;
+}
+
+/* — state: locked — */
+.card.state-locked {
+  border: 1px solid #685540;
+  background:
+    linear-gradient(rgba(156,156,156,0.05) 0%, rgba(156,156,156,0.12) 100%),
+    rgba(0,0,0,0.4);
+}
+.card.state-locked .card-num { color: #766242; }
+.card.state-locked .card-img { opacity: 0.5; }
+
+/* ══════════════════════════════════════
+   SCORE BAR  left:615 top:808 w:691 h:88
+   ══════════════════════════════════════ */
+#score-bar {
+  position: absolute;
+  left: 615px; top: 808px;
+  width: 691px; height: 88px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #232323;
+}
+#score-line {
+  position: absolute;
+  left: 15px; top: 61px;
+  width: 659px; height: 2px;
+  background: rgba(255,255,255,0.5);
+}
+#score-line-fill {
+  height: 100%; width: 0%;
+  background: #f0ca78;
+  transition: width 0.5s ease;
+}
+#score-slots {
+  position: absolute;
+  left: 62px; top: 7px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 58px;
+}
+.score-slot {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  width: 46px; flex-shrink: 0;
+}
+.slot-box {
+  width: 46px; height: 46px;
+  border-radius: 5px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.slot-box img {
+  position: absolute;
+  width: 38px; height: 38px;
+  object-fit: cover;
+}
+.slot-icon {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+}
+.score-slot.state-done .slot-box {
+  background: linear-gradient(to bottom,
+    rgba(206,128,38,0) 0%,
+    rgba(251,184,0,0.34) 52%,
+    rgba(135,54,25,0) 100%);
+  border: 1px solid #f0ca78;
+}
+.score-slot.state-done .slot-box img { opacity: 0.25; }
+.score-slot.state-locked .slot-box {
+  background:
+    linear-gradient(rgba(156,156,156,0.05) 0%, rgba(156,156,156,0.5) 100%),
+    rgba(0,0,0,0.4);
+  border: 1px solid rgba(156,156,156,0.25);
+}
+.score-slot.state-locked .slot-box img { opacity: 0.25; }
+.slot-dot-wrap {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+}
+.slot-dot {
+  width: 10px; height: 10px;
+  background: #000;
+  border: 1px solid #585858;
+  position: relative;
+}
+.slot-dot::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 4px; height: 4px;
+  background: #585858;
+}
+.score-slot.state-done .slot-dot {
+  border: 1px solid #edb87e;
+  box-shadow: 0 0 4px rgba(240,202,120,0.5);
+}
+.score-slot.state-done .slot-dot::after { background: #f0ca78; }
+.slot-label {
+  font-family: 'Alexandria', sans-serif;
+  font-size: 8px; color: #fff; text-align: center;
+}
