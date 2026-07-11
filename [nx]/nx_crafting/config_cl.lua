@@ -14,6 +14,7 @@ Config["Keys"] = {
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
 
+Config.Debug = true -- true = print debug ตอนเข้า/ออกระยะโต๊ะคราฟ + เตือนถ้ามีหลายโต๊ะอยู่ในระยะพร้อมกัน (F8 console)
 Config["Font"] = "font4thai"	-- รูปแบบตัวอักษร
 Config["Keys"] = 'G'
 Config["Image_Source"] = "nui://vorp_inventory/html/img/items/" -- ตำแหน่งรูปภาพ
@@ -130,42 +131,26 @@ Config["Craft_Table"] = {
 		Category = { 21 } -- โต๊ะทำอาหาร Annesburg
 	},
 
-	-- พิกัดวางใกล้ Weapon Crafting (1415.5193, 277.5291, 89.5114) — ค่า z/ระยะห่างเป็นค่าประมาณ
-	-- ต้องเข้าเกมไปเช็ค/ปรับให้ไม่ซ้อนทับกับโต๊ะ Weapon Crafting และโต๊ะ Plank ก่อนขึ้นจริง
-	{
-		Position = {x = 1418.4783, y = 278.7104, z = 89.5114, h = 111.2098},
-		Table_Name = "Wood Whittling Table",
-		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
-		Name = "~y~Wood Whittling Table",
-		Desc = "โต๊ะเหลาไม้",
-
-		Map_blip = true,
-		Blip_name = "WoodWhittlingTable",
-		Blip_sprite = 12,
-		Blip_scale = 1.2,
-		Blip_color = 47,
-
-		Category = { 22 } -- เหลาไม้
-	},
-
+	-- รวม Wood Whittling Table + Wood Plank Table (เดิมห่างกันแค่ ~2.4m ขณะ Max_Distance = 2.5 ทั้งคู่
+	-- ทำให้ระยะเข้าซ้อนกัน — ดู debug log ใน [nx]/nx_crafting/client/client.lua) เป็นจุดเดียวที่เปิดได้
+	-- ทั้งสองหมวด ใช้พิกัดของ Wood Plank Table เดิม (ทั้งสองจุดเป็นค่าประมาณ ยังไม่เข้าเกมเช็คจริง —
+	-- ต้องปรับพิกัดให้ตรงจุดก่อนขึ้นจริงเหมือนเดิม)
 	{
 		Position = {x = 1417.0611, y = 280.6382, z = 89.5114, h = 111.2098},
-		Table_Name = "Wood Plank Table",
+		Table_Name = "Wood Crafting",
 		Max_Distance = 2.5,
 		Disable_Model = true,
 		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
-		Name = "~y~Wood Plank Table",
-		Desc = "โต๊ะทำไม้แผ่น",
+		Name = "~y~Wood Crafting",
+		Desc = "โต๊ะงานไม้",
 
 		Map_blip = true,
-		Blip_name = "WoodPlankTable",
+		Blip_name = "WoodCraftingTable",
 		Blip_sprite = 12,
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
-		Category = { 23 } -- ทำไม้แผ่น
+		Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
 	},
 
 	{

@@ -3851,7 +3851,7 @@ ConfigSv["Category"] = {
         }
     },
     [22] = {
-        name = "เหลาไม้",
+        name = "งานไม้",
         list = {
             {
                 item = "met_wood_sharp",
@@ -3872,11 +3872,6 @@ ConfigSv["Category"] = {
                     },
                 },
             },
-        }
-    },
-    [23] = {
-        name = "ทำไม้แผ่น",
-        list = {
             {
                 item = "met_wood_planks",
                 label = "แผ่นไม้",

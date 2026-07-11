@@ -639,7 +639,20 @@ function StartEvent()
     -- Hold-to-open (E) — เข้าใกล้โต๊ะคราฟ ลอยติดตำแหน่งโต๊ะ (v.Position) ผ่าน exports.lp_textui:TextUIHold()
     -- แทน DrawText3D + IsControlJustReleased(G) เดิม เรียก TextUIHold แค่ครั้งเดียวตอนเข้าระยะ (ไม่ใช่ทุกเฟรม)
     -- + hysteresis กันสั่นตรงขอบระยะ (เข้า < Max_Distance, ออก < Max_Distance+0.5) ตามแพทเทิร์นเดียวกับ Lumberjack/Mining/Economy
-    local craftHintShown = {} -- [tableIndex] = true/false
+    --
+    -- โต๊ะคราฟหลายตัวตั้งใกล้กันจนระยะเข้าซ้อนกัน (ยืนยันจาก debug log จริง: Weapon Crafting/Wood
+    -- Whittling/Wood Plank ที่ Rhodes ห่างกันแค่ ~2-3m ขณะ Max_Distance = 2.5 ทุกตัว) lp_textui เก็บ
+    -- สถานะ hold แบบ global ตัวเดียว (ดู [LP]/lp_textui/client/main.lua) — เดิมทุกโต๊ะที่ inRange ต่างเรียก
+    -- TextUIHold/CancelHold ของตัวเองอิสระต่อกัน ทำให้ 2 อาการ: (1) มี 2 โต๊ะ inRange พร้อมกัน คำเรียกหลัง
+    -- ตัด thread ของคำเรียกก่อนทิ้งกลางคันโดยไม่ hide UI ให้ ค้าง craftHintShown เป็น true ทั้งที่ไม่มีอะไร
+    -- ขึ้นจอ (2) วิ่งผ่านโต๊ะ A ทำให้ A.craftHintShown ค้าง true ชั่วคราว พอ A หลุดระยะช้ากว่า B ที่กำลังโชว์
+    -- อยู่จริง cancelCraftHint(A) ก็ไปเรียก CancelHold() แบบ global ซึ่งดับ prompt ของ B ที่ถูกต้องอยู่แล้วทิ้ง
+    -- ไปด้วย ("ยืนที่ General Crafting แต่ textui ไม่ขึ้น" ทั้งที่ไม่ได้อยู่ใกล้โต๊ะไหนอื่นเลย)
+    --
+    -- แก้ด้วยการล็อกโต๊ะ "active" ไว้ตัวเดียวแบบ sticky ต่อครั้ง — ไม่คำนวณโต๊ะใกล้สุดใหม่ทุกติ๊ก แต่อยู่กับ
+    -- โต๊ะเดิมต่อไปจนกว่าจะออกนอกระยะของโต๊ะนั้นเองจริง (ผ่าน hysteresis) แล้วค่อยหาโต๊ะใกล้สุดตัวใหม่มาแทน
+    local craftHintShown = {} -- [tableIndex] = true/false (มีจริงแค่ 1 key ที่ true ในคราวเดียว = activeTableK)
+    local activeTableK = nil
 
     local function cancelCraftHint(k)
         if craftHintShown[k] then
@@ -655,8 +668,12 @@ function StartEvent()
             if not MenuOn then
                 local playerPed = PlayerPedId()
                 local coords = GetEntityCoords(playerPed)
+                local distances = {}
+                local debugInRangeNow = Config.Debug and {} or nil
+
                 for k, v in pairs(Config["Craft_Table"]) do
                     local distance = GetDistanceBetweenCoords(coords, v.Position.x, v.Position.y, v.Position.z, true)
+                    distances[k] = distance
 
                     if distance < 10 then
                         if v.Marker == true and v.Marker ~= nil then
@@ -672,41 +689,76 @@ function StartEvent()
                         end
                     end
 
-                    local maxDist = v.Max_Distance or 0
-                    local inRange = distance < (craftHintShown[k] and (maxDist + 0.5) or maxDist)
+                    if debugInRangeNow and distance < (v.Max_Distance or 0) then
+                        table.insert(debugInRangeNow, ('%s(k=%s,d=%.2f)'):format(v.Table_Name or '?', tostring(k), distance))
+                    end
+                end
 
-                    if inRange then
+                if debugInRangeNow and #debugInRangeNow > 1 then
+                    print(('[nx_crafting][debug] !! %d tables in range at once (active: k=%s): %s'):format(
+                        #debugInRangeNow, tostring(activeTableK), table.concat(debugInRangeNow, ' | ')))
+                end
+
+                local activeStillInRange = false
+                if activeTableK then
+                    local activeV = Config["Craft_Table"][activeTableK]
+                    activeStillInRange = activeV ~= nil and (distances[activeTableK] or math.huge) < ((activeV.Max_Distance or 0) + 0.5)
+                end
+
+                if not activeStillInRange then
+                    if activeTableK then
+                        if Config.Debug then
+                            local prevV = Config["Craft_Table"][activeTableK]
+                            print(('[nx_crafting][debug] leave active: %s (k=%s) dist=%.2f'):format(
+                                prevV and prevV.Table_Name or '?', tostring(activeTableK), distances[activeTableK] or -1))
+                        end
+                        cancelCraftHint(activeTableK)
+                        activeTableK = nil
+                    end
+
+                    local nearestK, nearestV, nearestDist = nil, nil, math.huge
+                    for k, v in pairs(Config["Craft_Table"]) do
+                        local distance = distances[k]
+                        local maxDist = v.Max_Distance or 0
+                        if distance < maxDist and distance < nearestDist then
+                            nearestK, nearestV, nearestDist = k, v, distance
+                        end
+                    end
+
+                    if nearestK then
                         local statusjob = true
-                        if v.job ~= nil then
-                            statusjob = CheckJob(v.job)
+                        if nearestV.job ~= nil then
+                            statusjob = CheckJob(nearestV.job)
                         end
 
                         if statusjob then
-                            if not craftHintShown[k] then
-                                craftHintShown[k] = true
-                                exports.lp_textui:TextUIHold(
-                                    ('[E] %s'):format(v.Table_Name or 'เปิดโต๊ะคราฟ'),
-                                    900,
-                                    function()
-                                        craftHintShown[k] = false
-                                        TriggerEvent("nx_crafting:client:openMenuCraft", v.Category, v.Position, v.Table_Name)
-                                    end,
-                                    Keys.E,
-                                    { coords = v.Position, offset = vector3(0.0, 0.0, 0.4) }
-                                )
+                            activeTableK = nearestK
+                            craftHintShown[nearestK] = true
+                            if Config.Debug then
+                                print(('[nx_crafting][debug] TextUIHold -> %s (k=%s) dist=%.2f maxDist=%.2f'):format(
+                                    nearestV.Table_Name or '?', tostring(nearestK), nearestDist, nearestV.Max_Distance or 0))
                             end
+                            exports.lp_textui:TextUIHold(
+                                ('[E] %s'):format(nearestV.Table_Name or 'เปิดโต๊ะคราฟ'),
+                                900,
+                                function()
+                                    craftHintShown[nearestK] = false
+                                    activeTableK = nil
+                                    TriggerEvent("nx_crafting:client:openMenuCraft", nearestV.Category, nearestV.Position, nearestV.Table_Name)
+                                end,
+                                Keys.E,
+                                { coords = nearestV.Position, offset = vector3(0.0, 0.0, 0.4) }
+                            )
                         else
-                            cancelCraftHint(k)
                             ShowHelpNotification('<font face="' .. Config["Font"] ..
                                                      '">~r~ไม่สามามารถเปิดหน้าโต๊ะคราฟได้~s~</font>')
                         end
-                    else
-                        cancelCraftHint(k)
                     end
                 end
             else
-                for k in pairs(craftHintShown) do
-                    cancelCraftHint(k)
+                if activeTableK then
+                    cancelCraftHint(activeTableK)
+                    activeTableK = nil
                 end
             end
         end
