@@ -139,7 +139,10 @@ end
 
 local runFishingRound
 
-local function startCooldown(isHit, mySession)
+-- เรียกได้ก็ต่อเมื่อผ่านมินิเกมสำเร็จเท่านั้น (runFishingRound คัดพลาดออกไปแล้วก่อนหน้านี้)
+-- เลยส่ง isHit=true ให้ giveRewardMini เสมอ (เดิมส่งได้ทั้ง true/false — พลาดก็ยังได้รางวัลปกติ
+-- ตอนนี้พลาด = ไม่ได้อะไรเลย ไม่มาถึงจุดนี้)
+local function startCooldown(mySession)
     miniPhase = "cooldown"
     local advanced = false
 
@@ -151,7 +154,7 @@ local function startCooldown(isHit, mySession)
         if cancelled or miniPhase ~= "cooldown" then return end
 
         local zoneHashes = getZoneHashes(GetEntityCoords(PlayerPedId()))
-        TriggerServerEvent('fishing:giveRewardMini', isHit, zoneHashes)
+        TriggerServerEvent('fishing:giveRewardMini', true, zoneHashes)
 
         Citizen.Wait(500) -- กันแถบ progbar ที่กำลังเฟดหายไปชนกับ minigame รอบถัดไปที่โผล่ทันที
         if sessionId ~= mySession then return end
@@ -202,7 +205,15 @@ runFishingRound = function(mySession)
             if isInFishingZone then showIdleHint() end
             return
         end
-        startCooldown(isHit, mySession)
+        if not isHit then
+            -- พลาดมินิเกม (หมดเวลา/กดไม่ตรงจังหวะ) — ปลาหลุด ออกจากรอบตกปลาทันที
+            -- ไม่เข้า progress bar ดึงปลาขึ้นฝั่ง และไม่ได้รางวัล (ต่างจากเดิมที่ยังให้รางวัลปกติแม้พลาด)
+            stopAll(true)
+            notify('warning', 'พลาด! ปลาหลุดไปแล้ว', 3000)
+            if isInFishingZone then showIdleHint() end
+            return
+        end
+        startCooldown(mySession)
     end)
 end
 

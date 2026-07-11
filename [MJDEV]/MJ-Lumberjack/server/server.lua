@@ -4,8 +4,49 @@ local function notify(source, kind, text, duration)
     TriggerClientEvent("pNotify:SendNotification", source, { type = kind, text = text, timeout = duration or 3000 })
 end
 
+-- ── anti-spam/anti-dupe (server-side) ────────────────────────────────────────
+-- axecheck/addItem เป็น RegisterServerEvent ที่ client ยิงได้ ถ้าไม่กันจะสแปมยิงตรงเพื่อดูป
+-- ของ + ปั๊มอันดับ (lp_leaderboard) โดยไม่ต้องมีขวาน/อยู่ในโซน/รอมินิเกม — กันด้วย cooldown ต่อคน
+local cooldowns = {} -- [src][action] = GetGameTimer() ล่าสุด
+local function checkCooldown(src, action, minMs)
+    local t = GetGameTimer()
+    cooldowns[src] = cooldowns[src] or {}
+    if (t - (cooldowns[src][action] or 0)) < minMs then return false end
+    cooldowns[src][action] = t
+    return true
+end
+
+-- per-position cooldown ฝั่ง server (client โกงพิกัดไม่ได้ประโยชน์ — cooldown ต่อคนรวม 24วิ
+-- ด้านล่างคุมอัตราอยู่แล้ว อันนี้แค่กัน "ตัดต้นเดิมซ้ำทันที" ให้สมจริงขึ้น เหมือน rock cooldown ของ Mining)
+local posCd = {} -- [src][roundedCoordKey] = GetGameTimer()
+local function coordKey(c)
+    if type(c) ~= 'table' or type(c.x) ~= 'number' then return nil end
+    return ('%d_%d_%d'):format(math.floor(c.x + 0.5), math.floor(c.y + 0.5), math.floor((c.z or 0) + 0.5))
+end
+
+-- โซนตัดไม้ต้อง validate จากพิกัดจริงฝั่ง server (ไม่เชื่อ client ว่า "อยู่ในโซน") — Config.lumberZone
+-- เป็น shared_script อ่านได้ทั้งคู่ ครอบคลุมทั้งเรื่องโซน+ข้อจำกัดเมืองในตัว (เมืองที่ chop_allowed=false
+-- ไม่มี entry ใน lumberZone เลย เข้าเงื่อนไขเดียวกันพอดี ไม่ต้องพึ่ง native เช็คเมือง)
+local function isPlayerInAnyLumberZone(src)
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return false end
+    local pc = GetEntityCoords(ped)
+    for _, zone in pairs(Config.lumberZone) do
+        if #(pc - zone.Coords) <= zone.Radius then return true end
+    end
+    return false
+end
+
+AddEventHandler('playerDropped', function()
+    cooldowns[source] = nil
+    posCd[source]     = nil
+end)
+
 RegisterServerEvent("!MJ-Lumberjack:axecheck", function(tree)
     local _source = source
+    if not checkCooldown(_source, 'axecheck', 800) then return end -- กันสแปม axecheck ถี่
+    if not isPlayerInAnyLumberZone(_source) then return end -- ต้องยืนในโซนตัดไม้จริง (ครอบคลุมข้อจำกัดเมืองในตัว)
+
     local axe     = exports.vorp_inventory:getItem(_source, Config.Axe)
 
     if not axe then
@@ -48,8 +89,28 @@ RegisterServerEvent("!MJ-Lumberjack:axecheck", function(tree)
     end
 end)
 
-RegisterServerEvent('!MJ-Lumberjack:addItem', function()
+RegisterServerEvent('!MJ-Lumberjack:addItem', function(treeCoords)
     local _source = source
+
+    -- กันสแปมยิงตรง: ต้องอยู่ในโซน + มีขวานจริง + เว้นระยะตามมินิเกม (server-authoritative)
+    if not checkCooldown(_source, 'award', (Config.ChopDuration or 30) * 800) then return end
+    if not isPlayerInAnyLumberZone(_source) then return end
+    if not exports.vorp_inventory:getItem(_source, Config.Axe) then return end
+
+    -- per-position cooldown: ต้นเดิม (พิกัดปัดเศษ) ตัดซ้ำได้เมื่อครบเวลา (ถ้า coords ไม่ valid ก็ข้าม
+    -- เช็คนี้ แต่ยังติด cooldown รวม 24วิ ด้านบนอยู่ดี)
+    local key = coordKey(treeCoords)
+    if key then
+        local now = GetGameTimer()
+        posCd[_source] = posCd[_source] or {}
+        local last = posCd[_source][key]
+        if last and (now - last) < 900000 then -- 15 นาที (เท่า RockCooldown ของ Mining)
+            notify(_source, 'info', 'ต้นนี้เพิ่งตัดไป รอสักครู่', 3000)
+            return
+        end
+        posCd[_source][key] = now
+    end
+
     -- roll 1-100 แบบ cumulative: ไล่บวก chance ทีละตัวตามลำดับใน Config.Items
     -- met_log=10, met_stick=50, met_bark=30, met_resin=10 -> รวม 100% ไม่มีโอกาส "ไม่ได้ของ"
     local roll       = math.random(100)
@@ -78,6 +139,9 @@ RegisterServerEvent('!MJ-Lumberjack:addItem', function()
     end
 
     exports.vorp_inventory:addItem(_source, pick.name, count)
+    -- lp_leaderboard (LUMBERJACK RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
+    -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
+    TriggerEvent('lp_leaderboard:SV:LumberChop', { src = _source, amount = count })
     -- notify(_source, 'success', 'ได้รับ ' .. pick.label .. ' x' .. count, 3000)
     TriggerClientEvent('!MJ-Lumberjack:itemAwarded', _source, pick.name)
 end)

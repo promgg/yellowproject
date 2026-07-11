@@ -6,6 +6,19 @@ end)
 
 local Inventory = exports.vorp_inventory:vorp_inventoryApi()
 
+-- ── anti-spam/anti-dupe (server-side) ────────────────────────────────────────
+-- MJ-Planting:Giveitem เป็น RegisterServerEvent ที่ client ยิงได้ ถ้าไม่กันจะสแปมยิงตรงเพื่อดูป
+-- ของ + ปั๊มอันดับ (lp_leaderboard) โดยไม่ต้องปลูก/เก็บเกี่ยวจริง — server ไม่ได้ track ต้นไม้
+-- (จัดการ client) เลย validate ตรงไม่ได้ ใช้ cooldown ต่อคนแทน (harvest จริงใช้ progress 8s → 6s ปลอดภัย)
+local harvestCooldowns = {}
+local function checkHarvestCooldown(src, minMs)
+    local t = GetGameTimer()
+    if (t - (harvestCooldowns[src] or 0)) < minMs then return false end
+    harvestCooldowns[src] = t
+    return true
+end
+AddEventHandler('playerDropped', function() harvestCooldowns[source] = nil end)
+
 RegisterServerEvent(script_name .. ":CL:GetEvent_Planting")
 AddEventHandler(script_name .. ":CL:GetEvent_Planting", function(name)
     TriggerClientEvent(script_name .. ":SV:GetEvent_Planting", source)
@@ -120,6 +133,11 @@ end)
 RegisterServerEvent("MJ-Planting:Giveitem")
 AddEventHandler("MJ-Planting:Giveitem", function(ITEM)
     local _source = source
+
+    -- กันสแปมยิงตรง (harvest จริงมี progress 8s) — cooldown 6s ต่อคน ฝั่ง server
+    if not checkHarvestCooldown(_source, 6000) then return end
+
+    local totalGiven = 0
     for i = 1, #MJDEV['Planting'], 1 do
         if MJDEV['Planting'][i].item.seed == ITEM then
             for _, v in pairs(MJDEV['Planting'][i].giveitem) do
@@ -127,10 +145,16 @@ AddEventHandler("MJ-Planting:Giveitem", function(ITEM)
                     if v.item then
                         exports['vorp_inventory']:addItem(_source, v.item, v.count)
                         print("Added item: " .. v.item .. " (" .. v.count .. ")")
+                        totalGiven = totalGiven + (tonumber(v.count) or 0)
                     end
                 end
             end
         end
+    end
+    -- lp_leaderboard (FARMING RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
+    -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
+    if totalGiven > 0 then
+        TriggerEvent('lp_leaderboard:SV:PlantHarvest', { src = _source, amount = totalGiven })
     end
 end)
 

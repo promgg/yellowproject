@@ -54,11 +54,11 @@ Config.Items = {
     action = { type = 'command', name = 'welfare' }, -- lp_welfarelogin
   },
   {
-    id     = 'market',
-    title  = 'ราคาตลาด',
-    desc   = 'ตรวจสอบราคาสินค้าในปัจจุบัน',
-    image  = 'assets/img/market.png',
-    action = nil,
+    id     = 'leaderboard',
+    title  = 'กระดานอันดับ',
+    desc   = 'อันดับผู้เล่น สังหาร/เมือง/อาชีพ',
+    image  = 'assets/img/market.png', -- TODO: เปลี่ยนเป็นไอคอน leaderboard เฉพาะได้ (ตอนนี้ยืมของ market ไปก่อน)
+    action = { type = 'command', name = 'leaderboard' }, -- lp_leaderboard
   },
   {
     id     = 'report',

@@ -6,9 +6,10 @@ local isMining       = false
 local currentDur    = 99
 local maxDur         = 99
 local tool           = nil
-local miningObjects  = {}
-local usedRocks      = {}
-local currentRock    = nil
+local rockDefs       = {}   -- ตำแหน่งหินทั้งหมด (คำนวณครั้งเดียว ยังไม่สร้าง object): [i] = { town, x, y, z, key }
+local spawned        = {}   -- [key] = objHandle เฉพาะก้อนที่สตรีมเข้ามาใกล้ผู้เล่นตอนนี้
+local usedUntil      = {}   -- [key] = GetGameTimer() ที่หมด cooldown (client ซ่อน marker; server ตัดสินจริง)
+local currentRockKey = nil
 local currentProgId  = nil
 
 local HINT_MINE = '[E] เพื่อเริ่มขุด'
@@ -51,15 +52,19 @@ local function createBlips()
     end
 end
 
+-- คืน "key" ของก้อนใกล้สุดที่ยังไม่ติด cooldown ในรัศมี (ไม่คืน object handle เพราะ handle เปลี่ยนได้เมื่อสตรีม)
 local function getNearbyRock(coords, radius)
-    for _, obj in pairs(miningObjects) do
-        if DoesEntityExist(obj) and not usedRocks[obj] then
-            if #(coords - GetEntityCoords(obj)) <= radius then
-                return obj
+    local now = GetGameTimer()
+    local bestKey, bestDist
+    for key, obj in pairs(spawned) do
+        if DoesEntityExist(obj) and (not usedUntil[key] or now >= usedUntil[key]) then
+            local d = #(coords - GetEntityCoords(obj))
+            if d <= radius and (not bestDist or d < bestDist) then
+                bestKey, bestDist = key, d
             end
         end
     end
-    return nil
+    return bestKey
 end
 
 -- ── Pickaxe prop ─────────────────────────────────
@@ -113,17 +118,12 @@ local function onMineFinished(cancelled)
 
     -- ระบุเมืองจาก Config.RocksZone[].Town ของโซนที่ยืนอยู่ (คำนวณฝั่ง client แล้วส่งไป
     -- เพราะ zone รอบตัว ped อ่านสะดวกกว่าฝั่ง server)
-    local zone = getCurrentRocksZone(GetEntityCoords(PlayerPedId()))
-    TriggerServerEvent('mining:addItem', zone and zone.Town or nil)
+    -- ส่งแค่ rockKey — server คำนวณเมืองจากพิกัดจริงเอง + บังคับ per-rock cooldown เอง (ไม่เชื่อ client)
+    TriggerServerEvent('mining:addItem', currentRockKey)
     currentDur = currentDur - 1
 
-    local rock = currentRock
-    if rock then
-        usedRocks[rock] = true
-        Citizen.CreateThread(function()
-            Citizen.Wait(Config.RockCooldown)
-            usedRocks[rock] = nil
-        end)
+    if currentRockKey then
+        usedUntil[currentRockKey] = GetGameTimer() + Config.RockCooldown -- ซ่อน marker ฝั่ง client (UX เฉยๆ)
     end
 end
 
@@ -180,68 +180,90 @@ end)
 -- ── Spawn rock objects ────────────────────────────
 -- แนวคิด random mode พอร์ตมาจาก rimlay-jobx (model:genratecoords()/createobject()): สุ่มจุดในวงกลม
 -- รัศมี radius รอบ center, เว้นระยะห่างขั้นต่ำจากก้อนที่วางไปแล้วกันทับกัน, มี retry cap กันวนไม่รู้จบ
-local function spawnRockAt(coords)
-    -- collision สตรีมตามระยะใกล้ผู้เล่นเท่านั้น — จุดที่ผู้เล่นไม่ได้ยืนอยู่ใกล้ๆ ตอนสปาวน์ (เช่นอีกโซนที่ไกลออกไป)
-    -- จะไม่มี collision โหลดให้เลย ทำให้ PlaceObjectOnGroundProperly หาพื้นไม่เจอและก้อนลอยค้างถาวร
-    -- ต้องบังคับ RequestCollisionAtCoord ตรงจุดนั้นก่อน (idiom เดียวกับ vorp_admin/vorp_police/teleport.lua)
-    RequestCollisionAtCoord(coords.x, coords.y, coords.z)
-
-    local obj = CreateObject(GetHashKey(Config.MiningObject), coords.x, coords.y, coords.z, false, false, false)
-
-    local guard = 0
-    while not HasCollisionLoadedAroundEntity(obj) and guard < 100 do
-        RequestCollisionAtCoord(coords.x, coords.y, coords.z)
-        Citizen.Wait(50)
-        guard = guard + 1
-    end
-
-    for _ = 1, 15 do
-        if PlaceObjectOnGroundProperly(obj) then break end
-        Citizen.Wait(50)
-    end
-
-    FreezeEntityPosition(obj, true)
-    table.insert(miningObjects, obj)
-end
-
-local function isSpacedOut(coords, minSpacing)
-    for _, obj in pairs(miningObjects) do
-        if DoesEntityExist(obj) and #(coords - GetEntityCoords(obj)) < minSpacing then
-            return false
-        end
+-- ── คำนวณตำแหน่งหินทั้งหมด "ครั้งเดียว" (positions only ยังไม่สร้าง object) ──
+-- random mode: สุ่มจุดในวงกลม เว้น minSpacing กันทับ; manual: จุดเดียวตาม coords
+-- key = zone index + ลำดับ (คงที่ตลอด session) ใช้เป็น id ของก้อนทั้งฝั่ง client (usedUntil) และ server (per-rock cd)
+local function isSpacedOutDefs(x, y, minSpacing)
+    local min2 = minSpacing * minSpacing
+    for _, d in ipairs(rockDefs) do
+        local dx, dy = d.x - x, d.y - y
+        if (dx * dx + dy * dy) < min2 then return false end
     end
     return true
 end
 
-local function pickRandomPointInRadius(center, radius)
+local function pickRandomXY(center, radius)
     local angle = math.random() * 2 * math.pi
-    local dist  = math.sqrt(math.random()) * radius -- sqrt กันจุดกระจุกตัวตรงกลางวงกลม
-    return vector3(center.x + math.cos(angle) * dist, center.y + math.sin(angle) * dist, center.z)
+    local dist  = math.sqrt(math.random()) * radius -- sqrt กันจุดกระจุกตรงกลาง
+    return center.x + math.cos(angle) * dist, center.y + math.sin(angle) * dist
 end
 
-CreateThread(function()
+local function buildRockDefs()
     math.randomseed(GetGameTimer())
-
-    for _, zone in pairs(Config.MiningZones) do
+    for zi, zone in pairs(Config.MiningZones) do
         if zone.mode == "random" then
             local count      = zone.count or 5
             local minSpacing = zone.minSpacing or 7.0
-            local MAX_RETRIES = 40
-
-            for _ = 1, count do
-                local point, attempt = nil, 0
+            local town       = (getCurrentRocksZone(zone.center) or {}).Town
+            for n = 1, count do
+                local x, y, attempt = nil, nil, 0
                 repeat
-                    attempt  = attempt + 1
-                    local candidate = pickRandomPointInRadius(zone.center, zone.radius)
-                    if isSpacedOut(candidate, minSpacing) then point = candidate end
-                until point or attempt >= MAX_RETRIES
-
-                spawnRockAt(point or pickRandomPointInRadius(zone.center, zone.radius))
-                Citizen.Wait(0)
+                    attempt = attempt + 1
+                    local cx, cy = pickRandomXY(zone.center, zone.radius)
+                    if isSpacedOutDefs(cx, cy, minSpacing) then x, y = cx, cy end
+                until (x and y) or attempt >= 40
+                if not x then x, y = pickRandomXY(zone.center, zone.radius) end
+                rockDefs[#rockDefs + 1] = { town = town, x = x, y = y, z = zone.center.z, key = ('z%d_%d'):format(zi, n) }
             end
         else
-            spawnRockAt(zone.coords)
+            local town = (getCurrentRocksZone(zone.coords) or {}).Town
+            rockDefs[#rockDefs + 1] = { town = town, x = zone.coords.x, y = zone.coords.y, z = zone.coords.z, key = ('z%d_m'):format(zi) }
         end
+    end
+end
+
+-- ── สร้าง/ลบ object หินตามระยะ (สร้างตอนผู้เล่นอยู่ใกล้ -> collision โหลดแล้ว -> ตกพื้นถูก ไม่ลอย) ──
+local function streamSpawn(def)
+    RequestCollisionAtCoord(def.x, def.y, def.z)
+    local obj = CreateObject(GetHashKey(Config.MiningObject), def.x, def.y, def.z, false, false, false)
+    local guard = 0
+    while not HasCollisionLoadedAroundEntity(obj) and guard < 60 do
+        RequestCollisionAtCoord(def.x, def.y, def.z)
+        Citizen.Wait(50); guard = guard + 1
+    end
+    for _ = 1, 15 do
+        if PlaceObjectOnGroundProperly(obj) then break end
+        Citizen.Wait(50)
+    end
+    FreezeEntityPosition(obj, true)
+    spawned[def.key] = obj
+end
+
+local function streamDespawn(key)
+    local obj = spawned[key]
+    if obj and DoesEntityExist(obj) then DeleteObject(obj) end
+    spawned[key] = nil
+end
+
+-- ── Streaming loop: สตรีมเฉพาะก้อนในรัศมี StreamRadius รอบผู้เล่น ลบเมื่อออกไกล (hysteresis กันสั่น) ──
+CreateThread(function()
+    repeat Citizen.Wait(1000) until LocalPlayer.state.IsInSession
+    buildRockDefs()
+
+    local rIn2  = (Config.StreamRadius or 80.0) ^ 2
+    local rOut2 = ((Config.StreamRadius or 80.0) + 15.0) ^ 2
+    while true do
+        local pos = GetEntityCoords(PlayerPedId())
+        for _, def in ipairs(rockDefs) do
+            local dx, dy = def.x - pos.x, def.y - pos.y
+            local d2 = dx * dx + dy * dy
+            if not spawned[def.key] then
+                if d2 <= rIn2 then streamSpawn(def) end
+            elseif d2 > rOut2 then
+                streamDespawn(def.key)
+            end
+        end
+        Citizen.Wait(750)
     end
 end)
 
@@ -252,9 +274,10 @@ CreateThread(function()
         if isInZone and not isMining then
             local pos = GetEntityCoords(PlayerPedId())
             local drewAny = false
+            local now = GetGameTimer()
 
-            for _, obj in pairs(miningObjects) do
-                if DoesEntityExist(obj) and not usedRocks[obj] then
+            for key, obj in pairs(spawned) do
+                if DoesEntityExist(obj) and (not usedUntil[key] or now >= usedUntil[key]) then
                     local oc = GetEntityCoords(obj)
                     if #(pos - oc) <= 5.0 then
                         drewAny = true
@@ -282,19 +305,20 @@ local function startMiningFromHold()
     local ped = PlayerPedId()
     local pos = GetEntityCoords(ped)
 
-    local rock = getNearbyRock(pos, Config.MineRange)
-    if not rock then
+    local key = getNearbyRock(pos, Config.MineRange)
+    if not key then
         exports.pNotify:SendNotification({ type = 'info', text = 'No rock nearby.', timeout = 2000 })
         return
     end
 
-    currentRock = rock
-    isMining    = true
+    currentRockKey = key
+    isMining       = true
 
     -- freeze ก่อนหันหน้า กัน input เดินเดิม (ปุ่มเดินที่ยังกดค้าง) แย่ง task หันหน้าจน turn ไม่ติดบางครั้ง
     ClearPedTasksImmediately(ped)
     FreezeEntityPosition(ped, true)
-    TaskTurnPedToFaceEntity(ped, rock, 500)
+    local rockObj = spawned[key]
+    if rockObj and DoesEntityExist(rockObj) then TaskTurnPedToFaceEntity(ped, rockObj, 500) end
     Citizen.Wait(500)
 
     TriggerServerEvent("mining:axecheck")
@@ -314,9 +338,8 @@ CreateThread(function()
 
         local inRange = false
         if isInZone and not isMining then
-            local pos  = GetEntityCoords(PlayerPedId())
-            local rock = getNearbyRock(pos, shown and (Config.MineRange + 0.3) or Config.MineRange)
-            inRange = rock ~= nil
+            local pos = GetEntityCoords(PlayerPedId())
+            inRange = getNearbyRock(pos, shown and (Config.MineRange + 0.3) or Config.MineRange) ~= nil
         end
 
         if inRange and not shown then
@@ -379,8 +402,9 @@ AddEventHandler('onResourceStop', function(name)
     exports.lp_rewardpanel:Hide()
     exports.lp_textui:CancelHold()
     exports.lp_textui:HideUI()
-    for _, obj in pairs(miningObjects) do
-        if DoesEntityExist(obj) then DeleteEntity(obj) end
+    for key, obj in pairs(spawned) do
+        if DoesEntityExist(obj) then DeleteObject(obj) end
+        spawned[key] = nil
     end
     for _, zone in pairs(Config.RocksZone) do
         if zone.BlipHandle then RemoveBlip(zone.BlipHandle) end

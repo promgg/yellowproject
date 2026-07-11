@@ -2,9 +2,41 @@ local function notify(source, kind, text, duration)
     TriggerClientEvent("pNotify:SendNotification", source, { type = kind, text = text, timeout = duration or 3000 })
 end
 
+-- ── anti-spam/anti-dupe (server-side) ────────────────────────────────────────
+-- mining:addItem / axecheck เป็น RegisterServerEvent ที่ client ยิงได้ ถ้าไม่กันจะสแปมยิงตรงเพื่อ
+-- ดูปของ + ปั๊มอันดับ (lp_leaderboard) โดยไม่ต้องมีจอบ/อยู่หน้าเหมือง/รอมินิเกม — กันด้วย cooldown ต่อคน
+local cooldowns = {} -- [src][action] = GetGameTimer() ล่าสุด
+local function checkCooldown(src, action, minMs)
+    local t = GetGameTimer()
+    cooldowns[src] = cooldowns[src] or {}
+    if (t - (cooldowns[src][action] or 0)) < minMs then return false end
+    cooldowns[src][action] = t
+    return true
+end
+
+-- per-rock cooldown ฝั่ง server (client แก้ usedUntil เองไม่ได้) — ก้อนเดิมขุดซ้ำได้เมื่อครบ RockCooldown
+local rockCd = {} -- [src][rockKey] = GetGameTimer()
+
+-- เมืองของผู้เล่นคำนวณจากพิกัด "ที่ server รู้เอง" (ไม่เชื่อ townName จาก client) — กันส่งเมืองอื่นมาปั๊มแร่หายาก
+local function serverTownForPlayer(src)
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return nil end
+    local pc = GetEntityCoords(ped)
+    for _, zone in pairs(Config.RocksZone) do
+        if #(pc - zone.Coords) <= zone.Radius then return zone.Town end
+    end
+    return nil
+end
+
+AddEventHandler('playerDropped', function()
+    cooldowns[source] = nil
+    rockCd[source]    = nil
+end)
+
 RegisterServerEvent("mining:axecheck")
 AddEventHandler("mining:axecheck", function()
     local _source = source
+    if not checkCooldown(_source, 'axecheck', 800) then return end -- กันสแปมยิง axecheck ถี่
     local axe     = exports.vorp_inventory:getItem(_source, Config.Pickaxe)
 
     if not axe then
@@ -46,17 +78,35 @@ AddEventHandler("mining:axecheck", function()
     end
 end)
 
--- _GET_MAP_ZONE_AT_COORDS (0x43AD8FC02B429D33) เป็น native client-only เรียกฝั่ง server แล้วได้ false เสมอ
--- (ไม่มีแผนที่โลกโหลดฝั่ง server) — ต้องให้ client คำนวณ townName เองแล้วส่งมาแนบกับ event แทน
--- (บั๊กแบบเดียวกับที่เจอใน MJ-AfkFishing เมื่อก่อนหน้านี้ในเซสชันนี้)
+-- เมืองไม่เชื่อ client แล้ว — คำนวณจากพิกัดผู้เล่นเทียบ Config.RocksZone ฝั่ง server (serverTownForPlayer)
+-- แทนการใช้ native _GET_MAP_ZONE_AT_COORDS (client-only) หรือรับ townName จาก client (โกงได้)
 RegisterServerEvent("mining:addItem")
-AddEventHandler("mining:addItem", function(townName)
+AddEventHandler("mining:addItem", function(rockKey)
     local _source = source
-    local rewards = townName and Config.MiningRewards[townName]
 
+    -- กันสแปมยิงตรง: ต้องมีจอบจริง + เว้นระยะตามมินิเกม (server-authoritative)
+    if not checkCooldown(_source, 'award', (Config.MiningDuration or 30) * 800) then return end
+    if not exports.vorp_inventory:getItem(_source, Config.Pickaxe) then return end
+
+    -- เมืองคำนวณจากพิกัดจริงฝั่ง server (ไม่เชื่อ client) — ต้องยืนในโซนเหมืองจริงเท่านั้น
+    local town    = serverTownForPlayer(_source)
+    local rewards = town and Config.MiningRewards[town]
     if not rewards then
         notify(_source, 'warning', 'Nothing found this swing.', 3000)
         return
+    end
+
+    -- per-rock cooldown ฝั่ง server: ก้อนเดิม (rockKey) ขุดซ้ำได้เมื่อครบ RockCooldown (client โกงไม่ได้)
+    -- ถ้า rockKey ไม่ valid ก็ข้ามเช็คนี้ แต่ยังติด cooldown รวม 24วิ ด้านบนอยู่ดี
+    if type(rockKey) == 'string' and #rockKey > 0 and #rockKey <= 24 then
+        local now = GetGameTimer()
+        rockCd[_source] = rockCd[_source] or {}
+        local last = rockCd[_source][rockKey]
+        if last and (now - last) < (Config.RockCooldown or 900000) then
+            notify(_source, 'info', 'ก้อนนี้เพิ่งขุดไป รอสักครู่', 3000)
+            return
+        end
+        rockCd[_source][rockKey] = now
     end
 
     -- roll 1-100 แบบ cumulative: ไล่บวก chance ทีละตัวตามลำดับใน Config.MiningRewards[townName]
@@ -86,5 +136,8 @@ AddEventHandler("mining:addItem", function(townName)
     end
 
     exports.vorp_inventory:addItem(_source, pick.name, count)
+    -- lp_leaderboard (MINING RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
+    -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
+    TriggerEvent('lp_leaderboard:SV:MiningGather', { src = _source, amount = count })
     TriggerClientEvent('mining:itemAwarded', _source, pick.name)
 end)

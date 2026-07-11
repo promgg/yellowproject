@@ -1,0 +1,216 @@
+/* lp_leaderboard — single-panel redesign, เข้าตระกูลเดียวกับ lp_welfarelogin/lp_battlepass 100%
+   fixed 1920×1080 canvas, panel-bg.png (กระดาษขาดริม) เป็นพื้นหลังจริง, โทนเข้ม-ทองล้วน ไม่มี sidebar */
+
+@font-face { font-family:'Kanit'; src:url('../fonts/kanit_regular.ttf') format('truetype'); font-weight:400; }
+@font-face { font-family:'Kanit'; src:url('../fonts/kanit_medium.ttf') format('truetype'); font-weight:600; }
+@font-face { font-family:'Alexandria'; src:url('../fonts/alexandria_regular.ttf') format('truetype'); font-weight:400; }
+@font-face { font-family:'Copperplate Gothic Bold'; src:url('../fonts/copperplategothic_bold.ttf') format('truetype'); }
+
+:root {
+  --gold:#e0b062;
+  --gold-2:#c99a4b;
+  --bg-1:#1c1712;
+  --bg-2:#141110;
+  --panel-2:#2a2119;
+  --line:rgba(224,176,98,0.22);
+  --text:#ecdfc6;
+  --muted:#a08e70;
+  --green:#4ade80;
+  --red:#f87171;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:transparent; font-family:'Kanit','Alexandria',sans-serif; }
+
+/* flex center — panel เป็น flex child ธรรมดา (ไม่มี absolute child) เลี่ยงบั๊ก CEF เก่าทั้งหมด */
+#root { position:absolute; top:0; left:0; width:1920px; height:1080px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; }
+#root.hidden { display:none; }
+.hidden { display:none !important; }
+
+/* ── panel — พื้นหลังกระดาษขาดริมทำเป็น CSS background บนตัว panel เอง (ไม่ใช้ <img>)
+   + background-color ทึบใต้กระดาษ กันขอบใสของ PNG ทะลุเห็นฉากในเกม (ทั้งกล่องเป็นพื้นทึบจริง) ── */
+#panel {
+  position:relative;
+  width:1100px; height:620px;
+  display:flex; flex-direction:column;
+  padding:24px 28px;
+  box-sizing:border-box;
+  overflow:hidden;
+  border-radius:6px;
+  color:var(--text);
+  background-image:url('../assets/panel-bg.png?v=4'); /* กระดาษขาดริมทับบนพื้นทึบ */
+  background-size:100% 100%;                          /* ยืดเต็มกล่องพอดี (aspect ใกล้กันมาก ~0.2% ไม่เพี้ยน) */
+  background-position:center;
+  background-repeat:no-repeat;
+  animation: lbPanelIn .22s cubic-bezier(.34,1.3,.64,1); /* เปิด panel เด้งเบาๆ ทุกครั้งที่ #root โผล่จาก display:none */
+}
+@keyframes lbPanelIn {
+  from { opacity:0; transform:scale(.96) translateY(6px); }
+  to   { opacity:1; transform:scale(1) translateY(0); }
+}
+/* ปิด: JS ใส่ .closing ก่อน แล้วค่อย hidden จริงหลัง animation จบ (ดู close() ใน script.js) */
+#root.closing #panel { animation: lbPanelOut .16s ease forwards; }
+@keyframes lbPanelOut { to { opacity:0; transform:scale(.97) translateY(4px); } }
+
+/* ── header ── */
+.lb__head { position:relative; display:flex; align-items:center; justify-content:space-between; }
+.lb__head-title { display:flex; align-items:center; gap:14px; }
+.lb__head h1 {
+  font-family:'Copperplate Gothic Bold', Georgia, serif;
+  font-size:24px; letter-spacing:1.5px; color:#fff; line-height:1.15;
+}
+.lb__head h1 span { color:var(--gold); }
+.lb__sub { font-family:'Alexandria',sans-serif; font-size:11px; letter-spacing:3px; color:var(--muted); margin-top:2px; }
+
+.lb__close {
+  width:30px; height:30px; border:1px solid var(--line); border-radius:5px; cursor:pointer;
+  background:rgba(0,0,0,0.3); color:var(--muted); font-size:18px; line-height:1;
+  transition:all .15s ease, transform .1s ease;
+}
+.lb__close:hover { background:var(--red); color:#fff; border-color:var(--red); }
+.lb__close:active { transform:scale(.9); }
+
+/* ── tab row (สลับหมวด) — สูงคงที่ 39px เสมอ ไม่ว่าจะยุบหรือคลี่ JOBS ── */
+.lb__tabs { display:flex; gap:10px; margin-top:18px; height:39px; }
+.nav-item {
+  display:flex; align-items:center; gap:9px;
+  height:39px; box-sizing:border-box;
+  padding:0 18px;
+  background:rgba(0,0,0,0.28);
+  border:1px solid var(--line); border-radius:20px;
+  color:#cbb48f; font-family:'Alexandria',sans-serif; font-size:12px; letter-spacing:1px;
+  cursor:pointer; transition:all .15s ease, transform .1s ease;
+}
+.nav-item:hover { background:rgba(224,176,98,0.1); color:#f0d9ab; }
+.nav-item:active { transform:scale(.95); }
+.nav-item.active {
+  background:linear-gradient(90deg, rgba(224,176,98,0.22), rgba(224,176,98,0.06));
+  border-color:var(--gold-2); color:var(--gold);
+  box-shadow:0 0 10px rgba(224,176,98,0.15);
+}
+.nav-item .ic { width:15px; height:15px; flex-shrink:0; color:currentColor; }
+
+/* ── nav-group: cluster อาชีพย่อยที่ "คลี่" แทนที่ปุ่ม JOBS เดียว ในแถวเดียวกับ
+   ท็อปบาร์เลย (ไม่เพิ่มแถว → ความสูงคงที่ทุกแท็บ ไม่ดัน .lb__you) ── */
+.nav-group {
+  display:flex; align-items:center; gap:6px;
+  height:39px; box-sizing:border-box;
+  padding:0 10px 0 4px;
+  background:rgba(0,0,0,0.22);
+  border:1px solid rgba(224,176,98,0.18); border-radius:22px;
+}
+.nav-group__ic {
+  width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  border-radius:50%; background:rgba(224,176,98,0.12); color:var(--gold-2);
+}
+.nav-group__ic svg { width:14px; height:14px; }
+.nav-item--sub { height:29px; padding:0 13px; font-size:11px; } /* เล็กกว่า ซ้อนกลางแนวตั้งใน cluster สูง 39px */
+
+/* ── YOUR RANKING banner ── */
+.lb__you {
+  display:flex; align-items:center; gap:18px;
+  min-height:74px; /* สูงเท่ากันทุกแท็บ (city ที่มีเนื้อหาน้อยกว่าก็สูงเท่ากัน) */
+  background:rgba(0,0,0,0.34);
+  border:1px solid var(--gold-2); border-radius:6px;
+  padding:13px 18px; margin-top:16px;
+}
+/* กระพริบเบาๆ ทุกครั้งที่เนื้อหาถูกเรนเดอร์ใหม่ (สลับแท็บ หรือ server live-push ค่าใหม่มา) */
+.lb__you.flash { animation:lbYouFlash .4s ease; }
+@keyframes lbYouFlash {
+  0%   { box-shadow:0 0 0 0 rgba(224,176,98,0); border-color:var(--gold-2); }
+  30%  { box-shadow:0 0 0 3px rgba(224,176,98,0.25); border-color:var(--gold); }
+  100% { box-shadow:0 0 0 0 rgba(224,176,98,0); border-color:var(--gold-2); }
+}
+.you__badge { flex-shrink:0; width:91px; text-align:center; padding-right:16px; border-right:1px solid var(--line); box-sizing:content-box; } /* กว้างคงที่ทุกแท็บ — กัน "YOUR CITY"/"YOUR RANKING" ยาวไม่เท่ากันแล้วดันเนื้อหาถัดไป */
+.you__badge .lbl { font-family:'Alexandria',sans-serif; font-size:9px; letter-spacing:1.5px; color:var(--muted); }
+.you__badge .num { font-family:'Copperplate Gothic Bold',serif; font-size:22px; color:var(--gold); line-height:1.1; }
+.you__pic {
+  width:42px; height:42px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 35%, #3a2e20, #17120d);
+  border:2px solid var(--gold-2); color:var(--gold);
+  font-family:'Copperplate Gothic Bold',serif; font-size:17px;
+}
+.you__pic svg { width:20px; height:20px; }
+.you__info { flex:1; min-width:0; }
+.you__name { font-family:'Kanit',sans-serif; font-size:16px; font-weight:600; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.you__sub { margin-top:3px; height:24px; display:flex; align-items:center; } /* สูงคงที่เท่ากันทุกแท็บ (city ที่ไม่มี badge ก็จอง 24px) — ชื่อ+ความสูง banner ตรงกันหมด */
+.you__stats { display:flex; gap:24px; flex-shrink:0; }
+.you__stat { text-align:center; }
+.you__stat .k { display:flex; align-items:center; gap:5px; justify-content:center;
+  font-family:'Alexandria',sans-serif; font-size:10px; letter-spacing:1px; color:var(--muted); }
+.you__stat .v { font-family:'Alexandria',sans-serif; font-size:18px; font-weight:400; margin-top:2px; color:var(--text); }
+
+/* badge pill */
+.badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:11px;
+  font-family:'Alexandria',sans-serif; font-size:11px; letter-spacing:0.5px;
+  border:1px solid currentColor; background:rgba(0,0,0,0.2);
+}
+
+/* ── column header ── */
+.lb__cols, .row {
+  display:grid; align-items:center;
+  grid-template-columns:48px 50px 1fr 122px 84px 74px 78px;
+  gap:8px;
+}
+.lb__cols {
+  padding:7px 12px; margin-top:14px;
+  border-bottom:1px solid var(--line);
+}
+.lb__cols .col {
+  display:flex; align-items:center; gap:6px;
+  font-family:'Alexandria',sans-serif; font-size:10px; letter-spacing:1px; color:var(--muted);
+}
+.lb__cols .col .ic { width:13px; height:13px; opacity:0.8; }
+.lb__cols .col.center, .row .center { justify-content:center; }
+
+/* ── rows ── */
+.lb__rows-wrap { flex:1; min-height:0; margin-top:6px; }
+.lb__rows { height:100%; overflow-y:auto; padding-right:4px; }
+.lb__rows::-webkit-scrollbar { width:7px; }
+.lb__rows::-webkit-scrollbar-thumb { background:rgba(224,176,98,0.25); border-radius:4px; }
+.lb__rows::-webkit-scrollbar-track { background:transparent; }
+
+.row {
+  padding:10px 12px; margin-bottom:7px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--line);
+  border-radius:5px;
+  font-family:'Alexandria',sans-serif; font-size:13px; color:var(--text);
+  transition:transform .12s ease, border-color .12s ease, background .12s ease;
+  animation:lbRowIn .22s ease backwards;
+  animation-delay:calc(var(--i, 0) * 16ms); /* เรียงเข้าทีละแถวตอนสลับแท็บ/เปิดครั้งแรก */
+}
+@keyframes lbRowIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.row:hover { transform:translateY(-1px); border-color:rgba(224,176,98,0.4); }
+.row.me { border-color:var(--gold-2); box-shadow:0 0 0 1px var(--gold-2);
+  background:rgba(224,176,98,0.10); }
+.row .rank { font-family:'Copperplate Gothic Bold',serif; font-size:15px; color:#8a7a5e; }
+.row.rank-1 .rank { color:#e6bf4a; }
+.row.rank-2 .rank { color:#c7ccd1; }
+.row.rank-3 .rank { color:#c88a52; }
+.row .pic {
+  width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 35%, #3a2e20, #17120d);
+  border:1px solid var(--gold-2); color:var(--gold);
+  font-family:'Copperplate Gothic Bold',serif; font-size:13px;
+}
+.row .pic svg { width:16px; height:16px; }
+.row .name { font-family:'Kanit',sans-serif; font-size:14px; font-weight:600; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .score { text-align:center; font-weight:400; }
+.row .green { color:var(--green); text-align:center; font-weight:600; }
+.row .red   { color:var(--red);   text-align:center; font-weight:600; }
+.row .num   { text-align:center; }
+
+.lb__empty { height:100%; display:flex; align-items:center; justify-content:center;
+  color:var(--muted); font-family:'Kanit',sans-serif; font-size:15px; }
+
+.stat-green { color:var(--green); }
+.stat-red { color:var(--red); }
+.stat-gold { color:var(--gold); }

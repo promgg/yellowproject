@@ -149,10 +149,11 @@ local function onChopFinished(cancelled)
         return
     end
 
-    TriggerServerEvent('!MJ-Lumberjack:addItem')
+    -- ส่งพิกัดต้นไม้ไปให้ server ทำ per-position cooldown เอง (server ยึดเป็นหลัก ไม่เชื่อ client)
+    local coords = nearby_tree and nearby_tree.vector_coords
+    TriggerServerEvent('!MJ-Lumberjack:addItem', coords and { x = coords.x, y = coords.y, z = coords.z } or nil)
     currentDur = currentDur - 1
 
-    local coords = nearby_tree and nearby_tree.vector_coords
     if coords then
         rememberTreeAsChopped(coords)
         Citizen.CreateThread(function()

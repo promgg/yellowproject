@@ -16,6 +16,10 @@ Config.RockCooldown   = 900000  -- 15 นาที (ms)
 -- ระยะกด E ขุดจริง (marker/scan หาไกลกว่านี้ได้เพื่อนำทาง แต่ hint+E ใช้รัศมีนี้เท่านั้น กันเห็น hint แต่กดไม่ติด)
 Config.MineRange = 3.0
 
+-- ระยะสตรีมหิน (เมตร): สร้าง object หินเฉพาะก้อนที่อยู่ในรัศมีนี้รอบผู้เล่น ลบเมื่อออกไกล
+-- เพราะสร้างตอนผู้เล่นอยู่ใกล้ collision จะโหลดแล้ว หินตกพื้นถูก (กันหินลอยกลางอากาศ) + ไม่เปลือง object
+Config.StreamRadius = 80.0
+
 -- ── โซนเหมืองแต่ละเมือง ── field Town ใช้จับคู่กับ Config.MiningRewards[Town]
 Config.RocksZone = {
     {
@@ -61,11 +65,16 @@ Config.RocksZone = {
 Config.MiningZones = {
     { mode = "random", center = vector3(-60.8620, 173.0856, 98.3558), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Valentine
     { mode = "random", center = vector3(1501.8263, -1848.4946, 57.7638), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Rhodes
-    { mode = "random", center = vector3(2354.3000, 1413.1196, 102.4316), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Annesburg
+    -- { mode = "random", center = vector3(2354.3000, 1413.1196, 102.4316), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Annesburg
 
     -- { mode = "manual", coords = vector3(-60.8620, 173.0856, 98.3558) }, -- Valentine
     -- { mode = "manual", coords = vector3(1501.8263, -1848.4946, 57.7638) }, -- Rhodes
-    -- { mode = "manual", coords = vector3(2354.3000, 1413.1196, 102.4316) }, -- Annesburg
+    { mode = "manual", coords = vector3(2363.4851, 1410.4780, 105.8705) }, -- Annesburg
+    { mode = "manual", coords = vector3(2354.8176, 1422.5095, 98.9491) }, -- Annesburg
+    { mode = "manual", coords = vector3(2338.0120, 1416.3689, 97.9154) }, -- Annesburg
+    { mode = "manual", coords = vector3(2327.9375, 1433.3787, 89.2085) }, -- Annesburg
+    { mode = "manual", coords = vector3(2329.3333, 1450.4409, 89.3269) }, -- Annesburg
+    { mode = "manual", coords = vector3( 2356.1023, 1403.9558, 104.3499) }, -- Annesburg   
 }
 
 Config.MiningObject = "old_hen_rock_scree_sim_08"

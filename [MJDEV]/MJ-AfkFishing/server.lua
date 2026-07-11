@@ -92,6 +92,10 @@ local function giveReward(src, reward)
         TriggerClientEvent('fishing:inventoryFull', src)
         return
     end
+    -- lp_leaderboard (FISH RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
+    -- ต้องส่ง src แนบไปในตัว payload เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกันว่า
+    -- global `source` ฝั่งผู้รับจะเป็นผู้เล่นคนเดิม (มันเป็นแค่ local trigger ไม่ใช่ network event)
+    TriggerEvent('lp_leaderboard:SV:FishCatch', { src = src, amount = reward.amount })
     TriggerClientEvent('fishing:rewardGiven', src, reward.item)
 end
 

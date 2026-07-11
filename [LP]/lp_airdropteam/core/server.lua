@@ -896,6 +896,9 @@ local function ClaimAirdrop(src, arg)
         MJ_SendDiscordEmbed("Airdrop Claimed", "ผู้เล่นเปิดกล่อง Airdrop สำเร็จ", fields)
     end
 
+    -- lp_leaderboard (บอร์ดเมือง): ผู้ลูทกล่องได้คนแรกของรอบ = เมืองตัวเองชนะรอบนี้
+    if RecordAirdropWinner then RecordAirdropWinner(src) end
+
     -- Notify clients
     TriggerClientEvent(script_name .. ':Revive', -1, airdropId)
     TriggerClientEvent(script_name .. ":CL:DeleteAirdrop", -1, airdropId)

@@ -21,6 +21,10 @@ local RoundActive     = false
 local JoiningLocked   = false
 local ZoneOpenAt      = 0  -- GetGameTimer() timestamp (ms) เมื่อ safe zone จะหมดเวลา
 
+-- lp_leaderboard (บอร์ดเมือง): สรุปผล "ต่อรอบ airdrop" ต่อเมือง (ต่อ battle team = เมืองตัวเอง)
+local RoundParticipating = {} -- [cityId] = true (เมืองที่มีคนเข้าร่วมในรอบนี้)
+local RoundWinnerCity    = nil -- cityId ของเมืองที่ลูทกล่องได้คนแรกในรอบ (ชนะรอบ)
+
 local function DBG(fmt, ...)
     print(('[lp_airdropteam:team] ' .. fmt):format(...))
 end
@@ -32,6 +36,32 @@ local function ResetTeamState()
     RoundActive     = false
     JoiningLocked   = false
     ZoneOpenAt      = 0
+    RoundParticipating = {}
+    RoundWinnerCity    = nil
+end
+
+-- ยิงสรุปผลรอบไป lp_leaderboard (soft integration — ไม่ต้อง depend; ถ้าไม่มี resource ก็เงียบ)
+-- เรียกก่อน ResetTeamState เสมอ (ใช้ค่า RoundParticipating/RoundWinnerCity ของรอบที่เพิ่งจบ)
+local function FireCityResult()
+    if next(RoundParticipating) == nil then return end
+    local cities = {}
+    for cityId in pairs(RoundParticipating) do
+        cities[#cities + 1] = { id = cityId }
+    end
+    TriggerEvent('lp_leaderboard:SV:CityRoundResult', { cities = cities, winner = RoundWinnerCity })
+    DBG('FireCityResult: cities=%d winner=%s', #cities, tostring(RoundWinnerCity))
+end
+
+-- server.lua/ClaimAirdrop เรียกตอนลูทกล่องสำเร็จ — เมืองของผู้ลูทคนแรก = ผู้ชนะรอบ
+function RecordAirdropWinner(src)
+    if not (Config.Team and Config.Team.enabled) or not RoundActive then return end
+    if RoundWinnerCity then return end -- ล็อกผู้ชนะคนแรกของรอบ
+    local teamId = PlayerTeam[src]
+    local team   = teamId and TeamsById[teamId]
+    if team and team.cityId then
+        RoundWinnerCity = team.cityId
+        DBG('RecordAirdropWinner: src=%d winnerCity=%s', src, team.cityId)
+    end
 end
 
 -- จุดที่จะส่งผู้เล่นกลับไปเมื่อออกจากรอบ (ตายครั้งที่ 2 / backapt / จบรอบ): สถานีที่เข้ามาจริง
@@ -79,6 +109,7 @@ function EndTeamRound()
     end
     DBG('EndTeamRound: sent %d player(s) back to their entry station', n)
 
+    FireCityResult() -- สรุปผลรอบ (เข้า/ชนะ/แพ้ ต่อเมือง) ไป lp_leaderboard ก่อนล้าง state
     ResetTeamState()
 end
 
@@ -116,6 +147,9 @@ VORPcore.Callback.Register('lp_airdropteam:JoinTeam', function(source, cb, entry
     PlayerTeam[source]      = battleTeamId
     PlayerEntryTeam[source] = entryTeamId
     PlayerRespawns[source]  = 0
+
+    -- lp_leaderboard: บันทึกว่าเมืองนี้ (battle team = เมืองตัวเอง) เข้าร่วมรอบนี้แล้ว
+    if battleTeam.cityId then RoundParticipating[battleTeam.cityId] = true end
 
     local remainingMs = math.max(0, ZoneOpenAt - GetGameTimer())
     DBG('src=%d entry=%s battle=%s(city=%s) remainingMs=%d', source, entryTeamId, battleTeamId, tostring(cityId), remainingMs)
