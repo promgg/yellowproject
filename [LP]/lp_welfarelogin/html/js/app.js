@@ -55,7 +55,15 @@ function initScrollbar(container, track) {
   update();
   return update;
 }
-var updateTopScroll, updateBotScroll;
+var updateTopScroll, updateBotScroll, scrollSyncWired = false, scrollLock = false;
+
+/* ── scroll คู่แบบ lp_battlepass — เลื่อนแถวหนึ่ง อีกแถวเลื่อนตาม (การ์ดวันเดียวกันอยู่ตำแหน่งเดียวกัน) ── */
+function onScrollSync(from, to) {
+  if (scrollLock) return;
+  scrollLock = true;
+  to.scrollLeft = from.scrollLeft;
+  scrollLock = false;
+}
 
 function enableWheelScroll(container) {
   container.addEventListener('wheel', function (e) {
@@ -204,7 +212,13 @@ function render(data) {
     enableWheelScroll(rewardCards);
     updateTopScroll = initScrollbar(dailyCards,  document.getElementById('scroll-track-top'));
     updateBotScroll = initScrollbar(rewardCards, document.getElementById('scroll-track-bot'));
-  } else {
+  }
+  if (!scrollSyncWired) {
+    scrollSyncWired = true;
+    dailyCards.addEventListener('scroll', function () { onScrollSync(dailyCards, rewardCards); });
+    rewardCards.addEventListener('scroll', function () { onScrollSync(rewardCards, dailyCards); });
+  }
+  if (updateTopScroll) {
     updateTopScroll();
     updateBotScroll();
   }
