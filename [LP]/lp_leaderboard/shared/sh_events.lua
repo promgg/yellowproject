@@ -22,4 +22,5 @@ Events = {
     miningGather  = 'lp_leaderboard:SV:MiningGather',  -- MJ-Mining (server/server.lua/mining:addItem)
     plantHarvest  = 'lp_leaderboard:SV:PlantHarvest',  -- MJ-Planting (core/server.lua/Giveitem)
     lumberChop    = 'lp_leaderboard:SV:LumberChop',    -- MJ-Lumberjack (server/server.lua/!MJ-Lumberjack:addItem)
+    huntSkin      = 'lp_leaderboard:SV:HuntSkin',      -- lp_hunting (server/main.lua/lp_hunting:sv:skin)
 }

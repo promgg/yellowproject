@@ -79,6 +79,14 @@ Config.LumberBadges = {
     { min = 1500, name = 'DIAMOND',  color = '#8ab6ff' },
 }
 
+Config.HuntingBadges = {
+    { min = 0,    name = 'BRONZE',   color = '#c78b4b' },
+    { min = 100,  name = 'SILVER',   color = '#c7ccd1' },
+    { min = 300,  name = 'GOLD',     color = '#f0ca78' },
+    { min = 700,  name = 'PLATINUM', color = '#7fe0d4' },
+    { min = 1500, name = 'DIAMOND',  color = '#8ab6ff' },
+}
+
 -- รวมศูนย์: หมวดไหนเป็น gather job บ้าง, ฟังก์ชัน sv_main.lua วนลูปตัวนี้ตัวเดียวสร้างทุกอย่างให้อัตโนมัติ
 -- (ตาราง DB, event handler, build/badge) — เพิ่มหมวดใหม่ในอนาคต = เพิ่ม entry ที่นี่ + ต่อ event จาก
 -- resource ต้นทาง แค่นั้น ไม่ต้องแก้ sv_main.lua เลย
@@ -87,6 +95,7 @@ Config.GatherJobs = {
     mining   = { event = Events.miningGather, table = 'lp_leaderboard_mining',   badges = Config.MiningBadges,   countLabel = 'DIGS'     },
     planting = { event = Events.plantHarvest, table = 'lp_leaderboard_planting', badges = Config.PlantingBadges, countLabel = 'HARVESTS' },
     lumber   = { event = Events.lumberChop,   table = 'lp_leaderboard_lumber',   badges = Config.LumberBadges,   countLabel = 'CHOPS'    },
+    hunting  = { event = Events.huntSkin,     table = 'lp_leaderboard_hunting',  badges = Config.HuntingBadges,  countLabel = 'SKINS'    },
 }
 
 -- ── CITY RANK ─────────────────────────────────────────────────────────────
@@ -113,6 +122,7 @@ Config.Categories = {
     { id = 'mining',   label = 'MINING RANK',     th = 'อันดับขุดเหมืองทอง', icon = 'mining',  enabled = true, group = 'jobs' }, -- ปิดไว้ก่อน รอทดสอบในเซิร์ฟจริง
     { id = 'planting', label = 'FARMING RANK',    th = 'อันดับปลูกต้นไม้',   icon = 'plant',   enabled = true,  group = 'jobs' }, -- เปิดแล้ว (MJ-Planting ยิง event มาจริง)
     { id = 'lumber',   label = 'LUMBERJACK RANK', th = 'อันดับตัดไม้',      icon = 'axe',     enabled = true, group = 'jobs' }, -- ปิดไว้ก่อน รอทดสอบในเซิร์ฟจริง
+    { id = 'hunting',  label = 'HUNTING RANK',    th = 'อันดับล่าสัตว์',    icon = 'skull',   enabled = true, group = 'jobs' }, -- lp_hunting — ไม่มี icon เฉพาะสัตว์/รอยเท้าใน nui, ใช้ 'skull' (มีอยู่แล้วใน IC ของ script.js) แทน
 }
 
 -- meta ของแต่ละ group (ชื่อ/ไอคอนของแทบรวมในท็อปบาร์)

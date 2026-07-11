@@ -50,8 +50,8 @@ var GROUPS_FALLBACK = { jobs: { label: 'JOBS', icon: 'briefcase' } };
 var GRID_7 = '48px 50px 1fr 122px 84px 74px 78px'; /* 4 คงที่ + 3 คอลัมน์สถิติ */
 var GRID_6 = '48px 50px 1fr 122px 100px 100px';    /* 4 คงที่ + 2 คอลัมน์สถิติ */
 
-/* หมวด "gather job" (fish/mining/planting/lumber) หน้าตาเดียวกันหมด: SCORE + count */
-var GATHER_CATS = { fish: true, mining: true, planting: true, lumber: true };
+/* หมวด "gather job" (fish/mining/planting/lumber/hunting) หน้าตาเดียวกันหมด: SCORE + count */
+var GATHER_CATS = { fish: true, mining: true, planting: true, lumber: true, hunting: true };
 function gatherCols(countIcon, countLabel) {
   return [
     { t: '#',          cls: '', ic: null },
@@ -93,7 +93,8 @@ var CATS = {
   fish:     { icon: 'fish',   grid: GRID_6, countIcon: 'fish',   countLabel: 'CATCHES',  cols: gatherCols('fish', 'CATCHES') },
   mining:   { icon: 'mining', grid: GRID_6, countIcon: 'mining', countLabel: 'DIGS',     cols: gatherCols('mining', 'DIGS') },
   planting: { icon: 'plant',  grid: GRID_6, countIcon: 'plant',  countLabel: 'HARVESTS', cols: gatherCols('plant', 'HARVESTS') },
-  lumber:   { icon: 'axe',    grid: GRID_6, countIcon: 'axe',    countLabel: 'CHOPS',    cols: gatherCols('axe', 'CHOPS') }
+  lumber:   { icon: 'axe',    grid: GRID_6, countIcon: 'axe',    countLabel: 'CHOPS',    cols: gatherCols('axe', 'CHOPS') },
+  hunting:  { icon: 'skull',  grid: GRID_6, countIcon: 'skull',  countLabel: 'SKINS',    cols: gatherCols('skull', 'SKINS') }
 };
 
 function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
