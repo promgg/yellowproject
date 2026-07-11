@@ -10,6 +10,7 @@ description 'Scratch resource for one-off native/technique experiments (not for 
 client_scripts {
     'client/gfx_minimap_test.lua',
     'client/block_emote_wheel.lua',
+    'client/block_grapple.lua',
 }
 
 lua54 'yes'
