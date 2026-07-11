@@ -50,20 +50,20 @@
 
 แต่ละเมือง (Valentine/Annesburg/Rhodes) มีจุดปลูกอยู่จุดเดียว แต่ปลูกได้ 4 ชนิดพืชต่างกัน (ระบบดูจาก **เมล็ดที่ถืออยู่** ว่าจะปลูกอะไร) เดินเข้าไปในระยะจุดปลูก (20 เมตร) แล้วใช้ไอเทมเมล็ดจากกระเป๋า จะเล่นอนิเมชั่นขุด/พรวนดินรวม ~10 วินาที (ยกเลิกได้ระหว่างเล่น) **แต่ละเมืองปลูกพร้อมกันได้สูงสุด 10 ต้น** และต้นใหม่ต้องอยู่ห่างจากต้นอื่นในเมืองเดียวกันอย่างน้อย 3 เมตร ถ้าเต็มโควตาหรือใกล้กันเกินไปจะปลูกไม่ได้ หลังปลูก ต้นจะ "หิว" เพิ่มขึ้นเรื่อยๆ พอโตถึงครึ่งทาง (10 นาที) ต้นจะเปลี่ยนโมเดลและ**ต้องรดน้ำ**ด้วย `tool_bucket` (เดินเข้าใกล้ต้นในระยะ 1.5 เมตร แล้วกดค้าง E ค้างไว้) ถังน้ำมีจำนวนครั้งจำกัด (เติม 1 ครั้งรดได้ 10 ครั้ง) หมดแล้วต้องไปเติมที่จุดเติมน้ำประจำเมือง (กดค้าง E ที่จุดเติม) **ระหว่างรดน้ำมีโอกาสโจรบุกโจมตี** (สุ่ม 2-3 คน ถืออาวุธปืน/ปืนลูกซอง/ปืนไรเฟิล) ตามโอกาส `bandits` ของพืชนั้น — ถ้าไม่รดน้ำภายใน 40 นาทีนับจากปลูก ต้นจะตายและถูกลบทิ้งไปเฉยๆ (เสียเมล็ดฟรี) เมื่อต้นโตเต็มที่แล้ว กด E ค้างเพื่อเก็บเกี่ยว (8 วินาที) จะได้ผลผลิตตามตาราง **แน่นอน 100%** ไม่มีโอกาสพลาด
 
-| เมือง | พืช | พิกัด | เมล็ดที่ใช้ | ผลผลิตที่ได้ | จำนวน | โอกาสได้ผล |
-|---|---|---|---|---|---|---|
-| Valentine | Corn | `-847.4569, 320.4838, 95.5757` | `seed_corn` | `job_corn` | 10 | 100% |
-| Valentine | Carrot | `-847.4569, 320.4838, 95.5757` | `seed_carrot` | `job_carrot` | 10 | 100% |
-| Valentine | Yarrow | `-847.4569, 320.4838, 95.5757` | `seed_yarrow` | `job_Yarrow` | 10 | 100% |
-| Valentine | Sugarcane | `-847.4569, 320.4838, 95.5757` | `seed_sugarcane` | `job_sugarcane` | 10 | 100% |
-| Annesburg | Mushroom | `2967.7837, 773.5686, 51.3994` | `seed_mushroom` | `job_mushroom` | 10 | 100% |
-| Annesburg | Ginseng | `2967.7837, 773.5686, 51.3994` | `seed_Ginseng` | `job_Ginseng` | 10 | 100% |
-| Annesburg | Opium | `2967.7837, 773.5686, 51.3994` | `seed_opium` | `job_opium` | 10 | 100% |
-| Annesburg | Berry | `2967.7837, 773.5686, 51.3994` | `seed_berry` | `job_berry` | 10 | 100% |
-| Rhodes | Tobacco | `969.6452, -1962.3392, 47.4799` | `seed_tobacco_plant` | `job_tobacco_plant` | 10 | 100% |
-| Rhodes | Barley | `969.6452, -1962.3392, 47.4799` | `seed_barley` | `job_barley` | 10 | 100% |
-| Rhodes | Cotton | `969.6452, -1962.3392, 47.4799` | `seed_cotton` | `job_cotton` | 10 | 100% |
-| Rhodes | Orange | `969.6452, -1962.3392, 47.4799` | `seed_orange` | `job_orange` | 10 | 100% |
+| เมือง     | พืช       | พิกัด                           | เมล็ดที่ใช้          | ผลผลิตที่ได้        | จำนวน | โอกาสได้ผล |
+| --------- | --------- | ------------------------------- | -------------------- | ------------------- | ----- | ---------- |
+| Valentine | Corn      | `-847.4569, 320.4838, 95.5757`  | `seed_corn`          | `job_corn`          | 10    | 100%       |
+| Valentine | Carrot    | `-847.4569, 320.4838, 95.5757`  | `seed_carrot`        | `job_carrot`        | 10    | 100%       |
+| Valentine | Yarrow    | `-847.4569, 320.4838, 95.5757`  | `seed_yarrow`        | `job_Yarrow`        | 10    | 100%       |
+| Valentine | Sugarcane | `-847.4569, 320.4838, 95.5757`  | `seed_sugarcane`     | `job_sugarcane`     | 10    | 100%       |
+| Annesburg | Mushroom  | `2967.7837, 773.5686, 51.3994`  | `seed_mushroom`      | `job_mushroom`      | 10    | 100%       |
+| Annesburg | Ginseng   | `2967.7837, 773.5686, 51.3994`  | `seed_Ginseng`       | `job_Ginseng`       | 10    | 100%       |
+| Annesburg | Opium     | `2967.7837, 773.5686, 51.3994`  | `seed_opium`         | `job_opium`         | 10    | 100%       |
+| Annesburg | Berry     | `2967.7837, 773.5686, 51.3994`  | `seed_berry`         | `job_berry`         | 10    | 100%       |
+| Rhodes    | Tobacco   | `969.6452, -1962.3392, 47.4799` | `seed_tobacco_plant` | `job_tobacco_plant` | 10    | 100%       |
+| Rhodes    | Barley    | `969.6452, -1962.3392, 47.4799` | `seed_barley`        | `job_barley`        | 10    | 100%       |
+| Rhodes    | Cotton    | `969.6452, -1962.3392, 47.4799` | `seed_cotton`        | `job_cotton`        | 10    | 100%       |
+| Rhodes    | Orange    | `969.6452, -1962.3392, 47.4799` | `seed_orange`        | `job_orange`        | 10    | 100%       |
 
 ### จุดเติมน้ำ (แยกตามเมือง)
 
@@ -91,11 +91,11 @@
 
 อาหารสัตว์ที่ใช้เลี้ยงในตารางด้านบน (`job_animalfood`) ไม่ได้ซื้อจากร้าน — ต้อง**คราฟเอง**ที่โต๊ะ "โต๊ะคราฟทั่วไป" ของ `nx_crafting` (ดูสูตรเต็มได้ที่ [[Allcraft]]) ใช้วัตถุดิบ job_corn (⚠️ ไม่พบใน DB)×5, job_carrot (⚠️ ไม่พบใน DB)×5 โอกาสสำเร็จ **100%** ค่าเงิน $0 — ทั้ง `job_corn`/`job_carrot` ปลูกเองได้จากงาน 🌱 ปลูกต้นไม้ด้านบนในไฟล์นี้ (ครบวงจร: ปลูก → คราฟ → เลี้ยงสัตว์)
 
-| จุดคราฟ | พิกัด | Heading |
-|---|---|---|
-| General Crafting | `1413.1591, 273.8957, 89.5322` | 284.6054 |
-| General Crafting - Valentine | `-368.5274, 794.9661, 116.1981` | 185.1594 |
-| General Crafting - Rhodes | `2873.5984, 1359.5076, 62.4794` | 315.3127 |
+| จุดคราฟ                      | พิกัด                            | Heading  |
+| ---------------------------- | -------------------------------- | -------- |
+| General Crafting             | `1413.1591, 273.8957, 89.5322`   | 284.6054 |
+| General Crafting - Valentine | `-368.5274, 794.9661, 116.1981`  | 185.1594 |
+| General Crafting - Rhodes    | `2873.5984, 1359.5076, 62.4794`  | 315.3127 |
 | General Crafting - Annesburg | `1259.0687, -1323.2338, 76.8877` | 161.0100 |
 
 ---
@@ -150,36 +150,36 @@
 
 | ไอเทม | ชื่อ (label) | โอกาสดรอป | จำนวน | ต้องอยู่โซนน้ำ |
 |---|---|---|---|---|
-| `fish_bluegill_small` | Blue Gil (Small) | 70% | 1 | ตกได้ทุกที่ |
-| `fish_perch_small` | Perch (Small) | 68% | 1 | ตกได้ทุกที่ |
-| `fish_rockbass_small` | Rock Bass (Small) | 66% | 1 | ตกได้ทุกที่ |
-| `fish_chainpickerel_small` | Chain Pickerel (Small) | 64% | 1 | WATER_DAKOTARIVER |
-| `fish_redfinpickerel_small` | Red Fin Pickerel (Small) | 62% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
-| `fish_bullheadcat_small` | Bullhead Cat (Small) | 60% | 1 | BAYOUNWA |
-| `fish_largemouthbass_medium` | Large Mouth Bass (Medium) | 45% | 1 | BAYOUNWA |
-| `fish_smallmouthbass_medium` | Small Mouth Bass (Medium) | 43% | 1 | WATER_OWANJILA |
-| `fish_salmonsockeye_medium` | Salmon Sockeye (Medium) | 35% | 1 | WATER_OCREAGHSRUN |
-| `fish_rainbowtrout_medium` | Rainbow Trout (Medium) | 33% | 1 | BAYOUNWA |
-| `fish_channelcatfish_large` | Channel Catfish (Large) | 22% | 1 | BAYOUNWA |
-| `fish_longnosegar_large` | Long Nose Gar (Large) | 20% | 1 | BAYOUNWA |
-| `fish_lakesturgeon_large` | Lake Sturgeon (Large) | 18% | 1 | BAYOUNWA |
-| `fish_muskie_large` | Muskie (Large) | 12% | 1 | WATER_LANNAHECHEERIVER |
-| `fish_northernpike_large` | Northern Pike (Large) | 10% | 1 | WATER_OCREAGHSRUN |
-| `fish_bluegill_legendary` | Legendary Blue Gil | 6% | 1 | ตกได้ทุกที่ |
-| `fish_perch_legendary` | Legendary Perch | 5% | 1 | ตกได้ทุกที่ |
-| `fish_rockbass_legendary` | Legendary Rock Bass | 5% | 1 | ตกได้ทุกที่ |
-| `fish_chainpickerel_legendary` | Legendary Chain Pickerel | 4% | 1 | WATER_DAKOTARIVER |
-| `fish_redfinpickerel_legendary` | Legendary Red Fin Pickerel | 4% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
-| `fish_bullheadcat_legendary` | Legendary Bullhead Cat | 3% | 1 | BAYOUNWA |
-| `fish_largemouthbass_legendary` | Legendary Large Mouth Bass | 3% | 1 | BAYOUNWA |
-| `fish_smallmouthbass_legendary` | Legendary Small Mouth Bass | 3% | 1 | WATER_OWANJILA |
-| `fish_salmonsockeye_legendary` | Legendary Salmon Sockeye | 2% | 1 | WATER_OCREAGHSRUN |
-| `fish_rainbowtrout_legendary` | Legendary Rainbow Trout | 2% | 1 | BAYOUNWA |
-| `fish_channelcatfish_legendary` | Legendary Channel Catfish | 2% | 1 | BAYOUNWA |
-| `fish_longnosegar_legendary` | Legendary Long Nose Gar | 2% | 1 | BAYOUNWA |
-| `fish_lakesturgeon_legendary` | Legendary Lake Sturgeon | 1% | 1 | BAYOUNWA |
-| `fish_muskie_legendary` | Legendary Muskie | 1% | 1 | WATER_LANNAHECHEERIVER |
-| `fish_northernpike_legendary` | Legendary Northern Pike | 1% | 1 | WATER_OCREAGHSRUN |
+| `fish_bluegill_small` | ปลาบลูกิลล์ | 70% | 1 | ตกได้ทุกที่ |
+| `fish_perch_small` | ปลาคอน | 68% | 1 | ตกได้ทุกที่ |
+| `fish_rockbass_small` | ปลาร็อกแบส | 66% | 1 | ตกได้ทุกที่ |
+| `fish_chainpickerel_small` | ปลาพิกเคอเรลลายโซ่ | 64% | 1 | WATER_DAKOTARIVER |
+| `fish_redfinpickerel_small` | ปลาพิกเคอเรลครีบแดง | 62% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
+| `fish_bullheadcat_small` | ปลาดุกหัวกระทิง | 60% | 1 | BAYOUNWA |
+| `fish_largemouthbass_medium` | ปลาแบสปากกว้าง | 45% | 1 | BAYOUNWA |
+| `fish_smallmouthbass_medium` | ปลาแบสปากเล็ก | 43% | 1 | WATER_OWANJILA |
+| `fish_salmonsockeye_medium` | ปลาแซลมอนซ็อกอาย | 35% | 1 | WATER_OCREAGHSRUN |
+| `fish_rainbowtrout_medium` | ปลาเทราต์สตีลเฮด | 33% | 1 | BAYOUNWA |
+| `fish_channelcatfish_large` | ปลาดุกแชนแนล | 22% | 1 | BAYOUNWA |
+| `fish_longnosegar_large` | ปลาการ์จมูกยาว | 20% | 1 | BAYOUNWA |
+| `fish_lakesturgeon_large` | ปลาสเตอร์เจียนน้ำจืด | 18% | 1 | BAYOUNWA |
+| `fish_muskie_large` | ปลามัสกี้ | 12% | 1 | WATER_LANNAHECHEERIVER |
+| `fish_northernpike_large` | ปลาหอกเหนือ | 10% | 1 | WATER_OCREAGHSRUN |
+| `fish_bluegill_legendary` | ปลาบลูกิลล์ในตำนาน | 6% | 1 | ตกได้ทุกที่ |
+| `fish_perch_legendary` | ปลาคอนในตำนาน | 5% | 1 | ตกได้ทุกที่ |
+| `fish_rockbass_legendary` | ปลาร็อกแบสในตำนาน | 5% | 1 | ตกได้ทุกที่ |
+| `fish_chainpickerel_legendary` | ปลาพิกเคอเรลลายโซ่ในตำนาน | 4% | 1 | WATER_DAKOTARIVER |
+| `fish_redfinpickerel_legendary` | ปลาพิกเคอเรลครีบแดงในตำนาน | 4% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
+| `fish_bullheadcat_legendary` | ปลาดุกหัวกระทิงในตำนาน | 3% | 1 | BAYOUNWA |
+| `fish_largemouthbass_legendary` | ปลาแบสปากกว้างในตำนาน | 3% | 1 | BAYOUNWA |
+| `fish_smallmouthbass_legendary` | ปลาแบสปากเล็กในตำนาน | 3% | 1 | WATER_OWANJILA |
+| `fish_salmonsockeye_legendary` | ปลาแซลมอนซ็อกอายในตำนาน | 2% | 1 | WATER_OCREAGHSRUN |
+| `fish_rainbowtrout_legendary` | ปลาเทราต์สตีลเฮดในตำนาน | 2% | 1 | BAYOUNWA |
+| `fish_channelcatfish_legendary` | ปลาดุกแชนแนลในตำนาน | 2% | 1 | BAYOUNWA |
+| `fish_longnosegar_legendary` | ปลาการ์จมูกยาวในตำนาน | 2% | 1 | BAYOUNWA |
+| `fish_lakesturgeon_legendary` | ปลาสเตอร์เจียนน้ำจืดในตำนาน | 1% | 1 | BAYOUNWA |
+| `fish_muskie_legendary` | ปลามัสกี้ในตำนาน | 1% | 1 | WATER_LANNAHECHEERIVER |
+| `fish_northernpike_legendary` | ปลาหอกเหนือในตำนาน | 1% | 1 | WATER_OCREAGHSRUN |
 
 ---
 

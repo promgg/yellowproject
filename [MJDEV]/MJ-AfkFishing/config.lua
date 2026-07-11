@@ -15,9 +15,6 @@ Config.KEY_E   = 0x17BEC168  -- E (interact)
 Config.KEY_G   = 0x760A9C6F  -- G (AFK)
 Config.KEY_X   = 0x8CC9CD42  -- X (cancel)
 
--- Minigame: ปลา chance <= รางวัล rare (เลือกจาก pool นี้เมื่อ hit)
-Config.MiniRareChanceThreshold = 30
-
 -- _GET_MAP_ZONE_AT_COORDS (0x43AD8FC02B429D33) "type" param - ใช้เช็คว่าผู้เล่นยืนอยู่ในน้ำประเภทไหน
 -- ใช้ 2 ที่: (1) เป็นเกทหลักว่า "ยืนอยู่ริมน้ำหรือเปล่า" ทั่วทั้งแมพ (ไม่ผูกกับพิกัดตายตัวจุดเดียวอีกต่อไป)
 --           (2) กรอง pool ปลาต่อชนิดตาม reward.zones ด้านล่าง

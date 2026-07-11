@@ -2,6 +2,42 @@ local VORPcore = exports.vorp_core:GetCore()
 
 local rewardCooldowns = {}
 
+-- ── เครื่องมือ monitor เรทปลาที่ได้จริง (เก็บไว้ถาวร ไม่ใช่ debug ทิ้ง) ──
+-- เก็บสถิติเงียบๆ ทุกครั้งที่มีคนได้ปลา ดูสรุปด้วยคำสั่ง /fishstats ในคอนโซลเซิร์ฟ (ไม่ spam console
+-- ระหว่างเล่นปกติ — ถ้าอยากเห็น log สดทุกครั้งที่ได้ปลาระหว่างดีบัค ตั้ง DEBUG_FISH_VERBOSE = true ชั่วคราว)
+local DEBUG_FISH_VERBOSE = false
+-- fishStats[path][item] = count ; path = 'mini_hit' (กดมินิเกมโดน) | 'normal' (AFK) — ทั้งคู่ใช้ getReward() แล้ว
+local fishStats = { mini_hit = {}, normal = {} }
+
+local function recordFish(path, item)
+    local bucket = fishStats[path] or fishStats.normal
+    bucket[item] = (bucket[item] or 0) + 1
+    if DEBUG_FISH_VERBOSE then
+        print(('[MJ-AfkFishing:dbg] path=%s -> %s'):format(path, item))
+    end
+end
+
+local function dumpFishStats()
+    for _, path in ipairs({ 'mini_hit', 'normal' }) do
+        local bucket = fishStats[path]
+        local total = 0
+        for _, n in pairs(bucket) do total = total + n end
+        print(('[MJ-AfkFishing:dbg] ===== %s : total=%d ====='):format(path, total))
+        -- เรียงมากไปน้อย
+        local rows = {}
+        for item, n in pairs(bucket) do rows[#rows + 1] = { item = item, n = n } end
+        table.sort(rows, function(a, b) return a.n > b.n end)
+        for _, row in ipairs(rows) do
+            print(('[MJ-AfkFishing:dbg]   %-34s %5d  (%.1f%%)'):format(row.item, row.n, total > 0 and row.n / total * 100 or 0))
+        end
+    end
+end
+
+RegisterCommand('fishstats', function(src)
+    if src ~= 0 then return end -- คอนโซลเซิร์ฟเท่านั้น
+    dumpFishStats()
+end, true)
+
 local function checkRewardCooldown(src, minMs)
     local t = GetGameTimer()
     local last = rewardCooldowns[src] or 0
@@ -54,37 +90,31 @@ end
 
 local function getReward(zoneHashes)
     local pool = getAvailableRewards(zoneHashes)
-    local roll = math.random(100)
-    local result = nil
-    for _, r in ipairs(pool) do
-        if roll <= r.chance then
-            if not result or r.chance < result.chance then result = r end
-        end
-    end
-    return result
-end
-
-local function getRareReward(zoneHashes)
-    local pool = getAvailableRewards(zoneHashes)
-    local rarePool = {}
+    -- เดิม: สุ่มเลขเดียว (roll) แล้วใช้ร่วมกันทุกไอเทมในพูล พอมีหลายตัว qualify พร้อมกัน
+    -- (roll <= chance) ก็เลือกตัวที่ chance ต่ำสุด (หายากสุด) เสมอ — ทำให้ปลาทั่วไปที่ตั้ง
+    -- chance สูงๆ (เช่น 70%) แทบไม่มีโอกาสชนะเลยจริงๆ (จำลองแล้วออกจริงแค่ ~2%)
+    -- ลองเปลี่ยนเป็นสุ่มอิสระทีละไอเทมแล้ว (เรียงหายากสุดก่อน หยุดที่ตัวแรกที่ผ่าน) แต่พบปัญหาใหม่:
+    -- ไอเทมที่ถูกเช็คทีหลัง (chance สูง/ปลาทั่วไป) โดนไอเทมที่เช็คก่อนหน้า "แย่งชนะ" ไปเรื่อยๆ
+    -- (bluegill_small ตั้ง 70% ออกจริงแค่ ~20% เพราะโดน perch_small ที่เช็คก่อนแย่งไปก่อน) —
+    -- ลำดับการเช็คมีผลเอียงผลเสมอไม่ว่าจะเรียงยังไง เพราะงั้นเปลี่ยนมาใช้ weighted-random pick แทน —
+    -- สุ่ม 1 ครั้ง เลือก 1 ไอเทมตามสัดส่วนน้ำหนักจริงเทียบทั้งพูล (ตัวเลข "chance" ทำหน้าที่เป็นน้ำหนัก
+    -- สัมพัทธ์ ไม่ใช่ % อิสระแท้ๆ — เป็นไปไม่ได้ที่ปลา 30 ชนิดรวมกันเกิน 1000% จะได้ % อิสระตรงตัว
+    -- พร้อมกันหมดไม่ว่าจะใช้วิธีไหน) ผลคือได้ปลาทุกรอบ ไม่มี "พลาดไม่ได้อะไรเลย" อีกต่อไป
+    if #pool == 0 then return nil end
     local total = 0
-    for _, r in ipairs(pool) do
-        if r.chance <= Config.MiniRareChanceThreshold then
-            table.insert(rarePool, r)
-            total = total + r.chance
-        end
-    end
-    if #rarePool == 0 then
-        return getReward(zoneHashes)
-    end
+    for _, r in ipairs(pool) do total = total + r.chance end
     local roll = math.random(total)
     local cum = 0
-    for _, r in ipairs(rarePool) do
+    for _, r in ipairs(pool) do
         cum = cum + r.chance
         if roll <= cum then return r end
     end
-    return rarePool[#rarePool]
+    return pool[#pool]
 end
+
+-- (ลบ getRareReward ออกแล้ว — เดิมกดมินิเกมโดนจะกรองเอาเฉพาะปลา chance<=30 = ได้แต่ปลาหายากล้วน
+--  ทุกครั้งที่กดโดน ทำให้ปลา legendary ออกทั้งที่โอกาสตั้งไว้ 1-6% ตอนนี้ทุก path ใช้ getReward()
+--  พูลรวมตาม % จริงใน config เหมือนกันหมด — ตาราง % เป็นความจริงเดียว)
 
 local function giveReward(src, reward)
     local added = exports.vorp_inventory:addItem(src, reward.item, reward.amount)
@@ -118,7 +148,10 @@ AddEventHandler('fishing:giveReward', function(rawZoneHashes)
 
     exports.vorp_inventory:subItem(src, Config.BaitItem, Config.BaitPerCatch)
     local reward = getReward(zoneHashes)
-    if reward then giveReward(src, reward) end
+    if reward then
+        recordFish('normal', reward.item) -- AFK path (getReward)
+        giveReward(src, reward)
+    end
 end)
 
 RegisterServerEvent('fishing:giveRewardMini')
@@ -135,6 +168,11 @@ AddEventHandler('fishing:giveRewardMini', function(isHit, rawZoneHashes)
     if type(isHit) ~= 'boolean' then isHit = false end
 
     exports.vorp_inventory:subItem(src, Config.BaitItem, Config.BaitPerCatch)
-    local reward = isHit and getRareReward(zoneHashes) or getReward(zoneHashes)
-    if reward then giveReward(src, reward) end
+    -- กดโดน/พลาด ต่างกันแค่ "ได้ปลา vs ไม่ได้อะไร" (พลาดไม่มาถึง server อยู่แล้ว — client คัดออกก่อน)
+    -- ไม่ใช่คุณภาพปลา — ทุกกรณีใช้ getReward() พูลรวมตาม % จริงใน config
+    local reward = getReward(zoneHashes)
+    if reward then
+        recordFish(isHit and 'mini_hit' or 'normal', reward.item)
+        giveReward(src, reward)
+    end
 end)

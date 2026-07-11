@@ -1,46 +1,49 @@
 /* MJ-AfkFishing fish items — migrated 2026-07-09 from a_c_fish*/legendary_* to fish_<species>_<size|legendary>
+   Labels updated 2026-07-11 to Thai names.
    Run this against your server DB before starting MJ-AfkFishing with the renamed config.lua.
-   Icons: copy matching files in vorp_inventory/html/img/items/ (see icon-copy step run alongside this migration). */
+   *** ต้องต่อ mysql ด้วย --default-character-set=utf8mb4 ไม่งั้น label ไทยจะเพี้ยน ***
+   หมายเหตุ: ไฟล์นี้ใช้ INSERT IGNORE (สำหรับติดตั้งใหม่) — ถ้าไอเทมมีอยู่ใน DB แล้ว จะไม่แก้ label
+   ให้ใช้ fish_labels_update.sql แทนเพื่ออัปเดต label ของแถวที่มีอยู่
+   Icons: copy matching files in vorp_inventory/html/img/items/. */
 
 /* Small / Common */
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`) VALUES
-                           ('fish_bluegill_small',       'Blue Gil (Small)', '10', '1', 'item_standard', '0'),
-                           ('fish_perch_small',          'Perch (Small)', '10', '1', 'item_standard', '0'),
-                           ('fish_rockbass_small',       'Rock Bass (Small)', '10', '1', 'item_standard', '0'),
-                           ('fish_chainpickerel_small',  'Chain Pickerel (Small)', '10', '1', 'item_standard', '0'),
-                           ('fish_redfinpickerel_small', 'Red Fin Pickerel (Small)', '10', '1', 'item_standard', '0'),
-                           ('fish_bullheadcat_small',    'Bullhead Cat (Small)', '10', '1', 'item_standard', '0');
+                           ('fish_bluegill_small',       'ปลาบลูกิลล์', '10', '1', 'item_standard', '0'),
+                           ('fish_perch_small',          'ปลาคอน', '10', '1', 'item_standard', '0'),
+                           ('fish_rockbass_small',       'ปลาร็อกแบส', '10', '1', 'item_standard', '0'),
+                           ('fish_chainpickerel_small',  'ปลาพิกเคอเรลลายโซ่', '10', '1', 'item_standard', '0'),
+                           ('fish_redfinpickerel_small', 'ปลาพิกเคอเรลครีบแดง', '10', '1', 'item_standard', '0'),
+                           ('fish_bullheadcat_small',    'ปลาดุกหัวกระทิง', '10', '1', 'item_standard', '0');
 
 /* Medium */
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`) VALUES
-                           ('fish_largemouthbass_medium', 'Large Mouth Bass (Medium)', '10', '1', 'item_standard', '0'),
-                           ('fish_smallmouthbass_medium', 'Small Mouth Bass (Medium)', '10', '1', 'item_standard', '0'),
-                           ('fish_salmonsockeye_medium',  'Salmon Sockeye (Medium)', '10', '1', 'item_standard', '0'),
-                           ('fish_rainbowtrout_medium',   'Rainbow Trout (Medium)', '10', '1', 'item_standard', '0');
+                           ('fish_largemouthbass_medium', 'ปลาแบสปากกว้าง', '10', '1', 'item_standard', '0'),
+                           ('fish_smallmouthbass_medium', 'ปลาแบสปากเล็ก', '10', '1', 'item_standard', '0'),
+                           ('fish_salmonsockeye_medium',  'ปลาแซลมอนซ็อกอาย', '10', '1', 'item_standard', '0'),
+                           ('fish_rainbowtrout_medium',   'ปลาเทราต์สตีลเฮด', '10', '1', 'item_standard', '0');
 
 /* Large */
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`) VALUES
-                           ('fish_channelcatfish_large', 'Channel Catfish (Large)', '10', '1', 'item_standard', '0'),
-                           ('fish_longnosegar_large',    'Long Nose Gar (Large)', '10', '1', 'item_standard', '0'),
-                           ('fish_lakesturgeon_large',   'Lake Sturgeon (Large)', '10', '1', 'item_standard', '0'),
-                           ('fish_muskie_large',         'Muskie (Large)', '10', '1', 'item_standard', '0'),
-                           ('fish_northernpike_large',   'Northern Pike (Large)', '10', '1', 'item_standard', '0');
+                           ('fish_channelcatfish_large', 'ปลาดุกแชนแนล', '10', '1', 'item_standard', '0'),
+                           ('fish_longnosegar_large',    'ปลาการ์จมูกยาว', '10', '1', 'item_standard', '0'),
+                           ('fish_lakesturgeon_large',   'ปลาสเตอร์เจียนน้ำจืด', '10', '1', 'item_standard', '0'),
+                           ('fish_muskie_large',         'ปลามัสกี้', '10', '1', 'item_standard', '0'),
+                           ('fish_northernpike_large',   'ปลาหอกเหนือ', '10', '1', 'item_standard', '0');
 
-/* Legendary — previously had NO label/DB entry at all (borrowed a normal fish's icon via config `icon=`).
-   Labels below are best-effort ("Legendary " + base fish name), same as shown in Alljob.md before this migration. */
+/* Legendary */
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`) VALUES
-                           ('fish_bluegill_legendary',       'Legendary Blue Gil', '10', '1', 'item_standard', '0'),
-                           ('fish_perch_legendary',          'Legendary Perch', '10', '1', 'item_standard', '0'),
-                           ('fish_rockbass_legendary',       'Legendary Rock Bass', '10', '1', 'item_standard', '0'),
-                           ('fish_chainpickerel_legendary',  'Legendary Chain Pickerel', '10', '1', 'item_standard', '0'),
-                           ('fish_redfinpickerel_legendary', 'Legendary Red Fin Pickerel', '10', '1', 'item_standard', '0'),
-                           ('fish_bullheadcat_legendary',    'Legendary Bullhead Cat', '10', '1', 'item_standard', '0'),
-                           ('fish_largemouthbass_legendary', 'Legendary Large Mouth Bass', '10', '1', 'item_standard', '0'),
-                           ('fish_smallmouthbass_legendary', 'Legendary Small Mouth Bass', '10', '1', 'item_standard', '0'),
-                           ('fish_salmonsockeye_legendary',  'Legendary Salmon Sockeye', '10', '1', 'item_standard', '0'),
-                           ('fish_rainbowtrout_legendary',   'Legendary Rainbow Trout', '10', '1', 'item_standard', '0'),
-                           ('fish_channelcatfish_legendary', 'Legendary Channel Catfish', '10', '1', 'item_standard', '0'),
-                           ('fish_longnosegar_legendary',    'Legendary Long Nose Gar', '10', '1', 'item_standard', '0'),
-                           ('fish_lakesturgeon_legendary',   'Legendary Lake Sturgeon', '10', '1', 'item_standard', '0'),
-                           ('fish_muskie_legendary',         'Legendary Muskie', '10', '1', 'item_standard', '0'),
-                           ('fish_northernpike_legendary',   'Legendary Northern Pike', '10', '1', 'item_standard', '0');
+                           ('fish_bluegill_legendary',       'ปลาบลูกิลล์ในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_perch_legendary',          'ปลาคอนในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_rockbass_legendary',       'ปลาร็อกแบสในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_chainpickerel_legendary',  'ปลาพิกเคอเรลลายโซ่ในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_redfinpickerel_legendary', 'ปลาพิกเคอเรลครีบแดงในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_bullheadcat_legendary',    'ปลาดุกหัวกระทิงในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_largemouthbass_legendary', 'ปลาแบสปากกว้างในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_smallmouthbass_legendary', 'ปลาแบสปากเล็กในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_salmonsockeye_legendary',  'ปลาแซลมอนซ็อกอายในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_rainbowtrout_legendary',   'ปลาเทราต์สตีลเฮดในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_channelcatfish_legendary', 'ปลาดุกแชนแนลในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_longnosegar_legendary',    'ปลาการ์จมูกยาวในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_lakesturgeon_legendary',   'ปลาสเตอร์เจียนน้ำจืดในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_muskie_legendary',         'ปลามัสกี้ในตำนาน', '10', '1', 'item_standard', '0'),
+                           ('fish_northernpike_legendary',   'ปลาหอกเหนือในตำนาน', '10', '1', 'item_standard', '0');
