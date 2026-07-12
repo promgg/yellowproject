@@ -661,9 +661,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_mauser_pistol",
+                item = "WEAPON_PISTOL_MAUSER",
                 label = "Mauser Pistol",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Mauser Pistol",
@@ -776,9 +776,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_schofield_revolver",
+                item = "WEAPON_REVOLVER_SCHOFIELD",
                 label = "Schofield Revolver",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Schofield Revolver",
@@ -896,9 +896,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_carbine_repeater",
+                item = "WEAPON_REPEATER_CARBINE",
                 label = "Carbine Repeater",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Carbine Repeater",
@@ -1021,9 +1021,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_hunter_hatchet",
+                item = "WEAPON_MELEE_HATCHET_HUNTER",
                 label = "Hunter Hatchet",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Hunter Hatchet",
@@ -1229,9 +1229,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_henry_repeater",
+                item = "WEAPON_REPEATER_HENRY",
                 label = "Litchfield Repeater Henry",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Litchfield Repeater Henry",
@@ -1356,9 +1356,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_bow_large",
+                item = "WEAPON_BOW",
                 label = "Bow (ธนูใหญ่)",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Bow (ธนูใหญ่)",
@@ -1473,9 +1473,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_semi_auto_pistol",
+                item = "WEAPON_PISTOL_SEMIAUTO",
                 label = "Semi-Automatic Pistol",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Semi-Automatic Pistol",
@@ -1594,9 +1594,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_winchester_repeater",
+                item = "WEAPON_REPEATER_WINCHESTER",
                 label = "Lancaster Repeater Winchester",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Lancaster Repeater Winchester",
@@ -1718,9 +1718,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_navy_revolver",
+                item = "WEAPON_REVOLVER_NAVY",
                 label = "Navy Revolver",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Navy Revolver",
@@ -1841,9 +1841,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_double_barrel",
+                item = "WEAPON_SHOTGUN_DOUBLEBARREL",
                 label = "Double Barrel",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Double Barrel",
@@ -1965,9 +1965,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_machete",
+                item = "WEAPON_MELEE_MACHETE",
                 label = "Machete",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Machete",
@@ -2091,9 +2091,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_springfield_rifle",
+                item = "WEAPON_RIFLE_SPRINGFIELD",
                 label = "Springfield Rifle",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Springfield Rifle",
@@ -2211,9 +2211,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_volcanic_pistol",
+                item = "WEAPON_PISTOL_VOLCANIC",
                 label = "Volcanic Pistol",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Volcanic Pistol",
@@ -2331,9 +2331,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_lemat_revolver",
+                item = "WEAPON_REVOLVER_LEMAT",
                 label = "LeMat Revolver",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "LeMat Revolver",
@@ -2462,9 +2462,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_tomahawk",
+                item = "WEAPON_THROWN_TOMAHAWK",
                 label = "Tomahawk",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Tomahawk",
@@ -2587,9 +2587,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_repeating_shotgun",
+                item = "WEAPON_SHOTGUN_REPEATING",
                 label = "Repeating Shotgun",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Repeating Shotgun",
@@ -2714,9 +2714,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_m1899_pistol",
+                item = "WEAPON_PISTOL_M1899",
                 label = "M1899 Pistol",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "M1899 Pistol",
@@ -2839,9 +2839,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_evans_repeater",
+                item = "WEAPON_REPEATER_EVANS",
                 label = "Evans Repeater",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Evans Repeater",
@@ -2970,9 +2970,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_bolt_action_rifle",
+                item = "WEAPON_RIFLE_BOLTACTION",
                 label = "Bolt Action Rifle",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Bolt Action Rifle",
@@ -3172,9 +3172,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_rolling_block_rifle",
+                item = "WEAPON_SNIPERRIFLE_ROLLINGBLOCK",
                 label = "Rolling Block Rifle",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Rolling Block Rifle",
@@ -3301,9 +3301,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_pump_action_shotgun",
+                item = "WEAPON_SHOTGUN_PUMP",
                 label = "Pump-Action Shotgun",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Pump-Action Shotgun",
@@ -3432,9 +3432,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_sawedoff_shotgun",
+                item = "WEAPON_SHOTGUN_SAWEDOFF",
                 label = "Sawed-Off Shotgun",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Sawed-Off Shotgun",
@@ -3561,9 +3561,9 @@ ConfigSv["Category"] = {
                 },
             },
             {
-                item = "weapon_semi_auto_shotgun",
+                item = "WEAPON_SHOTGUN_SEMIAUTO",
                 label = "Semi-Auto Shotgun",
-                type = "item_standard",
+                type = "item_weapon",
                 recipe = {
                     [1] = {
                         label = "Semi-Auto Shotgun",
