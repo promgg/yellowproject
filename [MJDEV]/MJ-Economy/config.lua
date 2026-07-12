@@ -90,7 +90,7 @@ Config.Locations = {
     {
         Blip = {
             Enable = true,
-            Sprite = -1656531561,
+            Sprite = 1838354131, -- blip_ambient_loan_shark
             Color = 8,
             Scale = 0.25,
             Label = 'ตลาด Valentine'
@@ -106,7 +106,7 @@ Config.Locations = {
     {
         Blip = {
             Enable = true,
-            Sprite = -1656531561,
+            Sprite = 1838354131, -- blip_ambient_loan_shark
             Color = 8,
             Scale = 0.25,
             Label = 'ตลาด Rhodes'
@@ -122,7 +122,7 @@ Config.Locations = {
     {
         Blip = {
             Enable = true,
-            Sprite = -1656531561,
+            Sprite = 1838354131, -- blip_ambient_loan_shark
             Color = 8,
             Scale = 0.25,
             Label = 'ตลาด Annesburg'
