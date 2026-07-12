@@ -32,9 +32,9 @@ local Npc = {
 }
 
 local BlipSprite = {
-    general = 1475879922, -- ไอคอนร้านค้า
-    gun     = 1475879922, -- TODO: เปลี่ยนเป็นไอคอนปืนถ้ามี
-    doctor  = 1475879922  -- TODO: เปลี่ยนเป็นไอคอนหมอ/กากบาทถ้ามี
+    general = 1475879922,  -- ไอคอนร้านค้า
+    gun     = -145868367,  -- blip_shop_gunsmith
+    doctor  = -695368421   -- blip_supplies_health
 }
 
 -- ============================================================
@@ -96,8 +96,11 @@ local generalItems = {
 }
 
 -- ---------- ร้านปืน (Gunsmith) ----------
--- หมายเหตุ: อาวุธใน DB นี้เป็น item ปกติ (item_standard) จ่ายด้วย addItem
---          จึงไม่ตั้ง weapon = true / max = 10 ทุกตัว
+-- อาวุธ (melee/revolver/rifle/bow) เป็นอาวุธจริง: item = ชื่อ weapon hash ตรงกับ
+-- [VORP]/vorp_inventory/config/weapons.lua (SharedData.Weapons) + weapon = true
+-- → server (nx_shop/server/server.lua giveOrder/canCarryOrder) จะสาขาไปใช้
+-- exports.vorp_inventory:createWeapon / canCarryWeapons แทน addItem/canCarryItem โดยอัตโนมัติ
+-- (ammo/misc ยังเป็น item ปกติเหมือนเดิม — จ่ายด้วย addItem)
 local gunCategories = {
     { id = 'all', label = 'ALL' },
     { id = 'misc', label = 'Misc' },
@@ -110,23 +113,23 @@ local gunCategories = {
 }
 
 local gunItems = {
-    -- Misc
-    { id = 'tool_binoculars', item = 'tool_binoculars', label = 'Binoculars (กล้องส่องทางไกล)', category = 'misc', price = 800, currency = 'cash', max = 10 },
-    { id = 'tool_lantern', item = 'tool_lantern', label = 'Davy Lantern (ตะเกียง)', category = 'misc', price = 200, currency = 'cash', max = 10 },
-    { id = 'tool_lasso', item = 'tool_lasso', label = 'Lasso (เชือก)', category = 'misc', price = 150, currency = 'cash', max = 10 },
+    -- Misc — เป็นอาวุธจริงเหมือนกัน (อยู่ใน vorp_inventory notweapons whitelist ไม่นับ cap จำนวนปืน)
+    { id = 'tool_binoculars', item = 'WEAPON_KIT_BINOCULARS', weapon = true, label = 'Binoculars (กล้องส่องทางไกล)', category = 'misc', price = 800, currency = 'cash', max = 10, image = 'weapon_kit_binoculars.png' },
+    { id = 'tool_lantern', item = 'WEAPON_MELEE_DAVY_LANTERN', weapon = true, label = 'Davy Lantern (ตะเกียง)', category = 'misc', price = 200, currency = 'cash', max = 10, image = 'weapon_melee_davy_lantern.png' },
+    { id = 'tool_lasso', item = 'WEAPON_LASSO', weapon = true, label = 'Lasso (เชือก)', category = 'misc', price = 150, currency = 'cash', max = 10, image = 'weapon_lasso.png' },
 
     -- Melee
-    { id = 'weapon_knife', item = 'weapon_knife', label = 'Knife', category = 'melee', price = 250, currency = 'cash', max = 10 },
-    { id = 'weapon_rustic_knife', item = 'weapon_rustic_knife', label = 'Rustic Knife', category = 'melee', price = 450, currency = 'cash', max = 10 },
+    { id = 'weapon_knife', item = 'WEAPON_MELEE_KNIFE', weapon = true, label = 'Knife', category = 'melee', price = 250, currency = 'cash', max = 10, image = 'weapon_melee_knife.png' },
+    { id = 'weapon_rustic_knife', item = 'WEAPON_MELEE_KNIFE_RUSTIC', weapon = true, label = 'Rustic Knife', category = 'melee', price = 450, currency = 'cash', max = 10, image = 'weapon_melee_knife_rustic.png' },
 
     -- Revolver
-    { id = 'weapon_cattleman_revolver', item = 'weapon_cattleman_revolver', label = 'Cattleman Revolver', category = 'revolver', price = 1500, currency = 'cash', max = 10 },
+    { id = 'weapon_cattleman_revolver', item = 'WEAPON_REVOLVER_CATTLEMAN', weapon = true, label = 'Cattleman Revolver', category = 'revolver', price = 1500, currency = 'cash', max = 10, image = 'weapon_revolver_cattleman.png' },
 
     -- Rifle
-    { id = 'weapon_varmint_rifle', item = 'weapon_varmint_rifle', label = 'Varmint Rifle', category = 'rifle', price = 4500, currency = 'cash', max = 10 },
+    { id = 'weapon_varmint_rifle', item = 'WEAPON_RIFLE_VARMINT', weapon = true, label = 'Varmint Rifle', category = 'rifle', price = 4500, currency = 'cash', max = 10, image = 'weapon_rifle_varmint.png' },
 
     -- Bow
-    { id = 'weapon_bow_small', item = 'weapon_bow_small', label = 'Bow (ธนูเล็ก)', category = 'bow', price = 4000, currency = 'cash', max = 10 },
+    { id = 'weapon_bow_small', item = 'WEAPON_BOW', weapon = true, label = 'Bow (ธนูเล็ก)', category = 'bow', price = 4000, currency = 'cash', max = 10, image = 'weapon_bow.png' },
 
     -- Gun Oil
     { id = 'oil_gun', item = 'oil_gun', label = 'Gun Oil', category = 'gunoil', price = 100, currency = 'cash', max = 10 },
