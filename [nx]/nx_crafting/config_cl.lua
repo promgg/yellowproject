@@ -51,7 +51,7 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "GeneralCraftingTable",
-		Blip_sprite = 12,
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -69,7 +69,7 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "WeaponCraftingTable",
-		Blip_sprite = 12,
+		Blip_sprite = 1576459965, -- blip_supplies_ammo
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -81,14 +81,14 @@ Config["Craft_Table"] = {
 		Position = {x = -300.0, y = 750.0, z = 45.0, h = 0.0},
 		Table_Name = "Valentine Cooking",
 		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		Disable_Model = false, -- โชว์ prop คราฟอาหารจริง (พิกัดยังไม่ได้เช็คในเกม ใช้ prop ช่วยมาร์กจุด)
+		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x", -- prop คราฟที่ผ่านการรับรองแล้วใน vorp_crafting/config.lua (Config.CraftingProps) เหมาะกับโต๊ะทำอาหารโดยเฉพาะ
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Valentine",
 
 		Map_blip = true,
 		Blip_name = "ValentineCookingTable",
-		Blip_sprite = 12,
+		Blip_sprite = -1852063472, -- blip_supplies_food
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -99,14 +99,14 @@ Config["Craft_Table"] = {
 		Position = {x = 1234.0, y = -1274.0, z = 76.0, h = 0.0},
 		Table_Name = "Rhodes Cooking",
 		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x",
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Rhodes",
 
 		Map_blip = true,
 		Blip_name = "RhodesCookingTable",
-		Blip_sprite = 12,
+		Blip_sprite = -1852063472, -- blip_supplies_food
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -117,14 +117,14 @@ Config["Craft_Table"] = {
 		Position = {x = 2895.0, y = 1385.0, z = 45.0, h = 0.0},
 		Table_Name = "Annesburg Cooking",
 		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x",
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Annesburg",
 
 		Map_blip = true,
 		Blip_name = "AnnesburgCookingTable",
-		Blip_sprite = 12,
+		Blip_sprite = -1852063472, -- blip_supplies_food
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -164,7 +164,7 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "GeneralCraftingTableValentine",
-		Blip_sprite = 12,
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -182,7 +182,7 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "GeneralCraftingTableRhodes",
-		Blip_sprite = 12,
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
@@ -200,7 +200,7 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "GeneralCraftingTableAnnesburg",
-		Blip_sprite = 12,
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
