@@ -554,7 +554,7 @@ function StartEvent()
     Citizen.CreateThread(function()
         for k, v in pairs(Config["Craft_Table"]) do
             if v.Map_blip == true and v.Map_blip ~= nil then
-                blips = Citizen.InvokeNative(0x554D9D53F696D002, -758970771, v.Position.x, v.Position.y, v.Position.z)
+                blips = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, v.Position.x, v.Position.y, v.Position.z) -- blip type คงที่สำหรับ blip พิกัด (ตรงกับ nx_shop/lp_marketplace/MJ-Economy) — เดิมใส่ hash sprite ผิดช่องมาแทน
                 Blip_Name = "Crafting Table"
                 Blip_Scale = 0.9
                 Blip_Sprite = 605
