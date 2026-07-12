@@ -25,6 +25,18 @@ Config.Sequence = {
     pool = { 'W', 'A', 'S', 'D' },
 }
 
+-- แบบวงแหวน (skill-check วงกลม): เข็มหมุนรอบวง กดปุ่มที่ขึ้นให้ตรงตอนเข็มเข้าโซนทอง
+-- difficulty ยิ่งสูง โซนยิ่งแคบ + เข็มยิ่งหมุนเร็ว (จะระบุ arcDeg/rotateMs เองก็ได้ทับ difficulty)
+Config.Circle = {
+    successNeeded = 3,
+    failLimit = 1,
+    difficulty = 5,     -- 1-10 (1 = โซนกว้าง 70°/เข็มช้า, 10 = โซนแคบ 28°/เข็มเร็ว)
+    duration = 4000,    -- ms ต่อรอบ ก่อน auto-fail ถ้ายังไม่กด
+    pool = { 'E' },     -- ปุ่มที่ต้องกด (สุ่มต่อรอบ) — ใส่ { 'W','A','S','D' } ได้ (รองรับ W A S D E SPACE)
+    -- arcDeg  = 45,    -- (ออปชั่น) กำหนดขนาดโซนเป็นองศาเองแทน difficulty
+    -- rotateMs = 1200, -- (ออปชั่น) กำหนดเวลาเข็มหมุนครบรอบเองแทน difficulty
+}
+
 -- แบบตกปลา (ย้ายมาจาก MJ-AfkFishing): กด SPACEBAR ให้ตรงจังหวะ ตอนแท่ง indicator เด้งขึ้นลงเข้าโซนจับ
 -- ต้นฉบับไม่มี timeout เลย (รอได้ไม่จำกัด) แต่ lp_minigame บล็อก NUI focus/control ทั้งจอไว้ระหว่างเล่น
 -- เลยเพิ่ม duration ให้ auto-miss กันโดนปล่อยค้าง — successNeeded/failLimit=1 = ยิงครั้งเดียวจบ (รอบ/คูลดาวน์ เดิมให้ผู้เรียกจัดการเอง)
@@ -58,6 +70,9 @@ Config.Fishing = {
 
     local ok = exports.lp_minigame:Fishing()
     local ok = exports.lp_minigame:Fishing({ duration = 6000, zoneSize = 12 })  -- ยากขึ้น: เวลาน้อยลง โซนแคบลง
+
+    local ok = exports.lp_minigame:Circle()
+    local ok = exports.lp_minigame:Circle({ successNeeded = 2, difficulty = 8, pool = { 'W','A','S','D' } })
 
     if exports.lp_minigame:Spacebar() then
         print('ผ่าน')

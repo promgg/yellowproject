@@ -10,6 +10,10 @@
   var BodyFish   = document.getElementById('body-fishing');
   var FishZone   = document.getElementById('fish-zone');
   var FishInd    = document.getElementById('fish-indicator');
+  var BodyCircle = document.getElementById('body-circle');
+  var CircleZone = document.getElementById('circle-zone');
+  var CirclePtr  = document.getElementById('circle-pointer');
+  var CircleKey  = document.getElementById('circle-key');
 
   var KEYCODE = { 32: 'SPACE', 87: 'W', 65: 'A', 83: 'S', 68: 'D', 69: 'E' };
 
@@ -19,6 +23,7 @@
   var sb = null;
   var seq = null;
   var fish = null;
+  var circle = null;
 
   function post(name, data) {
     var resourceName = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'lp_minigame';
@@ -35,7 +40,7 @@
   function hide(el) { el.classList.add('hidden'); }
   // เคลียร์ทั้ง 3 body ก่อนโชว์อันที่ต้องการเสมอ กันเคสค้างจากรอบ/โหมดก่อนหน้า
   // (เดิม startSpacebar/startSequence ซ่อนกันเองแค่ 2 ตัว ไม่ได้ซ่อน BodyFish เลยโผล่มาด้วยถ้ารอบก่อนหน้าเป็น fishing)
-  function hideAllBodies() { hide(BodySpace); hide(BodySeq); hide(BodyFish); }
+  function hideAllBodies() { hide(BodySpace); hide(BodySeq); hide(BodyFish); hide(BodyCircle); }
 
   function renderDots(need, done) {
     DotsEl.innerHTML = '';
@@ -66,14 +71,14 @@
     roundActive = false;
     hide(App);
     post('lp_minigame:finish', { success: !!win });
-    G = null; sb = null; seq = null; fish = null;
+    G = null; sb = null; seq = null; fish = null; circle = null;
   }
 
   function closeGame() {
     cancelRaf();
     roundActive = false;
     hide(App);
-    G = null; sb = null; seq = null; fish = null;
+    G = null; sb = null; seq = null; fish = null; circle = null;
   }
 
   function roundResult(ok) {
@@ -99,6 +104,7 @@
     if (!G) return;
     if (G.kind === 'spacebar') startSpacebar();
     else if (G.kind === 'fishing') startFishing();
+    else if (G.kind === 'circle') startCircle();
     else startSequence();
   }
 
@@ -257,6 +263,79 @@
     roundResult(ok);
   }
 
+  // ── circle (skill-check วงแหวน) ──────────────────────────────────────────
+  // เข็มหมุนรอบวงต่อเนื่อง กดปุ่มที่โชว์ตรงกลางตอนเข็มเข้าโซนทอง
+  // มุมทุกตัววัดเป็นองศา "ตามเข็มนาฬิกาจากบนสุด (12 นาฬิกา)" ให้ตรงกับ transform rotate ของ SVG
+  var CIRCLE_R = 40;
+
+  function polar(deg, r) {
+    var rad = deg * Math.PI / 180;
+    return { x: 50 + r * Math.sin(rad), y: 50 - r * Math.cos(rad) };
+  }
+
+  function circleZonePath(startDeg, arcDeg) {
+    var a = polar(startDeg, CIRCLE_R);
+    var b = polar(startDeg + arcDeg, CIRCLE_R);
+    var large = arcDeg > 180 ? 1 : 0;
+    return 'M ' + a.x.toFixed(2) + ' ' + a.y.toFixed(2) +
+           ' A ' + CIRCLE_R + ' ' + CIRCLE_R + ' 0 ' + large + ' 1 ' +
+           b.x.toFixed(2) + ' ' + b.y.toFixed(2);
+  }
+
+  function inArc(pointerDeg, startDeg, arcDeg) {
+    var d = (((pointerDeg - startDeg) % 360) + 360) % 360;
+    return d <= arcDeg;
+  }
+
+  function startCircle() {
+    hideAllBodies();
+    show(BodyCircle);
+
+    var cfg = G.cfg;
+    var diff = clamp(cfg.difficulty || 5, 1, 10);
+    // difficulty 1->10 : โซน 70°->28°, เข็มหมุนครบรอบ 1600ms->850ms (เร็วขึ้น = ยากขึ้น)
+    var arcDeg   = cfg.arcDeg   || (70 - (diff - 1) * (70 - 28) / 9);
+    var rotateMs = cfg.rotateMs || (1600 - (diff - 1) * (1600 - 850) / 9);
+    var startDeg = Math.random() * 360;
+
+    var pool = (cfg.pool && cfg.pool.length) ? cfg.pool : ['E'];
+    var key  = pool[Math.floor(Math.random() * pool.length)];
+
+    circle = {
+      startDeg: startDeg, arcDeg: arcDeg, rotateMs: rotateMs,
+      key: key, duration: cfg.duration || 4000, t0: null,
+    };
+
+    CircleZone.setAttribute('d', circleZonePath(startDeg, arcDeg));
+    CircleZone.classList.remove('lmg-hit', 'lmg-miss');
+    CircleKey.textContent = key === 'SPACE' ? '␣' : key;
+    CirclePtr.setAttribute('transform', 'rotate(0 50 50)');
+
+    roundActive = true;
+    cancelRaf();
+
+    var step = function (ts) {
+      if (!roundActive) return;
+      if (circle.t0 === null) circle.t0 = ts;
+      var elapsed = ts - circle.t0;
+      var deg = (elapsed / circle.rotateMs) * 360;
+      CirclePtr.setAttribute('transform', 'rotate(' + (deg % 360).toFixed(2) + ' 50 50)');
+      if (elapsed >= circle.duration) return roundResult(false);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  function circlePress(letter) {
+    if (!circle || !roundActive) return;
+    if (letter !== circle.key) return roundResult(false); // กดผิดปุ่ม = พลาด
+    var elapsed = circle.t0 === null ? 0 : (performance.now() - circle.t0);
+    var deg = (elapsed / circle.rotateMs) * 360;
+    var ok = inArc(deg, circle.startDeg, circle.arcDeg);
+    CircleZone.classList.add(ok ? 'lmg-hit' : 'lmg-miss');
+    roundResult(ok);
+  }
+
   // ── input ──────────────────────────────────────────────────────────────
   document.addEventListener('keydown', function (e) {
     if (!G || !roundActive) return;
@@ -265,6 +344,9 @@
       if (code === 32) { e.preventDefault(); spacebarPress(); }
     } else if (G.kind === 'fishing') {
       if (code === 32) { e.preventDefault(); fishingPress(); }
+    } else if (G.kind === 'circle') {
+      var C = KEYCODE[code];
+      if (C) { e.preventDefault(); circlePress(C); }
     } else {
       var L = KEYCODE[code];
       if (L && L !== 'SPACE' && L !== 'E') { e.preventDefault(); sequencePress(L); }
@@ -288,6 +370,9 @@
       },
       openFishing: function (cfg) {
         window.dispatchEvent(new MessageEvent('message', { data: { action: 'lp_minigame:open', kind: 'fishing', cfg: cfg || { successNeeded: 1, failLimit: 1, duration: 15000, speedMin: 1.5, speedMax: 2.5, zoneSize: 15 } } }));
+      },
+      openCircle: function (cfg) {
+        window.dispatchEvent(new MessageEvent('message', { data: { action: 'lp_minigame:open', kind: 'circle', cfg: cfg || { successNeeded: 3, failLimit: 1, difficulty: 5, duration: 4000, pool: ['E'] } } }));
       },
     };
   }

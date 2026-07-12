@@ -3,6 +3,8 @@
 
     exports.lp_minigame:Spacebar(opts)  -> true/false
     exports.lp_minigame:Sequence(opts)  -> true/false
+    exports.lp_minigame:Fishing(opts)   -> true/false
+    exports.lp_minigame:Circle(opts)    -> true/false
     exports.lp_minigame:Cancel()        -- resolves the active minigame as false
 
     opts overrides individual fields on top of Config.Spacebar / Config.Sequence
@@ -60,6 +62,10 @@ exports('Fishing', function(opts)
     return play('fishing', Config.Fishing, opts)
 end)
 
+exports('Circle', function(opts)
+    return play('circle', Config.Circle, opts)
+end)
+
 exports('Cancel', function()
     if active then
         result   = false
@@ -81,7 +87,7 @@ AddEventHandler('onResourceStop', function(res)
 end)
 
 -- ── Test command (F8 console) ───────────────────────────────────────────
--- /minigame_test spacebar   /minigame_test sequence   /minigame_test fishing
+-- /minigame_test spacebar   /minigame_test sequence   /minigame_test fishing   /minigame_test circle
 
 RegisterCommand('minigame_test', function(_, args)
     local kind = args[1] or 'spacebar'
@@ -91,6 +97,8 @@ RegisterCommand('minigame_test', function(_, args)
             ok = exports.lp_minigame:Sequence()
         elseif kind == 'fishing' then
             ok = exports.lp_minigame:Fishing()
+        elseif kind == 'circle' then
+            ok = exports.lp_minigame:Circle()
         else
             ok = exports.lp_minigame:Spacebar()
         end

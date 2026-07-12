@@ -24,6 +24,7 @@ exports {
     'Spacebar',
     'Sequence',
     'Fishing',
+    'Circle',
     'Cancel',
 }
 

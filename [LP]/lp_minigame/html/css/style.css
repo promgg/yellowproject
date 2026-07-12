@@ -140,6 +140,62 @@ html, body {
   box-shadow: 0 0 5px rgba(255,255,255,0.4);
 }
 
+/* ── Circle minigame (สไตล์เดียวกับชุด: พื้นเข้ม + ขอบ/เข็มขาว + โซนทอง) ── */
+.lmg-circle-wrap {
+  position: relative;
+  width: 190px; height: 190px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.lmg-circle {
+  width: 190px; height: 190px;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6));
+}
+
+.lmg-circle-face {
+  fill: rgba(19, 13, 6, 0.72);
+}
+
+.lmg-circle-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 7;
+}
+
+.lmg-circle-zone {
+  fill: none;
+  stroke: #f0ca78;
+  stroke-width: 7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(240, 202, 120, 0.55));
+  transition: stroke 0.1s;
+}
+
+.lmg-circle-zone.lmg-hit  { stroke: #60cd8e; filter: drop-shadow(0 0 4px rgba(96, 205, 142, 0.7)); }
+.lmg-circle-zone.lmg-miss { stroke: #ff6b6b; filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.7)); }
+
+.lmg-circle-needle {
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4));
+}
+
+.lmg-circle-hub {
+  fill: linear-gradient(180deg, #937036, #f0ca78);
+  fill: #f0ca78;
+}
+
+.lmg-circle-key {
+  position: absolute;
+  top: 0; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(240, 202, 120, 0.55);
+  pointer-events: none;
+}
+
 /* ── Fishing minigame (ย้ายมาจาก MJ-AfkFishing) ── */
 .lmg-fish-wrap {
   position: relative;
