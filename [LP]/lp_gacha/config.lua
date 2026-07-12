@@ -72,8 +72,8 @@ Config.Pools = {
                 { type = 'item', item = 'aed',         label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
             }},
             { chance = 20, rewards = {
-                { type = 'item',  item = 'buff_book_marksman', label = 'สมุดคัมภีร์ (+5% ตีปืน)',   amount = 1, rarity = 'legendary' },
-                { type = 'item',  item = 'buff_cross_gold',    label = 'ไม้กางเขนทอง (+10% ตีปืน)', amount = 1, rarity = 'legendary' },
+                { type = 'item',  item = 'bonus_gun5',  label = 'สมุดคัมภีร์ (+5% ตีปืน)',   amount = 1, rarity = 'legendary' },
+                { type = 'item',  item = 'bonus_gun10', label = 'ไม้กางเขนทอง (+10% ตีปืน)', amount = 1, rarity = 'legendary' },
                 { type = 'horse', item = 'a_c_horse_arabian_white', label = 'ม้า Arabian White', model = 'a_c_horse_arabian_white', gender = 'male', amount = 1, rarity = 'legendary' },
             }},
         },
