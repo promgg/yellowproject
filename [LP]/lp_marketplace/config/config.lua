@@ -24,7 +24,7 @@ Config.Zones = {
         coords = vector3(1421.9254, 356.3162, 88.8898),
         radius = 3.0,
         item   = { enabled = false, item = '' },
-        blip   = { enabled = true,  sprite = 1838354131, scale = 0.6, label = 'ตลาดกลาง' }, -- blip_ambient_loan_shark
+        blip   = { enabled = true,  sprite = 819673798, scale = 0.6, label = 'ตลาดกลาง' }, -- blip_shop_market_stall
         textui = 'กด [E] เพื่อเปิดตลาด',
         ped    = { enabled = true, model = 'casp_coachrobbery_micah_males_01', heading = 0.0 },
     },
