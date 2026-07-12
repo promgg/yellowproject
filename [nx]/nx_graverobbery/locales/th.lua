@@ -1,0 +1,25 @@
+Locales = Locales or {}
+
+Locales.th = {
+    dig_grave = 'ขุดหลุมศพ',
+    pray_grave = 'ไว้อาลัย',
+    need_shovel = 'ต้องมีพลั่ว',
+    cooldown = 'หลุมนี้เพิ่งถูกขุดไป',
+    reserved = 'มีคนกำลังขุดหลุมนี้อยู่',
+    unavailable = 'ขณะนี้ไม่สามารถขุดได้',
+    too_far = 'คุณอยู่ไกลจากหลุมเกินไป',
+    cancelled = 'การขุดถูกยกเลิก',
+    failed = 'คุณขุดไม่สำเร็จ',
+    empty = 'คุณไม่พบสิ่งใด',
+    received_item = 'คุณได้รับ %{amount}x %{item}',
+    inventory_full = 'กระเป๋าของคุณเต็ม',
+    alert_title = 'มีเสียงผิดปกติบริเวณสุสาน',
+    alert_message = 'มีผู้ต้องสงสัยรบกวนหลุมศพในหมู่บ้าน',
+    alert_blip = 'เหตุผิดปกติที่สุสาน',
+    no_village = 'ไม่พบข้อมูลหมู่บ้าน',
+    village_not_ready = 'ระบบหมู่บ้านยังไม่พร้อม',
+    digging = 'กำลังขุดหลุมศพ...',
+    praying = 'กำลังไว้อาลัย...',
+    admin_denied = 'คุณไม่มีสิทธิ์ใช้งาน',
+    reset_done = 'รีเซ็ตคูลดาวน์หลุมศพแล้ว',
+}

@@ -1,0 +1,25 @@
+Locales = Locales or {}
+
+Locales.en = {
+    dig_grave = 'Dig grave',
+    pray_grave = 'Pay respects',
+    need_shovel = 'You need a shovel.',
+    cooldown = 'This grave was disturbed recently.',
+    reserved = 'Someone is already digging this grave.',
+    unavailable = 'You cannot dig here right now.',
+    too_far = 'You are too far from the grave.',
+    cancelled = 'Digging cancelled.',
+    failed = 'You failed to dig the grave.',
+    empty = 'You found nothing.',
+    received_item = 'You received %{amount}x %{item}.',
+    inventory_full = 'Your bag is full.',
+    alert_title = 'Graveyard disturbance',
+    alert_message = 'Suspicious activity near a village graveyard.',
+    alert_blip = 'Graveyard Disturbance',
+    no_village = 'Village data was not found.',
+    village_not_ready = 'Village system is not ready.',
+    digging = 'Digging grave...',
+    praying = 'Paying respects...',
+    admin_denied = 'You do not have permission.',
+    reset_done = 'Grave cooldown reset.',
+}
