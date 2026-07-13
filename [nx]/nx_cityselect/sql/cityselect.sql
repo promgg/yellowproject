@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS `nx_player_city` (
     INDEX `idx_city_id` (`city_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Permanent player city assignments';
 
+CREATE TABLE IF NOT EXISTS `nx_player_heritage` (
+    `identifier`     VARCHAR(60)  NOT NULL COMMENT 'Steam/License identifier',
+    `charidentifier` INT(11)      NOT NULL COMMENT 'VORP Character ID',
+    `heritage_id`    VARCHAR(50)  NOT NULL COMMENT 'Heritage ID matching config (white/native)',
+    `selected_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`identifier`, `charidentifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Permanent player heritage/crafting-lineage assignments';
+
 CREATE TABLE IF NOT EXISTS `nx_city_slots` (
     `city_id`       VARCHAR(50) NOT NULL COMMENT 'City ID matching config',
     `current_count` INT(11)     NOT NULL DEFAULT 0 COMMENT 'Current cycle registration count',

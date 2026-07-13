@@ -43,11 +43,11 @@ local function ApplyOutfitWithFade(outfitData)
     DoScreenFadeIn(fadeTime)
 
     -- Notify
-    local VORPcore = exports.vorp_core:GetCore()
-    VORPcore.NotifyTip(
-        Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""),
-        3000
-    )
+    exports.pNotify:SendNotification({
+        type    = 'success',
+        text    = Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""),
+        timeout = 3000,
+    })
 end
 
 -- ─────────────────────────────────────────────────────────────

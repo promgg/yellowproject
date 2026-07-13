@@ -102,7 +102,29 @@ Config.Cities = {
 }
 
 -- ─────────────────────────────────────────────────────────────
+--  HERITAGES
+--  Permanent crafting-lineage choice, shown right after city
+--  selection. Job id must match the jobList keys nx_crafting
+--  checks against (see [nx]/nx_crafting/config_sv.lua).
+-- ─────────────────────────────────────────────────────────────
+Config.Heritages = {
+    {
+        id          = "white",
+        name        = "ผู้ตั้งถิ่นฐาน",
+        label       = "White Settler",
+        description = "สายช่างฝีมือของผู้ตั้งถิ่นฐานผิวขาว ปลดล็อกสูตรคราฟต์อาวุธปืน (Revolver / Carbine / Rifle) ที่แท่นตีเหล็ก",
+    },
+    {
+        id          = "native",
+        name        = "ชนพื้นเมือง",
+        label       = "Native American",
+        description = "สายช่างฝีมือของชนพื้นเมืองอเมริกัน ปลดล็อกสูตรคราฟต์อาวุธดั้งเดิม (ขวาน / ธนู / ลูกศรไฟ) ที่แท่นตีเหล็ก",
+    },
+}
+
+-- ─────────────────────────────────────────────────────────────
 --  QUICK LOOKUP: Config.CitiesById[cityId] = cityData
 --  Built at runtime in shared/sh_utils.lua
 -- ─────────────────────────────────────────────────────────────
 Config.CitiesById = {}
+Config.HeritagesById = {}

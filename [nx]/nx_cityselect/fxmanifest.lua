@@ -23,6 +23,7 @@ client_scripts {
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/sv_city.lua',
+    'server/sv_heritage.lua',
     'server/sv_main.lua',
     'server/sv_exports.lua',
 }
@@ -40,4 +41,5 @@ dependencies {
     'oxmysql',
     'vorp_core',
     'PolyZone',
+    'pNotify',
 }

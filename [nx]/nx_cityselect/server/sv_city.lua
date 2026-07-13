@@ -5,9 +5,20 @@ local Core = exports.vorp_core:GetCore()
 local Inv  = exports.nx_inventory
 
 -- ─────────────────────────────────────────────────────────────
---  Internal: fetch all city slot counts from DB
+--  Internal: fetch all city slot counts from DB, cached until the
+--  next write (CityManager_IncrementCity/ResetAllSlots invalidate
+--  it) — the availability check always reads a value no staler
+--  than the last actual write, so it's safe to cache.
 -- ─────────────────────────────────────────────────────────────
+local slotCountsCache = nil
+
+local function InvalidateSlotCache()
+    slotCountsCache = nil
+end
+
 local function FetchSlotCounts()
+    if slotCountsCache then return slotCountsCache end
+
     local rows = MySQL.query.await(
         "SELECT city_id, current_count FROM nx_city_slots",
         {}
@@ -18,6 +29,7 @@ local function FetchSlotCounts()
             counts[row.city_id] = tonumber(row.current_count) or 0
         end
     end
+    slotCountsCache = counts
     return counts
 end
 
@@ -41,6 +53,7 @@ local function ResetAllSlots()
         "UPDATE nx_city_slots SET current_count = 0",
         {}
     )
+    InvalidateSlotCache()
     if Config.Debug then
         print("^3[nx_cityselect]^7 All city slots reset — new registration cycle started.")
     end
@@ -110,6 +123,7 @@ function CityManager_IncrementCity(cityId)
         "UPDATE nx_city_slots SET current_count = current_count + 1 WHERE city_id = ?",
         { cityId }
     )
+    InvalidateSlotCache()
     local counts = FetchSlotCounts()
     CheckAndResetIfAllFull(counts)
     return true
@@ -132,12 +146,18 @@ end
 
 -- ─────────────────────────────────────────────────────────────
 --  PUBLIC: Assign city to player (permanent record)
+--  Returns true only if THIS call actually inserted the row (won
+--  the race) — the PRIMARY KEY + INSERT IGNORE + affected-rows
+--  check together are the atomic compare-and-set: a concurrent
+--  double-fire for the same character can only ever have one
+--  winner, so callers must gate slot-increment/badge-give on this.
 -- ─────────────────────────────────────────────────────────────
 function CityManager_AssignCity(identifier, charidentifier, cityId)
-    MySQL.query.await(
+    local affected = MySQL.update.await(
         "INSERT IGNORE INTO nx_player_city (identifier, charidentifier, city_id) VALUES (?, ?, ?)",
         { identifier, tonumber(charidentifier), cityId }
     )
+    return (affected or 0) > 0
 end
 
 -- ─────────────────────────────────────────────────────────────

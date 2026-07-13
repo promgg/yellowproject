@@ -182,3 +182,15 @@ exports("GetPlayerCityData", function()
         spawnPoint  = city.spawnPoint,
     }
 end)
+
+-- ─────────────────────────────────────────────────────────────
+--  Cleanup blips + PolyZones on resource stop
+-- ─────────────────────────────────────────────────────────────
+AddEventHandler('onResourceStop', function(resource)
+    if resource ~= GetCurrentResourceName() then return end
+    ClearBlips()
+    for _, zone in ipairs(zoneObjects) do
+        zone:destroy()
+    end
+    zoneObjects = {}
+end)

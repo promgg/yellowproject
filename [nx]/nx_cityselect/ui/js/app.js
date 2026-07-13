@@ -7,9 +7,12 @@ const App = (() => {
     'use strict';
 
     // ── State ──────────────────────────────────────
-    let cities          = [];
-    let lang            = {};
-    let pendingCityId   = null;
+    let cities            = [];
+    let heritages         = [];
+    let lang              = {};
+    let pendingCityId     = null;
+    let pendingHeritageId = null;
+    let mode               = 'city';
 
     // ── DOM refs (resolved once) ───────────────────
     const dom = {};
@@ -52,6 +55,21 @@ const App = (() => {
           <path d="M16 22 Q12 26 16 30 Q20 34 24 30Z" fill="#8b4513" opacity=".6"/>
           <path d="M32 22 Q36 26 32 30 Q28 34 24 30Z" fill="#8b4513" opacity=".6"/>
           <line x1="24" y1="30" x2="24" y2="44" stroke="#5c2e0a" stroke-width="2"/>
+        </svg>`,
+    ];
+
+    // ── Heritage icons (SVG inline, one per heritage by index) ──
+    const HERITAGE_ICONS = [
+        // Sheriff star (settler)
+        `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="38" height="38">
+          <path d="M24 6 L28 18 L41 18 L30 26 L34 39 L24 31 L14 39 L18 26 L7 18 L20 18Z"
+                fill="#c8900a" stroke="#8b4513" stroke-width="1.5"/>
+        </svg>`,
+        // Feather (native)
+        `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="38" height="38">
+          <path d="M24 4 C14 10 12 26 20 40 L24 44 L24 4Z" fill="#a0522d" opacity=".85"/>
+          <path d="M24 4 C34 10 36 26 28 40 L24 44 L24 4Z" fill="#8b4513" opacity=".85"/>
+          <line x1="24" y1="6" x2="24" y2="42" stroke="#5c2e0a" stroke-width="1.5"/>
         </svg>`,
     ];
 
@@ -123,18 +141,61 @@ const App = (() => {
         });
     }
 
+    // ── Render heritage cards ───────────────────────
+
+    function renderHeritages(heritageList) {
+        dom.citiesRow.innerHTML = '';
+        heritageList.forEach((heritage, i) => {
+            const iconSVG = HERITAGE_ICONS[i % HERITAGE_ICONS.length];
+
+            const card = document.createElement('div');
+            card.className  = 'city-card';
+            card.dataset.id = heritage.id;
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('aria-label', `${heritage.name} — ${lang.selectBtn}`);
+
+            card.innerHTML = `
+                <span class="card-banner" style="background:#8b4513"></span>
+                <div class="city-icon-wrap">
+                    <div class="city-icon">${iconSVG}</div>
+                </div>
+                <div class="card-body">
+                    <div class="city-name">${heritage.name}</div>
+                    <div class="city-label">${heritage.label}</div>
+                    <hr class="card-divider"/>
+                    <p class="city-desc">${heritage.description}</p>
+                </div>
+                <button class="btn-select" tabindex="0">${lang.selectBtn}</button>
+            `;
+
+            card.addEventListener('click', () => openConfirm(heritage));
+            card.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openConfirm(heritage); }
+            });
+
+            dom.citiesRow.appendChild(card);
+        });
+    }
+
     // ── Open confirm modal ─────────────────────────
 
-    function openConfirm(city) {
-        pendingCityId = city.id;
-        const msg = (lang.confirmMsg || 'คุณแน่ใจหรือไม่?').replace('%s', city.name);
+    function openConfirm(entry) {
+        const msg = (lang.confirmMsg || 'คุณแน่ใจหรือไม่?').replace('%s', entry.name);
         dom.modalTitle.textContent = lang.confirmTitle || 'ยืนยัน';
         dom.modalMsg.textContent   = msg;
         dom.modal.classList.remove('hidden');
+
+        if (mode === 'heritage') {
+            pendingHeritageId = entry.id;
+        } else {
+            pendingCityId = entry.id;
+        }
     }
 
     function closeConfirm() {
-        pendingCityId = null;
+        pendingCityId     = null;
+        pendingHeritageId = null;
         dom.modal.classList.add('hidden');
     }
 
@@ -149,6 +210,16 @@ const App = (() => {
             c.setAttribute('tabindex', '-1');
         });
         postNUI('selectCity', { cityId });
+    }
+
+    function submitHeritage(heritageId) {
+        if (!heritageId) return;
+        dom.modal.classList.add('hidden');
+        dom.citiesRow.querySelectorAll('.city-card').forEach(c => {
+            c.classList.add('disabled');
+            c.setAttribute('tabindex', '-1');
+        });
+        postNUI('selectHeritage', { heritageId });
     }
 
     // ── Territory HUD update ───────────────────────
@@ -172,13 +243,17 @@ const App = (() => {
 
         switch (data.action) {
             case 'OPEN': {
-                if (data.lang)  lang   = data.lang;
-                if (data.cities) cities = data.cities;
+                mode = data.mode === 'heritage' ? 'heritage' : 'city';
+                if (data.lang)      lang      = data.lang;
+                if (data.cities)    cities    = data.cities;
+                if (data.heritages) heritages = data.heritages;
 
                 if (dom.titleEl)    dom.titleEl.textContent    = lang.title    || 'เลือกเมือง';
                 if (dom.subtitleEl) dom.subtitleEl.textContent = lang.subtitle || '';
 
-                renderCities(cities);
+                if (mode === 'heritage') renderHeritages(heritages);
+                else                     renderCities(cities);
+
                 dom.app.classList.remove('hidden');
                 // Focus first available card for keyboard nav
                 const firstCard = dom.citiesRow.querySelector('.city-card:not(.disabled)');
@@ -205,7 +280,11 @@ const App = (() => {
         resolveDOM();
 
         dom.btnConfirm.addEventListener('click', () => {
-            if (pendingCityId) submitCity(pendingCityId);
+            if (mode === 'heritage') {
+                if (pendingHeritageId) submitHeritage(pendingHeritageId);
+            } else if (pendingCityId) {
+                submitCity(pendingCityId);
+            }
         });
 
         dom.btnCancel.addEventListener('click', closeConfirm);
