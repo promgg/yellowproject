@@ -37,6 +37,10 @@ local USE_ZONE_LOCK = (Config and Config["ZoneLockEnabled"]) == true
 local ZoneLockState = {} -- [airdropId] = { locked=true, allowed=bool, eliminated=bool }
 local ZoneDotActive = {} -- [airdropId] = true/false
 
+-- Max-occupancy cap (server-enforced, see SV:ZonePresence) — reset locally once the
+-- player backs out of the ring so a later attempt re-checks capacity fresh
+local ZoneFullBlocked = {} -- [airdropId] = true while server has denied entry
+
 -- If the player already "served" the punishment (died once), do NOT restart DoT after respawn.
 -- Still blocks re-entry into the locked ring.
 local ZonePunished = {} -- [airdropId] = true
@@ -695,6 +699,25 @@ local function startLootForAirdrop(v)
     LootHoldAirdropId = nil
     resetLootPrompt()
 
+    -- Lockpick gate ก่อน phase 2 — พลาดได้ ไม่มีพีนัลตี่ ล็อกกล่องยังอยู่กับเรา (ยิง lp_progbar
+    -- ใหม่ได้ทันทีจากปุ่มเดิม เพราะ Loot.active ยังเป็น true ตลอด ไม่มีการ release lock)
+    if Config and Config["LockpickEnabled"] then
+        local picked = exports.lp_minigame:Lockpick({
+            pins = Config["LockpickPins"] or 3,
+            difficulty = Config["LockpickDifficulty"] or 3,
+        })
+        if not picked then
+            notify("งัดไม่สำเร็จ ลองใหม่อีกครั้ง", "error")
+            Loot.active = false
+            SuppressLootPrompt[v.id] = nil -- เอา prompt กลับมา ให้กด [E] ลองใหม่ได้ทันที (lock ยังอยู่กับเรา ไม่ยิง ReleaseLoot)
+            if USE_LOOT_PROGRESS_UI then nuiLootProgress(false) end
+            nuiLootHint(false, v.id)
+            resetLootPrompt()
+            ClearPedTasksImmediately(PlayerPedId())
+            return
+        end
+    end
+
     -- Phase 2: lp_progbar owns the timer, cancel key, movement/combat lock, and anim (แบบ nx_event)
     LootProgId = exports.lp_progbar:Progress({
         duration = (Config and Config['TimeToPickingAirdrop']) or 5000,
@@ -885,6 +908,17 @@ local function spawnAirdrop(v)
             if lastInside == nil or inside ~= lastInside then
                 lastInside = inside
                 TriggerServerEvent(script_name .. ":SV:ZonePresence", v.id, inside)
+            end
+
+            -- Max-occupancy cap enforcement: keep pushing back while denied, clear
+            -- the flag once we've actually backed out so the next approach re-checks
+            -- capacity fresh (a slot may have opened up by then)
+            if ZoneFullBlocked[v.id] then
+                if dist <= Radius then
+                    ejectFromRing(v.SpawnCoords, Radius)
+                else
+                    ZoneFullBlocked[v.id] = nil
+                end
             end
 
             -- Draw ring when near
@@ -1321,6 +1355,17 @@ AddEventHandler(script_name .. ":CL:ZoneDenied", function(airdropId)
             "is-locked"
         )
     end
+end)
+
+-- max-occupancy cap denial (server checked before adding us to ZonePlayers) — sets
+-- a local flag; the main loop below actually pushes us back out every tick while
+-- it's true, same enforcement pattern as zone-lock's ejectFromRing
+RegisterNetEvent(script_name .. ":CL:ZoneFull")
+AddEventHandler(script_name .. ":CL:ZoneFull", function(airdropId)
+    airdropId = tonumber(airdropId) or airdropId
+    if not airdropId then return end
+    ZoneFullBlocked[airdropId] = true
+    nuiLootHint(true, airdropId, "โซนเต็มแล้ว", "รอคนออกก่อนแล้วค่อยลองใหม่", "", "is-locked")
 end)
 
 RegisterNetEvent(script_name .. ":CL:ZoneEliminated")

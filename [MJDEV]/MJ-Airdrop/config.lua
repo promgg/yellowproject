@@ -46,8 +46,15 @@ Config["TimeToRemove"] = 30 * 60 * 1000        -- เวลาก่อนลบ
 -- 2 phase แบบ nx_event: phase 1 = lp_textui:TextUIHold (จับ/grip ลอยเหนือกล่อง)
 -- -> ขอ lock จาก server -> phase 2 = lp_progbar (แถบเปิดกล่อง + ท่าอนิเมชั่น)
 Config["LootGripHoldTime"] = 800              -- ms, phase 1: lp_textui:TextUIHold
-Config["TimeToPickingAirdrop"] = 5 * 1000     -- ms, phase 2: lp_progbar (ปรับได้)
+Config["TimeToPickingAirdrop"] = 40 * 1000     -- ms, phase 2: lp_progbar (ปรับได้)
 Config["LabelToPickingAirdrop"] = "กำลังเปิดแอร์ดรอป"
+
+-- lockpick minigame ก่อนเข้า phase 2 (lp_progbar) — พลาดได้ ล็อกกล่องยังอยู่กับผู้เล่นคนเดิม
+-- ลองใหม่ได้ทันที ไม่มีพีนัลตี่ (ตรงกับ lp_robbery — ผลลัพธ์เป็นแค่ UX gate ฝั่ง client,
+-- server ยังคุม loot/lock authoritative เหมือนเดิมทุกจุด)
+Config["LockpickEnabled"]    = true
+Config["LockpickPins"]       = 3
+Config["LockpickDifficulty"] = 3
 
 -- === Loot behaviour ===
 
@@ -74,7 +81,7 @@ Config["Radius"] = 100.0
 Config["Airdrop"] = {
     [1] = {
         ['Label'] = "Airdrop",
-        ['MaxPlayer'] = 20,
+        ['MaxPlayer'] = 10, -- บังคับจริงที่ server (SV:ZonePresence) — ไม่มีระบบเมืองในรีซอร์สนี้ จึงเป็น cap รวมทั้งโซน ไม่ใช่ต่อเมืองเหมือน lp_airdropteam
         ['MainBlip'] = {
             sprite = 615597833,
             scale = 1.0,

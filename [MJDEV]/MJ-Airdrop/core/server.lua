@@ -312,6 +312,16 @@ AddEventHandler(script_name .. ":SV:ZonePresence", function(airdropId, inside)
     ZonePlayers[airdropId] = ZonePlayers[airdropId] or {}
     local set = ZonePlayers[airdropId]
 
+    -- max-occupancy cap (server-enforced) — ไม่มีระบบเมืองในรีซอร์สนี้ จึงคุมเป็นจำนวนรวม
+    -- ทั้งโซนแทน "ต่อเมือง" (ต่างจาก lp_airdropteam ที่มี nx_cityselect ให้ผูก)
+    if inside and not set[src] then
+        local maxPlayer = (Config and Config["Airdrop"] and Config["Airdrop"][airdropId] and Config["Airdrop"][airdropId].MaxPlayer) or 0
+        if maxPlayer > 0 and tableCount(set) >= maxPlayer then
+            TriggerClientEvent(script_name .. ":CL:ZoneFull", src, airdropId)
+            return -- ไม่นับเข้า set, ไม่ยิง ZoneCount/zone-lock ต่อให้คนที่ถูกกันไว้
+        end
+    end
+
     if inside then
         set[src] = true
     else

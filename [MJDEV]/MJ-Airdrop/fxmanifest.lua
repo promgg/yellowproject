@@ -44,4 +44,5 @@ files {
 dependencies {
     'lp_textui',
     'lp_progbar',
+    'lp_minigame',
 }
