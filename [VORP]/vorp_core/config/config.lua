@@ -42,7 +42,7 @@ Config = {
 
     initRol                  = 0.0,          -- Initial role-play currency amount for new players.
 
-    initInvCapacity          = 35.0,         -- Initial number of character inventory weight for new players. for old characters you must change in the database if you dont ave a new server
+    initInvCapacity          = 9999.0,       -- Initial number of character inventory weight for new players. for old characters you must change in the database if you dont ave a new server
 
     initXp                   = 0,            -- Initial experience points for new players.
 
