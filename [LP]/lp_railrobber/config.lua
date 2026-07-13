@@ -19,11 +19,12 @@ Config.IntelCooldownMinutes = 60   -- how long before intel can be bought again 
 -- ── Intel broker NPC ────────────────────────────────────────────────────────
 -- Buying intel here starts a heist and tells the BUYER'S WHOLE CITY the ambush point.
 Config.IntelNPC = {
-    model   = `s_m_m_sdticketseller_01`,         -- proven-good NPC model (same as lp_fasttravel's seller)
-    coords  = vector3(1441.2980, 342.7788, 88.5151),     -- TUNE IN-GAME (placeholder near Valentine)
-    heading = 45.0,
-    prompt  = 'ซื้อข่าวขบวนสินค้า',
-    price   = { currency = 0, amount = 250 },     -- currency 0 = cash
+    model         = `A_M_M_BiVWorker_01`,         -- proven-good NPC model (same as lp_fasttravel's seller)
+    coords        = vector3(1441.2980, 342.7788, 88.5151),     -- TUNE IN-GAME (placeholder near Valentine)
+    heading       = 45.0,
+    prompt        = 'ซื้อข่าวขบวนสินค้า',
+    price         = { currency = 0, amount = 250 },     -- currency 0 = cash
+    spawnDistance = 35.0, -- proximity spawn/despawn radius (same pattern as nx_shop)
 }
 
 -- ── Ambush points (LOCKED coords, direction still TUNE IN-GAME) ──────────────

@@ -130,35 +130,53 @@ CreateThread(function()
 end)
 
 -- ── intel broker NPC ────────────────────────────────────────────────────────
+-- Proximity spawn/despawn (same pattern as nx_shop's spawnNpc/removeNpc): the
+-- ped only exists in the world while a player is within Config.IntelNPC.spawnDistance,
+-- instead of being created once and living forever. Interaction still uses this
+-- project's own lp_textui hold-E, not nx_shop's UiPrompt.
 local brokerPed = 0
+local brokerModelLoaded = false
 
-CreateThread(function()
-    repeat Wait(1000) until LocalPlayer.state.IsInSession
+local function spawnBroker()
+    if brokerPed ~= 0 then return end
     local m = Config.IntelNPC.model
-    if not loadModel(m) then
-        print('^1[lp_railrobber] intel broker model failed to load — check Config.IntelNPC.model^7')
-        return
+    if not brokerModelLoaded then
+        if not loadModel(m) then
+            print('^1[lp_railrobber] intel broker model failed to load — check Config.IntelNPC.model^7')
+            return
+        end
+        brokerModelLoaded = true
     end
     local c = Config.IntelNPC.coords
-    -- local (non-networked) interaction ped, same pattern as lp_fasttravel's seller
     brokerPed = CreatePed(m, c.x, c.y, c.z - 1.0, Config.IntelNPC.heading, false, false, false, false)
-    Wait(0)
+    local t = GetGameTimer() + 3000
+    while not DoesEntityExist(brokerPed) and GetGameTimer() < t do Wait(50) end
+    if not DoesEntityExist(brokerPed) then brokerPed = 0; return end
+    Citizen.InvokeNative(0x283978A15512B2FE, brokerPed, true) -- SetRandomOutfitVariation (else invisible — same bug as the guards had)
+    PlaceEntityOnGroundProperly(brokerPed)
     SetEntityInvincible(brokerPed, true)
     FreezeEntityPosition(brokerPed, true)
     SetBlockingOfNonTemporaryEvents(brokerPed, true)
-    SetEntityAsMissionEntity(brokerPed, true, true) -- don't let the engine cull it
-    SetModelAsNoLongerNeeded(m)
     dbg(('intel broker spawned at %.1f,%.1f,%.1f'):format(c.x, c.y, c.z))
-end)
+end
 
--- prompt poll near the broker
+local function removeBroker()
+    if brokerPed ~= 0 then
+        if DoesEntityExist(brokerPed) then DeleteEntity(brokerPed) end
+        brokerPed = 0
+    end
+end
+
+-- proximity poll: spawn/despawn the broker + show the hold-E prompt when close
 local showingPrompt = false
 CreateThread(function()
     repeat Wait(1000) until LocalPlayer.state.IsInSession
     while true do
-        local wait = 800
-        if brokerPed ~= 0 and DoesEntityExist(brokerPed) then
-            local d = #(GetEntityCoords(PlayerPedId()) - Config.IntelNPC.coords)
+        local wait = 1000
+        local d = #(GetEntityCoords(PlayerPedId()) - Config.IntelNPC.coords)
+
+        if d <= Config.IntelNPC.spawnDistance then
+            spawnBroker()
             if d <= Config.InteractRange then
                 wait = 0
                 if not showingPrompt then
@@ -169,6 +187,12 @@ CreateThread(function()
                     end, Config.KEY_E)
                 end
             elseif showingPrompt then
+                showingPrompt = false
+                exports.lp_textui:CancelHold()
+            end
+        else
+            removeBroker()
+            if showingPrompt then
                 showingPrompt = false
                 exports.lp_textui:CancelHold()
             end
@@ -591,6 +615,6 @@ AddEventHandler('onResourceStop', function(res)
     teardown()
     cleanTestGuards()
     if testTrain ~= 0 and DoesEntityExist(testTrain) then DeleteEntity(testTrain) end
-    if brokerPed ~= 0 and DoesEntityExist(brokerPed) then DeleteEntity(brokerPed) end
+    removeBroker()
     if showingPrompt then exports.lp_textui:CancelHold() end
 end)
