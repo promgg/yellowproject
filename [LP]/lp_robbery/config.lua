@@ -8,8 +8,9 @@ Config = {}
 Config.Debug = true -- gate for dbg() prints (server) — set false in production
 
 -- ────────────────────────────────────────────────────────────────────────────
---  Item — single item used for BOTH store safes and bank vaults.
---  Consumed on the *request* step regardless of skill-check pass/fail.
+--  Item — bank vault only. Stores no longer need a bomb (lockpick-only, see
+--  Config.Lockpick below) — consumed on the bank *request* step regardless of
+--  the later skill-check result.
 -- ────────────────────────────────────────────────────────────────────────────
 Config.Item = 'small_bomb' -- ระเบิดลูกเล็ก
 
@@ -25,10 +26,9 @@ Config.Police = {
 -- ────────────────────────────────────────────────────────────────────────────
 --  Timers
 -- ────────────────────────────────────────────────────────────────────────────
-Config.RobberyDuration     = 2  -- minutes — store safe unlock wait after planting
 Config.BankRobberyDuration = 2  -- minutes — bank vault cooling wait after the blast
 Config.BankFuseTime        = 15 -- seconds — fuse between planting and the bank explosion
-Config.PendingTTL          = 30 -- seconds — server-side pending-request expiry (anti-replay)
+Config.PendingTTL          = 30 -- seconds — server-side pending-request expiry (anti-replay, bank only now)
 
 -- นาที — หลังปล้น+เก็บของจุดหนึ่งแล้ว จุดนั้นจะกลับมางัดได้อีกครั้งเองเมื่อผ่านไปกี่นาที
 -- (auto-reset ใน memory; restart resource ก็ล้างหมดเช่นกัน) ตอนติด cooldown จะโชว์เวลานับถอยหลังที่จุด
@@ -43,33 +43,69 @@ Config.DisplayRange = 5.0 -- meters — countdown/status text only shows within 
 Config.KEY_E   = 0x17BEC168 -- E (hold-to-interact)
 Config.HoldMs  = 900        -- ms to hold E before the action starts
 
+-- ────────────────────────────────────────────────────────────────────────────
+--  เครื่องคิดเงินจริงในร้าน — โมเดลนี้หาได้จาก prop-placer dev tool ในเกม (ยืนที่
+--  ร้านจริงแล้วเล็ง object ที่เคาน์เตอร์). client ใช้หา entity จริงที่อยู่ใกล้ ๆ จุด
+--  Config.Stores[..].coords ตอนจะ interact เพื่อให้ตัวละครหันหน้าเข้า "เครื่องคิดเงินจริง"
+--  พอดี แทนที่จะหันตามพิกัดที่เล็งไว้คร่าว ๆ (กันเคสพิกัด store.coords คลาดเคลื่อนจาก
+--  ตัว object จริงในโลกไม่กี่เมตร) — ถ้าหาไม่เจอ (โมเดลผิด/ไม่มีในร้านนั้น) fallback
+--  กลับไปใช้ store.coords แบบเดิม
+-- ────────────────────────────────────────────────────────────────────────────
+Config.RegisterModel        = 'p_register03x'
+Config.RegisterSearchRadius = 2.5 -- เมตร — รัศมีหา object รอบจุด store.coords
+
 -- Progress bar durations (ms)
-Config.PlantDuration = { store = 5000, bank = 7000 }
+Config.PlantDuration = 7000            -- bank only now — stores skip the bomb-plant phase entirely
 Config.LootDuration  = { store = 5000, bank = 7000 }
 
 -- ────────────────────────────────────────────────────────────────────────────
 --  Hand props (attached during the lp_progbar phases)
 --  lp_progbar owns spawn/attach/cleanup (สร้าง + AttachEntityToEntity + ลบให้เอง
 --  ครบทุกทาง: จบ/ยกเลิก/ตาย/resource stop). ที่นี่เก็บแค่ data.
---  bone = ชื่อ bone (client จะแปลงเป็น index ด้วย GetEntityBoneIndexByName ตอนเรียก)
---  coords/rotation = offset ในมือ — ค่าเริ่มต้นด้านล่างเป็นค่าตั้งต้น อาจต้องขยับ
---  ในเกมเล็กน้อยให้เข้ามือพอดี (ปรับตัวเลขตรงนี้ได้เลย ไม่ต้องแตะโค้ด)
+--  bone = ชื่อ bone (client แปลงเป็น index ด้วย GetEntityBoneIndexByName) — ใช้กับ
+--  prop ส่วนใหญ่. boneId = เลข bone ID ดิบ (client ใช้ GetPedBoneIndex แทน) — ใช้เมื่อ
+--  ตัวอ้างอิงต้นทางระบุมาเป็นเลข ID ไม่ใช่ชื่อ (ใส่ได้แค่อย่างใดอย่างหนึ่ง)
+--  coords/rotation = offset ในมือ — ค่าด้านล่างอ้างอิงจากสคริปต์ VORP/RSG จริงที่ใช้
+--  prop + anim ตัวเดียวกันกับเรา (ดู comment แต่ละอัน) ไม่ใช่ placeholder แล้ว แต่ยัง
+--  ควรเช็คในเกมอีกที เพราะโมเดล prop เราอาจต่างจากต้นฉบับเล็กน้อย
 -- ────────────────────────────────────────────────────────────────────────────
 Config.Props = {
-    -- วางระเบิด (ร้าน + ธนาคาร) — มัดไดนาไมต์ในมือขวา
+    -- วางระเบิด (ธนาคารเท่านั้นแล้ว — ร้านไม่ใช้ระเบิดอีกต่อไป) — ระหว่างท่า
+    -- WORLD_HUMAN_CROUCH_INSPECT (นั่งยองก้มมองพื้น). อ้างอิงจาก Mushy_BankRobbery
+    -- (VORP bank-robbery script จริงที่ใช้ p_dynamite01x + anim ตัวนี้เป๊ะ) — boneId
+    -- ดิบ ไม่ใช่ bone name.
     plant = {
         model    = 'p_dynamite01x',
-        bone     = 'SKEL_R_Hand',
-        coords   = { x = 0.0,  y = 0.0,  z = 0.0 },
-        rotation = { x = 0.0,  y = 0.0,  z = 0.0 },
+        boneId   = 54565,
+        coords   = { x = 0.06, y = 0.0,  z = 0.06 },
+        rotation = { x = 90.0, y = 0.0,  z = 0.0 },
     },
-    -- เก็บของ/งัด (ร้าน + ธนาคาร) — เหล็กงัดในมือขวา
+    -- เก็บของ/งัด (ร้าน + ธนาคาร) — ระหว่างท่า script_common@jail_cell@unlock@key/action
+    -- (มือหยิบจับของชิ้นเล็กระหว่างนิ้ว ไม่ใช่กำในฝ่ามือ) อ้างอิงจาก rsg-doorlock
+    -- (RSG-Core) ที่ใช้ anim dict เดียวกันเป๊ะกับที่นี่ — ต่างกันแค่ prop model
+    -- (ต้นฉบับใช้กุญแจ P_KEY02X เราใช้ p_lockpick01x)
     loot = {
         model    = 'p_lockpick01x',
-        bone     = 'SKEL_R_Hand',
-        coords   = { x = 0.0,  y = 0.0,  z = 0.0 },
-        rotation = { x = 0.0,  y = 0.0,  z = 0.0 },
+        bone     = 'SKEL_R_Finger12',
+        coords   = { x = 0.02,  y = 0.0120, z = -0.0085 },
+        rotation = { x = 0.024, y = -160.0, z = 200.0 },
     },
+}
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  Lockpick minigame — gates the ONE-STEP store loot (walk up -> lockpick ->
+--  reward, no bomb/plant/wait at all). Client-side UX gate only; server never
+--  trusts the result — it just decides whether the client bothers to fire
+--  sv:lootStore, same trust model as Spacebar() on the bank plant step below.
+--  Fail = no penalty, no state change, player can hold-E and retry immediately.
+--  Bank stays on the bomb-plant-fuse-explosion flow (small_bomb, no lockpick) —
+--  EnabledForBank/Bank are unused unless that changes later.
+-- ────────────────────────────────────────────────────────────────────────────
+Config.Lockpick = {
+    EnabledForStore = true,
+    EnabledForBank  = false,
+    Store = { pins = 3, difficulty = 3 },
+    Bank  = { pins = 3, difficulty = 3 }, -- unused while EnabledForBank = false
 }
 
 -- ────────────────────────────────────────────────────────────────────────────

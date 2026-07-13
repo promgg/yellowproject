@@ -1,10 +1,11 @@
 -- lp_robbery / server/main.lua
--- Server is the SINGLE authority for every state transition. Client can only *request*
--- (requestStore/requestBank) and *confirm* (confirmStore/confirmBankBlow/loot) — every
--- one of those events re-validates source/item/coords/job/state here. This closes the
--- devchacha-robbery exploit where the item was only checked in a separate `canRob`
--- callback that a cheat client could skip entirely by firing the state-transition event
--- directly (free robbery, no item spent, no distance/police check).
+-- Server is the SINGLE authority for every state transition. Store is a single-step
+-- lockpick loot (lootStore); bank keeps the *request*/*confirm* bomb-plant dance
+-- (requestBank/confirmBankBlow) followed by lootBank. Every one of those events
+-- re-validates source/item/coords/job/state here. This closes the devchacha-robbery
+-- exploit where the item was only checked in a separate `canRob` callback that a cheat
+-- client could skip entirely by firing the state-transition event directly (free
+-- robbery, no item spent, no distance/police check).
 
 local VORPcore = exports.vorp_core:GetCore()
 
@@ -124,11 +125,10 @@ end)
 -- ════════════════════════════════════════════════════════════════════════════
 local cooldowns = {}
 local COOLDOWN_MS = {
-    requestStore = 1000,
-    confirmStore = 500,
+    lootStore    = 800,
     requestBank  = 1000,
     confirmBank  = 500,
-    loot         = 800,
+    lootBank     = 800,
 }
 local function checkCooldown(src, action)
     local t = GetGameTimer()
@@ -141,24 +141,25 @@ end
 
 -- ════════════════════════════════════════════════════════════════════════════
 --  Pending requests (per-src, short-lived, ~30s) — the anti-exploit core.
---  Nothing changes GlobalState (i.e. nothing "starts" a robbery) unless it goes
---  through requestStore/requestBank FIRST (which is the only place the item is
---  checked/consumed), and the matching confirm* re-validates the pending record.
+--  Bank only now (store has no bomb-plant step) — nothing changes GlobalState for
+--  a bank robbery unless it goes through requestBank FIRST (the only place the
+--  bomb item is checked/consumed), and confirmBankBlow re-validates the record.
 -- ════════════════════════════════════════════════════════════════════════════
-local pending = {} -- [src] = { type='store'|'bank', id, subId, coords, plantAt, expires }
+local pending = {} -- [src] = { type='bank', id, subId, coords, plantAt, expires }
 
 -- ════════════════════════════════════════════════════════════════════════════
---  STORE — request → confirm
+--  STORE — single step: client already ran the lockpick minigame; this is the
+--  one authoritative event (no more request→confirm bomb dance, no item, no
+--  unlock-wait). Rolls the reward directly and marks the reloot cooldown.
 -- ════════════════════════════════════════════════════════════════════════════
-RegisterServerEvent('lp_robbery:sv:requestStore')
-AddEventHandler('lp_robbery:sv:requestStore', function(storeId)
+RegisterServerEvent('lp_robbery:sv:lootStore')
+AddEventHandler('lp_robbery:sv:lootStore', function(storeId)
     local src = source
-    if not checkCooldown(src, 'requestStore') then return end
+    if not checkCooldown(src, 'lootStore') then return end
 
     local function fail(reason)
         notify(src, reason, 'error')
-        dbg('BLOCKED requestStore src=%s store=%s reason=%s', src, tostring(storeId), reason)
-        TriggerClientEvent('lp_robbery:cl:storeRequestResult', src, storeId, false)
+        dbg('BLOCKED lootStore src=%s store=%s reason=%s', src, tostring(storeId), reason)
     end
 
     local store = type(storeId) == 'string' and Config.Stores[storeId]
@@ -168,70 +169,44 @@ AddEventHandler('lp_robbery:sv:requestStore', function(storeId)
     if not ped or ped == 0 then return fail('เกิดข้อผิดพลาด') end
     if #(GetEntityCoords(ped) - store.coords) > Config.Range then return fail('คุณอยู่ไกลเกินไป') end
 
-    local st, rem = statusOf('store_' .. storeId)
+    local key = 'store_' .. storeId
+    local st, rem = statusOf(key)
     if st == 'cooling' then return fail(('สถานที่นี้เพิ่งถูกปล้น งัดได้อีกใน %d นาที'):format(math.ceil(rem / 60))) end
     if st ~= 'fresh' then return fail('กำลังมีการปล้นที่นี่อยู่') end
 
-    if not getChar(src) then return fail('เกิดข้อผิดพลาด') end
+    local char = getChar(src)
+    if not char then return fail('เกิดข้อผิดพลาด') end
 
     if getPoliceCount() < Config.Police.RequiredForStore then
         return fail('ตำรวจในพื้นที่ไม่พอ')
     end
 
-    local itemCount = exports.vorp_inventory:getItemCount(src, nil, Config.Item)
-    if not itemCount or itemCount < 1 then
-        return fail('คุณต้องมีระเบิดลูกเล็ก')
+    -- ATOMIC: mark looted BEFORE giving rewards (race prevention — two players
+    -- hitting this at the same instant must not both get paid).
+    setState(key, { state = 'looted', relootAt = os.time() + (Config.RelootCooldown * 60) })
+
+    local cash = math.random(Config.Rewards.Store.minCash, Config.Rewards.Store.maxCash)
+    char.addCurrency(0, cash)
+
+    local given = {}
+    for _, item in ipairs(Config.Rewards.Store.items or {}) do
+        if math.random(1, 100) <= item.chance then
+            local amount = type(item.amount) == 'table' and math.random(item.amount[1], item.amount[2]) or item.amount
+            if exports.vorp_inventory:canCarryItem(src, item.name, amount) then
+                exports.vorp_inventory:addItem(src, item.name, amount)
+                given[#given + 1] = amount .. 'x ' .. item.name
+            else
+                notify(src, ('กระเป๋าเต็ม ไม่สามารถรับ %s ได้'):format(item.name), 'error')
+            end
+        end
     end
 
-    -- Consumed here regardless of the later skill-check result (by design)
-    exports.vorp_inventory:subItem(src, Config.Item, 1)
+    local summary = #given > 0 and table.concat(given, ', ') or nil
+    notify(src, summary and ('งัดตู้เซฟสำเร็จ! ได้เงิน $%d และ %s'):format(cash, summary)
+        or ('งัดตู้เซฟสำเร็จ! ได้เงิน $%d'):format(cash), 'success')
 
-    pending[src] = {
-        type = 'store', id = storeId, coords = store.coords,
-        expires = os.time() + Config.PendingTTL,
-    }
-
-    logTx(src, 'store-request', ('store=%s'):format(storeId))
-    TriggerClientEvent('lp_robbery:cl:storeRequestResult', src, storeId, true)
-end)
-
-RegisterServerEvent('lp_robbery:sv:confirmStore')
-AddEventHandler('lp_robbery:sv:confirmStore', function(storeId)
-    local src = source
-    if not checkCooldown(src, 'confirmStore') then return end
-
-    -- One-shot: consumed whether this validates or not, blocking any replay
-    local p = pending[src]
-    pending[src] = nil
-
-    local store = type(storeId) == 'string' and Config.Stores[storeId]
-    if not store then return end
-
-    if not p or p.type ~= 'store' or p.id ~= storeId or os.time() > p.expires then
-        notify(src, 'คำขอหมดอายุ กรุณาลองใหม่', 'error')
-        logSus(src, 'confirmStore', ('invalid_pending store=%s'):format(tostring(storeId))) -- ยิง confirm โดยข้าม request
-        return
-    end
-
-    local ped = GetPlayerPed(src)
-    if not ped or ped == 0 then return end
-    if #(GetEntityCoords(ped) - store.coords) > Config.Range then
-        notify(src, 'คุณอยู่ไกลเกินไป', 'error')
-        dbg('BLOCKED confirmStore src=%s store=%s reason=out_of_range', src, tostring(storeId))
-        return
-    end
-
-    local key = 'store_' .. storeId
-    if statusOf(key) ~= 'fresh' then
-        notify(src, 'สถานที่นี้ถูกดำเนินการไปแล้ว', 'error')
-        return
-    end
-
-    setState(key, { state = 'unlocking', unlockTime = os.time() + (Config.RobberyDuration * 60) })
-
-    notify(src, ('วางระเบิดสำเร็จ ตู้เซฟจะเปิดใน %d นาที'):format(Config.RobberyDuration), 'success')
-    logTx(src, 'store-confirm', ('store=%s unlock_in=%dm'):format(storeId, Config.RobberyDuration))
-    policeAlert(store.label, store.coords)
+    logTx(src, 'store-loot', ('store=%s cash=%d items=%s'):format(storeId, cash, summary or 'none'))
+    policeAlert(store.label, store.coords) -- แจ้งตำรวจตอนงัดสำเร็จ (แทนตอนวางระเบิดเดิม เพราะไม่มีขั้นวางระเบิดแล้ว)
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -326,33 +301,24 @@ AddEventHandler('lp_robbery:sv:confirmBankBlow', function(bankId, vaultId)
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
---  LOOT — both types, requires state == open ('unlocking' + unlockTime passed)
+--  LOOT — bank vault only now (store loot merged into sv:lootStore above).
+--  Requires state == open ('unlocking' + unlockTime passed).
 -- ════════════════════════════════════════════════════════════════════════════
-RegisterServerEvent('lp_robbery:sv:loot')
-AddEventHandler('lp_robbery:sv:loot', function(kind, id, subId)
+RegisterServerEvent('lp_robbery:sv:lootBank')
+AddEventHandler('lp_robbery:sv:lootBank', function(bankId, vaultId)
     local src = source
-    if not checkCooldown(src, 'loot') then return end
+    if not checkCooldown(src, 'lootBank') then return end
 
     local function fail(reason)
         notify(src, reason, 'error')
-        dbg('BLOCKED loot src=%s kind=%s id=%s sub=%s reason=%s', src, tostring(kind), tostring(id), tostring(subId), reason)
+        dbg('BLOCKED lootBank src=%s bank=%s sub=%s reason=%s', src, tostring(bankId), tostring(vaultId), reason)
     end
 
-    local coords, key, rewardsCfg
-    if kind == 'bank' then
-        subId = tonumber(subId)
-        local bank = type(id) == 'string' and Config.Banks[id]
-        local vault = bank and bank.vaults and bank.vaults[subId]
-        if not vault then return fail('ไม่พบสถานที่นี้') end
-        coords, key, rewardsCfg = vault.coords, id .. '_' .. subId, Config.Rewards.BankVault
-    elseif kind == 'store' then
-        local store = type(id) == 'string' and Config.Stores[id]
-        if not store then return fail('ไม่พบสถานที่นี้') end
-        coords, key, rewardsCfg = store.coords, 'store_' .. id, Config.Rewards.Store
-    else
-        logSus(src, 'loot', ('bad_kind kind=%s'):format(tostring(kind))) -- client ปกติส่งแค่ store/bank
-        return fail('ประเภทไม่ถูกต้อง')
-    end
+    vaultId = tonumber(vaultId)
+    local bank = type(bankId) == 'string' and Config.Banks[bankId]
+    local vault = bank and bank.vaults and bank.vaults[vaultId]
+    if not vault then return fail('ไม่พบสถานที่นี้') end
+    local coords, key, rewardsCfg = vault.coords, bankId .. '_' .. vaultId, Config.Rewards.BankVault
 
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 then return fail('เกิดข้อผิดพลาด') end
@@ -370,7 +336,7 @@ AddEventHandler('lp_robbery:sv:loot', function(kind, id, subId)
 
     local char = getChar(src)
     if not char then
-        logTx(src, 'payout-lost', ('kind=%s key=%s reason=char_gone_after_mark'):format(kind, key))
+        logTx(src, 'payout-lost', ('key=%s reason=char_gone_after_mark'):format(key))
         return
     end
 
@@ -404,7 +370,7 @@ AddEventHandler('lp_robbery:sv:loot', function(kind, id, subId)
         notify(src, ('ได้รับเงิน $%d'):format(cash), 'success')
     end
 
-    logTx(src, 'payout', ('kind=%s key=%s cash=%d items=%s'):format(kind, key, cash, summary or 'none'))
+    logTx(src, 'payout', ('key=%s cash=%d items=%s'):format(key, cash, summary or 'none'))
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
