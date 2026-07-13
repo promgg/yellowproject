@@ -4,8 +4,9 @@ Config.Debug = false
 Config.ResourceName = 'nx_hud'
 
 Config.UpdateIntervals = {
-    MainHud = 500,
-    HorseHud = 500,
+    MainHud = 350,
+    HorseHud = 300,
+    RadarMap = 75,
     StartupDelay = 1000,
     ForceRefresh = 5000,
 }
@@ -28,8 +29,8 @@ Config.NativeHud = {
 
 Config.Integration = {
     WaitForSelectedCharacter = true,
-    StartupReadyDelay = 20000,
-    SelectedCharacterDelay = 20000,
+    StartupReadyDelay = 3000,
+    SelectedCharacterDelay = 1000,
     FollowVorpShowUi = false,
 
     MJStatus = {
@@ -71,28 +72,80 @@ Config.Commands = {
         Name = 'togglehud',
         Notify = true,
     },
+    RadarMap = {
+        Enabled = true,
+        Name = 'radarmap',
+        Notify = true,
+    },
     Test = {
         Enabled = true,
         Name = 'nx_hud_test',
     },
 }
 
+-- Layout is based on Hud.zip's 1920x1080 Figma reference. The whole group
+-- scales from the bottom-left anchor, so it also remains aligned at 16:10/21:9.
 Config.Layout = {
-    Scale = 0.7,
+    Scale = 1.0,
     Main = {
         Anchor = 'bottom-left',
-        -- RedM keeps the native minimap fixed, so keep this HUD clear of it.
-        Left = 300,
+        Left = 18,
         Bottom = 28,
         Top = 24,
-        Width = 728,
-        Height = 118,
+        Width = 410,
+        Height = 300,
     },
     Horse = {
-        Left = 642,
-        Top = 45,
-        Width = 86,
-        Height = 65,
+        Left = 345,
+        Bottom = 4,
+        Width = 64,
+        Height = 56,
+    },
+}
+
+Config.RadarMap = {
+    Enabled = true,
+
+    -- always = show whenever the HUD is visible
+    -- horse  = show only while mounted
+    -- off    = never show
+    Mode = 'horse',
+    SavePlayerPreference = true,
+    PreferenceKey = 'nx_hud:radarMode',
+
+    HideNativeRadar = true,
+    RestoreNativeRadarOnStop = true,
+    RestoreNativeRadarType = 2,
+
+    Layout = {
+        Left = 0,
+        Bottom = 67,
+        Size = 210,
+        Opacity = 0.98,
+    },
+
+    Map = {
+        Zoom = 6,
+        Theme = 'detailed', -- original | detailed | dark | black
+        TileSize = 256,
+        CoordinateScale = 0.01552,
+        LongitudeOffset = 111.29,
+        LatitudeOffset = -63.60,
+        TileUrls = {
+            original = 'https://s.rsg.sc/sc/images/games/RDR2/map/game/{z}/{x}/{y}.jpg',
+            detailed = 'https://map-tiles.b-cdn.net/assets/rdr3/webp/detailed/{z}/{x}_{y}.webp',
+            dark = 'https://map-tiles.b-cdn.net/assets/rdr3/webp/darkmode/{z}/{x}_{y}.webp',
+            black = 'https://map-tiles.b-cdn.net/assets/rdr3/webp/black/{z}/{x}_{y}.webp',
+        },
+    },
+
+    Style = {
+        Frame = '#0a0907',
+        FrameAccent = '#d1a76b',
+        Player = '#f5d797',
+        PlayerOutline = '#090806',
+        Tint = '#c99c54',
+        TintOpacity = 0.06,
     },
 }
 
@@ -109,24 +162,9 @@ Config.SecondaryBar = {
 }
 
 Config.StatusIcons = {
-    {
-        key = 'food',
-        icon = 'food',
-        default = 100,
-        enabled = true,
-    },
-    {
-        key = 'water',
-        icon = 'water',
-        default = 100,
-        enabled = true,
-    },
-    {
-        key = 'core',
-        icon = 'core',
-        default = 100,
-        enabled = true,
-    },
+    { key = 'food', icon = 'food', default = 100, enabled = true },
+    { key = 'water', icon = 'water', default = 100, enabled = true },
+    { key = 'core', icon = 'brain', default = 100, enabled = true },
 }
 
 Config.StatusAliases = {
@@ -146,8 +184,8 @@ Config.Horse = {
     ThirdStatEnabled = true,
 }
 
--- Optional adapters. Other resources can leave these nil and update values through
--- nx_hud:client:updateStatus or nx_hud:client:setVoiceMode instead.
+-- Optional adapters. Other resources may instead use
+-- nx_hud:client:updateStatus / nx_hud:client:setVoiceMode.
 Config.Providers = {
     PlayerStamina = nil,
     HorseStamina = nil,

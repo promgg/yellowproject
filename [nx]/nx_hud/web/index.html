@@ -7,7 +7,35 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main id="nxHudRoot" class="nx-hud-root is-visible" aria-hidden="true">
+    <main id="nxHudRoot" class="nx-hud-root" aria-hidden="true">
+        <section id="nxRadarMap" class="nx-radar-map is-hidden" aria-hidden="true">
+            <div id="nxMapViewport" class="nx-radar-viewport">
+                <div id="nxMapTiles" class="nx-radar-tiles"></div>
+                <div class="nx-radar-tint"></div>
+                <div class="nx-radar-vignette"></div>
+                <div id="nxMapPlayer" class="nx-radar-player">
+                    <svg viewBox="0 0 32 40" aria-hidden="true">
+                        <path d="M16 2 L28 34 L16 29 L4 34 Z"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="nx-radar-frame"></div>
+            <i class="nx-radar-tick tick-n"></i>
+            <i class="nx-radar-tick tick-ne"></i>
+            <i class="nx-radar-tick tick-e"></i>
+            <i class="nx-radar-tick tick-se"></i>
+            <i class="nx-radar-tick tick-s"></i>
+            <i class="nx-radar-tick tick-sw"></i>
+            <i class="nx-radar-tick tick-w"></i>
+            <i class="nx-radar-tick tick-nw"></i>
+            <span class="nx-cardinal cardinal-n">N</span>
+            <span class="nx-cardinal cardinal-e">E</span>
+            <span class="nx-cardinal cardinal-s">S</span>
+            <span class="nx-cardinal cardinal-w">W</span>
+            <div id="nxRadarDebug" class="nx-radar-debug"></div>
+        </section>
+
         <section id="nxMainHud" class="nx-main-hud">
             <div class="nx-player-strip">
                 <div class="nx-panel-box nx-id-box">
@@ -28,7 +56,6 @@
                 <div id="nxHeartBox" class="nx-panel-box nx-heart-box">
                     <span class="nx-svg-icon" data-icon="heart"></span>
                 </div>
-
                 <div class="nx-health-frame">
                     <div id="nxHealthFill" class="nx-health-fill"></div>
                 </div>
@@ -42,32 +69,17 @@
 
             <aside id="nxHorsePanel" class="nx-horse-panel" aria-hidden="true">
                 <div class="nx-horse-divider"></div>
-
                 <div class="nx-horse-row" data-horse-key="health">
-                    <div class="nx-horse-icon">
-                        <span class="nx-svg-icon" data-icon="heartPulse"></span>
-                    </div>
-                    <div class="nx-horse-meter">
-                        <div id="nxHorseHealthFill" class="nx-horse-fill"></div>
-                    </div>
+                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="heartPulse"></span></div>
+                    <div class="nx-horse-meter"><div id="nxHorseHealthFill" class="nx-horse-fill"></div></div>
                 </div>
-
                 <div class="nx-horse-row" data-horse-key="stamina">
-                    <div class="nx-horse-icon">
-                        <span class="nx-svg-icon" data-icon="bolt"></span>
-                    </div>
-                    <div class="nx-horse-meter">
-                        <div id="nxHorseStaminaFill" class="nx-horse-fill"></div>
-                    </div>
+                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="bolt"></span></div>
+                    <div class="nx-horse-meter"><div id="nxHorseStaminaFill" class="nx-horse-fill"></div></div>
                 </div>
-
                 <div class="nx-horse-row" data-horse-key="condition">
-                    <div class="nx-horse-icon">
-                        <span class="nx-svg-icon" data-icon="saddle"></span>
-                    </div>
-                    <div class="nx-horse-meter">
-                        <div id="nxHorseConditionFill" class="nx-horse-fill"></div>
-                    </div>
+                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="saddle"></span></div>
+                    <div class="nx-horse-meter"><div id="nxHorseConditionFill" class="nx-horse-fill"></div></div>
                 </div>
             </aside>
         </section>

@@ -1,6 +1,7 @@
 local RESOURCE_NAME = GetCurrentResourceName()
 local EVENT_PREFIX = Config.ResourceName or 'nx_hud'
 local INTEGRATION = Config.Integration or {}
+local RADAR_CONFIG = Config.RadarMap or {}
 
 local hudExplicitVisible = Config.Visibility.MainHud ~= false
 local horseExplicitVisible = Config.Visibility.HorseHud ~= false
@@ -17,6 +18,16 @@ local lastHorseRefreshAt = 0
 local lastStatusPollAt = 0
 local horseWasMounted = false
 local debugPreviewUntil = 0
+local radarMode = tostring(RADAR_CONFIG.Mode or 'horse'):lower()
+local lastRadarVisible = nil
+local previousRadarType = nil
+local radarInitialized = false
+
+local VALID_RADAR_MODES = {
+    always = true,
+    horse = true,
+    off = true,
+}
 
 local unpackArgs = table.unpack
 
@@ -36,6 +47,35 @@ local function clamp(value, minValue, maxValue)
     end
 
     return value
+end
+
+local function nativeBool(value)
+    return value == true or value == 1
+end
+
+local function getNativeRadarType()
+    if type(GetMinimapType) ~= 'function' then
+        return -1
+    end
+
+    local ok, radarType = pcall(GetMinimapType)
+    if not ok then return -1 end
+    return tonumber(radarType) or -1
+end
+
+local function setNativeRadarType(radarType)
+    radarType = tonumber(radarType)
+    if not radarType or type(SetMinimapType) ~= 'function' then
+        return false
+    end
+
+    local ok, err = pcall(SetMinimapType, math.floor(clamp(radarType, 0, 3)))
+    if not ok then
+        print(('[%s] SetMinimapType failed: %s'):format(RESOURCE_NAME, tostring(err)))
+        return false
+    end
+
+    return true
 end
 
 local function round(value)
@@ -217,7 +257,8 @@ local function entityExists(entity)
         return true
     end
 
-    return DoesEntityExist(entity)
+    local ok, exists = pcall(DoesEntityExist, entity)
+    return ok and nativeBool(exists)
 end
 
 local function isPauseMenuVisible()
@@ -225,7 +266,8 @@ local function isPauseMenuVisible()
         return false
     end
 
-    return IsPauseMenuActive()
+    local ok, active = pcall(IsPauseMenuActive)
+    return ok and nativeBool(active)
 end
 
 local function isDebugPreviewActive()
@@ -445,8 +487,11 @@ local function getMountEntity(ped)
         return nil
     end
 
-    if type(IsPedOnMount) == 'function' and not IsPedOnMount(ped) then
-        return nil
+    if type(IsPedOnMount) == 'function' then
+        local ok, mounted = pcall(IsPedOnMount, ped)
+        if not ok or not nativeBool(mounted) then
+            return nil
+        end
     end
 
     if type(GetMount) ~= 'function' then
@@ -533,6 +578,16 @@ local function sendConfig()
             enabled = Config.SecondaryBar.Enabled == true,
         },
         statusIcons = statusIcons,
+        radarMap = {
+            enabled = RADAR_CONFIG.Enabled == true,
+            mode = radarMode,
+            debug = Config.Debug == true,
+            theme = (RADAR_CONFIG.Map or {}).Theme,
+            zoom = (RADAR_CONFIG.Map or {}).Zoom,
+            layout = RADAR_CONFIG.Layout or {},
+            map = RADAR_CONFIG.Map or {},
+            style = RADAR_CONFIG.Style or {},
+        },
     })
 end
 
@@ -643,6 +698,99 @@ local function sendHorseReset()
     lastHorseMessage = nil
 end
 
+local function normalizeRadarMode(mode)
+    mode = tostring(mode or ''):lower()
+
+    if mode == 'on' then mode = 'always' end
+    if mode == 'mounted' or mode == 'mount' then mode = 'horse' end
+    if mode == 'none' or mode == 'false' or mode == '0' then mode = 'off' end
+
+    if VALID_RADAR_MODES[mode] then
+        return mode
+    end
+
+    return nil
+end
+
+local function loadRadarPreference()
+    radarMode = normalizeRadarMode(radarMode) or 'horse'
+
+    if RADAR_CONFIG.SavePlayerPreference ~= true or type(GetResourceKvpString) ~= 'function' then
+        return
+    end
+
+    local ok, saved = pcall(GetResourceKvpString, RADAR_CONFIG.PreferenceKey or 'nx_hud:radarMode')
+    local normalized = ok and normalizeRadarMode(saved) or nil
+    if normalized then radarMode = normalized end
+end
+
+local function saveRadarPreference()
+    if RADAR_CONFIG.SavePlayerPreference ~= true or type(SetResourceKvp) ~= 'function' then
+        return
+    end
+
+    pcall(SetResourceKvp, RADAR_CONFIG.PreferenceKey or 'nx_hud:radarMode', radarMode)
+end
+
+local function shouldShowRadar(mounted)
+    if RADAR_CONFIG.Enabled ~= true then return false end
+    if not hudExplicitVisible or not playerReady or not vorpUiVisible or isPauseMenuVisible() then return false end
+    if radarMode == 'off' then return false end
+    if radarMode == 'horse' then return mounted == true end
+    return radarMode == 'always'
+end
+
+local function sendRadarVisibility(mounted, force)
+    local visible = shouldShowRadar(mounted == true)
+
+    if force or visible ~= lastRadarVisible then
+        SendNUIMessage({
+            action = 'radar:setVisible',
+            visible = visible,
+            mode = radarMode,
+        })
+        lastRadarVisible = visible
+    end
+
+    return visible
+end
+
+local function applyNativeRadarVisibility()
+    if RADAR_CONFIG.Enabled == true and RADAR_CONFIG.HideNativeRadar == true then
+        setNativeRadarType(0)
+    end
+end
+
+local function setRadarMode(mode, notify)
+    local normalized = normalizeRadarMode(mode)
+    if not normalized then return false end
+
+    radarMode = normalized
+    saveRadarPreference()
+    SendNUIMessage({ action = 'radar:setMode', mode = radarMode })
+
+    local mounted = getMountEntity(PlayerPedId()) ~= nil
+    sendRadarVisibility(mounted, true)
+
+    if notify == true then
+        TriggerEvent('vorp:TipBottom', ('Radar map: %s'):format(string.upper(radarMode)), 3000)
+    end
+
+    return true
+end
+
+local function sendRadarUpdate(ped)
+    if not entityExists(ped) then return end
+
+    local coords = GetEntityCoords(ped)
+    SendNUIMessage({
+        action = 'radar:update',
+        x = coords.x,
+        y = coords.y,
+        heading = GetEntityHeading(ped),
+    })
+end
+
 local function notifyHudState()
     local toggleConfig = Config.Commands and Config.Commands.Toggle or {}
 
@@ -663,6 +811,8 @@ local function setHudEnabled(visible, notify)
     else
         sendHudUpdate(true)
     end
+
+    sendRadarVisibility(getMountEntity(PlayerPedId()) ~= nil, true)
 
     if notify == true then
         notifyHudState()
@@ -686,6 +836,8 @@ local function setPlayerReady(ready, force)
         sendHorseVisibility(false, true)
         sendHorseReset()
     end
+
+    sendRadarVisibility(getMountEntity(PlayerPedId()) ~= nil, true)
 end
 
 local function setVorpUiVisible(visible)
@@ -697,6 +849,8 @@ local function setVorpUiVisible(visible)
     else
         sendHudUpdate(true)
     end
+
+    sendRadarVisibility(getMountEntity(PlayerPedId()) ~= nil, true)
 end
 
 local function applyNativeHudVisibility()
@@ -770,6 +924,9 @@ local function sendMockHud()
             condition = 76,
         },
     })
+
+    SendNUIMessage({ action = 'radar:setVisible', visible = true, mode = radarMode })
+    SendNUIMessage({ action = 'radar:update', x = -282.5, y = 806.5, heading = 72.0 })
 end
 
 RegisterNetEvent(EVENT_PREFIX .. ':client:setVisible', function(visible)
@@ -787,6 +944,10 @@ end)
 RegisterNetEvent(EVENT_PREFIX .. ':client:setHorseVisible', function(visible)
     horseExplicitVisible = visible == true
     sendHorseVisibility(horseExplicitVisible, true)
+end)
+
+RegisterNetEvent(EVENT_PREFIX .. ':client:setRadarMode', function(mode)
+    setRadarMode(mode, false)
 end)
 
 RegisterNetEvent(EVENT_PREFIX .. ':client:setVoiceMode', function(mode)
@@ -836,11 +997,41 @@ RegisterNetEvent(EVENT_PREFIX .. ':client:updateStatus', function(values)
     sendHudUpdate(true)
 end)
 
+RegisterNUICallback('ready', function(_, cb)
+    local ped = PlayerPedId()
+    local horse = getMountEntity(ped)
+
+    sendConfig()
+    sendHudVisibility(true)
+    sendHudUpdate(true)
+    sendHorseVisibility(horse ~= nil, true)
+    if horse then sendHorseUpdate(horse, true) end
+    sendRadarVisibility(horse ~= nil, true)
+    if shouldShowRadar(horse ~= nil) then sendRadarUpdate(ped) end
+
+    cb({ ok = true, radarMode = radarMode })
+end)
+
 local toggleCommand = Config.Commands and Config.Commands.Toggle or {}
 
 if toggleCommand.Enabled == true then
     RegisterCommand(toggleCommand.Name or 'togglehud', function()
         setHudEnabled(not hudExplicitVisible, true)
+    end, false)
+end
+
+local radarCommand = Config.Commands and Config.Commands.RadarMap or {}
+
+if radarCommand.Enabled == true then
+    RegisterCommand(radarCommand.Name or 'radarmap', function(_, args)
+        local requested = args and args[1] or nil
+
+        if not setRadarMode(requested, radarCommand.Notify == true) then
+            print(('[%s] usage: /%s <always|horse|off>'):format(
+                RESOURCE_NAME,
+                radarCommand.Name or 'radarmap'
+            ))
+        end
     end, false)
 end
 
@@ -858,6 +1049,14 @@ end)
 
 exports('toggleHud', function()
     setHudEnabled(not hudExplicitVisible, false)
+end)
+
+exports('setRadarMode', function(mode)
+    return setRadarMode(mode, false)
+end)
+
+exports('getRadarMode', function()
+    return radarMode
 end)
 
 local testCommand = Config.Commands and Config.Commands.Test or {}
@@ -878,25 +1077,35 @@ end
 
 CreateThread(function()
     Wait(getConfiguredInterval('StartupDelay', 1000, 0))
+    previousRadarType = getNativeRadarType()
+    if previousRadarType < 0 then
+        previousRadarType = tonumber(RADAR_CONFIG.RestoreNativeRadarType) or 2
+    end
+    radarInitialized = true
+
     applyNativeHudVisibility()
+    applyNativeRadarVisibility()
 
     local interval = tonumber((Config.NativeHud or {}).ReapplyInterval) or 0
 
     while interval > 0 do
         Wait(interval)
         applyNativeHudVisibility()
+        applyNativeRadarVisibility()
     end
 end)
 
 CreateThread(function()
     Wait(getConfiguredInterval('StartupDelay', 1000, 0))
     SetNuiFocus(false, false)
+    loadRadarPreference()
     currentVoiceMode = normalizeVoiceMode(currentVoiceMode)
     refreshMJStatusValues(true)
 
     sendConfig()
     sendHudVisibility(true)
     sendHorseVisibility(false, true)
+    sendRadarVisibility(false, true)
     sendHudUpdate(true)
 
     if INTEGRATION.WaitForSelectedCharacter == true then
@@ -955,6 +1164,23 @@ CreateThread(function()
     end
 end)
 
+CreateThread(function()
+    Wait(getConfiguredInterval('StartupDelay', 1000, 0))
+
+    while true do
+        Wait(getConfiguredInterval('RadarMap', 75, 30))
+
+        if not isDebugPreviewActive() then
+            local ped = PlayerPedId()
+            local mounted = getMountEntity(ped) ~= nil
+
+            if sendRadarVisibility(mounted, false) then
+                sendRadarUpdate(ped)
+            end
+        end
+    end
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= RESOURCE_NAME then
         return
@@ -969,6 +1195,15 @@ AddEventHandler('onResourceStop', function(resourceName)
         action = 'horse:setVisible',
         visible = false,
     })
+
+    SendNUIMessage({
+        action = 'radar:setVisible',
+        visible = false,
+    })
+
+    if radarInitialized and RADAR_CONFIG.RestoreNativeRadarOnStop == true then
+        setNativeRadarType(tonumber(RADAR_CONFIG.RestoreNativeRadarType) or previousRadarType or 2)
+    end
 
     SetNuiFocus(false, false)
 end)

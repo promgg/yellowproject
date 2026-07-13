@@ -5,9 +5,9 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 lua54 'yes'
 
 name 'nx_hud'
-description 'Passive RedM NUI HUD with mounted horse status panel'
+description 'Figma-inspired RedM HUD with horse status and integrated custom radar map'
 author 'MJ Dev / NODEX'
-version '1.0.0'
+version '2.0.0'
 
 shared_scripts {
     'shared/config.lua',
