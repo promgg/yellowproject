@@ -49,7 +49,9 @@ Citizen.CreateThread(function()
         local panels = {}
 
         for i, v in ipairs(PLANT) do
-            if v.Planting and DoesEntityExist(v.Planting) then
+            -- โชว์พาแนลเฉพาะหลังรดน้ำสำเร็จ (Stage='grow'/'ready') — ช่วงใส่ปุ๋ย/รดน้ำใช้แค่ [E] hold hint
+            -- ลอย (client_core.lua) อยู่แล้ว โชว์ Growth 0% ค้างไว้ตอนนั้นดูสับสน
+            if v.Planting and DoesEntityExist(v.Planting) and (v.Stage == 'grow' or v.Stage == 'ready') then
                 local pc   = GetEntityCoords(v.Planting)
                 local dist = #(coords - pc)
                 if dist <= LOD_SHOW then
@@ -74,9 +76,7 @@ Citizen.CreateThread(function()
                             or math.max(0.0, 1.0 - (dist - LOD_FADE) / (LOD_SHOW - LOD_FADE))
 
                         local pct   = (v.PlantMax > 0) and math.floor((v.Hungry / v.PlantMax) * 100) or 0
-                        local state = 'growing'
-                        if v.Give then state = 'harvest'
-                        elseif v.Feed then state = 'water' end
+                        local state = (v.Stage == 'ready') and 'harvest' or 'growing'
 
                         panels[#panels + 1] = {
                             id      = id,

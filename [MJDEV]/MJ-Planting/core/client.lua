@@ -72,38 +72,109 @@ function animacion2()
     })
 end
 
-function animacion()
+-- ── Progress หลัง Ghost placement (ก่อนหักเมล็ด/spawn จริง) — ท่าปลูกเมล็ดลงดิน ──
+-- ยกมาจาก Devchacha Farming ตรงๆ (FinalizePlacement: TaskStartScenarioInPlace WORLD_HUMAN_FARMER_WEEDING, 5000ms)
+-- โปรเจกต์อ้างอิงไม่มีท่า "พลวนดิน" แยกต่างหาก — นี่คือท่าเดียวที่เล่นตอนปลูกเมล็ด
+function animPlant()
     local isMale = IsPedMale(PlayerPedId())
-
-    local phase1 = isMale
-        and { task = 'WORLD_HUMAN_FARMER_RAKE' }
-        or  { animDict = "amb_work@world_human_farmer_rake@male_a@idle_a", anim = "idle_b" }
-    local phase1Prop = (not isMale) and {
-        model    = 'p_rake03x',
-        bone     = 381,
-        coords   = { x = -0.04, y = 0.24, z = -0.94 },
-        rotation = { x = -4.0, y = 16.0, z = 273.0 },
-    } or nil
-
-    local cancelled = runProgress({
-        duration = 4000,
-        label = 'Planting...',
-        controlDisables = { disableMovement = true },
-        animation = phase1,
-        prop = phase1Prop,
-    })
-    if cancelled then return true end
-
-    local phase2 = isMale
+    local anim = isMale
         and { task = 'WORLD_HUMAN_FARMER_WEEDING' }
         or  { animDict = "amb_work@world_human_farmer_weeding@male_a@idle_a", anim = "idle_a" }
+    return runProgress({
+        duration = 5000,
+        label = 'กำลังปลูกเมล็ด...',
+        controlDisables = { disableMovement = true },
+        animation = anim,
+    })
+end
 
+-- ใส่ปุ๋ย (ท่าหว่าน feed-chicken — หัก compost หลังจบ)
+-- ใช้ animDict/anim ตรงๆ แทน task scenario (WORLD_HUMAN_FEED_CHICKEN เป็น scenario ที่ผูกกับ
+-- prop/scenario-point ของเกม เรียกผ่าน TaskStartScenarioInPlace ตรงๆ แล้วไม่เล่นท่าให้เห็นจริงในเกม
+-- — ตรวจพบจากการเทสจริง — animDict "world_human_feed_chickens" เป็นคลิปเดียวกัน เล่นตรงด้วย TaskPlayAnim ได้ชัวร์กว่า)
+-- ท่านี้ไม่ผูก prop มากับ scenario เอง (ต่างจาก WATER ที่ใช้ WORLD_HUMAN_BUCKET_POUR_LOW) เลยไม่มีถุงปุ๋ยติดมือ
+-- ให้เห็น — ใส่ prop ถุงปุ๋ย (p_feedbag01x) ติดมือซ้ายเองผ่าน lp_progbar prop field (ไม่มี compost prop จริง
+-- ในระบบ item จึงยืมโมเดลถุงอาหารสัตว์ทั่วไปของเกมมาใช้แทน)
+function animFertilize()
+    local isMale = IsPedMale(PlayerPedId())
+    local anim = isMale
+        and { animDict = "amb_work@world_human_feed_chickens@male_a@idle_a", anim = "idle_a" }
+        or  { animDict = "amb_work@world_human_feed_chickens@female_a@idle_a", anim = "idle_a" }
     return runProgress({
         duration = 6000,
-        label = 'Planting...',
+        label = 'กำลังใส่ปุ๋ย...',
         controlDisables = { disableMovement = true },
-        animation = phase2,
+        animation = anim,
+        prop = {
+            model = 'p_feedbag01x',
+            bone = GetEntityBoneIndexByName(PlayerPedId(), 'SKEL_L_Hand'),
+        },
     })
+end
+
+-- ── Ghost placement — prop โปร่งใสให้เล็งจุดปลูก คืน { coords, heading } หรือ nil ถ้ายกเลิก ──
+function GhostPlace(model)
+    if not LoadModel(model) then return nil end
+    local ped = PlayerPedId()
+    FreezeEntityPosition(ped, true)
+    local p = GetEntityCoords(ped)
+    local f = GetEntityForwardVector(ped)
+    local gx, gy, gz = p.x + f.x * 1.5, p.y + f.y * 1.5, p.z
+    local heading = GetEntityHeading(ped)
+
+    local ghost = CreateObject(GetHashKey(model), gx, gy, gz, false, false, false)
+    SetEntityAlpha(ghost, 150, false)
+    SetEntityCollision(ghost, false, false)
+    SetEntityInvincible(ghost, true)
+    -- ไม่ freeze: เรา SetEntityCoords + PlaceObjectOnGroundProperly เองทุกเฟรม (freeze อาจบล็อกการวางพื้น)
+
+    local K = MJDEV.Ghost.keys
+    local step, rot = MJDEV.Ghost.moveStep, MJDEV.Ghost.rotateStep
+    local result = nil
+
+    -- prompt ตำแหน่งคงที่บนจอ (lp_textui ธรรมดา ไม่ world-anchor) แทน DrawText3D เดิมที่ลอยตามผีขยับ
+    exports.lp_textui:TextUI('E วางต้น  |  WASD ขยับ  |  Q/Z หมุน  |  X ยกเลิก')
+
+    while true do
+        Citizen.Wait(0)
+
+        local pc = GetEntityCoords(ped)
+        local fwd = GetEntityForwardVector(ped)
+        local rgt = vector3(fwd.y, -fwd.x, 0.0)
+
+        if IsControlPressed(0, K.forward) then gx = gx + fwd.x * step; gy = gy + fwd.y * step end
+        if IsControlPressed(0, K.back)    then gx = gx - fwd.x * step; gy = gy - fwd.y * step end
+        if IsControlPressed(0, K.right)   then gx = gx + rgt.x * step; gy = gy + rgt.y * step end
+        if IsControlPressed(0, K.left)    then gx = gx - rgt.x * step; gy = gy - rgt.y * step end
+        if IsControlPressed(0, K.rotL)    then heading = (heading + rot) % 360.0 end
+        if IsControlPressed(0, K.rotR)    then heading = (heading - rot) % 360.0 end
+
+        -- กันวางไกลเกิน maxDist จากตัวผู้เล่น
+        local dx, dy = gx - pc.x, gy - pc.y
+        local flat = math.sqrt(dx * dx + dy * dy)
+        if flat > MJDEV.Ghost.maxDist then
+            gx = pc.x + dx / flat * MJDEV.Ghost.maxDist
+            gy = pc.y + dy / flat * MJDEV.Ghost.maxDist
+        end
+
+        SetEntityCoords(ghost, gx, gy, gz, false, false, false, false)
+        PlaceObjectOnGroundProperly(ghost)
+        SetEntityHeading(ghost, heading)
+        gz = GetEntityCoords(ghost).z
+
+        if IsControlJustPressed(0, K.confirm) then
+            result = { coords = GetEntityCoords(ghost), heading = heading }
+            break
+        elseif IsControlJustPressed(0, K.cancel) then
+            result = nil
+            break
+        end
+    end
+
+    exports.lp_textui:HideUI()
+    if DoesEntityExist(ghost) then DeleteEntity(ghost); DeleteObject(ghost) end
+    FreezeEntityPosition(ped, false)
+    return result
 end
 
 MJDEV_GetEvent_Planting = function()

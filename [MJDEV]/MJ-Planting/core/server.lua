@@ -6,48 +6,80 @@ end)
 
 local Inventory = exports.vorp_inventory:vorp_inventoryApi()
 
--- ── anti-spam/anti-dupe (server-side) ────────────────────────────────────────
--- MJ-Planting:Giveitem เป็น RegisterServerEvent ที่ client ยิงได้ ถ้าไม่กันจะสแปมยิงตรงเพื่อดูป
--- ของ + ปั๊มอันดับ (lp_leaderboard) โดยไม่ต้องปลูก/เก็บเกี่ยวจริง — server ไม่ได้ track ต้นไม้
--- (จัดการ client) เลย validate ตรงไม่ได้ ใช้ cooldown ต่อคนแทน (harvest จริงใช้ progress 8s → 6s ปลอดภัย)
-local harvestCooldowns = {}
-local function checkHarvestCooldown(src, minMs)
+local function dbg(fmt, ...)
+    if MJDEV.Debug then print(('[MJ-Planting] ' .. fmt):format(...)) end
+end
+
+-- ── server-authoritative plant state ──────────────────────────────────────
+-- เดิม server ไม่ track ต้นไม้เลย (Stage อยู่แค่ client) ทำให้ MJ-Planting:Giveitem ถูกยิงตรงจาก
+-- client ได้ทันที (เห็นแค่ cooldown 6s กันไว้) ฟาร์มไอเทมไม่จำกัดโดยไม่ต้องปลูก/รดน้ำ/เก็บเกี่ยวจริงเลย
+-- ย้าย Stage/เวลาโต/ความเป็นเจ้าของมาไว้ที่นี่ทั้งหมด — client เหลือแค่โชว์ผล (prop/anim/UI) ไม่ใช่
+-- ตัวตัดสินอีกต่อไป ทุก item/reward ต้องผ่าน record นี้ก่อนเสมอ
+local Plants     = {} -- [plantId] = { owner, entry, Stage, coords, heading, createdAt, waterAt }
+local PlantCount = {} -- [zoneId] = จำนวนต้นที่ยังไม่เก็บเกี่ยวในโซนนั้น (server-authoritative แทน client Count)
+local nextPlantId = 0
+
+local function isPlayerNearCoords(src, coords, range)
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return false end
+    return #(GetEntityCoords(ped) - coords) <= range
+end
+
+-- ── anti-spam (server-side) ──────────────────────────────────────────────
+local cooldowns = {}
+local function checkCooldown(src, tag, minMs)
+    cooldowns[src] = cooldowns[src] or {}
     local t = GetGameTimer()
-    if (t - (harvestCooldowns[src] or 0)) < minMs then return false end
-    harvestCooldowns[src] = t
+    if (t - (cooldowns[src][tag] or 0)) < minMs then return false end
+    cooldowns[src][tag] = t
     return true
 end
-AddEventHandler('playerDropped', function() harvestCooldowns[source] = nil end)
+
+AddEventHandler('playerDropped', function()
+    local src = source
+    cooldowns[src] = nil
+    -- เคลียร์ record ต้นของคนที่ออกไปแล้ว กัน PlantCount ค้างเป็นโควตาผี (ตัว object จริงในโลก
+    -- อาจค้าง/ย้าย owner ไปเอนจินคนอื่นตามกลไก networked entity ปกติ — เป็นข้อจำกัดเดิมของระบบ
+    -- ไม่ใช่สโคปของรอบแก้นี้ ซึ่งโฟกัสแค่ trust boundary ของ item/money)
+    for id, p in pairs(Plants) do
+        if p.owner == src then
+            PlantCount[p.entry.zoneId] = math.max(0, (PlantCount[p.entry.zoneId] or 1) - 1)
+            Plants[id] = nil
+        end
+    end
+end)
 
 RegisterServerEvent(script_name .. ":CL:GetEvent_Planting")
 AddEventHandler(script_name .. ":CL:GetEvent_Planting", function(name)
     TriggerClientEvent(script_name .. ":SV:GetEvent_Planting", source)
 end)
 
-
+-- ── pre-check เฉยๆ (ไม่หักของ) ให้ client เช็คก่อนเล่น anim กันเสียเวลาเปล่า ──
 VORPcore.addRpcCallback('MJ-Planting:Getitem:SV', function(source, cb, Getitem)
     local src = source
     if not src or not Getitem then
-        print("^1[ERROR] Invalid source or item name in GetitemSV callback.^0")
         cb(false)
         return
     end
-
-    local count = Inventory.getItemCount(src, Getitem)
-
-    if count and count > 0 then
-        print(("^2[INFO] Player %s has %d of %s.^0"):format(src, count, Getitem))
-        cb(true)
-    else
-        print(("^3[INFO] Player %s does not have %s.^0"):format(src, Getitem))
-        cb(false)
-    end
+    cb((Inventory.getItemCount(src, Getitem) or 0) > 0)
 end)
 
--- เติมน้ำ: หาถัง tool_bucket ใบไหนก็ได้ที่ผู้เล่นถืออยู่ (getItemByName คืนใบแรกที่เจอ ไม่สนใจ metadata เดิม)
--- แล้วตั้ง metadata.uses ใหม่เป็นเต็มถัง (ตั้งค่าจำนวนครั้งได้ที่ MJDEV.WaterRefill.usesPerRefill ใน config.lua)
+VORPcore.addRpcCallback('MJ-Planting:CheckWaterTank:SV', function(source, cb)
+    local src = source
+    exports.vorp_inventory:getItemByName(src, "tool_bucket", function(item)
+        if not item then
+            cb({ hasTank = false, uses = 0 })
+            return
+        end
+        cb({ hasTank = true, uses = (item.metadata and tonumber(item.metadata.uses)) or 0 })
+    end)
+end)
+
+-- เติมน้ำ: หาถัง tool_bucket ใบไหนก็ได้ที่ผู้เล่นถืออยู่ แล้วตั้ง metadata.uses ใหม่เป็นเต็มถัง
 VORPcore.addRpcCallback('MJ-Planting:RefillWaterTank:SV', function(source, cb)
     local src = source
+    if not checkCooldown(src, 'refill', 3000) then cb({ ok = false }); return end
+
     exports.vorp_inventory:getItemByName(src, "tool_bucket", function(item)
         if not item then
             cb({ ok = false })
@@ -62,99 +94,169 @@ VORPcore.addRpcCallback('MJ-Planting:RefillWaterTank:SV', function(source, cb)
 
         -- amount ต้อง = item.count เสมอ (ไม่ใช่ hardcode 1) ไม่งั้น vorp_inventory:setItemMetadata
         -- จะ "แยกกอง" (split) ชิ้นที่เหลือออกเป็น item ใหม่ เมื่อ count ของถังเดิม > amount ที่ส่งไป
-        -- (ดู inventoryApiService.lua:InventoryAPI.setItemMetadata) ทำให้ tool_bucket ที่ควรมีแค่ 1 ชิ้น
-        -- กลายเป็น 2 ช่องแยกกันในกระเป๋า
         exports.vorp_inventory:setItemMetadata(src, item.id, { uses = MJDEV.WaterRefill.usesPerRefill }, item.count, function(success)
             cb({ ok = success == true })
         end)
     end)
 end)
 
--- เช็คว่าผู้เล่นมีถังน้ำไหม และเหลือ uses เท่าไร (ก่อนเริ่มอนิเมชั่นรดน้ำ)
-VORPcore.addRpcCallback('MJ-Planting:CheckWaterTank:SV', function(source, cb)
+VORPcore.addRpcCallback('MJ-Planting:GetMyPlants:SV', function(source, cb)
     local src = source
-    exports.vorp_inventory:getItemByName(src, "tool_bucket", function(item)
-        if not item then
-            cb({ hasTank = false, uses = 0 })
-            return
+    local mine = {}
+    for id, p in pairs(Plants) do
+        if p.owner == src then
+            mine[#mine + 1] = {
+                plantId = id,
+                idx = p.entry.idx,
+                Stage = p.Stage,
+                coords = p.coords,
+                heading = p.heading,
+                waterAt = p.waterAt,
+            }
         end
-        local uses = (item.metadata and tonumber(item.metadata.uses)) or 0
-        cb({ hasTank = true, uses = uses })
-    end)
+    end
+    cb(mine)
 end)
 
--- ลด uses ในถังน้ำลง 1 หลังรดสำเร็จ (ไม่ลบถังทิ้งแม้ uses จะเหลือ 0 ก็ตาม ต้องไปเติมใหม่)
--- เปลี่ยนจาก event เฉยๆ เป็น RPC callback เพื่อส่ง uses ที่เหลือกลับไปแจ้งเตือนฝั่ง client
-VORPcore.addRpcCallback('MJ-Planting:ConsumeWaterUse:SV', function(source, cb)
+-- ── STEP 1: ยืนยันการปลูกจริง (หักเมล็ด + สร้าง record) ──────────────────────
+-- client ทำ ghost placement + ท่าปลูก (animPlant) เสร็จก่อนแล้วค่อยเรียกอันนี้ — ทุกอย่างที่ client
+-- เคยเชื่อเอง (อยู่ในโซนไหม / ใกล้ต้นอื่นไปไหม / มีเมล็ดไหม) ตรวจซ้ำฝั่งนี้ทั้งหมด
+VORPcore.addRpcCallback('MJ-Planting:ConfirmPlace:SV', function(source, cb, idx, coords, heading)
     local src = source
-    exports.vorp_inventory:getItemByName(src, "tool_bucket", function(item)
-        if not item then
-            cb({ remaining = 0 })
-            return
+    local entry = idx and MJDEV['Planting'][idx]
+    if not entry or type(coords) ~= 'vector3' then cb({ ok = false }); return end
+
+    if not isPlayerNearCoords(src, entry.coords, entry.range) then
+        cb({ ok = false, reason = 'notinzone' }); return
+    end
+
+    local minDis = entry.Dis or 3.0
+    for _, p in pairs(Plants) do
+        if p.entry.zoneId == entry.zoneId and #(p.coords - coords) < minDis then
+            cb({ ok = false, reason = 'tooclose' }); return
         end
-        local uses = (item.metadata and tonumber(item.metadata.uses)) or 0
+    end
+
+    if (Inventory.getItemCount(src, entry.item.seed) or 0) <= 0 then
+        cb({ ok = false, reason = 'noseed' }); return
+    end
+
+    Inventory.subItem(src, entry.item.seed, 1)
+
+    nextPlantId = nextPlantId + 1
+    local id = nextPlantId
+    Plants[id] = {
+        owner = src, entry = entry, Stage = 'fertilize',
+        coords = coords, heading = heading or 0.0,
+        createdAt = GetGameTimer(), waterAt = nil,
+    }
+    PlantCount[entry.zoneId] = (PlantCount[entry.zoneId] or 0) + 1
+
+    dbg('src=%s planted entry idx=%s id=%s zone=%s', tostring(src), tostring(idx), tostring(id), tostring(entry.zoneId))
+    cb({ ok = true, plantId = id })
+end)
+
+-- ── STEP 2: ใส่ปุ๋ย ──────────────────────────────────────────────────────
+VORPcore.addRpcCallback('MJ-Planting:Fertilize:SV', function(source, cb, plantId)
+    local src = source
+    if not checkCooldown(src, 'fertilize', 3000) then cb({ ok = false }); return end
+    local p = Plants[plantId]
+    if not p or p.owner ~= src or p.Stage ~= 'fertilize' then cb({ ok = false }); return end
+    if not isPlayerNearCoords(src, p.coords, MJDEV.InteractRange + 1.0) then cb({ ok = false, reason = 'far' }); return end
+    if (Inventory.getItemCount(src, MJDEV.FertilizerItem) or 0) <= 0 then cb({ ok = false, reason = 'noitem' }); return end
+
+    Inventory.subItem(src, MJDEV.FertilizerItem, 1)
+    p.Stage = 'water'
+    cb({ ok = true })
+end)
+
+-- ── STEP 3: รดน้ำ (waterAt ถูก stamp ที่นี่ — ใช้ตัดสิน "โตแล้วจริง" ตอนเก็บเกี่ยว) ──────────────
+VORPcore.addRpcCallback('MJ-Planting:Water:SV', function(source, cb, plantId)
+    local src = source
+    if not checkCooldown(src, 'water', 3000) then cb({ ok = false }); return end
+    local p = Plants[plantId]
+    if not p or p.owner ~= src or p.Stage ~= 'water' then cb({ ok = false }); return end
+    if not isPlayerNearCoords(src, p.coords, MJDEV.InteractRange + 1.0) then cb({ ok = false, reason = 'far' }); return end
+
+    exports.vorp_inventory:getItemByName(src, "tool_bucket", function(item)
+        local uses = item and item.metadata and tonumber(item.metadata.uses) or 0
+        if not item or uses <= 0 then cb({ ok = false, reason = 'nowater' }); return end
+
         uses = math.max(0, uses - 1)
-        -- amount = item.count เหตุผลเดียวกับใน RefillWaterTank:SV ด้านบน (กัน stack split)
         exports.vorp_inventory:setItemMetadata(src, item.id, { uses = uses }, item.count, function()
-            cb({ remaining = uses })
+            p.Stage = 'grow'
+            p.waterAt = GetGameTimer()
+            cb({ ok = true, remaining = uses })
         end)
     end)
 end)
 
+-- ── STEP 4: เก็บเกี่ยว — server ตัดสิน "โตแล้วจริง" จาก waterAt+plantmax เอง ไม่เชื่อ client ว่า
+-- Stage='ready' (client เก็บ Stage/Hungry คู่ขนานไว้แค่โชว์ progress bar/model swap ให้เห็นเท่านั้น) ──
+VORPcore.addRpcCallback('MJ-Planting:Harvest:SV', function(source, cb, plantId)
+    local src = source
+    if not checkCooldown(src, 'harvest', 3000) then cb({ ok = false }); return end
 
+    local p = Plants[plantId]
+    if not p or p.owner ~= src or p.Stage ~= 'grow' or not p.waterAt then cb({ ok = false }); return end
+    if not isPlayerNearCoords(src, p.coords, MJDEV.InteractRange + 1.0) then cb({ ok = false, reason = 'far' }); return end
+    if (GetGameTimer() - p.waterAt) < (p.entry.plantmax * 1000) then cb({ ok = false, reason = 'notready' }); return end
+
+    local rolled = {}
+    for _, v in pairs(p.entry.giveitem) do
+        if math.random(1, 100) <= v.percent and v.item then
+            rolled[#rolled + 1] = { item = v.item, count = v.count }
+        end
+    end
+
+    for _, r in ipairs(rolled) do
+        if not Inventory.canCarryItem(src, r.item, r.count) then
+            cb({ ok = false, reason = 'fullinv' })
+            return
+        end
+    end
+
+    local totalGiven = 0
+    for _, r in ipairs(rolled) do
+        exports.vorp_inventory:addItem(src, r.item, r.count)
+        totalGiven = totalGiven + (tonumber(r.count) or 0)
+    end
+
+    if totalGiven > 0 then
+        TriggerEvent('lp_leaderboard:SV:PlantHarvest', { src = src, amount = totalGiven })
+    end
+
+    PlantCount[p.entry.zoneId] = math.max(0, (PlantCount[p.entry.zoneId] or 1) - 1)
+    Plants[plantId] = nil
+    cb({ ok = true })
+end)
 
 if MJDEV and MJDEV['Planting'] then
     for i = 1, #MJDEV['Planting'], 1 do
         -- Inventory.RegisterUsableItem (wrapper) ยิง TriggerEvent("vorpCore:registerUsableItem", ...)
         -- ซึ่งไม่มี handler อยู่จริงใน vorp_inventory เลย (เช็คแล้ว) ทำให้ลงทะเบียนไม่ติด
-        -- กด "ใช้" เมล็ดใน inventory เลยไม่มีอะไรเกิดขึ้น ต้องเรียก export ตรงๆ (lowercase) แบบนี้แทน
-        -- (ยืนยันวิธีนี้ถูกต้องจาก vorp_metabolism/MJ-Medic ที่ใช้แบบเดียวกันแล้วทำงานได้จริง)
+        -- ต้องเรียก export ตรงๆ (lowercase) แบบนี้แทน (ยืนยันวิธีนี้ถูกต้องจาก vorp_metabolism/MJ-Medic)
         local seedName = MJDEV['Planting'][i].item.seed
         exports.vorp_inventory:registerUsableItem(seedName, function(data)
-            print(('[MJ-Planting][DEBUG] ใช้เมล็ด "%s" จาก source %s -> ส่ง MJ-Planting:Start ให้ client'):format(seedName, tostring(data.source)))
+            dbg('ใช้เมล็ด "%s" จาก source %s -> ส่ง MJ-Planting:Start ให้ client', seedName, tostring(data.source))
             TriggerClientEvent("MJ-Planting:Start", data.source, MJDEV['Planting'][i])
         end)
-        print(('[MJ-Planting][DEBUG] ลงทะเบียน usable item: "%s" (index %d)'):format(seedName, i))
     end
 else
     print("Error: MJDEV['Planting'] is not defined!")
 end
 
-RegisterServerEvent("MJ-Planting:Removeitem")
-AddEventHandler("MJ-Planting:Removeitem", function(ITEM)
-    local itemCount = exports['vorp_inventory']:getItemCount(source, nil, ITEM)
-    if itemCount > 0 then
-        Inventory.subItem(source, ITEM, 1)
-    else
-        print("Error: Player does not have enough " .. ITEM .. " to remove.")
-    end
-end)
-
-RegisterServerEvent("MJ-Planting:Giveitem")
-AddEventHandler("MJ-Planting:Giveitem", function(ITEM)
-    local _source = source
-
-    -- กันสแปมยิงตรง (harvest จริงมี progress 8s) — cooldown 6s ต่อคน ฝั่ง server
-    if not checkHarvestCooldown(_source, 6000) then return end
-
-    local totalGiven = 0
-    for i = 1, #MJDEV['Planting'], 1 do
-        if MJDEV['Planting'][i].item.seed == ITEM then
-            for _, v in pairs(MJDEV['Planting'][i].giveitem) do
-                if math.random(1, 100) <= v.percent then
-                    if v.item then
-                        exports['vorp_inventory']:addItem(_source, v.item, v.count)
-                        print("Added item: " .. v.item .. " (" .. v.count .. ")")
-                        totalGiven = totalGiven + (tonumber(v.count) or 0)
-                    end
-                end
+-- ── กันต้นถูกปล่อยทิ้งร้าง (mirror ของเดิมที่ client เคยลบเองหลัง time_need — ย้าย record จริงมา
+-- ลบฝั่งนี้ เพราะ Plants ตอนนี้คือ source of truth; client ก็ยังมี thread ลบ object ตัวเองคู่ขนานอยู่แล้ว) ──
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(30000)
+        local now = GetGameTimer()
+        for id, p in pairs(Plants) do
+            if (now - p.createdAt) > p.entry.time_need then
+                PlantCount[p.entry.zoneId] = math.max(0, (PlantCount[p.entry.zoneId] or 1) - 1)
+                Plants[id] = nil
             end
         end
     end
-    -- lp_leaderboard (FARMING RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
-    -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
-    if totalGiven > 0 then
-        TriggerEvent('lp_leaderboard:SV:PlantHarvest', { src = _source, amount = totalGiven })
-    end
 end)
-

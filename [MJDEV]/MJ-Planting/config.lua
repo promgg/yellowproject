@@ -8,10 +8,48 @@
 -- Discord: https://discord.gg/gHRNMDQKzb 
 MJDEV = {}
 
+-- เปิดไว้เฉพาะตอน dev — คุม print debug/info ทั้งฝั่ง client/server (ข้อ 6/11 ของ security checklist)
+MJDEV.Debug = false
+
 -- การควบคุม
 MJDEV.Controls = {
     EnterKey  = 0x17BEC168, -- E
     CancelKey = 0x8CC9CD42  -- X
+}
+
+-- ปุ๋ยที่ใช้ในขั้น "ใส่ปุ๋ย" — หัก 1 ต่อการปลูก 1 ต้น (item 'compost' label "ปุ๋ย" ขายใน nx_shop หมวด farming อยู่แล้ว)
+MJDEV.FertilizerItem = "compost"
+
+-- ── Interaction (floating hold-E ที่ต้นพืชแต่ละต้น: ใส่ปุ๋ย / รดน้ำ / เก็บเกี่ยว) ──
+MJDEV.InteractRange  = 2.0  -- ระยะที่โชว์ prompt ลอยเหนือต้น
+MJDEV.InteractHoldMs = 900  -- กดค้าง E กี่ ms ถึงเริ่ม action (เท่ากับจุดเติมน้ำ)
+
+-- อนิเมชั่นตอน "เติมน้ำ" ที่จุดปั๊ม (lp_progbar) — verify กับ scenarios.lua (femga/rdr3_discoveries mirror
+-- ใน [standalone]/spooni_spooner/data/rdr3/scenarios.lua:2603) แล้วว่า WORLD_HUMAN_BUCKET_FILL มีจริง
+-- (ท่าตักน้ำใส่ถัง คนละท่ากับ BUCKET_POUR_LOW ที่ใช้ตอนรดน้ำต้นไม้)
+MJDEV.RefillAnim = {
+    duration = 4000,
+    label    = 'กำลังเติมน้ำ...',
+    task     = 'WORLD_HUMAN_BUCKET_FILL',
+}
+
+-- ── Ghost placement (ยกแนวคิดจาก Devchacha01/Farming, ทำด้วย native ล้วน) ──
+-- หลังทำ 3 ritual (พลวนดิน→ใส่ปุ๋ย→รดน้ำ) เสร็จ จะขึ้น prop โปร่งใสให้เล็งวางจุดปลูกก่อน
+-- ปลูกจริง control hash ทั้งหมด verify แล้วจาก MJ-Admin (ใช้ได้จริงใน build นี้)
+MJDEV.Ghost = {
+    moveStep   = 0.06, -- ระยะขยับต่อเฟรมตอนกดค้าง WASD
+    rotateStep = 2.5,  -- องศาหมุนต่อเฟรมตอนกด Q/Z
+    maxDist    = 6.0,  -- ระยะไกลสุดจากตัวผู้เล่นที่วางต้นได้ (กันวางทะลุกำแพง/ไกลเกิน)
+    keys = {
+        forward = 0x8FD015D8, -- W
+        back    = 0xD27782E3, -- S
+        left    = 0x7065027D, -- A
+        right   = 0xB4E465B4, -- D
+        rotL    = 0xDE794E3E, -- Q
+        rotR    = 0x26E9DC00, -- Z
+        confirm = 0x17BEC168, -- E
+        cancel  = 0x8CC9CD42, -- X
+    },
 }
 
 -- จุดเติมน้ำ — ถังน้ำ (tool_bucket) เก็บจำนวนครั้งที่รดได้เหลือไว้ใน metadata.uses
@@ -391,6 +429,12 @@ MJDEV['Planting'] = {
         }
     },
 }
+
+-- ผูก idx คงที่ (ตำแหน่งในตาราง) ให้แต่ละ entry ไว้อ้างอิงข้าม client<->server แบบไม่ต้องส่งทั้งก้อน
+-- (client ใช้ตอนเรียก ConfirmPlace:SV, server ใช้ตอน revalidate ว่า entry ที่ client อ้างถึงมีจริง)
+for i, entry in ipairs(MJDEV['Planting']) do
+    entry.idx = i
+end
 
 -- ระยะ LOD ของ per-plant UI panel
 MJDEV.LOD = {
