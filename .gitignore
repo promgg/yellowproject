@@ -15,4 +15,4 @@ Thumbs.db
 
 # Node (ถ้ามีรีซอร์สที่ build ด้วย npm)
 node_modules/
-dist/
+dist/"[MJDEV]/MJ-WelfareLogin/data/players.json" 

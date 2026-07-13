@@ -1,7 +1,7 @@
 Config = Config or {}
 Config.AnnouceTimer = 5 * 1000
 Config.AutoAnnouce = true
-Config.AnnouceInterval = 10 * 60 * 1000 
+Config.AnnouceInterval = 10 * 60 * 1000  -- 10 * 60 * 1000 
 Config.Annoucement = {
     'MJDEV :  ยินดีต้อนรับทุกท่าน',
     'MJDEV :  กรุณาอ่านกฎก่อนเล่น.',
