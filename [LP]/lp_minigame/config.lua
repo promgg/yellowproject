@@ -49,6 +49,20 @@ Config.Fishing = {
     zoneSize = 15,      -- ขนาดโซนจับ (% ของแท่ง)
 }
 
+-- แบบสะเดาะกุญแจ (lockpick — port จาก guf1ck/lockpick-system, วาดใหม่เป็น SVG/CSS)
+-- เลื่อนเมาส์เล็ง "เหล็กงัด" ไปยังจุดปลดล็อกที่ซ่อนอยู่ แล้วกด W/A/S/D ค้างเพื่อหมุนกระบอก
+-- ถ้าเล็งตรงโซน → กระบอกหมุนจนสุด = สำเร็จ; ถ้าเพี้ยน → เหล็กงัดเสียหาย พังจน pin หมด = ล้มเหลว
+-- difficulty ยิ่งสูง โซนปลดยิ่งแคบ + เหล็กเสียหายไวขึ้น. lockpick ต้องใช้เมาส์ → cursor = true
+Config.Lockpick = {
+    successNeeded = 1,   -- lockpick จบในรอบเดียว (pin ภายในจัดการเอง)
+    failLimit = 1,
+    cursor = true,       -- ต้องมี mouse cursor (NUI focus แบบมีเมาส์)
+    pins = 5,            -- จำนวนเหล็กงัด (พลาดจนหมด = ล้มเหลว)
+    difficulty = 5,      -- 1-10 (1 = โซนกว้าง 8° เสียหายน้อย, 10 = โซนแคบ 2° เสียหายเยอะ)
+    -- solvePadding = 4, -- (ออปชั่น) ครึ่งความกว้างโซนปลดเป็นองศา ทับ difficulty
+    -- pinDamage   = 20, -- (ออปชั่น) ดาเมจต่อการดันผิด 1 ครั้ง (health เหล็ก = 100)
+}
+
 --[[
     local ok = exports.lp_minigame:Spacebar()
     local ok = exports.lp_minigame:Sequence()
@@ -73,6 +87,9 @@ Config.Fishing = {
 
     local ok = exports.lp_minigame:Circle()
     local ok = exports.lp_minigame:Circle({ successNeeded = 2, difficulty = 8, pool = { 'W','A','S','D' } })
+
+    local ok = exports.lp_minigame:Lockpick()
+    local ok = exports.lp_minigame:Lockpick({ pins = 3, difficulty = 8 })  -- ยากขึ้น: เหล็กน้อยลง โซนแคบลง
 
     if exports.lp_minigame:Spacebar() then
         print('ผ่าน')

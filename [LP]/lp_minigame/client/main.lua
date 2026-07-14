@@ -5,6 +5,7 @@
     exports.lp_minigame:Sequence(opts)  -> true/false
     exports.lp_minigame:Fishing(opts)   -> true/false
     exports.lp_minigame:Circle(opts)    -> true/false
+    exports.lp_minigame:Lockpick(opts)  -> true/false
     exports.lp_minigame:Cancel()        -- resolves the active minigame as false
 
     opts overrides individual fields on top of Config.Spacebar / Config.Sequence
@@ -39,7 +40,8 @@ local function play(kind, base, opts)
     result   = false
 
     SendNUIMessage({ action = 'lp_minigame:open', kind = kind, cfg = cfg })
-    SetNuiFocus(true, false)
+    -- lockpick ต้องเล็งด้วยเมาส์ → เปิด cursor; ตัวอื่นใช้ focus แบบไม่มีเมาส์
+    SetNuiFocus(true, cfg.cursor == true)
     disableThread()
 
     while not resolved do Citizen.Wait(10) end
@@ -64,6 +66,10 @@ end)
 
 exports('Circle', function(opts)
     return play('circle', Config.Circle, opts)
+end)
+
+exports('Lockpick', function(opts)
+    return play('lockpick', Config.Lockpick, opts)
 end)
 
 exports('Cancel', function()
@@ -99,6 +105,8 @@ RegisterCommand('minigame_test', function(_, args)
             ok = exports.lp_minigame:Fishing()
         elseif kind == 'circle' then
             ok = exports.lp_minigame:Circle()
+        elseif kind == 'lockpick' then
+            ok = exports.lp_minigame:Lockpick()
         else
             ok = exports.lp_minigame:Spacebar()
         end

@@ -5,7 +5,7 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 name        'lp_minigame'
 author      'original implementation for VORPCore'
 version     '1.0.0'
-description 'Skill-check minigames (spacebar timing zone, WASD sequence, fishing catch) — client-only, blocking export API'
+description 'Skill-check minigames (spacebar, WASD sequence, fishing, circle, lockpick) — client-only, blocking export API'
 
 ui_page 'html/index.html'
 
@@ -18,6 +18,12 @@ files {
     'html/index.html',
     'html/css/style.css',
     'html/js/app.js',
+    'html/img/lockpick/collar.png',
+    'html/img/lockpick/cylinder.png',
+    'html/img/lockpick/driver.png',
+    'html/img/lockpick/pin.png',
+    'html/img/lockpick/pinTop.png',
+    'html/img/lockpick/pinBott.png',
 }
 
 exports {
@@ -25,6 +31,7 @@ exports {
     'Sequence',
     'Fishing',
     'Circle',
+    'Lockpick',
     'Cancel',
 }
 

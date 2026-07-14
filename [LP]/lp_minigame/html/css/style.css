@@ -143,7 +143,7 @@ html, body {
 /* ── Circle minigame (สไตล์เดียวกับชุด: พื้นเข้ม + ขอบ/เข็มขาว + โซนทอง) ── */
 .lmg-circle-wrap {
   position: relative;
-  width: 190px; height: 190px;
+  width: 140px; height: 190px;
   display: flex; align-items: center; justify-content: center;
 }
 
@@ -159,13 +159,13 @@ html, body {
 .lmg-circle-track {
   fill: none;
   stroke: rgba(255, 255, 255, 0.16);
-  stroke-width: 7;
+  stroke-width: 4;
 }
 
 .lmg-circle-zone {
   fill: none;
   stroke: #f0ca78;
-  stroke-width: 7;
+  stroke-width: 5;
   stroke-linecap: round;
   filter: drop-shadow(0 0 3px rgba(240, 202, 120, 0.55));
   transition: stroke 0.1s;
@@ -175,24 +175,23 @@ html, body {
 .lmg-circle-zone.lmg-miss { stroke: #ff6b6b; filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.7)); }
 
 .lmg-circle-needle {
-  stroke: rgba(255, 255, 255, 0.95);
-  stroke-width: 3;
+  stroke: #ff4d4d;
+  stroke-width: 4;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4));
-}
-
-.lmg-circle-hub {
-  fill: linear-gradient(180deg, #937036, #f0ca78);
-  fill: #f0ca78;
+  filter: drop-shadow(0 0 3px rgba(255, 77, 77, 0.7));
 }
 
 .lmg-circle-key {
   position: absolute;
-  top: 0; bottom: 0; left: 0; right: 0;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px; height: 30px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 30px; font-weight: 700;
+  border-radius: 8px;
+  background: rgba(19, 13, 6, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  font-size: 18px; font-weight: 700;
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(240, 202, 120, 0.55);
   pointer-events: none;
 }
 
@@ -244,5 +243,106 @@ html, body {
 
 .lmg-fish-icon {
   width: 15px; height: 15px;
+}
+
+/* ── Lockpick minigame (asset + ค่าตำแหน่งจริงจาก codepen.io/antoxa-kms/pen/qbqoMy "Lock Picking
+   in the DOM" — ดึงซอร์สจริงผ่าน embed/preview endpoint มาอ่านค่า % ตรง ๆ ไม่ได้เดา)
+   ต้นฉบับวาง cylinder/driver/pin ด้วย top/left/width/height เป็น % ของ #collar โดยตรง (ไม่ผ่าน
+   translate trick) แล้วหมุนด้วย transform-origin ของแต่ละชิ้นเอง — พอร์ตมาตรงตัวทุกค่า โดยใช้
+   .lmg-lock3 แทน #wrap (190px = 100% เท่ากับ collar เดิม สัดส่วนเป๊ะ). ลำดับซ้อน = DOM order
+   ปกติ ไม่มี z-index เลยในต้นฉบับ: collar → cylinder → driver → pin (บนสุด) */
+.lmg-lock3 {
+  position: relative;
+  width: 190px; height: 190px;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6));
+  bottom: 50px;
+}
+
+.lmg-lock3-collar {
+  position: relative;
+  display: block;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lmg-lock3-cylinder,
+.lmg-lock3-driver,
+.lmg-lock3-pinwrap {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  transition: transform 0.05s linear;
+}
+
+/* cylinder: 69.914% ของ collar, กึ่งกลางเป๊ะ (left15/top14.9 + ขนาดเท่ากัน = จุดศูนย์กลางตรงกับ
+   collar พอดี) หมุนรอบจุดศูนย์กลางตัวเอง (default 50% 50%) */
+.lmg-lock3-cylinder {
+  left: 15%; top: 14.9%;
+  width: 69.914%; height: 69.914%;
+  transform: rotate(0deg);
+}
+
+/* driver (ไขควง): ใหญ่กว่า collar เกือบ 2 เท่า (172.17% x 84%) ตั้งใจให้ล้น/ทับ cylinder เห็นชัด
+   หมุนรอบปลายใบมีด (transform-origin ใกล้มุมซ้ายบนของภาพ) วางทับ collar (DOM หลัง collar) */
+.lmg-lock3-driver {
+  left: 46%; top: 57%;
+  width: 172.1739%; height: 84%;
+  transform-origin: 3% -3%;
+  transform: rotate(0deg);
+}
+
+/* เหล็กงัด (pin): ยาวกว่า collar เกือบ 1.5 เท่า (7.13% x 146.43%) ยื่นพ้นกรอบขึ้นไปมาก
+   (top:-98% เริ่มเหนือกรอบ) หมุนรอบปลายเกือบสุดล่างของตัวเอง (50% 99%) — pinTop+pinBott ซ้อนกัน
+   ตามสัดส่วนภาพจริง (41x842, ครึ่งละ 41x421) แสดงตลอด (เหมือนต้นฉบับ) ตอนปิ๊นหักค่อยแยกกระเด็น */
+.lmg-lock3-pinwrap {
+  left: 47.4%; top: -98%;
+  width: 7.1304%; height: 146.4347%;
+  transform-origin: 50% 99%;
+  transform: rotate(0deg);
+}
+
+.lmg-lock3-pin-half {
+  position: absolute;
+  left: 0;
+  width: 100%; height: 50%;
+  opacity: 1;
+  transition: transform 0.26s ease-out, opacity 0.26s ease-out;
+}
+
+.lmg-lock3-pin-top  { top: 0; }
+.lmg-lock3-pin-bott { top: 50%; }
+
+/* ปิ๊นหัก: ท่อนบน/ล่างกระเด็นแยกทางกันแล้วเฟดหาย (จำลอง breakPin ต้นฉบับ) — ระยะสเกลตาม pin ที่ใหญ่ขึ้น */
+.lmg-lock3-pinwrap.lmg-broken .lmg-lock3-pin-top  { transform: translate(-31px, -39px) rotate(-70deg); opacity: 0; }
+.lmg-lock3-pinwrap.lmg-broken .lmg-lock3-pin-bott { transform: translate(31px, 39px) rotate(70deg); opacity: 0; }
+
+/* สถานะ: ปลดสำเร็จ = เรืองเขียว, ดันผิด/เหล็กหัก = สั่นแดง */
+.lmg-lock3.lmg-hit    { }
+.lmg-lock3.lmg-damage { animation: lmg-lock-shake 0.16s linear; }
+
+@keyframes lmg-lock-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.lmg-lock-pins {
+  display: flex; gap: 6px;
+  margin-top: 2px;
+}
+
+.lmg-lock-pin {
+  width: 8px; height: 18px;
+  border-radius: 3px;
+  border: 1px solid #7c5526;
+  background: linear-gradient(180deg, #937036, #f0ca78);
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.lmg-lock-pin.lmg-broken {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: #5a3a1a;
+  opacity: 0.5;
 }
 

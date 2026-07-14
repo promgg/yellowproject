@@ -14,8 +14,15 @@
   var CircleZone = document.getElementById('circle-zone');
   var CirclePtr  = document.getElementById('circle-pointer');
   var CircleKey  = document.getElementById('circle-key');
+  var BodyLock     = document.getElementById('body-lockpick');
+  var LockWrap     = document.getElementById('lock-wrap');
+  var LockCylinder = document.getElementById('lock-cylinder');
+  var LockDriver   = document.getElementById('lock-driver');
+  var LockPinWrap  = document.getElementById('lock-pin-wrap');
+  var LockPins     = document.getElementById('lock-pins');
 
   var KEYCODE = { 32: 'SPACE', 87: 'W', 65: 'A', 83: 'S', 68: 'D', 69: 'E' };
+  var PUSH_KEYS = { 87: 1, 65: 1, 83: 1, 68: 1, 37: 1, 39: 1 }; // W A S D ← →
 
   var G = null;
   var raf = null;
@@ -24,6 +31,7 @@
   var seq = null;
   var fish = null;
   var circle = null;
+  var lock = null;
 
   function post(name, data) {
     var resourceName = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'lp_minigame';
@@ -35,12 +43,14 @@
   }
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function cancelRaf() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  function cancelRaf() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (lock && lock.cylInterval) { clearInterval(lock.cylInterval); lock.cylInterval = null; }
+  }
   function show(el) { el.classList.remove('hidden'); }
   function hide(el) { el.classList.add('hidden'); }
-  // เคลียร์ทั้ง 3 body ก่อนโชว์อันที่ต้องการเสมอ กันเคสค้างจากรอบ/โหมดก่อนหน้า
-  // (เดิม startSpacebar/startSequence ซ่อนกันเองแค่ 2 ตัว ไม่ได้ซ่อน BodyFish เลยโผล่มาด้วยถ้ารอบก่อนหน้าเป็น fishing)
-  function hideAllBodies() { hide(BodySpace); hide(BodySeq); hide(BodyFish); hide(BodyCircle); }
+  // เคลียร์ทุก body ก่อนโชว์อันที่ต้องการเสมอ กันเคสค้างจากรอบ/โหมดก่อนหน้า
+  function hideAllBodies() { hide(BodySpace); hide(BodySeq); hide(BodyFish); hide(BodyCircle); hide(BodyLock); }
 
   function renderDots(need, done) {
     DotsEl.innerHTML = '';
@@ -61,6 +71,8 @@
       success: 0,
       fail: 0,
     };
+    // lockpick มีตัวนับ pin ของตัวเอง ไม่ใช้ dots รวม
+    DotsEl.style.display = (kind === 'lockpick') ? 'none' : '';
     renderDots(G.need, 0);
     show(App);
     nextRound();
@@ -71,14 +83,14 @@
     roundActive = false;
     hide(App);
     post('lp_minigame:finish', { success: !!win });
-    G = null; sb = null; seq = null; fish = null; circle = null;
+    G = null; sb = null; seq = null; fish = null; circle = null; lock = null;
   }
 
   function closeGame() {
     cancelRaf();
     roundActive = false;
     hide(App);
-    G = null; sb = null; seq = null; fish = null; circle = null;
+    G = null; sb = null; seq = null; fish = null; circle = null; lock = null;
   }
 
   function roundResult(ok) {
@@ -105,6 +117,7 @@
     if (G.kind === 'spacebar') startSpacebar();
     else if (G.kind === 'fishing') startFishing();
     else if (G.kind === 'circle') startCircle();
+    else if (G.kind === 'lockpick') startLockpick();
     else startSequence();
   }
 
@@ -303,7 +316,7 @@
 
     circle = {
       startDeg: startDeg, arcDeg: arcDeg, rotateMs: rotateMs,
-      key: key, duration: cfg.duration || 4000, t0: null,
+      key: key, pool: pool, duration: cfg.duration || 4000, t0: null,
     };
 
     CircleZone.setAttribute('d', circleZonePath(startDeg, arcDeg));
@@ -328,12 +341,141 @@
 
   function circlePress(letter) {
     if (!circle || !roundActive) return;
-    if (letter !== circle.key) return roundResult(false); // กดผิดปุ่ม = พลาด
+    if (circle.pool.indexOf(letter) === -1) return; // ปุ่มนอก pool (เช่น E ที่ค้างมาจากตอนกด hold เปิดมินิเกม) เมิน ไม่นับว่าพลาด
+    if (letter !== circle.key) return roundResult(false); // กดผิดปุ่ม (แต่อยู่ใน pool) = พลาด
     var elapsed = circle.t0 === null ? 0 : (performance.now() - circle.t0);
     var deg = (elapsed / circle.rotateMs) * 360;
     var ok = inArc(deg, circle.startDeg, circle.arcDeg);
     CircleZone.classList.add(ok ? 'lmg-hit' : 'lmg-miss');
     roundResult(ok);
+  }
+
+  // ── lockpick (port จาก guf1ck/lockpick-system วาดใหม่ SVG/CSS) ───────────
+  // เมาส์เล็ง pick หา solveDeg ที่ซ่อน (−90..90) → กด W/A/S/D/←/→ ค้างเพื่อหมุนกระบอก
+  // เล็งตรงโซน (±solvePadding) → กระบอกหมุนถึงสุด = ปลด; เพี้ยน → กระบอกติด ดัน pin เสียหาย/หัก
+  var LP_MAXROT = 90, LP_MOUSE_SMOOTH = 2, LP_CYL_SPEED = 3, LP_DMG_INTERVAL = 150, LP_MAXDIST = 45;
+
+  // เหล็กงัด (pinTop+pinBott) หมุนตามมุมเล็ง (pinRot) เท่านั้น — คุมด้วยเมาส์
+  // ตำแหน่ง/transform-origin กำหนดใน CSS ตรงตามต้นฉบับแล้ว เหลือแค่ rotate() เดี่ยว ๆ
+  function lpSetPick() {
+    if (!lock) return;
+    LockPinWrap.style.transform = 'rotate(' + lock.pinRot.toFixed(2) + 'deg)';
+  }
+  // cylinder + driver หมุนพร้อมกันด้วยมุมกระบอกเดียวกัน (cylRot) — คุมด้วย W/A/S/D ค้าง,
+  // อิสระจากมุมเล็งของเหล็กงัด (ตรงกับต้นฉบับที่ cyl กับ driver รับ rotateZ เดียวกันเป๊ะ)
+  function lpSetCyl() {
+    if (!lock) return;
+    var t = 'rotate(' + lock.cylRot.toFixed(2) + 'deg)';
+    LockCylinder.style.transform = t;
+    LockDriver.style.transform   = t;
+  }
+
+  function lpRenderPins() {
+    LockPins.innerHTML = '';
+    for (var i = 0; i < lock.pinsTotal; i++) {
+      var p = document.createElement('span');
+      var broken = i < (lock.pinsTotal - lock.pins);
+      p.className = 'lmg-lock-pin' + (broken ? ' lmg-broken' : '');
+      LockPins.appendChild(p);
+    }
+  }
+
+  function startLockpick() {
+    hideAllBodies();
+    show(BodyLock);
+    cancelRaf();
+
+    var cfg = G.cfg;
+    var diff = clamp(cfg.difficulty || 5, 1, 10);
+    var pins = cfg.pins || 5;
+
+    lock = {
+      solveDeg: Math.random() * 180 - 90,
+      solvePadding: cfg.solvePadding || (8 - (diff - 1) * (8 - 2) / 9),
+      pinDamage: cfg.pinDamage || (12 + (diff - 1) * (34 - 12) / 9),
+      pinRot: 0, cylRot: 0,
+      pins: pins, pinsTotal: pins, health: 100,
+      pushing: false, gameOver: false, paused: false,
+      lastDamaged: 0, cylInterval: null,
+    };
+
+    LockWrap.classList.remove('lmg-hit', 'lmg-damage');
+    lpSetPick(); lpSetCyl(); lpRenderPins();
+    roundActive = true;
+  }
+
+  function lpPush() {
+    if (!lock || lock.pushing || lock.gameOver || lock.paused || !roundActive) return;
+    lock.pushing = true;
+    if (lock.cylInterval) clearInterval(lock.cylInterval);
+
+    var dist = clamp(Math.abs(lock.pinRot - lock.solveDeg) - lock.solvePadding, 0, LP_MAXDIST);
+    // convertRanges(dist, 0, maxDist, 1, 0.02) * maxRot — ยิ่งใกล้ solve ยิ่งหมุนได้ไกล (1=สุด)
+    var allowance = ((dist * (0.02 - 1)) / LP_MAXDIST + 1) * LP_MAXROT;
+
+    lock.cylInterval = setInterval(function () {
+      lock.cylRot += LP_CYL_SPEED;
+      if (lock.cylRot >= LP_MAXROT) {
+        lock.cylRot = LP_MAXROT; lpSetCyl();
+        clearInterval(lock.cylInterval); lock.cylInterval = null;
+        lpUnlock();
+      } else if (lock.cylRot >= allowance) {
+        lock.cylRot = allowance; lpSetCyl();
+        lpDamage();
+      } else {
+        lpSetCyl();
+      }
+    }, 25);
+  }
+
+  function lpUnpush() {
+    if (!lock) return;
+    lock.pushing = false;
+    if (lock.cylInterval) clearInterval(lock.cylInterval);
+    lock.cylInterval = setInterval(function () {
+      lock.cylRot -= LP_CYL_SPEED;
+      if (lock.cylRot <= 0) { lock.cylRot = 0; clearInterval(lock.cylInterval); lock.cylInterval = null; }
+      lpSetCyl();
+    }, 25);
+  }
+
+  function lpDamage() {
+    var now = performance.now();
+    if (lock.lastDamaged && now - lock.lastDamaged <= LP_DMG_INTERVAL) return;
+    lock.lastDamaged = now;
+    lock.health -= lock.pinDamage;
+    LockWrap.classList.remove('lmg-damage');
+    void LockWrap.offsetWidth; // reflow → เล่นแอนิเมชันสั่นซ้ำได้
+    LockWrap.classList.add('lmg-damage');
+    if (lock.health <= 0) lpBreak();
+  }
+
+  function lpBreak() {
+    lock.paused = true;
+    if (lock.cylInterval) { clearInterval(lock.cylInterval); lock.cylInterval = null; }
+    lock.pins--;
+    lpRenderPins();
+    // ท่อนบน/ล่างของเหล็กงัดกระเด็นแยกทางกัน (asset จริง pinTop/pinBott) ก่อนรีเซ็ตหรือจบเกม
+    LockPinWrap.classList.add('lmg-broken');
+
+    if (lock.pins > 0) {
+      setTimeout(function () {
+        if (!lock) return;
+        lock.paused = false; lock.pushing = false;
+        lock.cylRot = 0; lock.pinRot = 0; lock.health = 100;
+        LockPinWrap.classList.remove('lmg-broken');
+        lpSetPick(); lpSetCyl();
+      }, 320);
+    } else {
+      lock.gameOver = true;
+      setTimeout(function () { roundResult(false); }, 320);
+    }
+  }
+
+  function lpUnlock() {
+    lock.gameOver = true;
+    LockWrap.classList.add('lmg-hit');
+    setTimeout(function () { roundResult(true); }, 200);
   }
 
   // ── input ──────────────────────────────────────────────────────────────
@@ -347,10 +489,24 @@
     } else if (G.kind === 'circle') {
       var C = KEYCODE[code];
       if (C) { e.preventDefault(); circlePress(C); }
+    } else if (G.kind === 'lockpick') {
+      if (PUSH_KEYS[code]) { e.preventDefault(); lpPush(); }
     } else {
       var L = KEYCODE[code];
       if (L && L !== 'SPACE' && L !== 'E') { e.preventDefault(); sequencePress(L); }
     }
+  });
+
+  document.addEventListener('keyup', function (e) {
+    if (!G || G.kind !== 'lockpick') return;
+    if (PUSH_KEYS[e.keyCode]) { e.preventDefault(); lpUnpush(); }
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!G || G.kind !== 'lockpick' || !lock || !roundActive || lock.gameOver || lock.paused) return;
+    var dx = (typeof e.movementX === 'number') ? e.movementX : 0;
+    lock.pinRot = clamp(lock.pinRot + dx / LP_MOUSE_SMOOTH, -LP_MAXROT, LP_MAXROT);
+    lpSetPick();
   });
 
   window.addEventListener('message', function (ev) {
@@ -374,6 +530,27 @@
       openCircle: function (cfg) {
         window.dispatchEvent(new MessageEvent('message', { data: { action: 'lp_minigame:open', kind: 'circle', cfg: cfg || { successNeeded: 3, failLimit: 1, difficulty: 5, duration: 4000, pool: ['E'] } } }));
       },
+      openLockpick: function (cfg) {
+        window.dispatchEvent(new MessageEvent('message', { data: { action: 'lp_minigame:open', kind: 'lockpick', cfg: cfg || { successNeeded: 1, failLimit: 1, cursor: true, pins: 5, difficulty: 5 } } }));
+      },
     };
+
+    // ── Browser-only test trigger: index.html?test=lockpick[&pins=3&difficulty=8] ──
+    // เปิดตรงเข้ามินิเกมเดียวทันทีตอนโหลดหน้า ไม่ต้องเปิด console เอง — ใช้เมาส์จริงของเบราว์เซอร์
+    // เล็งได้แม่นกว่าการจำลอง event (movementX จริงมาจาก OS ไม่ใช่ synthetic dispatch)
+    var qs = new URLSearchParams(location.search);
+    var test = qs.get('test');
+    if (test) {
+      var openFn = { spacebar: 'openSpacebar', sequence: 'openSequence', fishing: 'openFishing', circle: 'openCircle', lockpick: 'openLockpick' }[test];
+      if (openFn) {
+        var cfg = {};
+        qs.forEach(function (v, k) {
+          if (k === 'test') return;
+          var n = Number(v);
+          cfg[k] = (v === 'true') ? true : (v === 'false') ? false : (!isNaN(n) && v !== '') ? n : v;
+        });
+        window.__lpMinigameMock[openFn](Object.keys(cfg).length ? cfg : undefined);
+      }
+    }
   }
 })();
