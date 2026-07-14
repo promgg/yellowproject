@@ -38,7 +38,7 @@ Config.IntelNPC = {
     coords        = vector3(1441.2980, 342.7788, 88.5151),     -- TUNE IN-GAME (placeholder near Valentine)
     heading       = 45.0,
     prompt        = 'ซื้อข่าวขบวนสินค้า',
-    price         = { currency = 0, amount = 0 },    -- currency 0 = cash
+    price         = { currency = 0, amount = 1000 }, -- currency 0 = cash
     spawnDistance = 35.0, -- proximity spawn/despawn radius (same pattern as nx_shop)
 }
 
