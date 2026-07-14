@@ -22,12 +22,14 @@ function NX_GR.VORP.GetCharacter(source)
     }
 end
 
-function NX_GR.VORP.Notify(source, message, duration)
-    Core.NotifyRightTip(source, message, duration or 4000)
+function NX_GR.VORP.Notify(source, message, duration, notifyType)
+    TriggerClientEvent('pNotify:SendNotification', source, { type = notifyType or 'error', text = message, timeout = duration or 4000 })
 end
 
 function NX_GR.VORP.HasItem(source, itemName, amount)
-    local count = Inventory:getItemCount(source, itemName)
+    -- getItemCount(source, callback, item, ...) — callback มาก่อน item (ต่างจาก export อื่นๆ ของ vorp_inventory
+    -- ที่ callback อยู่ตัวสุดท้ายเสมอ) ส่ง nil แทน callback เพื่อใช้โหมด sync (คืนค่าตรงๆ)
+    local count = Inventory:getItemCount(source, nil, itemName)
     return (tonumber(count) or 0) >= (amount or 1)
 end
 

@@ -58,7 +58,10 @@ function NX_GR.Cooldowns.Release(graveId, token)
 end
 
 function NX_GR.Cooldowns.Commit(grave, character)
-    local availableAt = os.time() + ((grave.robbery.cooldownMinutes or 0) * 60)
+    -- หมู่บ้านที่มี schedule (แดนบน) ใช้เวลาจนถึงรอบเปิดถัดไปแทนคูลดาวน์คงที่ในคอนฟิก (แดนใต้ยังใช้ค่าคงที่ตามปกติ)
+    local scheduleSeconds = NX_GR.Schedule.SecondsUntilNextOpen(grave.villageId)
+    local cooldownSeconds = scheduleSeconds > 0 and scheduleSeconds or ((grave.robbery.cooldownMinutes or 0) * 60)
+    local availableAt = os.time() + cooldownSeconds
     state[grave.id].state = 'cooldown'
     state[grave.id].reservedBy = nil
     state[grave.id].availableAt = availableAt

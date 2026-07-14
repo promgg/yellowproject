@@ -62,13 +62,23 @@ function NX_GR.CleanupAnimation()
         DeleteObject(shovelObject)
     end
     shovelObject = nil
-
-    if lib and lib.hideTextUI then
-        lib.hideTextUI()
-    end
 end
 
-function NX_GR.PlayDigSession(payload)
+-- lp_progbar:Progress เป็น callback-based (ไม่ block) — ห่อเป็น blocking call ให้เข้ากับโค้ดสไตล์เดิม
+-- Progress() คืน nil ทันทีโดยไม่เรียก callback เลยถ้า ped ตาย (useWhileDead=false) — เช็ค id ก่อน
+-- ไม่งั้น while loop ข้างล่างค้างวนตลอดกาล (busy ค้าง true, lp_textui หายถาวรจนกว่าจะ reconnect)
+local function runProgressBar(opts)
+    local done, cancelled = false, false
+    local id = exports.lp_progbar:Progress(opts, function(wasCancelled)
+        cancelled = wasCancelled
+        done = true
+    end)
+    if not id then return false end
+    while not done do Citizen.Wait(10) end
+    return not cancelled
+end
+
+local function doDigSession(payload)
     local ped = PlayerPedId()
     local cfg = payload.animation or Config.Digging
 
@@ -85,12 +95,31 @@ function NX_GR.PlayDigSession(payload)
     FreezeEntityPosition(ped, true)
     TaskPlayAnim(ped, cfg.animDict, cfg.animName, 3.0, 3.0, -1, 1, 0, false, false, false)
 
-    local progressOk = lib.progressBar({
+    -- flow: minigame -> progress bar -> complete (server จะแจ้งเตือนผลลัพธ์ต่อเอง)
+    local skillOk = true
+    if payload.skillCheck and payload.skillCheck.enabled then
+        skillOk = exports.lp_minigame:Circle({
+            successNeeded = payload.skillCheck.successNeeded,
+            failLimit = payload.skillCheck.failLimit,
+            difficulty = payload.skillCheck.difficulty,
+            duration = payload.skillCheck.duration,
+            pool = payload.skillCheck.pool,
+        })
+    end
+
+    if not skillOk then
+        NX_GR.CleanupAnimation()
+        TriggerServerEvent('nx_graverobbery:server:cancel', payload.token, 'skill_failed')
+        NX_GR.Notify(NX_GR.Locale('failed'), 'error')
+        return
+    end
+
+    local progressOk = runProgressBar({
         duration = payload.durationMs or Config.Digging.durationMs,
         label = NX_GR.Locale('digging'),
         useWhileDead = false,
         canCancel = true,
-        disable = { move = true, combat = true, car = true },
+        controlDisables = { disableMovement = true, disableCombat = true, disableCarMovement = true },
     })
 
     NX_GR.CleanupAnimation()
@@ -101,21 +130,21 @@ function NX_GR.PlayDigSession(payload)
         return
     end
 
-    local skillOk = true
-    if payload.skillCheck and payload.skillCheck.enabled then
-        skillOk = lib.skillCheck(payload.skillCheck.difficulty, payload.skillCheck.keys)
-    end
-
-    if not skillOk then
-        TriggerServerEvent('nx_graverobbery:server:cancel', payload.token, 'skill_failed')
-        NX_GR.Notify(NX_GR.Locale('failed'), 'error')
-        return
-    end
-
     TriggerServerEvent('nx_graverobbery:server:complete', payload.token)
 end
 
-function NX_GR.PlayPray(payload)
+-- ห่อด้วย SetInteractionBusy(true/false) กัน lp_textui โผล่ทับระหว่าง lp_progbar/minigame ทำงาน
+-- ใช้ pcall คลุมเพื่อการันตี busy ถูกเคลียร์เสมอ ไม่ว่า doDigSession จะจบทางไหน (return ตรงไหน หรือ error)
+function NX_GR.PlayDigSession(payload)
+    NX_GR.SetInteractionBusy(true)
+    local ok, err = pcall(doDigSession, payload)
+    NX_GR.SetInteractionBusy(false)
+    if not ok then
+        print(('[nx_graverobbery] PlayDigSession error: %s'):format(tostring(err)))
+    end
+end
+
+local function doPray(payload)
     local ped = PlayerPedId()
     local anims = Config.Pray.animations
     local anim = anims[math.random(#anims)]
@@ -123,18 +152,23 @@ function NX_GR.PlayPray(payload)
     if not loadAnimDict(anim.dict) then return end
 
     TaskPlayAnim(ped, anim.dict, anim.name, 3.0, 3.0, payload.durationMs or 8000, 1, 0, false, false, false)
-    if lib and lib.progressBar then
-        lib.progressBar({
-            duration = payload.durationMs or 8000,
-            label = NX_GR.Locale('praying'),
-            useWhileDead = false,
-            canCancel = true,
-            disable = { move = false, combat = true, car = true },
-        })
-    else
-        Wait(payload.durationMs or 8000)
-    end
+    runProgressBar({
+        duration = payload.durationMs or 8000,
+        label = NX_GR.Locale('praying'),
+        useWhileDead = false,
+        canCancel = true,
+        controlDisables = { disableCombat = true, disableCarMovement = true },
+    })
     ClearPedTasks(ped)
+end
+
+function NX_GR.PlayPray(payload)
+    NX_GR.SetInteractionBusy(true)
+    local ok, err = pcall(doPray, payload)
+    NX_GR.SetInteractionBusy(false)
+    if not ok then
+        print(('[nx_graverobbery] PlayPray error: %s'):format(tostring(err)))
+    end
 end
 
 function NX_GR.ReceiveAlert(payload)

@@ -25,7 +25,7 @@ function NX_GR.Rewards.Give(source, character, grave)
     end
 
     if math.random(1, 100) <= (pool.emptyChance or 0) then
-        NX_GR.VORP.Notify(source, NX_GR.Locale('empty'))
+        NX_GR.VORP.Notify(source, NX_GR.Locale('empty'), nil, 'info')
         return true
     end
 
@@ -39,11 +39,14 @@ function NX_GR.Rewards.Give(source, character, grave)
         end
 
         if not NX_GR.VORP.AddItem(source, selected.name, amount, selected.metadata) then
+            NX_GR.VORP.Notify(source, NX_GR.Locale('unavailable'))
             NX_GR.Security.Log(source, 'reward', 'add_item_failed', { character = character, graveId = grave.id, villageId = grave.villageId })
             return false
         end
 
-        NX_GR.VORP.Notify(source, NX_GR.Locale('received_item', { amount = amount, item = selected.name }))
+        NX_GR.VORP.Notify(source, NX_GR.Locale('received_item', { amount = amount, item = selected.name }), nil, 'success')
+        -- log การได้ item จริง ไม่ใช่แค่ตอน fail — ไว้ตรวจสอบย้อนหลังได้ว่าใครได้อะไรไปบ้าง
+        NX_GR.Security.Log(source, 'reward', ('given_item:%s x%d'):format(selected.name, amount), { character = character, graveId = grave.id, villageId = grave.villageId })
     end
 
     local money = pool.money
@@ -51,6 +54,7 @@ function NX_GR.Rewards.Give(source, character, grave)
         local amount = math.random(money.min or 0, money.max or 0)
         if amount > 0 then
             NX_GR.VORP.AddCurrency(character, money.currency or 0, amount)
+            NX_GR.Security.Log(source, 'reward', ('given_money:%d'):format(amount), { character = character, graveId = grave.id, villageId = grave.villageId })
         end
     end
 

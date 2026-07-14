@@ -7,11 +7,10 @@ Server-authoritative grave robbery for VORP RedM with village-scoped alerts from
 - `vorp_core` 3.3 found in this project.
 - `vorp_inventory` 4.1 found in this project.
 - `oxmysql` found in `[standalone]`.
-- `ox_lib` 3.33.1 found in `[standalone]`.
 - `nx_cityselect` found in `[nx]`.
-- `ox_target` is required by `fxmanifest.lua`, but was not found in this resource tree during implementation.
-
-Install a RedM-compatible `ox_target` before starting this resource.
+- `lp_textui` found in `[LP]` — floating hold-to-interact prompt (replaced `ox_target`).
+- `lp_minigame` found in `[LP]` — circle skill-check for the dig sequence (replaced ox_lib's `lib.skillCheck`).
+- `lp_progbar` found in `[LP]` — progress bar for digging/praying (replaced ox_lib's `lib.progressBar`).
 
 ## Installation
 
@@ -57,7 +56,7 @@ Used APIs:
 
 - `exports.vorp_core:GetCore()`
 - `Core.getUser(source).getUsedCharacter`
-- `exports.vorp_inventory:getItemCount(source, item)`
+- `exports.vorp_inventory:getItemCount(source, nil, item)` (callback is the 2nd param on this one export — pass nil for sync mode)
 - `exports.vorp_inventory:canCarryItem(source, item, amount)`
 - `exports.vorp_inventory:addItem(source, item, amount, metadata)`
 - `exports.vorp_inventory:subItem(source, item, amount)`
@@ -80,19 +79,15 @@ Add villages in `Config.Villages`. Add graves in `Config.Graves`; each grave nee
 - required item
 - valid `rewardPool`
 
-Target modes:
-
-- `target = { type = 'sphere' }`
-- `target = { type = 'box', size = vec3(...), rotation = ... }`
-- `target = { type = 'model', models = { ... }, modelRadius = 4.0 }`
-
-The default is location-based sphere targets. It does not register every gravestone model globally.
+Interaction is a floating `lp_textui` hold prompt (`Config.Interaction.holdMs`), not a zone/target system —
+`grave.interaction.distance` is the trigger range. Dig takes priority when the grave is available; the prompt
+falls back to pray otherwise. The `target` field on each grave entry is unused now (kept for reference/future use).
 
 ## Rewards
 
 Rewards are rolled only on the server in `server/rewards.lua`.
 
-Add items under `Config.RewardPools[poolName].items`:
+Add items under `Config.RewardPools[poolName].items` in `server/config_server.lua` (server-only — not shipped to clients, unlike `config.lua`):
 
 ```lua
 { name = 'silver_ring', min = 1, max = 1, weight = 10 }
@@ -132,26 +127,39 @@ Permission uses ACE `nx_graverobbery.admin` or VORP user groups in `Config.Secur
 ## Limitations
 
 - This was not tested inside a live RedM server.
-- `ox_target` was not present in the project, so target registration needs in-game verification after installing it.
 - `damageDurability` is present in config but not implemented because this VORP inventory version does not expose a clear shovel durability contract.
 - `Config.AllowedTime.enabled` defaults to `false`; server-side clock native availability must be verified before enabling.
 - Village roles depend on VORP character group unless you provide a custom resolver.
+- Northern grave anchor coordinates are still the original placeholders (Valentine/Annesburg/Rhodes); the 10-hole
+  scatter (`spreadRadius = 8.0`) uses the same Z as the anchor for every hole and hasn't been ground-checked in-game.
+- Southern cluster anchors are real player-supplied coordinates but the 10-hole scatter (`spreadRadius = 12.0`)
+  likewise reuses the anchor's Z for all holes — verify no hole floats/clips before going live.
+- `Config.Villages.<village>.schedule` (northern only) is real-clock-based (server local time), not synced to
+  in-game/RP time; verify server timezone matches expectations.
 
 ## Troubleshooting
 
-- If the resource will not start, install/start `ox_target` first.
-- If no targets appear, verify `ox_target` API compatibility for RedM.
+- If no floating `[E]` prompt appears, verify `lp_textui` started before this resource.
+- If digging is rejected with "not open yet" outside expected hours, check the server's local clock/timezone against `Config.Villages.<id>.schedule`.
 - If alerts reach nobody, verify player `job`, `group`, and village membership.
 - If nobody receives city data, verify `nx_player_city` has rows for the character.
 - If rewards fail, verify item names exist in the VORP `items` table.
 
 ## In-Game Test Checklist
 
-Target:
+Prompt (lp_textui):
 
-- Target appears only on configured graves.
-- Disabled graves do not show target.
+- Floating `[E]` prompt appears only near configured graves, within `interaction.distance`.
+- Disabled graves show no prompt.
+- Prompt shows dig when the grave is available, falls back to pray otherwise.
 - Unconfigured global gravestones cannot be robbed.
+
+Schedule (northern only):
+
+- Before a village's `openHour`, digging is rejected with the "not open yet" message even on a fresh/never-dug hole.
+- At/after `openHour`, previously-undug holes become diggable.
+- A hole dug today stays closed until the same `openHour` tomorrow (not a short cooldown).
+- Southern holes are unaffected by any schedule and only gate on their own 90-minute cooldown.
 
 Digging:
 

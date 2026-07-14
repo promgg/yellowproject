@@ -100,6 +100,16 @@ local function validateStart(source, graveId)
         return nil, 'unavailable'
     end
 
+    -- กันตั้งแต่ต้น (ตอนกด E ค้าง) ไม่ให้เริ่มขุดหลุมศพในเมืองบ้านเกิดตัวเองได้เลย
+    local playerVillageId = NX_GR.CitySelect.GetPlayerVillageId(source, character)
+    if playerVillageId and playerVillageId == grave.villageId then
+        return nil, 'own_village'
+    end
+
+    if not NX_GR.Schedule.IsVillageOpenNow(grave.villageId) then
+        return nil, 'not_open_yet'
+    end
+
     if not NX_GR.Cooldowns.IsAvailable(grave.id) then
         local state = NX_GR.Cooldowns.Get(grave.id)
         return nil, state and state.state == 'reserved' and 'reserved' or 'cooldown'
@@ -114,9 +124,8 @@ local function validateStart(source, graveId)
         return nil, 'too_far'
     end
 
-    if Config.Security.requirePlayerVillage then
-        local playerVillageId = NX_GR.CitySelect.GetPlayerVillageId(source, character)
-        if not playerVillageId then return nil, 'no_village' end
+    if Config.Security.requirePlayerVillage and not playerVillageId then
+        return nil, 'no_village'
     end
 
     if not NX_GR.VORP.HasItem(source, grave.robbery.requiredItem, grave.robbery.requiredItemAmount) then
@@ -129,6 +138,11 @@ end
 RegisterNetEvent('nx_graverobbery:server:requestStart', function(graveId)
     local source = source
     local result, reason = validateStart(source, graveId)
+    if Config.Debug then
+        print(('[nx_graverobbery] requestStart source=%s grave=%s result=%s reason=%s'):format(
+            source, tostring(graveId), result and 'ok' or 'rejected', tostring(reason)
+        ))
+    end
     if not result then
         if reason then NX_GR.VORP.Notify(source, NX_GR.Locale(reason)) end
         return
@@ -227,6 +241,13 @@ RegisterNetEvent('nx_graverobbery:server:complete', function(token)
         return
     end
 
+    -- ให้รางวัลก่อนตัดสิทธิ์หลุม — ถ้า inventory เต็ม/add item ล้มเหลว หลุมยังไม่ถูกใช้ ผู้เล่นลองใหม่ได้
+    -- (เดิมสลับลำดับ ทำให้หลุมถูกเผาทิ้งไปเปล่าๆ ถ้า reward ล้มเหลวหลัง commit คูลดาวน์ไปแล้ว)
+    if not NX_GR.Rewards.Give(source, character, grave) then
+        cancelSession(token, nil) -- Rewards.Give แจ้งเตือนสาเหตุไปแล้ว (inventory_full ฯลฯ) ไม่ต้องซ้ำ
+        return
+    end
+
     session.used = true
     if not NX_GR.Cooldowns.Commit(grave, character) then
         NX_GR.Security.Log(source, 'complete', 'cooldown_commit_failed', { character = character, graveId = grave.id, villageId = grave.villageId })
@@ -237,8 +258,8 @@ RegisterNetEvent('nx_graverobbery:server:complete', function(token)
     sessions[token] = nil
     activeBySource[source] = nil
     NX_GR.Cooldowns.Sync(grave.id)
+    NX_GR.EventNotify.Refresh(grave.villageId)
 
-    NX_GR.Rewards.Give(source, character, grave)
     NX_GR.Alerts.Dispatch(grave)
 end)
 
@@ -291,11 +312,20 @@ local function requireAdmin(source)
     return false
 end
 
+-- log ตัวตนแอดมินที่สั่ง reset ไว้ด้วย ไม่ใช่แค่ผลลัพธ์ — ตรวจสอบย้อนหลังได้ว่าใครกดอะไร
+local function logAdminAction(source, action, data)
+    local identifier = source > 0 and NX_GR.VORP.GetIdentifier(source) or 'console'
+    NX_GR.Security.Log(source, 'admin', ('%s by %s'):format(action, tostring(identifier)), data)
+end
+
 RegisterCommand('gravereset', function(source, args)
     if not requireAdmin(source) then return end
     local graveId = args[1]
-    if graveId and NX_GR.Cooldowns.ResetGrave(graveId) then
+    local grave = graveId and gravesById[graveId]
+    if grave and NX_GR.Cooldowns.ResetGrave(graveId) then
         NX_GR.Cooldowns.Sync(graveId)
+        NX_GR.EventNotify.Refresh(grave.villageId)
+        logAdminAction(source, 'gravereset', { graveId = graveId, villageId = grave.villageId })
         adminReply(source, NX_GR.Locale('reset_done'))
     end
 end, false)
@@ -306,6 +336,8 @@ RegisterCommand('graveresetvillage', function(source, args)
     if not villageId then return end
     NX_GR.Cooldowns.ResetVillage(villageId, gravesById)
     NX_GR.Cooldowns.Sync()
+    NX_GR.EventNotify.Refresh(villageId)
+    logAdminAction(source, 'graveresetvillage', { villageId = villageId })
     adminReply(source, NX_GR.Locale('reset_done'))
 end, false)
 
@@ -313,6 +345,8 @@ RegisterCommand('graveresetall', function(source)
     if not requireAdmin(source) then return end
     NX_GR.Cooldowns.ResetAll()
     NX_GR.Cooldowns.Sync()
+    NX_GR.EventNotify.RefreshAll()
+    logAdminAction(source, 'graveresetall')
     adminReply(source, NX_GR.Locale('reset_done'))
 end, false)
 
@@ -349,6 +383,8 @@ AddEventHandler('playerDropped', function()
     local droppedSource = source
     cancelSourceSession(droppedSource, nil)
     prayCooldown[droppedSource] = nil
+    NX_GR.Security.ClearPlayer(droppedSource)
+    NX_GR.CitySelect.InvalidatePlayer(droppedSource)
 end)
 
 AddEventHandler('vorp:SelectedCharacter', function(source)

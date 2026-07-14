@@ -1,21 +1,39 @@
 NX_GR = NX_GR or {}
 NX_GR.CitySelect = {}
 
+-- cache ผลลัพธ์ต่อ source กัน MySQL.query.await ยิงซ้ำทุกคนออนไลน์ทุกครั้งที่มี alert dispatch
+-- (village ของตัวละครแทบไม่เปลี่ยนกลางเซสชัน, TTL กันกรณีย้ายเมืองจริงๆ ให้ค่อยรีเฟรชเอง)
+local villageIdCache = {} -- [source] = { villageId = ..., cachedAt = os.time() }
+local CACHE_TTL_SECONDS = 300
+
 function NX_GR.CitySelect.GetPlayerVillageId(source, character)
+    local cached = villageIdCache[source]
+    if cached and (os.time() - cached.cachedAt) < CACHE_TTL_SECONDS then
+        return cached.villageId
+    end
+
+    local villageId = nil
     if NX_GR.SafeResourceStarted('nx_cityselect') then
         local ok, cityId = pcall(function()
             return exports.nx_cityselect:GetPlayerCityId(source)
         end)
-        if ok and cityId then return cityId end
+        if ok and cityId then villageId = cityId end
     end
 
-    if not character then return nil end
+    if not villageId and character then
+        local rows = MySQL.query.await(
+            'SELECT city_id FROM nx_player_city WHERE identifier = ? AND charidentifier = ? LIMIT 1',
+            { character.identifier, tonumber(character.charIdentifier) }
+        )
+        villageId = rows and rows[1] and rows[1].city_id or nil
+    end
 
-    local rows = MySQL.query.await(
-        'SELECT city_id FROM nx_player_city WHERE identifier = ? AND charidentifier = ? LIMIT 1',
-        { character.identifier, tonumber(character.charIdentifier) }
-    )
-    return rows and rows[1] and rows[1].city_id or nil
+    villageIdCache[source] = { villageId = villageId, cachedAt = os.time() }
+    return villageId
+end
+
+function NX_GR.CitySelect.InvalidatePlayer(source)
+    villageIdCache[source] = nil
 end
 
 function NX_GR.CitySelect.GetAllVillages()

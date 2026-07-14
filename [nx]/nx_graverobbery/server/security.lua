@@ -1,7 +1,7 @@
 NX_GR = NX_GR or {}
 NX_GR.Security = {}
 
-local rateLimits = {}
+local rateLimits = {} -- [source] = { [eventName] = { count, resetAt } } — nested per-source เพื่อเคลียร์ตอน playerDropped ได้ในทีเดียว
 local suspiciousCounts = {}
 
 local function now()
@@ -41,11 +41,16 @@ function NX_GR.Security.Log(source, eventName, reason, data)
 end
 
 function NX_GR.Security.CheckRateLimit(source, eventName)
-    local key = ('%s:%s'):format(source, eventName)
-    local entry = rateLimits[key]
+    local perSource = rateLimits[source]
+    if not perSource then
+        perSource = {}
+        rateLimits[source] = perSource
+    end
+
+    local entry = perSource[eventName]
     local current = now()
     if not entry or current >= entry.resetAt then
-        rateLimits[key] = { count = 1, resetAt = current + 60 }
+        perSource[eventName] = { count = 1, resetAt = current + 60 }
         return true
     end
 
@@ -53,10 +58,23 @@ function NX_GR.Security.CheckRateLimit(source, eventName)
     if entry.count > Config.Security.maxRequestsPerMinute then
         suspiciousCounts[source] = (suspiciousCounts[source] or 0) + 1
         NX_GR.Security.Log(source, eventName, 'rate_limited')
+
+        local threshold = Config.Security.suspiciousRequestThreshold or 0
+        if threshold > 0 and suspiciousCounts[source] == threshold then
+            NX_GR.Security.Log(source, eventName, 'suspicious_threshold_reached')
+        end
+
         return false
     end
 
     return true
+end
+
+-- เรียกตอน playerDropped กัน rateLimits/suspiciousCounts โตค้างไม่มีที่สิ้นสุด
+-- (ไม่งั้น source เดิมโดน reuse เร็วๆ อาจรับ counter ค้างของ session ก่อนหน้าไปด้วย)
+function NX_GR.Security.ClearPlayer(source)
+    rateLimits[source] = nil
+    suspiciousCounts[source] = nil
 end
 
 function NX_GR.Security.GetPlayerCoords(source)
@@ -70,7 +88,9 @@ function NX_GR.Security.IsAliveAndOnFoot(source, character)
 
     local ped = GetPlayerPed(source)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return false end
-    if IsEntityDead(ped) then return false end
+
+    local okDead, isDead = pcall(IsEntityDead, ped)
+    if okDead and isDead then return false end
 
     local okVehicle, inVehicle = pcall(IsPedInAnyVehicle, ped, false)
     if okVehicle and inVehicle then return false end

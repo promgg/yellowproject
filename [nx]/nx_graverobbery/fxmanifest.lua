@@ -9,7 +9,6 @@ author 'NX'
 version '1.0.0'
 
 shared_scripts {
-    '@ox_lib/init.lua',
     'config.lua',
     'locales/*.lua',
     'shared/locale.lua',
@@ -19,18 +18,22 @@ shared_scripts {
 client_scripts {
     'client/notifications.lua',
     'client/animations.lua',
+    'client/graveprops.lua',
     'client/targets.lua',
     'client/main.lua',
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/config_server.lua',
     'server/bridges/vorp.lua',
     'server/bridges/cityselect.lua',
     'server/security.lua',
+    'server/schedule.lua',
     'server/cooldowns.lua',
     'server/rewards.lua',
     'server/notifications.lua',
+    'server/eventnotify_bridge.lua',
     'server/main.lua',
 }
 
@@ -38,7 +41,9 @@ dependencies {
     'vorp_core',
     'vorp_inventory',
     'oxmysql',
-    'ox_lib',
-    'ox_target',
+    'lp_textui',
+    'lp_minigame',
+    'lp_progbar',
     'nx_cityselect',
+    'pNotify',
 }
