@@ -46,7 +46,7 @@
     {
       "name": "lp_minigame",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "5507", "D:/project/txData/VORPCore/resources/[Script]/lp_minigame/html"],
+      "runtimeArgs": ["serve", "-p", "5507", "D:/project/txData/VORPCore/resources/[LP]/lp_minigame/html"],
       "port": 5507
     },
     {
@@ -102,6 +102,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "D:/project/txData/VORPCore/resources/[LP]/lp_leaderboard/nui"],
       "autoPort": true
+    },
+    {
+      "name": "lp_eventnotify",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5516", "D:/project/txData/VORPCore/resources/[LP]/lp_eventnotify/html"],
+      "port": 5516
     }
   ]
 }
