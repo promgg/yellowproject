@@ -1,0 +1,121 @@
+/* ============================================================
+   event_notify — event badge row (top-right) with live countdowns
+   Values ported by hand from the Figma export (no Tailwind/React).
+   ============================================================ */
+
+@font-face {
+  font-family: 'Copperplate Gothic Bold';
+  src: url('../copperplategothic_bold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+}
+#root.hidden { display: none; }
+
+/* ---------- Row (top-right) ---------- */
+.notify-row {
+  position: absolute;
+  top: 170px;   /* aligned to the reference (below the tree canopy) */
+  right: 34px;
+  display: flex;
+  flex-direction: column;   /* stack vertically when several events overlap */
+  align-items: flex-end;    /* right-aligned, growing downward */
+  gap: 11px;
+}
+
+/* ---------- Badge ---------- */
+.badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 94px;
+  padding: 10px 8px 8px;
+  border-radius: 10px;
+  background: rgba(15, 13, 10, 0.90);
+}
+
+.badge-icon {
+  width: 67px;
+  height: 67px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.badge-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  display: block;
+}
+
+.badge-label {
+  margin-top: 2px;
+  font-family: 'Copperplate Gothic Bold', serif;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  color: #ffffff;
+}
+
+.badge-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(124, 85, 46, 0.30);
+  border: 2px solid rgba(0, 0, 0, 0.10);
+}
+.badge-timer span {
+  font-family: 'Copperplate Gothic Bold', serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
+  color: #e5c275;
+  text-shadow: 0 0 10px rgba(255, 246, 0, 0.50);
+}
+
+/* ---------- Preview overlay (dev only) ---------- */
+#preview-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  background-image: url('../assets/preview.png');
+  /* preview.png is 2140x1080 — show at native height, right-anchored so the
+     reference badges line up with the right-anchored UI (no horizontal squish) */
+  background-size: auto 1080px;
+  background-position: right top;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 999;
+  display: none;
+}
