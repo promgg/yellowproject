@@ -189,14 +189,27 @@ AddEventHandler('lp_robbery:sv:lootStore', function(storeId)
     char.addCurrency(0, cash)
 
     local given = {}
-    for _, item in ipairs(Config.Rewards.Store.items or {}) do
-        if math.random(1, 100) <= item.chance then
-            local amount = type(item.amount) == 'table' and math.random(item.amount[1], item.amount[2]) or item.amount
-            if exports.vorp_inventory:canCarryItem(src, item.name, amount) then
-                exports.vorp_inventory:addItem(src, item.name, amount)
-                given[#given + 1] = amount .. 'x ' .. item.name
+    -- สุ่ม N ชิ้นไม่ซ้ำกันจาก pool (แทนระบบ items/chance แบบเดิม ที่แต่ละไอเทม roll โอกาสตัวเองแยกกัน)
+    local rewardsCfgStore = Config.Rewards.Store
+    if rewardsCfgStore.pool and #rewardsCfgStore.pool > 0 then
+        local minC, maxC = 1, 1
+        if rewardsCfgStore.poolCount then minC, maxC = rewardsCfgStore.poolCount[1], rewardsCfgStore.poolCount[2] end
+        local pickCount = math.random(minC, maxC)
+
+        local shuffled = {}
+        for _, name in ipairs(rewardsCfgStore.pool) do shuffled[#shuffled + 1] = name end
+        for i = #shuffled, 2, -1 do
+            local j = math.random(i)
+            shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+        end
+
+        for i = 1, math.min(pickCount, #shuffled) do
+            local name = shuffled[i]
+            if exports.vorp_inventory:canCarryItem(src, name, 1) then
+                exports.vorp_inventory:addItem(src, name, 1)
+                given[#given + 1] = '1x ' .. name
             else
-                notify(src, ('กระเป๋าเต็ม ไม่สามารถรับ %s ได้'):format(item.name), 'error')
+                notify(src, ('กระเป๋าเต็ม ไม่สามารถรับ %s ได้'):format(name), 'error')
             end
         end
     end

@@ -113,14 +113,13 @@ Config.Lockpick = {
 -- ────────────────────────────────────────────────────────────────────────────
 Config.Rewards = {
     Store = {
-        minCash = 100, maxCash = 300,
-        items = {
-            { name = 'loot_ring',       amount = 1, chance = 60 },
-            { name = 'loot_watch',      amount = 1, chance = 40 },
-            { name = 'loot_earring',    amount = 1, chance = 35 },
-            { name = 'goldring',        amount = 1, chance = 25 },
-            { name = 'loot_gold_tooth', amount = 1, chance = 20 },
+        minCash = 2000, maxCash = 2000,
+        -- ของงานดำ 7 ชิ้น น้ำหนักเท่ากันทุกชิ้น สุ่มไม่ซ้ำกัน 3-5 ชิ้น (แทนระบบ items/chance เดิมทั้งหมด)
+        pool = {
+            'loot_necklace', 'loot_ring', 'loot_watch', 'loot_chinese_coin',
+            'loot_earring', 'loot_brooch', 'loot_silver_tooth',
         },
+        poolCount = { 3, 5 },
     },
     BankVault = {
         minCash = 500, maxCash = 2000,
