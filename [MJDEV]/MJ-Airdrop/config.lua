@@ -93,18 +93,21 @@ Config["Airdrop"] = {
         },
         Item = {
             {
-                -- Money รองรับ {fixed} หรือ {min,max}
-                Money = {1500},
+                Money = {500},
                 Percent = 100
             },
             {
-                Item = "a_c_fishmuskie_01_lg",
-                Count = {1, 10},
+                Item = "blueprint_low",
+                Count = {1, 1},
                 Percent = 100
             },
             {
-                Weapon = "death_token",
-                Count = 1,
+                -- ของงานดำ 7 ชิ้น น้ำหนักเท่ากันทุกชิ้น สุ่มไม่ซ้ำกัน 3-5 ชิ้น
+                Pool = {
+                    "loot_necklace", "loot_ring", "loot_watch", "loot_chinese_coin",
+                    "loot_earring", "loot_brooch", "loot_silver_tooth",
+                },
+                Count = {3, 5},
                 Percent = 100
             },
         },
