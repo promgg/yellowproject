@@ -108,6 +108,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "5516", "D:/project/txData/VORPCore/resources/[LP]/lp_eventnotify/html"],
       "port": 5516
+    },
+    {
+      "name": "lp_deathmatch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5517", "D:/project/txData/VORPCore/resources/[LP]/lp_deathmatch/html"],
+      "port": 5517
     }
   ]
 }
