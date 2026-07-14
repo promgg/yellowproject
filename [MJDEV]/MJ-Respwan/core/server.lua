@@ -122,6 +122,9 @@ CreateThread(function()
                 TriggerClientEvent("MJ-ReSpwan:Client:ReviveAnim", _source)
                 SetTimeout(10000, function()
                     Core.Player.Revive(tonumber(closestPlayer))
+                    -- ข้ามสถานะ "บาดเจ็บ"/cooldown ของ MJ-Cooldown ให้เลย เหมือนตอนแอดมินชุบ
+                    -- (ไม่งั้น MJ-Cooldown จะจับ dead->alive แล้วบังคับ cooldown ต่อทันทีที่ฟื้น)
+                    TriggerClientEvent('MJ-Cooldown:Stopinjured', tonumber(closestPlayer))
                     -- 🔔 แจ้ง log ฝั่ง server พร้อมเหตุผล
                     TriggerServerEvent("mj:discordReviveLog", closestPlayer, string.format("ถูกชุบชีวิตโดย %s ด้วยไอเท็ม `%s`", name, key))
                 end)
