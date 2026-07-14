@@ -9,16 +9,19 @@ Config.Logging = {
 }
 
 Config.RewardPools = {
+    -- ของงานดำ 7 ชิ้น น้ำหนักเท่ากันทุกชิ้น การันตี 1 ชิ้นต่อหลุมเสมอ (emptyChance=0, ไม่มีเงิน)
+    -- ยืนยันชื่อ item + label ไทยตรงกับ DB จริงแล้ว (mjdevcore_18k.items) ผ่าน query ตรง 2026-07-14
     default_grave = {
-        emptyChance = 25,
-        money = { enabled = true, min = 0, max = 10, currency = 0 },
-        -- ไอเทมทั้งหมดยืนยันแล้วว่ามีจริงใน DB (mjdevcore_18k.items) — ตัวที่ไม่มีถูกแทนด้วย loot_ label ไทย
+        emptyChance = 0,
+        money = { enabled = false, min = 0, max = 0, currency = 0 },
         items = {
-            { name = 'loot_silver_coin', min = 1, max = 3, weight = 20 }, -- แทน coin_half_penny (ไม่มีใน DB) — เหรียญเงิน
-            { name = 'cigar',            min = 1, max = 2, weight = 15 }, -- มีอยู่แล้วใน DB
-            { name = 'loot_ring',        min = 1, max = 1, weight = 10 }, -- แทน silver_ring (ไม่มีใน DB) — แหวน
-            { name = 'wedding_ring',     min = 1, max = 1, weight = 6  }, -- มีอยู่แล้วใน DB
-            { name = 'loot_gold_tooth',  min = 1, max = 1, weight = 1  }, -- แทน gold_bar (ไม่มีใน DB) รางวัลหายาก — ฟันทอง
+            { name = 'loot_necklace',     min = 1, max = 1, weight = 1 }, -- สร้อยคอ
+            { name = 'loot_ring',         min = 1, max = 1, weight = 1 }, -- แหวน
+            { name = 'loot_watch',        min = 1, max = 1, weight = 1 }, -- นาฬิกา
+            { name = 'loot_chinese_coin', min = 1, max = 1, weight = 1 }, -- เหรียญเงินจีน
+            { name = 'loot_earring',      min = 1, max = 1, weight = 1 }, -- ต่างหู
+            { name = 'loot_brooch',       min = 1, max = 1, weight = 1 }, -- เข็มกลัด
+            { name = 'loot_silver_tooth', min = 1, max = 1, weight = 1 }, -- ฟันเงิน
         },
     },
 }
