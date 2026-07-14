@@ -5,7 +5,7 @@ const LSConfig = {
     DiscordLink: "discord.gg/yourlink",
     WebsiteLink: "yourwebsite.com",
 
-    Backgrounds: ['img/bg1.jpg', 'img/bg2.jpg'],
+    Backgrounds: ['img/logo.png'],
     BackgroundSpeed: 5000, 
 
     Music: 'audio/theme.mp3',
