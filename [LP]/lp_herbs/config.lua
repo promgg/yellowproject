@@ -160,3 +160,37 @@ do
         end
     end
 end
+
+-- ── โหมดสแกน (prop จริงทั่วแมพ) ────────────────────────────────────────────────
+-- เพิ่มเข้ามาคู่กับ Config.Zones เดิม (ไม่แตะของเดิมเลย) — สแกนหา prop จริงที่ Rockstar
+-- วางไว้ในแมพ (ไม่ใช่ prop ปลอมที่ client spawn เอง) จำกัดเฉพาะ 12 ชนิดที่มีอยู่แล้วในโซนด้านบน
+-- ใช้ค่า UX เดิมทั้งหมด (GatherRange/GatherDuration/GatherAnim/HoldMs/Cooldown/Amount) ไม่แยกชุดใหม่
+Config.Scan = {
+    Enabled    = true,
+    ThrottleMs = 400, -- ทุก 400ms (ไม่ใช่ทุกเฟรมแบบ vorp_herbs) กันภาระ client เกินจำเป็น
+}
+
+-- คีย์ cooldown แบบราย (ผู้เล่น, จุดโดยประมาณ) ปัดพิกัดจริงเป็นจำนวนเต็มเมตร — pure function
+-- ไม่มี native เลย เรียกได้ทั้ง client (cache local UX) และ server (cooldown จริง) ปลอดภัยใน shared_script
+function Config.coordsKey(v)
+    return ('%d_%d_%d'):format(math.floor(v.x), math.floor(v.y), math.floor(v.z))
+end
+
+-- Config.ScanModels: ดึงโมเดลจาก Config.Zones มา dedupe (โมเดลไหนซ้ำกัน 2 ชนิด เอาตัวที่เจอก่อน
+-- ตามลำดับ zone/herb ที่ประกาศไว้ด้านบน) => job_corn ชนะ job_barley, job_Yarrow ชนะ job_orange
+-- โดยอัตโนมัติ ไม่ต้อง special-case เพราะ Valentine (zone 1) ประกาศก่อน Rhodes (zone 3) อยู่แล้ว
+-- ไม่มี field coords (ต่างจาก Config.Zones) เพราะตำแหน่ง prop จริงในโลกไม่ deterministic
+-- หมายเหตุ: คำนวณ GetHashKey(model) ที่นี่ไม่ได้ (native เรียกใน shared_script build step ไม่ได้)
+-- ต้องให้แต่ละฝั่งที่ต้องใช้ hash (จริงๆ มีแค่ client) ไป GetHashKey เองตอน runtime
+do
+    local seenModel = {}
+    Config.ScanModels = {}
+    for _, zone in ipairs(Config.Zones) do
+        for _, herb in ipairs(zone.herbs) do
+            if not seenModel[herb.model] then
+                seenModel[herb.model] = true
+                Config.ScanModels[#Config.ScanModels + 1] = { model = herb.model, item = herb.item, label = herb.label }
+            end
+        end
+    end
+end
