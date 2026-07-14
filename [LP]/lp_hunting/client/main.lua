@@ -91,6 +91,45 @@ local function isPendingOrExpired(netId)
     return true
 end
 
+-- UX-only (server ตัดสินจริงอีกทีเสมอ, ดู server/main.lua) — ไม่โชว์ prompt ของเราถ้าผู้เล่นอยู่ในโซน
+-- ต้องห้ามตอนนี้ ทั้ง 2 ระบบ: (1) เขตเมืองของ nx_cityselect (เช็คจาก export ที่มีอยู่แล้ว GetCurrentZone,
+-- local call ล้วนๆ ไม่มี network round-trip, pcall กันเคส nx_cityselect ไม่ได้รันอยู่ — fail-open) และ
+-- (2) Config.ExtraBlockedZones ของ lp_hunting เอง (point-in-polygon อิสระจาก nx_cityselect ทั้งหมด)
+local function isPointInPolygon(x, y, poly)
+    local inside = false
+    local j = #poly
+    for i = 1, #poly do
+        local xi, yi = poly[i].x, poly[i].y
+        local xj, yj = poly[j].x, poly[j].y
+        if ((yi > y) ~= (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi) then
+            inside = not inside
+        end
+        j = i
+    end
+    return inside
+end
+
+local function isInExtraBlockedZone(coords)
+    for _, zone in ipairs(Config.ExtraBlockedZones or {}) do
+        if #zone.points >= 3 and coords.z >= zone.minZ and coords.z <= zone.maxZ
+            and isPointInPolygon(coords.x, coords.y, zone.points) then
+            return true
+        end
+    end
+    return false
+end
+
+local function isInCityZone()
+    if not Config.BlockInCityZones then return false end
+    local ok, zone = pcall(function() return exports.nx_cityselect:GetCurrentZone() end)
+    return ok and zone ~= nil
+end
+
+local function isInBlockedZone()
+    if isInExtraBlockedZone(GetEntityCoords(PlayerPedId())) then return true end
+    return isInCityZone()
+end
+
 local function cancelActive()
     if activeCarcass then
         exports.lp_textui:CancelHold()
@@ -219,7 +258,9 @@ CreateThread(function()
                     end
                 end
 
-                if nearestPed then
+                if nearestPed and isInBlockedZone() then
+                    dbg('carcass found but suppressed: in a blocked zone')
+                elseif nearestPed then
                     activeCarcass = nearestPed
                     activeNetId   = NetworkGetNetworkIdFromEntity(nearestPed)
                     local tier      = Config.SkinTiers[GetEntityModel(nearestPed)]

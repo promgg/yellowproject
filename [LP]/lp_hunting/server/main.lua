@@ -24,6 +24,32 @@ local function dbg(fmt, ...)
     if Config.Debug then print(('[lp_hunting] ' .. fmt):format(...)) end
 end
 
+-- ── point-in-polygon (ray casting) — สำหรับ Config.ExtraBlockedZones เท่านั้น (อิสระจาก
+-- nx_cityselect ทั้งหมด ไม่ผ่าน export ของมันเลย ตามที่สั่ง) ────────────────────────────
+local function isPointInPolygon(x, y, poly)
+    local inside = false
+    local j = #poly
+    for i = 1, #poly do
+        local xi, yi = poly[i].x, poly[i].y
+        local xj, yj = poly[j].x, poly[j].y
+        if ((yi > y) ~= (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi) then
+            inside = not inside
+        end
+        j = i
+    end
+    return inside
+end
+
+local function getExtraBlockedZoneAt(coords)
+    for _, zone in ipairs(Config.ExtraBlockedZones or {}) do
+        if #zone.points >= 3 and coords.z >= zone.minZ and coords.z <= zone.maxZ
+            and isPointInPolygon(coords.x, coords.y, zone.points) then
+            return zone
+        end
+    end
+    return nil
+end
+
 RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     local _source = source
     netId = tonumber(netId)
@@ -73,6 +99,40 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     if dist > ((Config.Range or 2.0) + 1.0) then
         dbg('reject src=%d netId=%d: too far (%.2fm)', _source, netId, dist)
         return
+    end
+
+    -- (4.4) โซนห้ามชำแหละเพิ่มเติมของ lp_hunting เอง (Config.ExtraBlockedZones) — อิสระจาก nx_cityselect
+    -- ทั้งหมด (ไม่ผ่าน export เลย) ใช้พิกัดซากจริงเช็คด้วย point-in-polygon ในไฟล์นี้เอง
+    local extraZone = getExtraBlockedZoneAt(GetEntityCoords(ent))
+    if extraZone then
+        dbg('reject src=%d netId=%d: inside extra blocked zone (%s)', _source, netId, extraZone.id)
+        TriggerClientEvent('pNotify:SendNotification', _source, {
+            text = ('ห้ามชำแหละสัตว์ในเขต %s'):format(extraZone.label or extraZone.id),
+            type = 'error',
+            timeout = 4000,
+        })
+        return
+    end
+
+    -- (4.5) ห้ามชำแหละถ้าซากอยู่ในเขตเมือง (nx_cityselect ตัดสินฝั่ง server เอง ไม่เชื่อ client)
+    -- ตำแหน่งซาก+ผู้เล่นอยู่ห่างกันไม่เกิน Config.Range อยู่แล้วจากข้อ (4) เลยเช็คจากซากตัวเดียวพอ
+    -- ถ้า nx_cityselect ไม่ได้รันอยู่ (export ไม่มี) fail-open — ไม่บล็อคระบบล่าสัตว์ทั้งหมดเพราะ
+    -- resource อื่นมีปัญหา แต่ dbg แจ้งไว้ให้เห็นใน console
+    if Config.BlockInCityZones then
+        local ok, result = pcall(function()
+            return exports.nx_cityselect:GetCityAtCoords(GetEntityCoords(ent))
+        end)
+        if ok and result then
+            dbg('reject src=%d netId=%d: inside city zone (%s)', _source, netId, tostring(result))
+            TriggerClientEvent('pNotify:SendNotification', _source, {
+                text = Config.CityZoneBlockedMsg or 'ห้ามชำแหละสัตว์ในเขตเมือง',
+                type = 'error',
+                timeout = 4000,
+            })
+            return
+        elseif not ok then
+            dbg('city-zone check failed (nx_cityselect not running?) -> fail-open, allowing skin. err=%s', tostring(result))
+        end
     end
 
     local user = VorpCore.getUser(_source)
