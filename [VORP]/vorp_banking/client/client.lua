@@ -1,11 +1,20 @@
 local VORPcore = exports.vorp_core:GetCore()
-local prompts = GetRandomIntInRange(0, 0xffffff)
-local PromptGroup2 = GetRandomIntInRange(0, 0xffffff)
-local openmenu
-local CloseBanks
 local inmenu = false
 local T = Translation.Langs[Config.Lang]
 local MenuData = exports.vorp_menu:GetMenuData()
+
+-- ธนาคารที่กำลังโชว์ floating prompt/TextUI อยู่ตอนนี้ (โชว์ได้ทีละอันเดียว)
+local activeBank = nil
+local activeBankMode = nil -- 'open' | 'closed'
+
+local function clearActivePrompt()
+    if activeBank then
+        exports.lp_textui:CancelHold()
+        exports.lp_textui:HideUI()
+    end
+    activeBank = nil
+    activeBankMode = nil
+end
 
 AddEventHandler("onResourceStop", function(resourceName)
     if resourceName == GetCurrentResourceName() then
@@ -19,6 +28,7 @@ AddEventHandler("onResourceStop", function(resourceName)
                 SetEntityAsNoLongerNeeded(v.NPC)
             end
         end
+        clearActivePrompt()
         DisplayRadar(true)
         MenuData.CloseAll()
         ClearPedTasks(PlayerPedId(), true, true)
@@ -60,32 +70,6 @@ local function spawnNPC(index)
     Config.banks[index].NPC = npc
 end
 
-local function promptSetUp()
-    local str = T.openmenu
-    openmenu = UiPromptRegisterBegin()
-    UiPromptSetControlAction(openmenu, Config.Key)
-    str = VarString(10, 'LITERAL_STRING', str)
-    UiPromptSetText(openmenu, str)
-    UiPromptSetEnabled(openmenu, true)
-    UiPromptSetVisible(openmenu, true)
-    UiPromptSetStandardMode(openmenu, true)
-    UiPromptSetGroup(openmenu, prompts, 0)
-    UiPromptRegisterEnd(openmenu)
-end
-
-local function promptSetUp2()
-    local str = T.closemenu
-    CloseBanks = UiPromptRegisterBegin()
-    UiPromptSetControlAction(CloseBanks, Config.Key)
-    str = VarString(10, 'LITERAL_STRING', str)
-    UiPromptSetText(CloseBanks, str)
-    UiPromptSetEnabled(CloseBanks, true)
-    UiPromptSetVisible(CloseBanks, true)
-    UiPromptSetStandardMode(CloseBanks, true)
-    UiPromptSetGroup(CloseBanks, PromptGroup2, 0)
-    UiPromptRegisterEnd(CloseBanks)
-end
-
 local function getDistance(config)
     local coords = GetEntityCoords(PlayerPedId())
     local coords2 = vector3(config.x, config.y, config.z)
@@ -115,15 +99,45 @@ local function getBankInfo(bankConfig)
     DisplayRadar(false)
 end
 
+local function bankAnchor(bankConfig)
+    return {
+        coords = vector3(bankConfig.BankLocation.x, bankConfig.BankLocation.y, bankConfig.BankLocation.z),
+        offset = vector3(0.0, 0.0, 0.5),
+    }
+end
+
+-- ตั้ง/สลับ floating prompt ให้ตรงกับธนาคารที่ใกล้ที่สุดตอนนี้ (มีได้ทีละอันเดียว)
+local function updateActivePrompt(index, bankConfig, closed)
+    local mode = closed and 'closed' or 'open'
+    if activeBank == index and activeBankMode == mode then
+        return -- อันเดิม ไม่ต้องเรียกซ้ำ
+    end
+
+    clearActivePrompt()
+    activeBank = index
+    activeBankMode = mode
+
+    if closed then
+        local msg = ("%s %s%s - %s%s"):format(T.openHours, bankConfig.StoreOpen, T.amTimeZone, bankConfig.StoreClose, T.pmTimeZone)
+        exports.lp_textui:TextUI(msg, nil, bankAnchor(bankConfig))
+    else
+        local msg = ("[E] %s %s"):format(T.bank, bankConfig.name)
+        exports.lp_textui:TextUIHold(msg, Config.HoldMs, function()
+            inmenu = true
+            getBankInfo(bankConfig)
+            clearActivePrompt()
+        end, Config.Key, bankAnchor(bankConfig))
+    end
+end
+
 CreateThread(function()
     repeat Wait(5000) until LocalPlayer.state.IsInSession
-    promptSetUp()
-    promptSetUp2()
 
     while true do
         local sleep = 1000
         local player = PlayerPedId()
         local dead = IsEntityDead(player)
+        local nearestIndex, nearestBankConfig, nearestClosed = nil, nil, nil
 
         if not inmenu and not dead then
             for index, bankConfig in pairs(Config.banks) do
@@ -147,15 +161,9 @@ CreateThread(function()
 
                         local distance = getDistance(bankConfig.BankLocation)
 
-                        if distance <= bankConfig.distOpen then
+                        if distance <= bankConfig.distOpen and not nearestIndex then
                             sleep = 0
-                            local label2 = VarString(10, 'LITERAL_STRING', T.openHours .. " " .. bankConfig.StoreOpen .. T.amTimeZone .. " - " .. bankConfig.StoreClose .. T.pmTimeZone)
-                            UiPromptSetActiveGroupThisFrame(PromptGroup2, label2, 0, 0, 0, 0)
-
-                            if UiPromptHasStandardModeCompleted(CloseBanks, 0) then
-                                Wait(1000)
-                                VORPcore.NotifyRightTip(T.closed, 4000)
-                            end
+                            nearestIndex, nearestBankConfig, nearestClosed = index, bankConfig, true
                         end
                     elseif hour >= bankConfig.StoreOpen then
                         if not Config.banks[index].BlipHandle and bankConfig.blipAllowed then
@@ -168,16 +176,9 @@ CreateThread(function()
 
                         local distance = getDistance(bankConfig.BankLocation)
                         createNpcByDistance(distance, index)
-                        if distance <= bankConfig.distOpen then
+                        if distance <= bankConfig.distOpen and not nearestIndex then
                             sleep = 0
-
-                            local label = VarString(10, 'LITERAL_STRING', T.bank .. " " .. bankConfig.name)
-                            UiPromptSetActiveGroupThisFrame(prompts, label, 0, 0, 0, 0)
-
-                            if UiPromptHasStandardModeCompleted(openmenu, 0) then
-                                inmenu = true
-                                getBankInfo(bankConfig)
-                            end
+                            nearestIndex, nearestBankConfig, nearestClosed = index, bankConfig, false
                         end
                     end
                 else
@@ -188,19 +189,20 @@ CreateThread(function()
 
                     createNpcByDistance(distance, index)
 
-                    if distance <= bankConfig.distOpen then
+                    if distance <= bankConfig.distOpen and not nearestIndex then
                         sleep = 0
-                        local label = VarString(10, 'LITERAL_STRING', T.bank .. " " .. bankConfig.name)
-                        UiPromptSetActiveGroupThisFrame(prompts, label, 0, 0, 0, 0)
-
-                        if UiPromptHasStandardModeCompleted(openmenu, 0) then
-                            inmenu = true
-                            getBankInfo(bankConfig)
-                        end
+                        nearestIndex, nearestBankConfig, nearestClosed = index, bankConfig, false
                     end
                 end
             end
         end
+
+        if not nearestIndex then
+            clearActivePrompt()
+        else
+            updateActivePrompt(nearestIndex, nearestBankConfig, nearestClosed)
+        end
+
         Wait(sleep)
     end
 end)
@@ -233,7 +235,7 @@ function Openbank(bankName, bankinfo, allbanks)
         }
     end
 
-    if Config.banks[bankName].items then
+    if Config.banks[bankName].items and bankinfo.isOwnCity ~= false then
         elements[#elements + 1] = {
             label = T.depoitem,
             value = 'bitem',
@@ -241,7 +243,7 @@ function Openbank(bankName, bankinfo, allbanks)
         }
     end
 
-    if Config.banks[bankName].upgrade then
+    if Config.banks[bankName].upgrade and bankinfo.isOwnCity ~= false then
         elements[#elements + 1] = {
             label = T.upgradeitem,
             value = 'upitem',
@@ -298,7 +300,7 @@ function Openbank(bankName, bankinfo, allbanks)
                         TriggerServerEvent("vorp_bank:depositcash", result, Config.banks[bankName].city, bankinfo)
                         closeMenu()
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end
@@ -324,7 +326,7 @@ function Openbank(bankName, bankinfo, allbanks)
                         TriggerServerEvent("vorp_bank:depositgold", result, Config.banks[bankName].city, bankinfo)
                         closeMenu()
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end
@@ -350,7 +352,7 @@ function Openbank(bankName, bankinfo, allbanks)
                         TriggerServerEvent("vorp_bank:withcash", result, Config.banks[bankName].city, bankinfo)
                         closeMenu()
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end
@@ -376,7 +378,7 @@ function Openbank(bankName, bankinfo, allbanks)
                         TriggerServerEvent("vorp_bank:withgold", result, Config.banks[bankName].city, bankinfo)
                         closeMenu()
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end
@@ -385,12 +387,11 @@ function Openbank(bankName, bankinfo, allbanks)
                     TriggerServerEvent("vorp_banking:server:OpenBankInventory", bankName)
                     closeMenu()
                 else
-                    VORPcore.NotifyRightTip(" you need to buy slots first", 4000)
+                    Notify({ text = "you need to buy slots first", time = 4000, type = "error" })
                 end
             end
 
             if (data.current.value == 'upitem') then
-                local invspace = bankinfo.invspace
                 local myInput = {
                     type = "enableinput",                                               -- don't touch
                     inputType = "input",                                                -- input type
@@ -409,10 +410,10 @@ function Openbank(bankName, bankinfo, allbanks)
                 TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
                     local result = tonumber(cb)
                     if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:UpgradeSafeBox", math.floor(result), invspace, bankName)
+                        TriggerServerEvent("vorp_bank:UpgradeSafeBox", math.floor(result), bankName)
                         closeMenu()
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end
@@ -469,7 +470,7 @@ function Openallbanks(bankName, allbanks)
                     if result ~= nil and result > 0 then
                         TriggerServerEvent("vorp_bank:transfer", result, data.current.info, bankName)
                     else
-                        VORPcore.NotifyRightTip(T.invalid, 4000)
+                        Notify({ text = T.invalid, time = 4000, type = "error" })
                     end
                 end)
             end

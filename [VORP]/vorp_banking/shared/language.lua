@@ -56,6 +56,8 @@ Translation.Langs = {
         transferinfo = "You can have money transferred here. There is a 10% fee applied to each transfer!",
         invOpenFail  = "Failed to Access the Safebox! Buy Slots First.",
         notnear     =  "You are not near the bank!",
+        wrongCity    = "The safe box can only be used at your home city's bank.",
+        upgradeBusy  = "Please wait, your previous request is still processing.",
         inputsLang   = {
             -- [ DEPOSIT CASH ]
             confirmCash = "Confirm",            -- Button Name

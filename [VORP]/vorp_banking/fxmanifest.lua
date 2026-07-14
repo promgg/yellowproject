@@ -20,7 +20,13 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'logs.lua',
     'server/services.lua',
+    'server/bridges/cityselect.lua',
     'server/server.lua',
+}
+
+dependencies {
+    'lp_textui',
+    'pNotify',
 }
 
 --dont touch

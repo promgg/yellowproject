@@ -31,91 +31,166 @@ local function IsNearBank(source, bankName)
     end
 end
 
+-- true ถ้าตู้เซฟ/อัปเกรดช่องของธนาคารนี้ใช้ได้กับผู้เล่นคนนี้ (ไม่ล็อกเมือง หรือ nx_cityselect ไม่ทำงาน = อนุญาตเสมอ)
+local function isOwnCityBank(_source, bankName)
+    if not Config.SafeBox.lockToOwnCity then return true end
+    if not VORP_BANK.CitySelect.IsNxCitySelectActive() then return true end
+
+    local playerCity = VORP_BANK.CitySelect.GetPlayerCityId(_source)
+    if not playerCity then return false end
+
+    return playerCity:lower() == (bankName or ""):lower()
+end
+
+-- ── Anti-spam: คูลดาวน์ต่อ source ต่อชนิด event (กันยิงถี่/สคริปต์กด dupe) ──
+local txCooldown = {} -- [source][eventName] = GetGameTimer() ครั้งล่าสุด
+local function onCooldown(_source, eventName)
+    local now = GetGameTimer()
+    local bucket = txCooldown[_source]
+    if not bucket then
+        txCooldown[_source] = { [eventName] = now }
+        return false
+    end
+    local last = bucket[eventName]
+    if last and (now - last) < Config.TxCooldownMs then
+        return true
+    end
+    bucket[eventName] = now
+    return false
+end
+
+-- console audit trail — ไม่ผูกกับ webhook (webhook default ว่าง จึงต้องมี log พื้นฐานเสมอ)
+local function logTx(charid, action, detail)
+    print(("[vorp_banking] char=%s %s %s"):format(tostring(charid), action, detail or ""))
+end
+
+-- คืน Character ถ้ามีจริง + bankName ถูกต้อง ไม่งั้นคืน nil (trust boundary: อย่าเชื่อ bankName จาก client)
+local function resolveRequest(_source, bankName)
+    if not bankName or not Config.banks[bankName] then return nil end
+    local user = VORPcore.getUser(_source)
+    if not user then return nil end
+    local Character = user.getUsedCharacter
+    if not Character then return nil end
+    return Character
+end
+
+-- amount ต้องเป็นตัวเลขบวกจริงเท่านั้น (กันติดลบ/0/NaN/inf ที่ทำให้ removeCurrency กลับด้านเป็นปั๊มเงิน)
+local function isValidAmount(amount)
+    amount = tonumber(amount)
+    if not amount or amount ~= amount then return nil end -- nil หรือ NaN
+    if amount <= 0 or amount == math.huge then return nil end
+    return amount
+end
+
 VORPcore.Callback.Register('vorp_bank:getinfo', function(source, cb, bankName)
     local _source = source
-    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local Character = resolveRequest(_source, bankName)
+    if not Character then return cb({ {}, {} }) end -- ฝั่ง client เช็ค `if not bankinfo.money` แล้วปิดเมนูเอง
+
     local charidentifier = Character.charIdentifier
     local identifier = Character.identifier
-    local allBanks = {}
+    local isOwnCity = isOwnCityBank(_source, bankName)
 
-    MySQL.query("SELECT * FROM bank_users WHERE charidentifier = @charidentifier AND name = @bankName",
-        { charidentifier = charidentifier, bankName = bankName }, function(result)
-            if result[1] then
-                local money = result[1].money
-                local gold = result[1].gold
-                local invspace = result[1].invspace
-                local bankinfo = { money = money, gold = gold, invspace = invspace, name = bankName }
+    -- คอลัมน์เจาะจง ไม่ใช้ SELECT * (ตารางมี items longtext ก้อนใหญ่ที่เมนูไม่ได้ใช้)
+    local row = MySQL.query.await("SELECT money, gold, invspace FROM bank_users WHERE charidentifier = @charidentifier AND name = @bankName LIMIT 1",
+        { charidentifier = charidentifier, bankName = bankName })
 
-                local allBanksResult = MySQL.query.await("SELECT * FROM bank_users WHERE charidentifier = @charidentifier", { charidentifier = charidentifier })
-                if allBanksResult[1] then
-                    allBanks = allBanksResult
-                end
-
-                return cb({ bankinfo, allBanks })
-            else
-                local defaultMoney = 0
-                local defaultGold = 0
-                local defaultInvspace = 10
-                local parameters = {
-                    name = bankName,
-                    identifier = identifier,
-                    charidentifier = charidentifier,
-                    money = defaultMoney,
-                    gold = defaultGold,
-                    invspace = defaultInvspace
-                }
-
-                MySQL.insert.await("INSERT INTO bank_users ( `name`,`identifier`,`charidentifier`,`money`,`gold`,`invspace`) VALUES ( @name, @identifier, @charidentifier, @money, @gold, @invspace)", parameters)
-                MySQL.query("SELECT * FROM bank_users WHERE charidentifier = @charidentifier AND name = @bankName", { charidentifier = charidentifier, bankName = bankName }, function(result1)
-                    if result1[1] then
-                        local money = defaultMoney
-                        local gold = defaultGold
-                        local invspace = defaultInvspace
-                        local bankinfo = { money = money, gold = gold, invspace = invspace, name = bankName }
-
-                        local allBanksResult = MySQL.query.await("SELECT * FROM bank_users WHERE charidentifier = @charidentifier", { charidentifier = charidentifier })
-                        if allBanksResult[1] then
-                            allBanks = allBanksResult
-                        end
-                        return cb({ bankinfo, allBanks })
-                    end
-                end)
-            end
-        end)
-end)
-
-RegisterServerEvent('vorp_bank:UpgradeSafeBox', function(slotsToBuy, currentspace, bankName)
-    local _source        = source
-    local Character      = VORPcore.getUser(_source).getUsedCharacter
-    local charidentifier = Character.charIdentifier
-    local money          = Character.money
-
-    local maxslots       = Config.banks[bankName].maxslots
-    local costslot       = Config.banks[bankName].costslot
-    local name           = Config.banks[bankName].city
-
-    local amountToPay    = costslot * slotsToBuy
-    local FinalSlots     = currentspace + slotsToBuy
-
-    if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+    if not (row and row[1]) then
+        -- ยังไม่มีบัญชีธนาคารนี้ -> สร้างด้วยค่าเริ่มต้น
+        MySQL.insert.await("INSERT INTO bank_users (`name`,`identifier`,`charidentifier`,`money`,`gold`,`invspace`) VALUES (@name, @identifier, @charidentifier, @money, @gold, @invspace)", {
+            name = bankName, identifier = identifier, charidentifier = charidentifier,
+            money = 0, gold = 0, invspace = Config.SafeBox.defaultInvspace
+        })
+        row = { { money = 0, gold = 0, invspace = Config.SafeBox.defaultInvspace } }
     end
 
+    local bankinfo = { money = row[1].money, gold = row[1].gold, invspace = row[1].invspace, name = bankName, isOwnCity = isOwnCity }
+    local allBanks = MySQL.query.await("SELECT name, money FROM bank_users WHERE charidentifier = @charidentifier", { charidentifier = charidentifier }) or {}
+
+    return cb({ bankinfo, allBanks })
+end)
+
+-- source ที่กำลังมี upgrade request ค้างอยู่ (กัน double-submit ระหว่างรอ MySQL.scalar ตอบ)
+local upgradeInProgress = {}
+
+RegisterServerEvent('vorp_bank:UpgradeSafeBox', function(slotsToBuy, bankName)
+    local _source = source
+    local Character = resolveRequest(_source, bankName)
+    if not Character then return end
+    local bankCfg = Config.banks[bankName]
+
+    if upgradeInProgress[_source] then
+        return Notify({ source = _source, text = T.upgradeBusy or "Please wait...", time = 4000, type = "error" })
+    end
+
+    -- ต้องเป็นจำนวนเต็มบวกเท่านั้น กัน slotsToBuy ติดลบ/ทศนิยม/0 ที่ทำให้ amountToPay ติดลบ (ปั๊มเงิน)
+    slotsToBuy = tonumber(slotsToBuy)
+    if not slotsToBuy or slotsToBuy <= 0 or slotsToBuy ~= math.floor(slotsToBuy) then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
+
+    if not IsNearBank(_source, bankName) then
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
+    end
+
+    if not isOwnCityBank(_source, bankName) then
+        return Notify({ source = _source, text = T.wrongCity or "This safe box is locked to your home city.", time = 4000, type = "error" })
+    end
+
+    local charidentifier = Character.charIdentifier
+    local maxslots        = bankCfg.maxslots
+    local costslot        = bankCfg.costslot
+    local name            = bankCfg.city
+
+    upgradeInProgress[_source] = true
+
+    -- ค่าช่องปัจจุบันต้อง query จาก DB เอง ห้ามเชื่อค่าที่ client ส่งมา (เดิมรับ currentspace ตรงๆ จาก client
+    -- ทำให้ปลอมค่าแล้วจ่ายแค่ 1 ช่องแต่ได้ช่องกระโดดไปเกือบเต็มได้)
+    -- concurrent ของ source เดียวกันถูกกันด้วย upgradeInProgress; row นี้ผูกต่อตัวละคร source อื่นแตะไม่ได้
+    local currentspace = MySQL.scalar.await('SELECT `invspace` FROM `bank_users` WHERE `charidentifier` = @charidentifier AND `name` = @name LIMIT 1', {
+        charidentifier = charidentifier, name = name
+    })
+    if not currentspace then
+        upgradeInProgress[_source] = nil
+        return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
+    end
+
+    local money       = Character.money -- อ่านสดตอนนี้ ไม่ใช้ค่าที่ capture ไว้ก่อนรอ query
+    local amountToPay = costslot * slotsToBuy
+    local FinalSlots  = currentspace + slotsToBuy
+
     if money < amountToPay then
-        return VORPcore.NotifyRightTip(_source, T.nomoney, 4000)
+        upgradeInProgress[_source] = nil
+        return Notify({ source = _source, text = T.nomoney, time = 4000, type = "error" })
     end
 
     if FinalSlots > maxslots then
-        return VORPcore.NotifyRightTip(_source, T.maxslots .. " | " .. slotsToBuy .. " / " .. maxslots, 4000)
+        upgradeInProgress[_source] = nil
+        return Notify({ source = _source, text = T.maxslots .. " | " .. slotsToBuy .. " / " .. maxslots, time = 4000, type = "error" })
+    end
+
+    if FinalSlots < Config.SafeBox.minSlots then
+        upgradeInProgress[_source] = nil
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
+
+    -- เขียน DB ก่อน แล้วเช็คผลสำเร็จ ค่อยหักเงิน — ถ้า DB เขียนไม่ผ่านจะไม่มีการหักเงิน (กันเสียเงินฟรี)
+    local affected = MySQL.update.await("UPDATE bank_users SET invspace=@invspace WHERE charidentifier=@charidentifier AND name = @name", {
+        charidentifier = charidentifier, invspace = FinalSlots, name = name
+    })
+    if not affected or affected == 0 then
+        upgradeInProgress[_source] = nil
+        return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
     end
 
     Character.removeCurrency(0, amountToPay)
-    local Parameters = { ['charidentifier'] = charidentifier, ['invspace'] = FinalSlots, ['name'] = name }
-    MySQL.update("UPDATE bank_users SET invspace=@invspace WHERE charidentifier=@charidentifier AND name = @name", Parameters)
     local bankId = "vorp_banking_" .. bankName .. "_" .. charidentifier
     registerStorage(bankName, bankId, currentspace)
     exports.vorp_inventory:updateCustomInventorySlots(bankId, FinalSlots)
-    VORPcore.NotifyRightTip(_source, T.success .. (costslot * slotsToBuy) .. " | " .. FinalSlots .. " / " .. maxslots, 4000)
+    Notify({ source = _source, text = T.success .. amountToPay .. " | " .. FinalSlots .. " / " .. maxslots, time = 4000, type = "success" })
+    logTx(charidentifier, "upgrade_safebox", ("bank=%s +%d slot(s) $%d -> %d/%d"):format(bankName, slotsToBuy, amountToPay, FinalSlots, maxslots))
+
+    upgradeInProgress[_source] = nil
 end)
 
 DiscordLogs = function(transactionAmount, bankName, playerName, transactionType, targetBankName, currencyType, itemName)
@@ -145,165 +220,202 @@ end
 
 RegisterServerEvent('vorp_bank:transfer', function(amount, fromBank, toBank)
     local _source = source
-    local Character = VORPcore.getUser(_source).getUsedCharacter
-    local playerFullName = Character.firstname .. ' ' .. Character.lastname
-    local characterId = Character.charIdentifier
+    -- ต้องมีบัญชีทั้งต้นทาง+ปลายทางจริงในคอนฟิก และห้ามโอนเข้าบัญชีเดียวกัน (กันวนสร้างเงินจากค่าธรรมเนียมกลับด้าน)
+    local Character = resolveRequest(_source, fromBank)
+    if not Character or not Config.banks[toBank] or fromBank == toBank then return end
+
+    amount = isValidAmount(amount)
+    if not amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
 
     if not IsNearBank(_source, toBank) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
     end
 
-    local queryResult = MySQL.query.await("SELECT * FROM bank_users WHERE charidentifier = @characterId;", { characterId = characterId })
-    local bankAccounts = {}
-    if queryResult then
-        for _, bank in pairs(queryResult) do
-            bankAccounts[bank.name] = bank
-        end
+    if onCooldown(_source, 'transfer') then return end
 
-        if bankAccounts[fromBank].money > amount then
-            local newBalanceFrom = bankAccounts[fromBank].money - amount
-            local newBalanceTo = bankAccounts[toBank].money + (amount * 0.9)
+    local characterId = Character.charIdentifier
+    local playerFullName = Character.firstname .. ' ' .. Character.lastname
+    local credited = amount * Config.feeamount -- ปลายทางได้หลังหักค่าธรรมเนียม
 
-            local updateFromResult = MySQL.query.await("UPDATE bank_users SET money = @newBalance WHERE charidentifier = @characterId AND name = @fromBank;", { newBalance = newBalanceFrom, characterId = characterId, fromBank = fromBank })
-
-            if updateFromResult then
-                local updateToResult = MySQL.query.await("UPDATE bank_users SET money = @newBalance WHERE charidentifier = @characterId AND name = @toBank;", { newBalance = newBalanceTo, characterId = characterId, toBank = toBank })
-
-                if updateToResult then
-                    local transferredAmount = amount * Config.feeamount
-                    transferredAmount = string.format("%.2f", transferredAmount)
-                    bankAccounts[toBank].money = string.format("%.2f", newBalanceTo)
-                    bankAccounts[fromBank].money = string.format("%.2f", newBalanceFrom)
-                    DiscordLogs(transferredAmount, fromBank, playerFullName, "transfer", toBank, "cash")
-                    local msg = string.format(T.transfer .. "%s $" .. T.to .. "%s" .. T.transferred, transferredAmount, toBank)
-                    VORPcore.NotifyRightTip(_source, msg, 4000)
-                else
-                    print("Second update failed.")
-                end
-            else
-                print("First update failed.")
-            end
-        else
-            VORPcore.NotifyRightTip(_source, T.noaccmoney, 4000)
-        end
+    -- หักบัญชีต้นทางแบบ atomic (เงื่อนไข money >= amount อยู่ในตัว UPDATE เอง ไม่มีช่อง race)
+    local debited = MySQL.update.await("UPDATE bank_users SET money = money - @amount WHERE charidentifier = @characterId AND name = @fromBank AND money >= @amount", {
+        amount = amount, characterId = characterId, fromBank = fromBank
+    })
+    if not debited or debited == 0 then
+        return Notify({ source = _source, text = T.noaccmoney, time = 4000, type = "error" })
     end
+
+    -- เข้าบัญชีปลายทาง; ถ้าไม่สำเร็จ (เช่น ยังไม่มี row บัญชีปลายทาง) rollback คืนต้นทางเต็มจำนวน
+    local funded = MySQL.update.await("UPDATE bank_users SET money = money + @credited WHERE charidentifier = @characterId AND name = @toBank", {
+        credited = credited, characterId = characterId, toBank = toBank
+    })
+    if not funded or funded == 0 then
+        MySQL.update.await("UPDATE bank_users SET money = money + @amount WHERE charidentifier = @characterId AND name = @fromBank", {
+            amount = amount, characterId = characterId, fromBank = fromBank
+        })
+        logTx(characterId, "transfer_rollback", ("%s->%s $%.2f (dest update failed, refunded)"):format(fromBank, toBank, amount))
+        return Notify({ source = _source, text = T.noaccmoney, time = 4000, type = "error" })
+    end
+
+    local transferredAmount = string.format("%.2f", credited)
+    DiscordLogs(transferredAmount, fromBank, playerFullName, "transfer", toBank, "cash")
+    logTx(characterId, "transfer", ("%s->%s debit $%.2f credit $%s"):format(fromBank, toBank, amount, transferredAmount))
+    local msg = string.format(T.transfer .. "%s $" .. T.to .. "%s" .. T.transferred, transferredAmount, toBank)
+    Notify({ source = _source, text = msg, time = 4000, type = "success" })
 end)
 
 RegisterServerEvent('vorp_bank:depositcash', function(amount, bankName)
     local _source = source
-    local playerCharacter = VORPcore.getUser(_source).getUsedCharacter
-    local characterId = playerCharacter.charIdentifier
-    local playerCash = playerCharacter.money
+    local playerCharacter = resolveRequest(_source, bankName)
+    if not playerCharacter then return end
+
+    amount = isValidAmount(amount)
+    if not amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
 
     if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
     end
 
-    if playerCash >= amount then
-        MySQL.query("SELECT money FROM bank_users WHERE charidentifier = @characterId AND name = @bankName", { characterId = characterId, bankName = bankName }, function(result)
-            if result[1] then
-                playerCharacter.removeCurrency(0, amount)
-                DiscordLogs(amount, bankName, playerCharacter.firstname .. ' ' .. playerCharacter.lastname, "deposit", "cash")
-                local newBalance = result[1].money + amount
-                MySQL.update("UPDATE bank_users SET money=@newBalance WHERE charidentifier=@characterId AND name = @bankName", { characterId = characterId, newBalance = newBalance, bankName = bankName })
-                VORPcore.NotifyRightTip(_source, T.youdepo .. amount, 4000)
-            end
-        end)
-    else
-        VORPcore.NotifyRightTip(_source, T.invalid, 4000)
+    if onCooldown(_source, 'depositcash') then return end
+
+    local characterId = playerCharacter.charIdentifier
+    if playerCharacter.money < amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
     end
+
+    -- หักเงินสดผู้เล่นก่อน (ยอดสด authoritative จาก character object) แล้วเพิ่มยอดธนาคารแบบ atomic
+    playerCharacter.removeCurrency(0, amount)
+    local affected = MySQL.update.await("UPDATE bank_users SET money = money + @amount WHERE charidentifier = @characterId AND name = @bankName", {
+        characterId = characterId, amount = amount, bankName = bankName
+    })
+    if not affected or affected == 0 then
+        playerCharacter.addCurrency(0, amount) -- rollback: ไม่มี row บัญชี ธนาคารนี้ คืนเงินสดผู้เล่น
+        return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
+    end
+
+    DiscordLogs(amount, bankName, playerCharacter.firstname .. ' ' .. playerCharacter.lastname, "deposit", "cash")
+    logTx(characterId, "deposit_cash", ("bank=%s $%s"):format(bankName, amount))
+    Notify({ source = _source, text = T.youdepo .. amount, time = 4000, type = "success" })
 end)
 
 RegisterServerEvent('vorp_bank:depositgold', function(amount, bankName)
     local _source = source
-    local playerCharacter = VORPcore.getUser(_source).getUsedCharacter
-    local characterId = playerCharacter.charIdentifier
-    local playerGold = playerCharacter.gold
+    local playerCharacter = resolveRequest(_source, bankName)
+    if not playerCharacter then return end
+
+    amount = isValidAmount(amount)
+    if not amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
 
     if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
     end
 
-    if playerGold >= amount then
-        playerCharacter.removeCurrency(1, amount)
-        MySQL.update("UPDATE bank_users SET gold = gold + @amount WHERE charidentifier = @characterId AND name = @bankName", { characterId = characterId, amount = amount, bankName = bankName })
-        VORPcore.NotifyRightTip(_source, T.youdepog .. amount, 4000)
-    else
-        VORPcore.NotifyRightTip(_source, T.invalid, 4000)
+    if onCooldown(_source, 'depositgold') then return end
+
+    local characterId = playerCharacter.charIdentifier
+    if playerCharacter.gold < amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
     end
+
+    playerCharacter.removeCurrency(1, amount)
+    local affected = MySQL.update.await("UPDATE bank_users SET gold = gold + @amount WHERE charidentifier = @characterId AND name = @bankName", {
+        characterId = characterId, amount = amount, bankName = bankName
+    })
+    if not affected or affected == 0 then
+        playerCharacter.addCurrency(1, amount) -- rollback
+        return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
+    end
+
+    logTx(characterId, "deposit_gold", ("bank=%s G%s"):format(bankName, amount))
+    Notify({ source = _source, text = T.youdepog .. amount, time = 4000, type = "success" })
 end)
 
 
-local lastMoney = {}
-
 RegisterServerEvent('vorp_bank:withcash', function(amount, bankName)
     local _source = source
-    local Character = VORPcore.getUser(_source).getUsedCharacter
-    local playerFullName = Character.firstname .. ' ' .. Character.lastname
-    local characterId = Character.charIdentifier
+    local Character = resolveRequest(_source, bankName)
+    if not Character then return end
 
-    if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+    amount = isValidAmount(amount)
+    if not amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
     end
 
-    MySQL.query("SELECT money FROM bank_users WHERE charidentifier = @characterId AND name = @bankName", { characterId = characterId, bankName = bankName }, function(result)
-        if result[1] then
-            local bankBalance = result[1].money
-            if bankBalance >= amount then
-                if not lastMoney[_source] or lastMoney[_source] ~= bankBalance then
-                    local newBalance = bankBalance - amount
-                    MySQL.update("UPDATE bank_users SET money=@newBalance WHERE charidentifier=@characterId AND name = @bankName", { characterId = characterId, newBalance = newBalance, bankName = bankName })
-                    lastMoney[_source] = bankBalance
-                    Character.addCurrency(0, amount)
-                    DiscordLogs(amount, bankName, playerFullName, "withdraw", "cash")
-                    VORPcore.NotifyRightTip(_source, T.withdrew .. amount, 4000)
-                end
-            else
-                VORPcore.NotifyRightTip(_source, T.invalid .. amount, 4000)
-            end
-        end
-    end)
+    if not IsNearBank(_source, bankName) then
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
+    end
+
+    if onCooldown(_source, 'withcash') then return end
+
+    local characterId = Character.charIdentifier
+    -- หักยอดธนาคารแบบ atomic (money >= amount อยู่ในเงื่อนไข UPDATE) — กัน race/double-click ที่เคยต้องพึ่ง lastMoney hack
+    local affected = MySQL.update.await("UPDATE bank_users SET money = money - @amount WHERE charidentifier = @characterId AND name = @bankName AND money >= @amount", {
+        characterId = characterId, amount = amount, bankName = bankName
+    })
+    if not affected or affected == 0 then
+        return Notify({ source = _source, text = T.invalid .. amount, time = 4000, type = "error" })
+    end
+
+    Character.addCurrency(0, amount)
+    DiscordLogs(amount, bankName, Character.firstname .. ' ' .. Character.lastname, "withdraw", "cash")
+    logTx(characterId, "withdraw_cash", ("bank=%s $%s"):format(bankName, amount))
+    Notify({ source = _source, text = T.withdrew .. amount, time = 4000, type = "success" })
 end)
 
 RegisterServerEvent('vorp_bank:withgold', function(amount, bankName)
     local _source = source
-    local playerCharacter = VORPcore.getUser(_source).getUsedCharacter
-    local playerFullName = playerCharacter.firstname .. ' ' .. playerCharacter.lastname
-    local characterId = playerCharacter.charIdentifier
+    local playerCharacter = resolveRequest(_source, bankName)
+    if not playerCharacter then return end
 
-    if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+    amount = isValidAmount(amount)
+    if not amount then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
     end
 
-    MySQL.query("SELECT gold FROM bank_users WHERE charidentifier = @characterId AND name = @bankName", { characterId = characterId, bankName = bankName }, function(result)
-        if result[1] then
-            local bankGold = result[1].gold
-            if bankGold >= amount then
-                local newGoldBalance = bankGold - amount
-                MySQL.update("UPDATE bank_users SET gold = @newGoldBalance WHERE charidentifier = @characterId AND name = @bankName", { characterId = characterId, newGoldBalance = newGoldBalance, bankName = bankName })
-                playerCharacter.addCurrency(1, amount)
-                DiscordLogs(amount, bankName, playerFullName, "withdraw", "gold")
-                VORPcore.NotifyRightTip(_source, T.withdrewg .. amount, 4000)
-            else
-                VORPcore.NotifyRightTip(_source, T.invalid, 4000)
-            end
-        end
-    end)
+    if not IsNearBank(_source, bankName) then
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
+    end
+
+    if onCooldown(_source, 'withgold') then return end
+
+    local characterId = playerCharacter.charIdentifier
+    local affected = MySQL.update.await("UPDATE bank_users SET gold = gold - @amount WHERE charidentifier = @characterId AND name = @bankName AND gold >= @amount", {
+        characterId = characterId, amount = amount, bankName = bankName
+    })
+    if not affected or affected == 0 then
+        return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
+    end
+
+    playerCharacter.addCurrency(1, amount)
+    DiscordLogs(amount, bankName, playerCharacter.firstname .. ' ' .. playerCharacter.lastname, "withdraw", "gold")
+    logTx(characterId, "withdraw_gold", ("bank=%s G%s"):format(bankName, amount))
+    Notify({ source = _source, text = T.withdrewg .. amount, time = 4000, type = "success" })
 end)
 
 
 RegisterServerEvent("vorp_banking:server:OpenBankInventory", function(bankName)
     local _source = source
-    local user = VORPcore.getUser(_source)
-    if not user then return end
+    local Character = resolveRequest(_source, bankName)
+    if not Character then return end
 
-    local Character = user.getUsedCharacter
     local characterId = Character.charIdentifier
     local bankId = "vorp_banking_" .. bankName .. "_" .. characterId
 
     if not IsNearBank(_source, bankName) then
-        return VORPcore.NotifyRightTip(_source, T.notnear, 4000)
+        return Notify({ source = _source, text = T.notnear, time = 4000, type = "error" })
     end
+
+    if not isOwnCityBank(_source, bankName) then
+        return Notify({ source = _source, text = T.wrongCity or "This safe box is locked to your home city.", time = 4000, type = "error" })
+    end
+
+    if onCooldown(_source, 'openbox') then return end
 
     -- Check database for invSpace server side.
     MySQL.scalar('SELECT `invspace` FROM `bank_users` WHERE `charidentifier` = @characterId AND `name` = @bankName LIMIT 1', {
@@ -313,17 +425,13 @@ RegisterServerEvent("vorp_banking:server:OpenBankInventory", function(bankName)
             registerStorage(bankName, bankId, invSpace)
             exports.vorp_inventory:openInventory(_source, bankId)
         else
-            VORPcore.NotifyRightTip(_source, T.invOpenFail, 4000)
+            Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
         end
     end)
 end)
 
 AddEventHandler("playerDropped", function()
     local _source = source
-    for key, _ in pairs(lastMoney) do
-        if key == _source then
-            lastMoney[key] = nil
-            break
-        end
-    end
+    txCooldown[_source] = nil
+    upgradeInProgress[_source] = nil
 end)
