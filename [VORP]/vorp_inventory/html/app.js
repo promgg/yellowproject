@@ -764,9 +764,17 @@ function formatCurrency(value) {
     return Math.round(number).toLocaleString("en-US").replace(/,/g, "");
 }
 
+// ตู้ custom inventory แบบจำกัด "จำนวนชิ้น" (ไม่ได้ตั้ง useweight ฝั่ง server) ไม่เคยส่งค่า weight มาเลย
+// (server ส่ง weight=nil เสมอสำหรับเคสนี้) เลยต้องรวมจำนวนจากไอเทมที่ NUI มีอยู่จริงเอง ให้ตรงกับที่ server
+// ใช้เช็ค limit จริง (InventoryService.getInventoryTotalCount: sum ของ count ทุกชิ้น + 1 ต่ออาวุธ 1 กระบอก)
+function computeSecondaryUsedCount() {
+    const items = Array.isArray(state.secondaryItems) ? state.secondaryItems : [];
+    return items.reduce((total, item) => total + (item.type === "item_weapon" ? 1 : numberOrZero(item.count)), 0);
+}
+
 function formatSecondaryCapacity() {
     if (state.secondary.capacity === null && state.secondary.weight === null) return "";
-    const weight = state.secondary.weight !== null ? formatNumber(state.secondary.weight) : "0";
+    const weight = state.secondary.weight !== null ? formatNumber(state.secondary.weight) : formatNumber(computeSecondaryUsedCount());
     const capacity = state.secondary.capacity !== null ? formatNumber(state.secondary.capacity) : "";
     return capacity ? `${weight}/${capacity}` : weight;
 }
