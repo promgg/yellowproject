@@ -1,8 +1,7 @@
 INSERT INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`, `metadata`, `desc`)
 VALUES
     ('man_idcard', 'ID Card', 5, 1, 'item_standard', 1, '{}', 'Identity card with information written on it'),
-    ('woman_idcard', 'ID Card', 5, 1, 'item_standard', 1, '{}', 'Identity card with information written on it'),
-    ('printphoto', 'Print Photo', 10, 1, 'item_standard', 1, '{}', 'Identity photo')
+    ('woman_idcard', 'ID Card', 5, 1, 'item_standard', 1, '{}', 'Identity card with information written on it')
 
 ON DUPLICATE KEY UPDATE
     `item` = VALUES(`item`),

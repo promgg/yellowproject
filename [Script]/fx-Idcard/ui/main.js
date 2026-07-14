@@ -1,242 +1,178 @@
-$(document).ready(function () {
-    $(".id-card").hide();
-    $(".photograph").hide();
-    $(".printphoto").hide();
-    $(".create").hide();
-    $(".previewcreate-photo").hide();
-    var setIllegal = false
-    function setupIDCard(array) {
-        if (!array || typeof array !== 'object') {
-            console.error('ID Card data is invalid:', array);
-            return;
-        }
-    
-        var sex = array.sex === "Female" ? "F" : "M";
-        $(".charid").html(array.charid || "N/A");
-        $(".license").html(`FIXITFY-${array.charid || "N/A"}`);
-        $(".sex").html(sex);
-        $(".hair").html(array.hair || "N/A");
-        $(".eyes").html(array.eye || "N/A");
-        $(".height").html(array.height || "N/A");
-        $(".weight").html(array.weight || "N/A");
-        $(".religious").html(array.religious || "N/A");
-        $(".dateofbirth").html(array.date || "N/A");
-        $(".age").html(array.age || "N/A");
-        $(".name").html(array.name || "N/A");
-        $(".country").html(array.country || "N/A");
-        $(".card-zone").html(array.cityname || "N/A");
-        $(".playerimg").attr("src", array.img || "/path/to/default/image.png");
-    
-        $(".id-card")
-            .removeClass("animate__animated animate__fadeOutRight")
-            .addClass("animate__animated animate__fadeInRight")
-            .show();
-    }
-    
-    
-    function closeIDCard() {    
-        ShowIdCard = false;  
-        $(".id-card")
-            .removeClass("animate__animated animate__fadeInRight")
-            .addClass("animate__animated animate__fadeOutRight")
-            .one('animationend', function() {
-                $(this).hide();
-            });
-    }
-    
-    $("#submit").click(function () {
-        var name = $("#name").val();
-        var cityname = $("#cityname").val();
-        var religious = $("#religious").val();
-        var age = $("#ageinput").val();
-        var dateinput = $("#dateinput").val();
-        var heightinput = $("#heightinput").val();
-        var weightinput = $("#weightinput").val();
-        var hair = $("#hair").val();
-        var eye = $("#eye").val();
-        var sex = "Male";
-        var itemId = $("#previewphoto").attr("data-itemid"); 
-        console.log("Item ID:", itemId);
-        if ($("#sex-women").prop('checked')==true){
-            sex = "Female";
-        }
-        var img = $('#previewphoto').attr('src');
-        $.post(`https://${GetParentResourceName()}/createIdCard`, JSON.stringify({
-            name: name,
-            cityname: cityname,
-            religious: religious,
-            age: age,
-            date: dateinput,
-            height: heightinput,
-            weight: weightinput,
-            hair: hair,
-            eye: eye,
-            sex: sex,
-            img: img,
-            itemId: itemId,
-            illegal: setIllegal
-        }));
-        closePrintPhoto();
-        $.post(`https://${GetParentResourceName()}/close`, JSON.stringify({}));
-    });
-    function CreateIdCardSetData(data, illegal) {
-        setIllegal = illegal;
-        $("#name").val(data.name);
-        $("#cityname").val(data.city);
-        $("#religious").val(data.religious);
-        $("#ageinput").val(data.age);
-        $("#weightinput").val(`${data.weight}KG`);
-    
-        if (data.sex === "Male") {
-            $("#sex-man").prop("checked", true);
-            $("#sex-women").prop("checked", false);
-        } else if (data.sex === "Female") {
-            $("#sex-women").prop("checked", true);
-            $("#sex-man").prop("checked", false);
-        }
-    
-        $("#sex-man, #sex-women").change(function () {
-            var checkedCheckbox = $(this);
-            $("#sex-man, #sex-women").not(checkedCheckbox).prop("checked", false);
+(() => {
+    const resourceName = typeof GetParentResourceName === "function" ? GetParentResourceName() : "fx-Idcard";
+    const fallbackPhoto = "/ui/assets/printphoto.png";
+    const state = { token: "", steamAvatar: "", mode: "", price: 0, busy: false };
+
+    const serviceMenu = document.getElementById("service-menu");
+    const cardForm = document.getElementById("card-form");
+    const idCard = document.getElementById("id-card");
+    const imageUrl = document.getElementById("image-url");
+    const formPhoto = document.getElementById("form-photo");
+
+    function post(eventName, payload = {}) {
+        return fetch(`https://${resourceName}/${eventName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=UTF-8" },
+            body: JSON.stringify(payload),
         });
-    
-        if (!illegal) {
-            var maxYear = 1899 - data.age;
-            var maxDate = maxYear + "-12-31";
-            var minDate = maxYear + "-01-01";
-            $("#dateinput").attr("max", maxDate);
-            $("#dateinput").attr("min", minDate);
-            $("#dateinput").val(maxYear + "-01-01");
-        }
-        console.log(JSON.stringify(data))
-        $("#previewphoto")
-            .attr("src", data.img) 
-            .attr("data-itemid", data.itemId); 
-    
-        var heightText = "";
-        switch (data.height) {
-            case 0.85:
-                heightText = "4'8";
-                break;
-            case 0.90:
-                heightText = "4'9";
-                break;
-            case 0.95:
-                heightText = "4'10";
-                break;
-            case 1.0:
-                heightText = "5'0";
-                break;
-            case 1.05:
-                heightText = "5'1";
-                break;
-            case 1.10:
-                heightText = "5'2";
-                break;
-            default:
-                heightText = "5'0";
-                break;
-        }
-    
-        $("#heightinput").val(heightText);
     }
-    
-    function showPrintPhoto(img) {
-        ShowPhoto = true; 
-        $(".photograph .photo").attr("src", img);
-        $(".photograph").fadeIn(500);
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value ?? "-";
     }
-    
-    function closePrintPhoto() {
-        ShowPhoto = false;  
-        $(".photograph").fadeOut(500);
-        $(".printphoto").fadeOut(500);
-        $(".create").fadeOut(500);
-        $(".previewcreate-photo").fadeOut(500);
+
+    function setPhoto(element, value) {
+        if (!element) return;
+        element.onerror = () => {
+            element.onerror = null;
+            element.src = fallbackPhoto;
+        };
+        element.src = value && String(value).trim() ? value : fallbackPhoto;
     }
-    $(".preview").click(function () {
-        var imgLink = $("#link").val();
-        if (imgLink) {
-            $(".photo").attr("src", imgLink);
-        } else {
-            $.post(`https://${GetParentResourceName()}/notify`, JSON.stringify({
-                text: "noimg"
-            }));
-        }
-    });
-    $(".close, .close-create").click(function () {
-        closePrintPhoto();
-        $.post(`https://${GetParentResourceName()}/close`, JSON.stringify({}));
-    });
-    $(".print").click(function () {
-        var imgLink = $("#link").val();
-        if (imgLink) {
-            closePrintPhoto();
-            $.post(`https://${GetParentResourceName()}/print`, JSON.stringify({
-                imgLink: imgLink
-            }));
-        } else {
-            $.post(`https://${GetParentResourceName()}/notify`, JSON.stringify({
-                text: "noimg"
-            }));
-        }
+
+    function hideAll() {
+        serviceMenu.classList.add("hidden");
+        cardForm.classList.add("hidden");
+        idCard.classList.add("hidden");
+        document.body.classList.remove("has-panel");
+        state.busy = false;
+        document.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    }
+
+    function showPanel(panel) {
+        hideAll();
+        panel.classList.remove("hidden");
+        if (panel !== idCard) document.body.classList.add("has-panel");
+    }
+
+    function setBusy(value) {
+        state.busy = value;
+        document.querySelectorAll("button").forEach((button) => {
+            if (!button.matches("[data-close]")) button.disabled = value;
+        });
+    }
+
+    function setupServiceMenu(payload) {
+        const card = payload.card || {};
+        state.token = payload.token || "";
+        state.mode = "menu";
+
+        setPhoto(document.getElementById("menu-photo"), card.img);
+        setText("menu-name", card.name);
+        setText("menu-charid", `หมายเลขประจำตัว: ${card.charid || "-"}`);
+        setText("menu-city", `สถานที่ออกบัตร: ${card.cityname || "-"}`);
+        setText("change-photo-price", `ค่าธรรมเนียม $${payload.prices?.changePhoto ?? 25}`);
+        setText("replacement-price", `ค่าธรรมเนียม $${payload.prices?.replacement ?? 50}`);
+        // ออกบัตรทดแทนมีไว้เฉพาะตอนบัตรเดิมหายจริง — ถ้ายังมีอยู่ในกระเป๋าก็ซ่อนปุ่มนี้ไปเลย ไม่ต้องให้กดแล้วโดนปฏิเสธ
+        document.getElementById("replacement").classList.toggle("hidden", !!payload.hasPhysicalCard);
+        showPanel(serviceMenu);
+    }
+
+    function setupCardForm(payload) {
+        const card = payload.card || {};
+        state.token = payload.token || "";
+        state.mode = payload.mode || "create";
+        state.price = Number(payload.price) || 0;
+        state.steamAvatar = payload.steamAvatar || "";
+
+        setText("form-title", state.mode === "change_photo" ? "เปลี่ยนรูปประจำตัว" : "ทำบัตรประจำตัว");
+        setText(
+            "form-subtitle",
+            state.mode === "change_photo"
+                ? "URL ใหม่จะอัปเดตบัตรทุกสำเนาที่อ้างอิงทะเบียนนี้"
+                : "ตรวจสอบข้อมูลและยืนยัน URL รูปประจำตัว"
+        );
+        setText("form-name", card.name);
+        setText("form-charid", card.charid);
+        setText("form-city", card.cityname);
+        setText("form-sex", card.sex === "Female" ? "หญิง" : "ชาย");
+        setText("form-age", card.age);
+        setText("form-birthdate", card.date);
+        setText("form-height", card.height);
+        setText("form-weight", card.weight);
+        setText("submit-card", `ยืนยันและชำระ $${state.price}`);
+
+        imageUrl.value = card.img || state.steamAvatar || "";
+        setPhoto(formPhoto, imageUrl.value);
+        showPanel(cardForm);
+        document.getElementById("use-steam-avatar").disabled = !state.steamAvatar;
+    }
+
+    function setupIdCard(card) {
+        const sex = card.sex === "Female" ? "F" : "M";
+        setPhoto(idCard.querySelector(".playerimg"), card.img);
+        idCard.querySelector(".charid").textContent = card.charid || "N/A";
+        idCard.querySelector(".sex").textContent = sex;
+        idCard.querySelector(".height").textContent = card.height || "N/A";
+        idCard.querySelector(".weight").textContent = card.weight || "N/A";
+        idCard.querySelector(".dateofbirth").textContent = card.date || "N/A";
+        idCard.querySelector(".age").textContent = card.age ?? "N/A";
+        idCard.querySelector(".license").textContent = `${card.numberPrefix || "FIXITFY-"}${card.charid || "N/A"}`;
+        idCard.querySelector(".name").textContent = card.name || "N/A";
+        idCard.querySelector(".country").textContent = card.country || "U.S.A";
+        idCard.querySelector(".card-zone").textContent = card.cityname || "N/A";
+        showPanel(idCard);
+    }
+
+    document.querySelectorAll("[data-close]").forEach((button) => {
+        button.addEventListener("click", () => {
+            hideAll();
+            post("close");
+        });
     });
 
-    $(document).keyup(function (e) {
-        if (e.key === "Escape") {
-            let isClosed = false;
-        
-            if (ShowPhoto) {
-                closePrintPhoto();
-                isClosed = true;
-            }
-    
-            if (ShowIdCard) {
-                closeIDCard();
-                isClosed = true;
-            }
-    
-            if (isClosed) {
-                $.post(`https://${GetParentResourceName()}/close`, JSON.stringify({}));
-            }
-        }
+    document.getElementById("change-photo").addEventListener("click", () => {
+        if (state.busy) return;
+        setBusy(true);
+        post("selectService", { token: state.token, service: "change_photo" }).finally(() => setBusy(false));
     });
-    
-    let ShowPhoto = false;
-    let ShowIdCard = false;
-    
-    window.addEventListener('message', function (event) {
-        switch (event.data.action) {
-            case 'openIdCard':
-                ShowIdCard = true;
-                setupIDCard(event.data.array);
+
+    document.getElementById("replacement").addEventListener("click", () => {
+        if (state.busy) return;
+        setBusy(true);
+        post("selectService", { token: state.token, service: "replacement" }).finally(() => {
+            window.setTimeout(() => setBusy(false), 500);
+        });
+    });
+
+    imageUrl.addEventListener("input", () => setPhoto(formPhoto, imageUrl.value));
+
+    document.getElementById("use-steam-avatar").addEventListener("click", () => {
+        if (!state.steamAvatar) return;
+        imageUrl.value = state.steamAvatar;
+        setPhoto(formPhoto, state.steamAvatar);
+    });
+
+    document.getElementById("submit-card").addEventListener("click", () => {
+        if (state.busy) return;
+        setBusy(true);
+        post("submitCard", { token: state.token, imageUrl: imageUrl.value }).finally(() => {
+            window.setTimeout(() => setBusy(false), 500);
+        });
+    });
+
+    document.addEventListener("keyup", (event) => {
+        if (event.key !== "Escape") return;
+        hideAll();
+        post("close");
+    });
+
+    window.addEventListener("message", (event) => {
+        const message = event.data || {};
+        switch (message.action) {
+            case "openServiceMenu":
+                setupServiceMenu(message.payload || {});
                 break;
-            case 'close':
-                closeIDCard();
+            case "openCardForm":
+                setupCardForm(message.payload || {});
                 break;
-            case 'print':
-                $(".printphoto").fadeIn(500);
+            case "previewCard":
+                setupIdCard(message.payload || {});
                 break;
-            case 'showphoto':
-                var img = event.data.array.img
-                ShowPhoto = true;
-                showPrintPhoto(img);
-                break;
-            case 'createidcard':
-                var data = event.data.array
-                if (event.data.illegal === true) {
-                    $("#cityname").removeAttr("disabled");
-                    $("#heightinput").removeAttr("disabled");
-                    $("#ageinput").removeAttr("disabled");
-                    $("#sex-man").removeAttr("disabled");
-                    $("#sex-women").removeAttr("disabled");
-                    $("#dateinput").removeAttr("min");
-                    $("#dateinput").removeAttr("max");
-                }
-                CreateIdCardSetData(data, event.data.illegal)
-                $(".create").fadeIn(500);
-                $(".previewcreate-photo").fadeIn(500);
+            case "closeAll":
+                hideAll();
                 break;
         }
     });
-});
+})();

@@ -1,889 +1,401 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
-@font-face {
-    font-family: "junicode";
-    src:url("/ui/assets/fonts/Junicode.ttf") format("truetype");
-}
 @font-face {
     font-family: "western";
-    src:url("/ui/assets/fonts/WesternBangBang-Regular.woff") format("opentype");
+    src: url("/ui/assets/fonts/WesternBangBang-Regular.woff") format("woff");
 }
+
+@font-face {
+    font-family: "junicode";
+    src: url("/ui/assets/fonts/Junicode.ttf") format("truetype");
+}
+
 @font-face {
     font-family: "sketch";
-    src:url("/ui/assets/fonts/SketchPencilDemoItalic.ttf") format("truetype");
-}
-@font-face {
-    font-family: "arington";
-    src:url("/ui/assets/fonts/Arington_Demo.ttf") format("truetype");
+    src: url("/ui/assets/fonts/SketchPencilDemoItalic.ttf") format("truetype");
 }
 
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    outline: 0;
-    appearance: none;
-    border: 0;
-    text-decoration: none;
-    list-style: none;
-    box-sizing: border-box;
 }
-  
+
 body {
-    font-family: 'Poppins', sans-serif;
-    transition: all 500ms ease-in-out;
-    font-weight: 400;
-    font-size: 1.0vh;
-    color: white;
+    color: #f4ead1;
+    font-family: "junicode", serif;
     overflow: hidden;
     user-select: none;
 }
 
-.id-card {
+body.has-panel::before {
+    background: rgba(8, 6, 4, 0.48);
+    content: "";
+    inset: 0;
+    position: fixed;
+}
+
+.hidden {
+    display: none !important;
+}
+
+button,
+input {
+    border: 0;
+    font: inherit;
+    outline: 0;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.45;
+}
+
+.paper-panel {
+    background: #17130f url("/ui/assets/background.png") center / cover no-repeat;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.72);
+    left: 50%;
+    min-height: 560px;
+    padding: 54px 64px 48px;
     position: absolute;
-    width: 25%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(720px, 88vw);
+}
+
+.paper-panel::after {
+    border: 1px solid rgba(224, 188, 110, 0.22);
+    content: "";
+    inset: 18px;
+    pointer-events: none;
+    position: absolute;
+}
+
+.eyebrow {
+    color: #d5ad5d;
+    font-family: "western", serif;
+    font-size: 18px;
+    letter-spacing: 4px;
+    text-align: center;
+}
+
+.paper-panel h1 {
+    color: #fff4d8;
+    font-family: "western", serif;
+    font-size: 42px;
+    font-weight: 400;
+    margin-top: 8px;
+    text-align: center;
+}
+
+.panel-description {
+    color: #aaa08f;
+    font-size: 17px;
+    margin: 8px auto 28px;
+    max-width: 560px;
+    text-align: center;
+}
+
+.close-button {
+    background: transparent;
+    height: 34px;
+    position: absolute;
+    right: 34px;
+    top: 30px;
+    width: 34px;
+    z-index: 2;
+}
+
+.close-button::before,
+.close-button::after {
+    background: #d9c9a4;
+    content: "";
+    height: 2px;
+    left: 5px;
+    position: absolute;
+    top: 16px;
+    width: 24px;
+}
+
+.close-button::before { transform: rotate(45deg); }
+.close-button::after { transform: rotate(-45deg); }
+
+.identity-summary {
+    align-items: center;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(220, 184, 109, 0.3);
+    display: flex;
+    gap: 24px;
+    margin: 0 auto 24px;
+    padding: 16px;
+}
+
+.identity-summary img {
+    filter: grayscale(1) sepia(0.55);
+    height: 110px;
+    object-fit: cover;
+    width: 92px;
+}
+
+.identity-summary div {
+    display: grid;
+    gap: 6px;
+}
+
+.identity-summary strong {
+    color: #ffe6ac;
+    font-size: 24px;
+}
+
+.identity-summary span {
+    color: #bcb19c;
+    font-size: 16px;
+}
+
+.service-actions {
+    display: grid;
+    gap: 12px;
+}
+
+.service-button,
+.confirm-button,
+.secondary-button {
+    transition: filter 120ms ease, transform 120ms ease;
+}
+
+.service-button {
+    align-items: center;
+    background: rgba(197, 151, 70, 0.12);
+    border: 1px solid rgba(224, 188, 110, 0.36);
+    color: #f8e9c5;
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 20px;
+    text-align: left;
+}
+
+.service-button span { font-size: 20px; }
+.service-button small { color: #d6b36f; font-size: 15px; }
+
+.service-button:hover,
+.confirm-button:hover,
+.secondary-button:hover {
+    filter: brightness(1.22);
+    transform: translateY(-1px);
+}
+
+.warning-text {
+    color: #887f70;
+    font-size: 14px;
+    margin-top: 18px;
+    text-align: center;
+}
+
+.card-form {
+    min-height: 690px;
+    width: min(930px, 92vw);
+}
+
+.form-layout {
+    display: grid;
+    gap: 34px;
+    grid-template-columns: 290px 1fr;
+}
+
+.photo-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.portrait-frame {
+    background: rgba(0, 0, 0, 0.34);
+    border: 1px solid rgba(220, 184, 109, 0.34);
+    height: 260px;
+    margin-bottom: 4px;
+    padding: 12px;
+}
+
+.portrait-frame img {
+    filter: grayscale(1) sepia(0.55);
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.photo-editor label {
+    color: #e6c982;
+    font-size: 16px;
+}
+
+#image-url {
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(224, 188, 110, 0.32);
+    color: #f6edd7;
+    font-size: 14px;
+    padding: 11px 12px;
+    user-select: text;
+    width: 100%;
+}
+
+.secondary-button {
+    background: rgba(219, 178, 94, 0.18);
+    border: 1px solid rgba(224, 188, 110, 0.36);
+    color: #f4db9f;
+    padding: 10px;
+}
+
+.photo-editor > small {
+    color: #857b6a;
+    font-size: 13px;
+}
+
+.official-data {
+    align-content: start;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.data-row {
+    background: rgba(0, 0, 0, 0.24);
+    border-bottom: 1px solid rgba(224, 188, 110, 0.24);
+    display: grid;
+    min-height: 70px;
+    padding: 11px 14px;
+}
+
+.data-row-wide { grid-column: 1 / -1; }
+.data-row span { color: #9e9380; font-size: 14px; }
+.data-row strong { color: #fff0c9; font-size: 18px; font-weight: 400; }
+
+.locked-notice {
+    color: #a59476;
+    font-size: 14px;
+    grid-column: 1 / -1;
+    margin-top: 4px;
+}
+
+.confirm-button {
+    background: #d5ad5d;
+    color: #21180d;
+    display: block;
+    font-family: "western", serif;
+    font-size: 24px;
+    margin: 28px auto 0;
+    padding: 12px 30px;
+}
+
+.id-card {
+    background: url("/ui/assets/id-card.png") center / 100% 105% no-repeat;
+    filter: drop-shadow(0 0 0.35rem #000);
     height: 35%;
-    top: 20%;
+    min-height: 330px;
+    min-width: 480px;
+    position: absolute;
     right: 5%;
-    background-color: rgb(0, 0, 0);
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    background: url(/ui/assets/id-card.png) center / 100% 105% no-repeat;
+    top: 20%;
+    width: 25%;
+}
+
+.card-close {
+    background: rgba(40, 26, 12, 0.65);
+    border-radius: 50%;
+    color: #e4c58b;
+    font-size: 24px;
+    height: 30px;
+    position: absolute;
+    right: -10px;
+    top: -10px;
+    width: 30px;
+    z-index: 5;
 }
 
 .server-logo {
-    position: absolute;
-    width: 7%;
-    height: 7%;
-    top: 12%;
-    left: 9%;
+    background: url("/ui/assets/logo.png") center / contain no-repeat;
     filter: sepia(0.8);
-    background: url(/ui/assets/logo.png) center / contain no-repeat;
-    /* background-color: bisque; */
+    height: 7%;
+    left: 9%;
     opacity: 0.9;
-}
-.playerimg {
     position: absolute;
-    width: 28%;
-    height: 48%;
-    top: 38%;
-    left: 9.5%;
-    filter: drop-shadow(0 0 0.25rem rgb(0, 0, 0));
-    filter: sepia(1);
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    border-radius: 32px;
-
-}
-.frame {
-    position: absolute;
-    width: 28%;
-    height: 48%;
-    top: 38%;
-    left: 9.5%;
-    filter: drop-shadow(0 0 0.25rem rgb(0, 0, 0));
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    opacity: 0.9;
-}
-
-.sex {
-    position: absolute;
-    font-family: "western";
-    top: 43%;
-    left: 43%;
-    font-size: 2.0vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #000000;
-}
-.hair {
-    position: absolute;
-  font-family: "sketch";
-    top: 44%;
-    left: 48%;
-    font-size: 1.5vh;
-    font-weight: 600;
-    letter-spacing: 1px;
-    color: #000000d0;
-}
-.eyes {
-    position: absolute;
-  font-family: "sketch";
-    top: 44%;
-    left: 58%;
-    font-size: 1.5vh;
-    font-weight: 600;
-    letter-spacing: 1px;
-    color: #000000d0;
-}
-.height {
-    position: absolute;
-    font-family: "western";
-    top: 42.5%;
-    left: 68.5%;
-    font-size: 2.0vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #000000;
-}
-.weight {
-    position: absolute;
-    font-family: "western";
-    top: 44%;
-    left: 76%;
-    font-size: 1.5vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #000000d0;
-}
-.religious {
-    position: absolute;
-    font-family: "sketch";
-    top: 44%;
-    left: 83%;
-    font-size: 1.5vh;
-    font-weight: 600;
-    letter-spacing: 1px;
-    color: #000000d0;
-}
-.dateofbirth {
-    position: absolute;
-    font-family: "western";
-    top: 51.3%;
-    left: 45%;
-    font-size: 2.0vh;
-    font-weight: 400;
-    letter-spacing: 2px;
-    color: #000000;
-}
-.charid {
-    position: absolute;
-    font-family: "western";
-    top: 18.4%;
-    left: 64%;
-    font-size: 3.0vh;
-    font-weight: 400;
-    letter-spacing: 2px;
-    color: #000000;
-}
-.age {
-    position: absolute;
-    font-family: "western";
-    top: 51.3%;
-    left: 67.4%;
-    font-size: 2.0vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #000000;
-}
-.license {
-    position: absolute;
-    font-family: "western";
-    top: 52%;
-    left: 77.4%;
-    font-size: 1.5vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #000000;
-}
-.country {
-    position: absolute;
-    font-family: "western";
     top: 12%;
-    left: 16%;
-    font-size: 2.5vh;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #462f1cfa;
+    width: 7%;
 }
+
+.playerimg,
+.frame {
+    height: 48%;
+    left: 9.5%;
+    position: absolute;
+    top: 38%;
+    width: 28%;
+}
+
+.playerimg {
+    border-radius: 24px;
+    filter: grayscale(1) sepia(0.8) drop-shadow(0 0 0.25rem #000);
+    object-fit: cover;
+}
+
+.frame { opacity: 0.9; }
+
+.charid,
+.dateofbirth,
+.age,
+.license,
+.country {
+    color: #17100a;
+    font-family: "western", serif;
+    position: absolute;
+}
+
+.charid { font-size: 3vh; left: 64%; letter-spacing: 2px; top: 18.4%; }
+.dateofbirth { font-size: 2vh; left: 45%; letter-spacing: 2px; top: 51.3%; }
+.age { font-size: 2vh; left: 67.4%; top: 51.3%; }
+.license { font-size: 1.35vh; left: 77.4%; top: 52%; }
+.country { color: #462f1c; font-size: 2.5vh; left: 16%; top: 12%; }
+
+.name,
 .card-zone {
-    position: absolute;
-    font-family: "sketch";
-    top: 27%;
-    left: 10%;
-    font-size: 2.0vh;
+    color: #17100a;
+    font-family: "sketch", serif;
     font-weight: 600;
-    letter-spacing: 1px;
-    color: #000000;
-}
-.name {
     position: absolute;
-    font-family: "sketch";
-    top: 68%;
-    left: 48%;
-    font-size: 2.4vh;
-    font-weight: 600;
-    letter-spacing: 1px;
-    color: #000000;
 }
 
-.photograph {
+.name { font-size: 2.4vh; left: 48%; letter-spacing: 1px; top: 68%; }
+.card-zone { font-size: 2vh; left: 10%; top: 27%; }
+
+.card-basic-fields {
+    background: rgba(198, 156, 91, 0.94);
+    border-bottom: 1px solid rgba(83, 50, 18, 0.72);
+    border-top: 1px solid rgba(83, 50, 18, 0.72);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: 9.5%;
+    left: 41.2%;
     position: absolute;
-    width: 15%;
-    height:37%;
-    top: 20%;
-    left: 5%;
-    background-color: rgb(0, 0, 0);
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    background: url(/ui/assets/photoframe.png) center / 100% 105% no-repeat;
+    top: 42.2%;
+    width: 51.6%;
 }
 
-.photo-frame {
-    position: absolute;
-    width: 90%;
-    height:76%;
-    top: 7.5%;
-    left: 5%;
-    background-color: rgb(0, 0, 0);
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    background: url(/ui/assets/photoframe2.png) center / 100% 105% no-repeat;
-}
-.photo {
-    position: absolute;
-    width: 88%;
-    height:76%;
-    top: 7.5%;
-    left: 6%;
-    /* background-color: rgb(0, 0, 0); */
-    filter: drop-shadow(0 0 0.25rem rgb(0, 0, 0));
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-}
-
-.printphoto {
-    position: absolute;
-    display: none;
-    width: 15%;
-    height:40%;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    background: url(/ui/assets/photoframe.png) center / 100% 105% no-repeat;
-}
-
-#link {
-    position: absolute;
-    display: flex;
+.card-basic-fields > div {
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-weight: 600;
-    font-size: 1.1vh;
-    width: 88%;
-    height: 5%;
-    bottom: 10%;
-    left: 6%;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    background: url(/ui/assets/toast_bg2.png) center / 100% 105% no-repeat;
+    border-right: 1px solid rgba(83, 50, 18, 0.66);
+    color: #291b10;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+    padding: 2px 4px;
 }
 
-.preview {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-family: "junicode";
-    font-weight: 600;
-    font-size: 1.1vh;
-    width: 25%;
-    height: 5%;
-    bottom: 4%;
-    left: 5%;
-    color: black;
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    transition: all ease 0.5s;
-    background: url(/ui/assets/toast_bg3.png) center / 100% 105% no-repeat;
-}
-.print {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-family: "junicode";
-    font-weight: 600;
-    font-size: 1.1vh;
-    width: 25%;
-    height: 5%;
-    bottom: 4%;
-    right: 5%;
-    color: black;
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    transition: all ease 0.5s;
-    background: url(/ui/assets/toast_bg3.png) center / 100% 105% no-repeat;
-}
+.card-basic-fields small { font-family: "western", serif; font-size: 0.8vh; }
+.card-basic-fields strong { font-family: "western", serif; font-size: 1.5vh; font-weight: 400; }
 
-.preview:hover,
-.print:hover {
-    color: white;
-    bottom: 2.5%;
-    filter: drop-shadow(0 0 0.35rem rgb(219, 187, 116), 113);
-    background: url(/ui/assets/toast_bg2.png) center / 100% 105% no-repeat;
-}
-.preview:active,
-.print:active {
-    color: white;
-    transition: all ease 0s;
-    transform: scale(0.95);
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0), 113);
-    background: url(/ui/assets/toast_bg2.png) center / 100% 105% no-repeat;
-}
-
-.close {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-family: "junicode";
-    font-weight: 600;
-    font-size: 1.1vh;
-    width: 6%;
-    height: 5%;
-    top: 1%;
-    right: 5%;
-    color: black;
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    transition: all ease 0.5s;
-    background: url(/ui/assets/cancel2.png) center / 100% 105% no-repeat;
-}
-.close-create {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-family: "junicode";
-    font-weight: 600;
-    font-size: 1.1vh;
-    width: 6%;
-    height: 5%;
-    top: 7%;
-    right: 12%;
-    color: black;
-    filter: drop-shadow(0 0 0.35rem rgb(0, 0, 0));
-    transition: all ease 0.5s;
-    background: url(/ui/assets/cancel2.png) center / 100% 105% no-repeat;
-}
-
-.close-create:hover,
-.close:hover {
-    background: url(/ui/assets/cancel.png) center / 100% 105% no-repeat;
-}
-
-.close-create:active {
-    transition: all ease 0s;
-    transform: scale(0.95);
-    filter: drop-shadow(0 0 0.35rem rgb(116, 15, 15));
-    background: url(/ui/assets/cancel.png) center / 100% 105% no-repeat;
-}
-.close:active{
-    transition: all ease 0s;
-    transform: scale(0.95);
-    filter: drop-shadow(0 0 0.35rem rgb(253, 253, 253));
-    background: url(/ui/assets/cancel.png) center / 100% 105% no-repeat;
-}
-
-.create {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22%;
-    height:65%;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgb(0, 0, 0);
-    background: url(/ui/assets/background.png) center / cover no-repeat;
-    user-select: none;
-}
-.previewcreate-photo {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 14%;
-    height:30%;
-    top: 48%;
-    left: 34%;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(0 0 0.75rem rgb(0, 0, 0));
-    user-select: none;
-    z-index:-1;
-}
-
-#preview-frame {
-    position: absolute;
-    width: 80%;
-    height:90%;
-}
-#previewphoto {
-    position: absolute;
-     width: 80%;
-    height:90%;
-    filter: grayscale(100%);
-}
-.create h1 {
-    position: absolute;
-    top: 13%;
-    font-weight: 400;
-    font-size: 4.0vh;
-    color: white;
-    font-family: "western";
-}
-.create h2 {
-    position: absolute;
-    top: 22%;
-    font-weight: 400;
-    font-size: 1.5vh;
-    color: #8f8f8f;
-    font-family: "western";
-}
-
-#usaflag {
-    position: absolute;
-    width: 65%;
-    top: 60%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0.3;
-}
-
-.name-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 10%;
-    top: 26%;
-    /* background-color: rgb(49, 48, 48); */
-}
-.city-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 10%;
-    top: 36%;
-    /* background-color: rgb(49, 48, 48); */
-}
-.sex-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 10%;
-    top: 46%;
-    /* background-color: rgb(49, 48, 48); */
-}
-.age-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 10%;
-    top: 56%;
-    /* background-color: rgb(49, 48, 48); */
-}
-.body-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 10%;
-    top: 66%;
-    /* background-color: rgb(49, 48, 48); */
-}
-
-.hair-cont {
-    position: absolute;
-    width: 72.5%;
-    height: 13%;
-    top: 76%;
-    /* background-color: rgb(49, 48, 48); */
-}
-
-.label {
-    position: absolute;
-    top: 10%;
-    left: 2%;
-    font-weight: 400;
-    font-size: 1.5vh;
-    color: #ffe398;
-    font-family: "western";
-}
-.name-cont .label {
-        top: 20%;
-}
-#name {
-    position: absolute;
-    width: 75%;
-    height: 50%;
-    bottom: 10%;
-    left: 2%;
-    font-family: 'Poppins', sans-serif;
-    font-weight: 400;
-    font-size: 1.6vh;
-    letter-spacing: 0.5px;
-    color: white;
-    background: transparent;
-}
-#hair {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 25%;
-    height: 25%;
-    bottom: 25%;
-    left: 16%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-   font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-#cityname {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30%;
-    height: 35%;
-    bottom: 19%;
-    left: 16%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-    font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-#eye {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 25%;
-    height: 25%;
-    bottom: 25%;
-    left: 57%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-    font-size: 1.5vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-#religious {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 23%;
-    height: 35%;
-    bottom: 19%;
-    left: 60%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-    font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-
-#ageinput {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 15%;
-    height: 40%;
-    bottom: 15%;
-    left: 15%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-    font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-#heightinput {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 15%;
-    height: 40%;
-    bottom: 15%;
-    left: 22.5%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-  font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.25rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-#weightinput {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 15%;
-    height: 40%;
-    bottom: 15%;
-    left: 65%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-  font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.25rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-
-.height-tick {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    top: 50%;
-    left: 40%;
-    background: url(/ui/assets/menu_icon_tick.png) center / cover no-repeat;
-}
-#dateinput {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 45%;
-    height: 40%;
-    bottom: 15%;
-    left: 35%;
-    font-family: "junicode";
-    text-align: center;
-    font-weight: 400;
-   font-size: 1.3vh;
-    letter-spacing: 0.5px;
-    color: white;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    background: url(/ui/assets/toast_bg2.png) center / cover no-repeat;
-    user-select: none;
-}
-[type="date"]::-webkit-calendar-picker-indicator {
-    position:absolute;
-    right:15px;
-    background-image: url('/ui/assets/menu_icon_tick.png');
-}
-.age-label {
-    position: absolute;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.6vh;
-    top: 48%;
-    left: 2%;
-}
-#hairicon {
-    position: absolute;
-    width: 12%;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    top: 40%;
-    left: 2%;
-}
-#cityicon {
-    position: absolute;
-    width: 11%;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    top: 40%;
-    left: 2%;
-}
-#religiousicon {
-    position: absolute;
-    width: 9.5%;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    top: 40%;
-    left: 48%;
-}
-#eyeicon {
-    position: absolute;
-    width: 10%;
-    filter: drop-shadow(0 0 0.35rem rgb(231, 227, 227));
-    top: 45%;
-    left: 44%;
-}
-.height-label {
-    position: absolute;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.6vh;
-    top: 48%;
-    left: 2%;
-}
-.weight-label {
-    position: absolute;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.6vh;
-    top: 48%;
-    left: 47%;
-}
-
-input::placeholder {
-    color: #8f8f8f;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.3vh;
-    user-select: none;
-}
-
-
-#ageinput::placeholder {
-    text-align: center;
-    font-size: 1.3vh;
-}
-
-.line {
-    position: absolute;
-    width: 80%;
-    height: 10%;
-    bottom: 0%;
-    left: 2%;
-    background-color: aqua;
-    background: url(/ui/assets/line.png) center / cover no-repeat;
-}
-
-input[type=checkbox] {
-    position: relative;
-      cursor: pointer;
-}
-
-#sex-man {
-    content: "";
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 25px;
-    height: 25px;
-    top: 49%;
-    left: 17%;
-    border-radius: 50px;
-    background-color: rgb(207, 202, 202);
-}
-
-#sex-women {
-    content: "";
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 25px;
-    height: 25px;
-    top: 49%;
-    left: 62%;
-    border-radius: 50px;
-    background-color: rgb(207, 202, 202);
-}
-
-input[type=checkbox]:checked:after {
-    content: "";
-    display: block;
-    width: 2px;
-    height: 2px;
-    border: solid black;
-    border-width: 0px 10px 10px 0;
-    border-radius: 50px;
-    position: absolute;
-    box-shadow: rgb(255, 255, 255) 0px 0px 10px 10px;
-}
-
-.mantext {
-    position: absolute;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.6vh;
-    top: 48%;
-    left: 2%;
-}
-.womantext {
-    position: absolute;
-    font-family: "junicode";
-    font-weight: 400;
-    font-size: 1.6vh;
-    top: 48%;
-    left: 40%;
-}
-
-#submit {
-    position: absolute;
-    width: 20%;
-    height: 5%;
-    bottom: 5.5%;
-    background-color: white;
-    font-family: "western";
-    font-weight: 400;
-    font-size: 2.5vh;
-    transition: all ease 0.5s;
-    background: transparent;
-    color: white;
-}
-
-#submit:hover {
-    transform: scale(1.05);
-    filter: drop-shadow(0 0 0.75rem rgb(87, 87, 87));
-    border-bottom: 1px solid white;
-
-}
-#submit:active {
-    transition: all ease 0s;
-    transform: scale(0.95);
-}
-
-@media (max-width:1920px) {
-    .create {
-        width: 22%;
-        height:65%;
-        top: 50%;
-        left: 50%;
-    }
-    .label {
-        position: absolute;
-        top: 7%;
-        left: 2%;
-        font-weight: 400;
-        font-size: 1.9vh;
-    }
-    input::placeholder {
-        font-size: 1.5vh;
-    } 
-    #ageinput::placeholder {
-        font-size: 1.5vh;
-    }
-    #sex-man {
-        width: 19px;
-        height: 19px;
-    }
-    #sex-women {
-        width: 19px;
-        height: 19px;
-    }    
-    input[type=checkbox]:checked:after {
-        width: 2px;
-        height: 2px;
-    }
+@media (max-width: 1100px) {
+    .form-layout { grid-template-columns: 240px 1fr; }
+    .paper-panel { padding-left: 42px; padding-right: 42px; }
+    .id-card { right: 2%; }
 }

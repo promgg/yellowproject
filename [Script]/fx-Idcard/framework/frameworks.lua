@@ -60,9 +60,44 @@ if IsDuplicityVersion() then
             return exports.vorp_inventory:addItem(src, itemName, itemCount, Metadata)
         end
 
+        -- getItemCount's metadata filter ใช้ SharedUtils.Table_equals ซึ่งเทียบ key ตรงกันทุกตัวทั้งสองฝั่ง
+        -- (exact match ไม่ใช่ subset) แต่บัตรที่เราสร้างมี metadata 3 คีย์ (description, cardCharId, CardData)
+        -- ถ้าส่งกรองแค่ cardCharId ตัวเดียวจะไม่แมตช์อะไรเลย (คืน 0 เสมอ) เลยต้องดึงอินเวนทอรีทั้งหมดมาไล่เทียบเอง
+        -- (ตรวจสอบจาก [VORP]/vorp_inventory/shared/services/UtilityService.lua ก่อนแก้ ไม่ได้เดา)
+        function FXGetItemCount(src, itemName, Metadata)
+            local items = exports.vorp_inventory:getUserInventoryItems(src, nil)
+            if not items then return 0 end
+
+            local total = 0
+            for _, item in ipairs(items) do
+                if item.name == itemName then
+                    local matches = true
+                    if Metadata then
+                        for key, value in pairs(Metadata) do
+                            if not item.metadata or item.metadata[key] ~= value then
+                                matches = false
+                                break
+                            end
+                        end
+                    end
+                    if matches then
+                        total = total + (item.count or 1)
+                    end
+                end
+            end
+            return total
+        end
+
+        function FXIsAdmin(src)
+            local User = VorpCore.getUser(src)
+            return User and Config.AdminGroups[tostring(User.getGroup)] == true
+        end
+
         function FXHaveMoney(src,moneytype,count)
             local User = VorpCore.getUser(src)
+            if not User then return false end
             local Character = User.getUsedCharacter
+            if not Character then return false end
             if Character.money >= count and moneytype == "cash" then
                 return true
             elseif Character.gold >= count and moneytype == "gold" then
@@ -72,14 +107,18 @@ if IsDuplicityVersion() then
         end
         function FXRemoveMoney(src,moneytype,count)
             local User = VorpCore.getUser(src)
+            if not User then return false end
             local Character = User.getUsedCharacter
+            if not Character then return false end
             local vorpmoneytype = moneytype == "gold" and 1 or 0
             Character.removeCurrency(vorpmoneytype, count)
             return true
         end
         function FXAddMoney(src,moneytype,count)
             local User = VorpCore.getUser(src)
+            if not User then return false end
             local Character = User.getUsedCharacter
+            if not Character then return false end
             local vorpmoneytype = moneytype == "gold" and 1 or 0
             Character.addCurrency(vorpmoneytype, count)
             return true
@@ -87,10 +126,12 @@ if IsDuplicityVersion() then
     
         function FXGetCharacterInformations(src, charid,cb)
             local array = {}
-            exports.oxmysql:execute("SELECT * FROM characters WHERE charidentifier = ?", {charid},function(result)
+            exports.oxmysql:execute("SELECT skinPlayer, gender, firstname, lastname, age FROM characters WHERE charidentifier = ?", {charid},function(result)
                 if result[1] then
-                    array.height = json.decode(result[1].skinPlayer).Scale
-                    array.sex = result[1].gender
+                    local ok, skin = pcall(json.decode, result[1].skinPlayer or "{}")
+                    array.height = ok and skin and skin.Scale or 1.0
+                    local gender = tostring(result[1].gender or "Male"):lower()
+                    array.sex = (gender == "female" or gender == "1") and "Female" or "Male"
                     array.weight = math.random(45,65)
                     if array.sex == "Male" then
                         array.weight = math.random(70,100)
@@ -105,14 +146,16 @@ if IsDuplicityVersion() then
         
         function FXGetPlayerData(src)
             local User = VorpCore.getUser(src)
+            if not User then return nil end
             local Character = User.getUsedCharacter
+            if not Character then return nil end
             local array = {
                 firstname = Character.firstname,
                 lastname = Character.lastname,
                 charIdentifier = Character.charIdentifier,
                 cash = Character.money,
                 gold = Character.gold,
-                admin = User.getGroup == "admin"
+                admin = Config.AdminGroups[tostring(User.getGroup)] == true
             }
             return array
         end
@@ -162,10 +205,42 @@ if IsDuplicityVersion() then
         
         function FXAddItem(src,itemName,itemCount,Metadata)
             local Player = RSGCore.Functions.GetPlayer(src)
-            Player.Functions.AddItem(itemName, itemCount,false,Metadata)
+            if not Player then return false end
+            return Player.Functions.AddItem(itemName, itemCount, false, Metadata)
+        end
+
+        -- ไม่มี export นับจำนวนไอเทมตาม metadata ให้ใน rsg-inventory เลยไล่ item slot เอง (pattern เดียวกับ FXRemoveItem
+        -- ข้างบน) เทียบ item.info ทุก key ที่ขอมาใน Metadata แทนที่จะเทียบแค่ privateID ตัวเดียวเหมือน FXRemoveItem
+        function FXGetItemCount(src, itemName, Metadata)
+            local Player = RSGCore.Functions.GetPlayer(src)
+            if not Player then return 0 end
+
+            local total = 0
+            for _, item in pairs(Player.PlayerData.items) do
+                if item.name:lower() == itemName:lower() then
+                    local matches = true
+                    if Metadata then
+                        for key, value in pairs(Metadata) do
+                            if not item.info or item.info[key] ~= value then
+                                matches = false
+                                break
+                            end
+                        end
+                    end
+                    if matches then
+                        total = total + (item.amount or 1)
+                    end
+                end
+            end
+            return total
+        end
+
+        function FXIsAdmin(src)
+            return RSGCore.Functions.HasPermission(src, "admin") or IsPlayerAceAllowed(src, "command")
         end
         function FXHaveMoney(src,moneytype,count)
             local Player = RSGCore.Functions.GetPlayer(src)
+            if not Player then return false end
             local pcash = Player.PlayerData.money['cash']
             local pbank = Player.PlayerData.money['bank']
             if pcash >= count and moneytype == "cash" then
@@ -179,6 +254,7 @@ if IsDuplicityVersion() then
         end
         function FXRemoveMoney(src,moneytype,count)
             local Player = RSGCore.Functions.GetPlayer(src)
+            if not Player then return false end
             if moneytype == "cash" then
                 Player.Functions.RemoveMoney('cash', count, 'fx-idcard')
             else
@@ -188,6 +264,7 @@ if IsDuplicityVersion() then
         end
         function FXAddMoney(src,moneytype,count)
             local Player = RSGCore.Functions.GetPlayer(src)
+            if not Player then return false end
             if moneytype == "cash" then
                 Player.Functions.AddMoney('cash', count, 'fx-idcard')
             else
@@ -200,27 +277,30 @@ if IsDuplicityVersion() then
             local array = {}
             local Player = RSGCore.Functions.GetPlayer(src)
 
-            exports.oxmysql:execute("SELECT * FROM playerskins WHERE citizenid = ?", {charid},function(result)
+            if not Player then
+                cb(array)
+                return
+            end
+
+            exports.oxmysql:execute("SELECT skin FROM playerskins WHERE citizenid = ?", {charid},function(result)
                 if result[1] then
-                    local height = json.decode(result[1].skin) and json.decode(result[1].skin).height or 100
+                    local ok, skin = pcall(json.decode, result[1].skin or "{}")
+                    local height = ok and skin and skin.height or 100
                     array.height = math.floor(tonumber(height) / 100)
-                    array.sex = Player.PlayerData.charinfo.gender == 1 and "Female" or "Male"
-                    array.weight = math.random(45,65)
-                    if array.sex == "Male" then
-                        array.weight = math.random(70,100)
-                    end
-                    array.firstname = Player.PlayerData.charinfo.firstname
-                    array.lastname = Player.PlayerData.charinfo.lastname
-                    local year = string.sub(Player.PlayerData.charinfo.birthdate,1,4)
-             
-                    array.age = 1899 - tonumber(year)
                 end
+                array.sex = tonumber(Player.PlayerData.charinfo.gender) == 1 and "Female" or "Male"
+                array.weight = array.sex == "Male" and math.random(70, 100) or math.random(45, 65)
+                array.firstname = Player.PlayerData.charinfo.firstname
+                array.lastname = Player.PlayerData.charinfo.lastname
+                local year = string.sub(Player.PlayerData.charinfo.birthdate, 1, 4)
+                array.age = 1899 - (tonumber(year) or 1899)
                 cb(array)
             end)
         end
         
         function FXGetPlayerData(src)
             local Player = RSGCore.Functions.GetPlayer(src)
+            if not Player then return nil end
             local array = {
                 firstname = Player.PlayerData.charinfo.firstname,
                 lastname = Player.PlayerData.charinfo.lastname,
@@ -234,20 +314,6 @@ if IsDuplicityVersion() then
             return array
         end
     end    
-else
-    if Framework == "VORP" then
-        VorpCore = exports.vorp_core:GetCore()
-        
-        RegisterNetEvent('vorp:SelectedCharacter',function()
-            TriggerServerEvent('fx-idcard:server:GetData')
-        end)
-    elseif Framework == "RSG" then
-        RSGCore = exports['rsg-core']:GetCoreObject()
-    
-        RegisterNetEvent('RSGCore:Client:OnPlayerLoaded',function()
-            TriggerServerEvent('fx-idcard:server:GetData')
-        end)
-    end
 end
 
 

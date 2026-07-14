@@ -1,441 +1,209 @@
-local idcardData = false
-local cam = 0
-local currentCamPosition = nil
-local movements = {}
-local movements2 = {}
-local creating = false
-local function createPrompts(keysTable, prompts)
-    local array = {}
-    for _, keyData in pairs(keysTable) do
-        local str = "TEST"
-        local movement = PromptRegisterBegin() 
-        PromptSetControlAction(movement, keyData[2])
-        str = CreateVarString(10, 'LITERAL_STRING', keyData[1])
-        PromptSetText(movement, str)
-        PromptSetEnabled(movement, 1)
-        PromptSetVisible(movement, 1)
-        PromptSetStandardMode(movement, 1)
-        PromptSetGroup(movement, prompts)
-        Citizen.InvokeNative(0xC5F428EE08FA7F2C, movement, true)
-        PromptRegisterEnd(movement)
-        table.insert(array, movement) 
-        PromptSetHoldMode(movement, 500)
+local nuiOpen = false
+local nuiEffects = false
+local activeCity = nil -- เมืองที่กำลังโชว์ lp_textui hold prompt อยู่ (nil = ไม่มี)
+
+local function closeNui(clearSession)
+    if not nuiOpen then return end
+
+    nuiOpen = false
+    SetNuiFocus(false, false)
+    if nuiEffects then
+        AnimpostfxStop("OJDominoBlur")
+        Config.ShowHud()
+        nuiEffects = false
     end
-    return array
-end
+    SendNUIMessage({ action = "closeAll" })
 
-local prompts = GetRandomIntInRange(0, 0xffffff)
-local prompts2 = GetRandomIntInRange(0, 0xffffff)
-
-local keysTable = {
-    {Locale("takephoto"), Config.Keybinds["takephoto"]},
-    {Locale("printphoto"), Config.Keybinds["printphoto"]},
-    {Locale("exit"), Config.Keybinds["exit"]},
-    {Locale("camUp"), Config.Keybinds["camUp"]},
-    {Locale("camDown"), Config.Keybinds["camDown"]},
-    {Locale("camLeft"), Config.Keybinds["camLeft"]},
-    {Locale("camRight"), Config.Keybinds["camRight"]},
-    {Locale("camForward"), Config.Keybinds["camForward"]},
-    {Locale("camBack"), Config.Keybinds["camBack"]},
-}
-
-local keysTable2 = {
-    {Locale("takeidcard"), Config.Keybinds["takeidcard"]},
-}
-
-Citizen.CreateThread(function()
-    Citizen.Wait(10)
-    movements = createPrompts(keysTable, prompts)
-    movements2 = createPrompts(keysTable2, prompts2)
-end)
-
-RegisterNUICallback('close',function()
-    SetNuiFocus(false,false)
-    AnimpostfxStop("OJDominoBlur")
-    Config.ShowHud()
-    creating = false
-end)
-RegisterNUICallback('notify',function(data)
-    Notify({
-        text = Locale(data.text),
-        type = "error",
-        time = 4000
-    })
-end)
-RegisterNUICallback('print',function(data)
-    SetNuiFocus(false,false)
-    if data.imgLink then
-        TriggerServerEvent('fx-idcard:server:print', data.imgLink)
-    end
-end)
-
-RegisterNetEvent('fx-idcard:client:setData',function(data)
-    idcardData = data
-end)
-
-RegisterNUICallback('createIdCard',function(data)
-   TriggerServerEvent('fx-idcard:server:buyIdCard',data)
-end)
-
-function GetClosestPlayer()
-    local players, closestDistance, closestPlayer = GetActivePlayers(), -1, {}
-    local playerPed, playerId = PlayerPedId(), PlayerId()
-    local coords, usePlayerPed = coords, false
-    
-    if coords then
-        coords = vector3(coords.x, coords.y, coords.z)
-    else
-        usePlayerPed = true
-        coords = GetEntityCoords(playerPed)
-    end
-    
-    for i=1, #players, 1 do
-        local tgt = GetPlayerPed(players[i])
-
-        if not usePlayerPed or (usePlayerPed and players[i] ~= playerId) then
-
-            local targetCoords = GetEntityCoords(tgt)
-            local distance = #(coords - targetCoords)
-            if distance < Config.ShowDistance then
-                closestPlayer[#closestPlayer+1] = GetPlayerServerId(players[i])
-            end
-            -- if closestDistance == -1 or closestDistance > distance then
-                -- closestPlayer = players[i]
-                -- closestDistance = distance
-            -- end
-        end
-    end
-    return closestPlayer
-end
-
-RegisterNetEvent('fx-idcard:client:updateData',function()
-    TriggerServerEvent('fx-idcard:server:GetData')
-end)
-
-RegisterNetEvent('fx-idcard:client:showIDCardSQL',function()
-    if idcardData then
-        TriggerServerEvent('fx-idcard:server:ShowIdCard',idcardData)
-    else
-        TriggerServerEvent('fx-idcard:server:GetData')
-        Wait(2000)
-        TriggerEvent('fx-idcard:client:showIDCardSQL')
-    end
-end)
-
-RegisterNetEvent("fx-idcard:client:PreviewPhoto", function(typee, data)
-    SetNuiFocus(true,true)
-    if typee == "photo" then
-        SendNUIMessage({
-            action = 'showphoto',
-            array = data
-        })
-    else
-        SendNUIMessage({
-            action = 'openIdCard',
-            array = data
-        })
-    end
-end)
-RegisterNetEvent("fx-idcard:client:CreateIdcardUi", function(data, illegal)
-    creating = true
-    Config.HideHud()
-    AnimpostfxPlay("OJDominoBlur")
-    AnimpostfxSetStrength("OJDominoBlur", 0.5)
-    SetNuiFocus(true,true)
-    SendNUIMessage({
-        action = 'createidcard',
-        array = data,
-        illegal = illegal
-    })
-end)
-
-RegisterNetEvent("fx-idcard:client:ShowUi", function(typee, data)
-    local closestPlayers = GetClosestPlayer()
-    if typee == "photo" then
-        if #closestPlayers > 0 then
-            TriggerServerEvent("fx-idcard:server:ShowUi", closestPlayers, typee, data)
-        else
-            SetNuiFocus(true,true)
-            SendNUIMessage({
-                action = 'showphoto',
-                array = data
-            })
-        end
-    else
-        if #closestPlayers > 0 then
-            TriggerServerEvent("fx-idcard:server:ShowUi", closestPlayers, typee, data)
-        else
-            SetNuiFocus(true,true)
-            SendNUIMessage({
-                action = 'openIdCard',
-                array = data
-            })
-        end
-    end
-end)
-
-local function setActivePrompts(Type)
-    if Type == "photo" then
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[1], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[2], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[3], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[4], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[5], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[6], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[7], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[8], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[9], false)
-    elseif Type == "camera" then
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[1], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[2], false)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[3], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[4], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[5], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[6], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[7], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[8], true)
-        Citizen.InvokeNative(0x71215ACCFDE075EE, movements[9], true)
-    -- elseif Type == "idcard" then
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[1], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[2], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[3], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[4], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[5], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[6], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[7], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[8], false)
-    --     Citizen.InvokeNative(0x71215ACCFDE075EE, movements[9], false)
+    if clearSession then
+        TriggerServerEvent("fx-idcard:server:closeSession")
     end
 end
 
-local function changeCamPosition(x,y,z)
-    currentCamPosition = GetOffsetFromCoordAndHeadingInWorldCoords(currentCamPosition.x, currentCamPosition.y, currentCamPosition.z, currentCamPosition.w, x, y, z)
-    local coords = GetEntityCoords(PlayerPedId())
-    local dist = #(coords - currentCamPosition)
-    if dist < 1.5 then
-        SetCamCoord(cam, currentCamPosition.x, currentCamPosition.y, currentCamPosition.z)
+local function openNui(useEffects)
+    nuiOpen = true
+    SetNuiFocus(true, true)
+
+    if useEffects and not nuiEffects then
+        nuiEffects = true
+        Config.HideHud()
+        AnimpostfxPlay("OJDominoBlur")
+        AnimpostfxSetStrength("OJDominoBlur", 0.5)
     end
 end
 
-local function takePhoto(v)
-    DoScreenFadeOut(1000)
-    Wait(1000)
-    TriggerServerEvent('fx-idcard:server:setBucket',GetPlayerServerId(PlayerId()))
-    local ped = PlayerPedId()
-    SetEntityCoords(ped,v.pedCoords.x,v.pedCoords.y,v.pedCoords.z-1)
-    SetEntityHeading(ped,v.pedCoords.w)
-    FreezeEntityPosition(ped, true)
-    SetPlayerControl(PlayerId(), false)	
-    cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
-    currentCamPosition = v.camCoords
-    local fov = v.camFov
-    SetCamCoord(cam, currentCamPosition.x, currentCamPosition.y, currentCamPosition.z)
-    SetCamRot(cam, 0, 0, currentCamPosition.w, 2)
-    Citizen.InvokeNative(0x27666E5988D9D429, cam, fov)
-    SetCamActive(cam, true)
-    RenderScriptCams(true, false, 0, true, true)
-    Wait(1000)
-    DoScreenFadeIn(1000)
+RegisterNUICallback("close", function(_, cb)
+    closeNui(true)
+    cb({ ok = true })
+end)
 
-    Citizen.CreateThread(function()
-        while cam do
-            local title = CreateVarString(10, 'LITERAL_STRING',"Photographer")
-            PromptSetActiveGroupThisFrame(prompts, title)
-            setActivePrompts("camera")
-            if IsDisabledControlPressed(0,Config.Keybinds["exit"]) then
-                RenderScriptCams(false, false, 0, true, true)
-                DestroyCam(cam, true)
-                cam = nil            
-                SetPlayerControl(PlayerId(), true)
-                FreezeEntityPosition(PlayerPedId(), false)
-                TriggerServerEvent('fx-idcard:server:setBucket',0)
-                Config.ShowHud()
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camUp"]) then
-                changeCamPosition(0,0,0.01)
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camDown"]) then
-                changeCamPosition(0,0,-0.01)
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camLeft"]) then
-                changeCamPosition(0,-0.01,0)
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camRight"]) then
-                changeCamPosition(0,0.01,0)
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camForward"]) then
-                changeCamPosition(-0.01,0,0)
-            elseif IsDisabledControlPressed(0,Config.Keybinds["camBack"]) then
-                changeCamPosition(0.01,0,0)
-            end
-            Wait(1)
-        end
-    end)
-end
+RegisterNUICallback("selectService", function(data, cb)
+    TriggerServerEvent("fx-idcard:server:selectService", data.token, data.service)
+    cb({ ok = true })
+end)
 
-Citizen.CreateThread(function()
-    while true do
-        local sleep = 2000
-        for k,v in pairs(Config.Photographers) do
-            local ped = PlayerPedId()
-            local coords = GetEntityCoords(ped)
-            local dist = #(vector3(v.promptCoords.x,v.promptCoords.y,v.promptCoords.z) - coords)
-            if dist < v.promptDistance then
-                sleep = 1 
-                local title = CreateVarString(10, 'LITERAL_STRING',Locale("promptitle"))
-                if Config.Prices.printphoto then
-                    title = CreateVarString(10, 'LITERAL_STRING',Locale("promptitle2").." $"..Config.Prices.printphoto)
-                end
-                PromptSetActiveGroupThisFrame(prompts, title)
-                setActivePrompts("photo")
-                if PromptHasHoldModeCompleted(movements[1]) then
-                    sleep = 2000
-                    Config.HideHud()
-                    takePhoto(v)
-                elseif PromptHasHoldModeCompleted(movements[2]) then
-                    sleep = 2000
-                    SetNuiFocus(true,true)
-                    SendNUIMessage({
-                        action = 'print',
-                    })
-                end
-            end
-        end
-        Wait(sleep)
-    end
+RegisterNUICallback("submitCard", function(data, cb)
+    TriggerServerEvent("fx-idcard:server:submitCard", data.token, data.imageUrl)
+    cb({ ok = true })
+end)
+
+RegisterNetEvent("fx-idcard:client:openServiceMenu", function(payload)
+    openNui(true)
+    SendNUIMessage({ action = "openServiceMenu", payload = payload })
+end)
+
+RegisterNetEvent("fx-idcard:client:openCardForm", function(payload)
+    openNui(true)
+    SendNUIMessage({ action = "openCardForm", payload = payload })
+end)
+
+RegisterNetEvent("fx-idcard:client:closeService", function()
+    closeNui(false)
+end)
+
+RegisterNetEvent("fx-idcard:client:previewCard", function(cardData)
+    openNui(false)
+    cardData.numberPrefix = Config.CardNumberPrefix
+    SendNUIMessage({ action = "previewCard", payload = cardData })
 end)
 
 local function isOpen(settings)
-    if not settings then
-        return true
-    end
-    local time = GetClockHours()
-    return time >= settings.open and time <= settings.close
+    if not settings then return true end
+
+    local hour = GetClockHours()
+    return hour >= settings.open and hour <= settings.close
 end
 
-local function spawnPed(v,coords)
-    local modelHash = GetHashKey(v.models)
+local function spawnPed(settings)
+    local modelHash = GetHashKey(settings.models)
     RequestModel(modelHash)
+
     while not HasModelLoaded(modelHash) do
-        Citizen.Wait(10)
+        Wait(10)
     end
-    local npc = CreatePed(modelHash, coords.x, coords.y, coords.z-1, coords.w, false, 0)
+
+    local coords = settings.coords
+    local npc = CreatePed(modelHash, coords.x, coords.y, coords.z - 1.0, coords.w, false, false)
     FreezeEntityPosition(npc, true)
     Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
-    SetEntityCanBeDamaged(npc, false)
     SetEntityInvincible(npc, true)
+    SetEntityCanBeDamaged(npc, false)
     SetBlockingOfNonTemporaryEvents(npc, true)
-    SetModelAsNoLongerNeeded(modelHash)
     SetEntityAsMissionEntity(npc, true, true)
-    if v.anims and v.anims.name then
-        RequestAnimDict(v.anims.dict)
-        while not HasAnimDictLoaded(v.anims.dict) do
-            Citizen.Wait(100)
-        end
-        TaskPlayAnim(npc, v.anims.dict, v.anims.name, 1.0, -1.0, -1, 1, 0, true, 0, false, 0, false)
-    elseif v.anims then
-        TaskStartScenarioInPlace(npc, GetHashKey(v.anims.dict), 0, true, false, false, false)
+    SetModelAsNoLongerNeeded(modelHash)
+
+    if settings.anims and settings.anims.name then
+        RequestAnimDict(settings.anims.dict)
+        while not HasAnimDictLoaded(settings.anims.dict) do Wait(50) end
+        TaskPlayAnim(npc, settings.anims.dict, settings.anims.name, 1.0, -1.0, -1, 1, 0, true, 0, false, 0, false)
+    elseif settings.anims and settings.anims.dict then
+        TaskStartScenarioInPlace(npc, GetHashKey(settings.anims.dict), 0, true, false, false, false)
     end
+
     return npc
 end
 
-local function createBlip(v)
-    local blip = N_0x554d9d53f696d002(1664425300, v.coords.x,v.coords.y,v.coords.z)
+local function createBlip(settings)
+    local coords = settings.coords
+    local blip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, coords.x, coords.y, coords.z)
     Citizen.InvokeNative(0x0DF2B55F717DDB10, blip, false)
-    Citizen.InvokeNative(0x662D364ABF16DE2F, blip, joaat(v.blips.modifier))
-    SetBlipSprite(blip, v.blips.sprite, 1)
-    SetBlipScale(blip, v.blips.scale)
-    Citizen.InvokeNative(0x9CB1A1623062F402, blip, v.blips.name)
+    Citizen.InvokeNative(0x662D364ABF16DE2F, blip, joaat(settings.blips.modifier))
+    SetBlipSprite(blip, settings.blips.sprite, true)
+    SetBlipScale(blip, settings.blips.scale)
+    Citizen.InvokeNative(0x9CB1A1623062F402, blip, settings.blips.name)
     return blip
 end
 
-local function checkNPCS()
-    local ped = PlayerPedId()
-    local coords = GetEntityCoords(ped)
-    for k,v in pairs(Config.IDCardNPC) do
-        local dist = #(coords - vector3(v.coords.x,v.coords.y,v.coords.z))
-        if dist < Config.PedSpawnDistance and not v.npc and isOpen(v.timeSettings) then
-            v.npc = spawnPed(v,v.coords)
-            v.canInteract = true
-        elseif v.npc and (dist > Config.PedSpawnDistance or not isOpen(v.timeSettings)) then
-            DeletePed(v.npc)
-            v.npc = nil
-            v.canInteract = nil
+local function updateNpcs()
+    local playerCoords = GetEntityCoords(PlayerPedId())
+
+    for _, settings in pairs(Config.IDCardNPC) do
+        local distance = #(playerCoords - vector3(settings.coords.x, settings.coords.y, settings.coords.z))
+        local officeOpen = isOpen(settings.timeSettings)
+
+        if distance < Config.PedSpawnDistance and not settings.npc and officeOpen then
+            settings.npc = spawnPed(settings)
+            settings.canInteract = true
+        elseif settings.npc and (distance >= Config.PedSpawnDistance or not officeOpen) then
+            DeletePed(settings.npc)
+            settings.npc = nil
+            settings.canInteract = nil
         end
-        if v.blips and not v.blip then
-            v.blip = createBlip(v)
-        end 
-        if v.blip then
-            if isOpen(v.timeSettings) then
-                Citizen.InvokeNative(0x662D364ABF16DE2F, v.blip, joaat(v.blips.modifier))
-            else
-                Citizen.InvokeNative(0x662D364ABF16DE2F, v.blip, joaat(v.timeSettings.blipmodifier))
-            end
+
+        if settings.blips and not settings.blip then
+            settings.blip = createBlip(settings)
+        end
+
+        if settings.blip and settings.timeSettings then
+            local modifier = officeOpen and settings.blips.modifier or settings.timeSettings.blipmodifier
+            Citizen.InvokeNative(0x662D364ABF16DE2F, settings.blip, joaat(modifier))
         end
     end
-end 
-Citizen.CreateThread(function()
+end
+
+CreateThread(function()
     while true do
-        checkNPCS()
+        updateNpcs()
         Wait(2000)
     end
 end)
-Citizen.CreateThread(function()
-    while true do
-        local sleep = 2000
-        local ped = PlayerPedId()
-        local coords = GetEntityCoords(ped)
-        for k,v in pairs(Config.IDCardNPC) do
-            local dist = #(coords - vector3(v.coords.x,v.coords.y,v.coords.z))
-            if dist < v.distance and v.canInteract then
-                sleep = 1
-                local title = CreateVarString(10, 'LITERAL_STRING',Locale("promptitle2"))
-                if Config.Prices.idcard then
-                    title = CreateVarString(10, 'LITERAL_STRING',Locale("promptitle2").." $"..Config.Prices.idcard)
-                    if v.illegal then
-                        if Config.Prices.illegal then
-                            title = CreateVarString(10, 'LITERAL_STRING',Locale("promptitle3").." $"..Config.Prices.illegal)
-                        end
-                    end
-                end
-                PromptSetActiveGroupThisFrame(prompts2, title)
-                if PromptHasHoldModeCompleted(movements2[1]) then
-                    Wait(50)
-                    Notify({
-                        text = Locale("useitem", {time=Config.SelectPhotoTime}),
-                        time = 10000,
-                        type = "success"
-                    })
-                    TriggerServerEvent('fx-idcard:server:useImagePlease', k)
-                end
+
+-- หาสำนักงานที่ใกล้ที่สุดที่เข้าระยะโต้ตอบได้ (NPC spawn อยู่จริง + สำนักงานเปิด)
+local function findNearestOffice()
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local nearestCity, nearestDist
+
+    for city, settings in pairs(Config.IDCardNPC) do
+        if settings.canInteract then
+            local officeCoords = vector3(settings.coords.x, settings.coords.y, settings.coords.z)
+            local dist = #(playerCoords - officeCoords)
+            if dist <= settings.distance and (not nearestDist or dist < nearestDist) then
+                nearestCity, nearestDist = city, dist
             end
         end
-        Wait(sleep)
     end
-end)
 
-if Config.TakeCardType == "sql" then
-    RegisterCommand(Config.ShowIdcardCommand, function()
-        TriggerEvent("fx-idcard:client:showIDCardSQL")
-    end)
+    return nearestCity
 end
 
-AddEventHandler('onResourceStop', function(resourceName)
-    if (GetCurrentResourceName() ~= resourceName) then
-        return
-    end
-    for k,v in pairs(Config.IDCardNPC) do
-        if v.npc then
-            DeletePed(v.npc)
+CreateThread(function()
+    while true do
+        -- 100ms ระหว่างถือ hold ก็ไวพอจะจับ "เดินออกนอกระยะ/NUI เปิด" ได้ทัน ไม่ต้องรันทุกเฟรม (Wait(0))
+        Wait(activeCity and 100 or 250)
+
+        local city = nil
+        if not nuiOpen then
+            city = findNearestOffice()
         end
-        if v.blip then
-            RemoveBlip(v.blip)
+
+        if activeCity and city ~= activeCity then
+            exports.lp_textui:CancelHold()
+            activeCity = nil
         end
-    end
-    if cam then
-        RenderScriptCams(false, false, 0, true, true)
-        DestroyCam(cam, true)
-        cam = nil            
-        SetPlayerControl(PlayerId(), true)
-        FreezeEntityPosition(PlayerPedId(), false)
-    end
-    if creating then
-        AnimpostfxStop("OJDominoBlur")
+
+        if city and not activeCity then
+            activeCity = city
+            local settings = Config.IDCardNPC[city]
+            local officeCoords = vector3(settings.coords.x, settings.coords.y, settings.coords.z)
+
+            exports.lp_textui:TextUIHold(('[E] %s'):format(Locale("interact")), Config.InteractHoldMs or 900, function()
+                activeCity = nil
+                TriggerServerEvent("fx-idcard:server:openService", city)
+            end, nil, { coords = officeCoords, offset = vector3(0.0, 0.0, 0.3) })
+        end
     end
 end)
 
+AddEventHandler("onResourceStop", function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+
+    closeNui(true) -- แจ้ง server ปิด session ทันที ไม่ต้องรอ Config.SessionTimeout หมดอายุเอง
+    if activeCity then
+        exports.lp_textui:CancelHold()
+        activeCity = nil
+    end
+
+    for _, settings in pairs(Config.IDCardNPC) do
+        if settings.npc then DeletePed(settings.npc) end
+        if settings.blip then RemoveBlip(settings.blip) end
+    end
+end)

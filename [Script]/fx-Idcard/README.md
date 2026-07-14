@@ -1,88 +1,41 @@
+# FX Identity Card — Clerk Service
 
-<p align="center">
-  <img src="https://forum-cfx-re.akamaized.net/optimized/5X/5/e/e/f/5eef922afdab53caf9882e1e9247bb19eaeebdde_2_690x322.jpeg" alt="Fixitfy Studio" />
-</p>
+ระบบบัตรประจำตัวสำหรับ RedM รองรับ VORP และ RSG โดยใช้เจ้าหน้าที่จุดเดียวต่อสำนักงาน ไม่มีระบบกล้อง ช่างภาพ หรือไอเท็มรูปถ่าย
 
-<h1 align="center">Fixitfy ID Card System</h1>
+## Gameplay
 
----
+1. ติดต่อเจ้าหน้าที่ที่ Valentine, Rhodes หรือ Annesburg ระหว่าง 08:00–21:00
+2. หากยังไม่มีบัตร ระบบดึงข้อมูลตัวละครและ Steam avatar มาเป็นค่าเริ่มต้น
+3. ผู้เล่นตรวจข้อมูลราชการที่ถูกล็อก และเปลี่ยน URL รูปได้ถ้าต้องการ
+4. ยืนยันและชำระ $50 เพื่อรับ `man_idcard` หรือ `woman_idcard`
+5. ผู้ที่มีบัตรแล้วเลือกเปลี่ยนรูป ($25) หรือออกบัตรทดแทน ($50)
+6. เมื่อใช้ไอเท็ม บัตรจะแสดงแก่เจ้าของและผู้เล่นในระยะ 1.5 เมตร
 
-### ✅ Compatible with: VORP / RSG
+บัตรทุกสำเนาเก็บเพียงหมายเลขอ้างอิงและอ่านข้อมูลล่าสุดจาก `fx_idcard` ทุกครั้ง รูปที่เปลี่ยนจึงอัปเดตทุกสำเนา และบัตรเก่าจะใช้ไม่ได้ทันทีเมื่อข้อมูลในฐานถูกลบ
 
----
+## Installation
 
-### 📌 How does it work?
+1. Import `fx_idcard.sql`.
+2. Import `vorp-items.sql` for VORP หรือเพิ่มรายการจาก `RSGV2-ITEMS.md` สำหรับ RSG.
+3. ตรวจว่า `steam_webApiKey` ถูกตั้งใน `server.cfg` เพื่อใช้ Steam avatar เป็นค่าเริ่มต้น.
+4. ตั้ง `set fx_idcard_webhook "WEBHOOK_URL"` ใน `server.cfg` หรือ `Config.DiscordWebhook` ใน `s/config_server.lua` (server-only ไม่หลุดไปฝั่ง client) หากต้องการ Discord log — ไม่ว่าจะตั้งหรือไม่ก็ตาม action สำคัญ (สร้าง/เปลี่ยน/ลบ/รีเซ็ตบัตร) จะถูก print ไว้ใน console เสมอ
+5. Start resource หลัง framework, inventory และ oxmysql.
 
-1. Go to a photographer (defined in `Config.Photographers`) and take a photo.  
-2. Visit the ID card attendant with the photo in your inventory.  
-3. When interacting, you’ll be prompted to use that photo.  
-4. The photo will automatically pull character data and generate your ID card.  
-5. Depending on `Config.TakeCardType`:  
-   - `"item"`: ID card is added to your inventory with metadata.  
-   - `"sql"`: ID card is saved to your SQL database and viewable with `Config.ShowIdcardCommand`.
+## Commands
 
----
+- `/deleteidcard [server id]` — ยกเลิกบัตรของตัวละครออนไลน์ ผู้ใช้ต้องเป็นแอดมิน
+- `/resetallidcards confirm` — ล้างและสร้างตารางบัตรใหม่ บัตรเดิมทุกใบจะใช้ไม่ได้ ผู้ใช้ต้องเป็นแอดมินหรือ console
 
-### ☁️ Fixitfy Upload Service
+## Image URL rules
 
-Upload your pictures without issues:  
-🔗 [https://upload.fixitfy.com.tr/](https://upload.fixitfy.com.tr/)
+- รับเฉพาะ `https://`
+- จำกัดความยาว 1024 ตัวอักษร
+- ปฏิเสธ localhost, private IPv4, `.local`, `.internal`, URL ที่มี credentials และ IPv6 literal
+- หาก URL ว่างหรือโหลดไม่ได้ NUI จะแสดงรูปมาตรฐาน
 
----
+## Security model
 
-### 🛠️ Usage
-
-- Upload & print your picture.  
-- Use the photo to get your ID card.  
-- Customize whether the system uses metadata or SQL via `config.lua`.  
-- Enjoy your unique and immersive ID card system.
-
----
-
-### 📥 Installation
-
-1. Import the `fx_idcard.sql` into your database.  
-2. Add item images to your inventory system.  
-3. Add this line to the **bottom** of your `server.cfg`:
-   ```txt
-   ensure fx-idcard
-   ```
-
----
-
-### 🎮 Client Show Event
-
-```lua
-TriggerClientEvent("fx-idcard:client:showIDCardSQL")
-```
-
----
-
-### 📸 Showcase
-
-<p align="center">
-  <img src="https://forum-cfx-re.akamaized.net/optimized/5X/e/e/1/8/ee18008ca996e62fb59f768eadfdfbe90da87226_2_690x368.jpeg" width="45%" />
-  <img src="https://forum-cfx-re.akamaized.net/optimized/5X/b/3/c/2/b3c2278bd037d561cae298a8723c575124abd275_2_606x500.jpeg" width="45%" />
-</p>
-
-<p align="center">
-  <img src="https://forum-cfx-re.akamaized.net/original/5X/c/2/5/1/c251cda7c40de6057d89e9e8fc7b356d10d7e336.gif" width="30%" />
-  <img src="https://forum-cfx-re.akamaized.net/original/5X/d/3/d/6/d3d6e6241575a239eae6022ff42fddc6102122a8.gif" width="30%" />
-  <img src="https://forum-cfx-re.akamaized.net/original/5X/c/2/0/a/c20a584c49cad59c319281f401d408a1564cbb68.gif" width="30%" />
-</p>
-
-<p align="center">
-  <img src="https://forum-cfx-re.akamaized.net/original/5X/8/a/b/0/8ab0fd82c0f012ab882f6ddd2ec4a57717e56bfd.gif" width="30%" />
-  <img src="https://forum-cfx-re.akamaized.net/original/5X/a/4/c/f/a4cf29ca9ab925b0e2a21d08d62235f269f1a172.jpeg" width="30%" />
-  <img src="https://forum-cfx-re.akamaized.net/optimized/5X/5/5/8/e/558ef745003237ec9f8e8d301577a2ef5eacd90e_2_690x359.jpeg" width="30%" />
-</p>
-
-<p align="center">
-  <img src="https://forum-cfx-re.akamaized.net/optimized/5X/9/f/5/0/9f50f1ce6457dbe435b3c5c148cbe9784b36d5ad_2_690x396.jpeg" width="45%" />
-</p>
-
----
-
-### 📣 Need Help?
-
-For questions, contact us at [Fixitfy Discord](https://discord.gg/27MQADtar7)
+- Server เป็นผู้กำหนดราคา เมือง ข้อมูลตัวละคร และ action ของ session
+- Server ตรวจระยะห่างจากสำนักงานก่อนเริ่มและก่อนยืนยัน
+- Client ส่งได้เฉพาะ token, ประเภทบริการจากเมนู และ URL รูป
+- รายชื่อผู้เห็นบัตรคำนวณฝั่ง server โดยตรวจระยะและ routing bucket
