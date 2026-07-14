@@ -103,22 +103,33 @@ end
 
 local Inventory = exports.vorp_inventory
 
+-- ต่อตู้: 50% ของงานดำ 1-2 ชิ้นไม่ซ้ำกัน (สุ่มจาก pool) / 50% blueprint_low 1-2 ชิ้น — ไม่มีเงินสดแล้ว
 local function rollCarReward()
+    local cfg = Config.CarReward
     local items = {}
-    for _, it in ipairs(Config.CarReward.items) do
-        if math.random(1, 100) <= it.chance then
-            local amt = type(it.amount) == 'table' and math.random(it.amount[1], it.amount[2]) or it.amount
-            items[#items + 1] = { name = it.name, amount = amt }
+
+    if math.random(1, 100) <= (cfg.poolChancePercent or 50) then
+        local count = math.random(cfg.poolCount[1], cfg.poolCount[2])
+        local shuffled = {}
+        for _, name in ipairs(cfg.pool) do shuffled[#shuffled + 1] = name end
+        for i = #shuffled, 2, -1 do
+            local j = math.random(i)
+            shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
         end
+        for i = 1, math.min(count, #shuffled) do
+            items[#items + 1] = { name = shuffled[i], amount = 1 }
+        end
+    else
+        local count = math.random(cfg.blueprintCount[1], cfg.blueprintCount[2])
+        items[#items + 1] = { name = cfg.blueprintItem, amount = count }
     end
+
     return items
 end
 
 local function giveCarReward(src, carIndex)
     local char = getChar(src)
     if not char then return end
-    local cash = math.random(Config.CarReward.cashMin, Config.CarReward.cashMax)
-    pcall(function() char.addCurrency(Config.CarReward.currency, cash) end)
     local items = rollCarReward()
     local given = 0
     for _, it in ipairs(items) do
@@ -135,8 +146,8 @@ local function giveCarReward(src, carIndex)
             print(('[lp_railrobber][ERROR] giveCarReward addItem failed car=%d src=%s item=%s'):format(carIndex, src, it.name))
         end
     end
-    logTx(('reward car=%d src=%s cash=%d items=%d/%d'):format(carIndex, src, cash, given, #items))
-    notify(src, ('งัดตู้ %d สำเร็จ! ได้ $%d + ของปล้น'):format(carIndex, cash), 'success', 4000)
+    logTx(('reward car=%d src=%s items=%d/%d'):format(carIndex, src, given, #items))
+    notify(src, ('งัดตู้ %d สำเร็จ! ได้ของปล้น %d ชิ้น'):format(carIndex, given), 'success', 4000)
 end
 
 -- mirror the shareable slice of state to every client (bounded single object)

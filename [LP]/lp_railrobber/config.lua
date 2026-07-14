@@ -138,13 +138,16 @@ Config.LootPerimeterRadius = { 8.0, 20.0 }   -- min/max metres from the train's 
 -- targets ~10 cars totalling close to the old single-car payout; tune after a
 -- full-clear playtest since 10 independent rolls don't compound the same way
 -- one roll did.
+-- ไม่มีเงินสดต่อตู้แล้ว — ต่อตู้: 50% ได้ของงานดำ 1-2 ชิ้นไม่ซ้ำกัน / 50% ได้ blueprint_low 1-2 ชิ้น
 Config.CarReward = {
-    cashMin = 35, cashMax = 70, currency = 0, -- 10 cars => $350-700 total (old single car was $300-600)
-    items = {
-        { name = 'loot_watch',      amount = 1, chance = 8 },
-        { name = 'loot_gold_tooth', amount = 1, chance = 6 },
-        { name = 'mat_diamond',     amount = 1, chance = 3 },
+    poolChancePercent = 50,
+    pool = {
+        'loot_necklace', 'loot_ring', 'loot_watch', 'loot_chinese_coin',
+        'loot_earring', 'loot_brooch', 'loot_silver_tooth',
     },
+    poolCount = { 1, 2 },
+    blueprintItem = 'blueprint_low',
+    blueprintCount = { 1, 2 },
 }
 
 -- ── Ranges / keys ───────────────────────────────────────────────────────────
