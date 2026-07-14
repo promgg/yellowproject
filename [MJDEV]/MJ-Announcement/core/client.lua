@@ -45,8 +45,8 @@ function pushAnnouncement()
             action = 'onReceive',
             text = message,
             duration = Config.AnnouceTimer,
-            pic = 'logo.png',
-            color = '#ff0000' -- สีแดงตามธีมที่คุณต้องการ
+            pic = 'logo_icon.png', -- ตราหัวกะโหลก+หมวก+ปืนคู่ ตรงกับไฟล์ zip (imgRemove11)
+            color = '#c38f57' -- สีทอง-แทน ตรงจาก rectangle637 ในไฟล์ zip
         })
 
         -- รอจนกว่าการแสดงประกาศจะเสร็จ

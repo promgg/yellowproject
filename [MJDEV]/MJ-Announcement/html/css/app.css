@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500&display=swap');
 *,
 *::after,
 *::before {
-    font-family: 'Prompt', sans-serif;
+    font-family: 'Kanit', sans-serif;
     padding: 0;
     margin: 0;
     box-sizing: border-box;
@@ -21,14 +21,16 @@
     min-height: 4vh;
     max-height: 10vh;
     margin-bottom: 1vh;
-    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.8), rgba(255, 0, 0, 0.6));  /* ไล่เฉดสีจากดำเป็นแดง */
+    /* ดำ 80% ทับด้วยไล่สีทองแนวทแยง (จำลองจากไฟล์ zip เป๊ะ ๆ) */
+    background:
+        linear-gradient(173.18deg, rgba(0, 0, 0, 0) 0.15785%, rgba(195, 143, 87, 0.6) 100%),
+        rgba(0, 0, 0, 0.8);
     transform: translateX(-50%);
-    border-radius: 10vh;
+    border-radius: 0.7vh;
     display: flex;
     align-items: center;
     justify-content: center;
     animation: step1 1s ease both;
-    box-shadow: 0 0 2vh rgba(255, 0, 0, 0.6);  /* เงาสีแดง */
 }
 
 @keyframes step1 {
@@ -45,15 +47,15 @@
     position: absolute;
     width: 6.5vh;
     height: 3.2vh;
-    background: #b30000;  /* แดงเข้ม */
+    background: #c38f57; /* สีทอง-แทน ตรงจาก rectangle637 ในไฟล์ zip */
     left: .5vh;
-    border-radius: 5vh;
+    border-radius: 0.6vh;
     display: flex;
     align-items: center;
     justify-content: center;
     animation: step2 1s ease-out both;
     animation-delay: .6s;
-    box-shadow: 0 0 1vh rgba(255, 0, 0, 0.8);  /* เงาอ่อน */
+    box-shadow: inset 0 0 0.6vh rgba(0, 0, 0, 0.6); /* เงาลึกด้านในตามสเปค */
 }
 
 @keyframes step2 {
@@ -73,12 +75,13 @@
     width: 3.5vh;
     height: 3.5vh;
     position: absolute;
-    background: #1a1a1a;  /* เทาเข้มใกล้ดำ */
-    border-radius: .5vh;
+    background: #000; /* ดำล้วนตามสเปค (bg-black) */
+    border-radius: .2vh;
     transform: rotate(45deg);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
     animation: step3 1s ease both;
     animation-delay: 1s;
 }
@@ -101,7 +104,7 @@
 
 .text {
     width: 80%;
-    color: #ff4d4d;  /* แดงอ่อน */
+    color: #ffffff;  /* ขาวล้วนตามสเปค (text-white) */
     text-align: center;
     padding-top: 0.5vh;
     padding-bottom: 0.5vh;
@@ -109,6 +112,7 @@
     animation: step4 .5s ease both;
     animation-delay: 1.5s;
     font-size: 1.6vh;
+    font-weight: 500;
 }
 
 @keyframes step4 {
