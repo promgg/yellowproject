@@ -170,6 +170,7 @@ local function JoinTeam(team)
                 locked         = "หมดเวลาเข้าร่วมแล้ว",
                 already_joined = "คุณเข้าร่วมทีมไปแล้ว",
                 no_team        = "คุณยังไม่ได้เลือกเมือง เข้าร่วมทีมไม่ได้",
+                city_full      = "เมืองของคุณเข้าร่วมรอบนี้เต็มแล้ว (สูงสุด 10 คน)",
             }
             Notify((result and reasons[result.reason]) or 'เข้าร่วมทีมไม่สำเร็จ', 'error')
             return

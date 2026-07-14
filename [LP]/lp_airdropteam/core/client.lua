@@ -682,6 +682,25 @@ local function startLootForAirdrop(v)
     LootHoldAirdropId = nil
     resetLootPrompt()
 
+    -- Lockpick gate ก่อน phase 2 — พลาดได้ ไม่มีพีนัลตี่ ล็อกกล่องยังอยู่กับเรา (ยิง lp_progbar
+    -- ใหม่ได้ทันทีจากปุ่มเดิม เพราะ Loot.active ยังเป็น true ตลอด ไม่มีการ release lock)
+    if Config and Config["LockpickEnabled"] then
+        local picked = exports.lp_minigame:Lockpick({
+            pins = Config["LockpickPins"] or 3,
+            difficulty = Config["LockpickDifficulty"] or 3,
+        })
+        if not picked then
+            notify("งัดไม่สำเร็จ ลองใหม่อีกครั้ง", "error")
+            Loot.active = false
+            SuppressLootPrompt[v.id] = nil -- เอา prompt กลับมา ให้กด [E] ลองใหม่ได้ทันที (lock ยังอยู่กับเรา ไม่ยิง ReleaseLoot)
+            if USE_LOOT_PROGRESS_UI then nuiLootProgress(false) end
+            nuiLootHint(false, v.id)
+            resetLootPrompt()
+            ClearPedTasksImmediately(PlayerPedId())
+            return
+        end
+    end
+
     -- Phase 2: lp_progbar owns the timer, cancel key, movement/combat lock, and anim (แบบ nx_event)
     LootProgId = exports.lp_progbar:Progress({
         duration = (Config and Config['TimeToPickingAirdrop']) or 5000,

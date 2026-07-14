@@ -49,5 +49,6 @@ dependencies {
     'nx_cityselect',
     'lp_textui',
     'lp_progbar',
+    'lp_minigame',
     'pNotify',
 }

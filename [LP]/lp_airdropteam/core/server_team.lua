@@ -70,6 +70,15 @@ local function ReturnTeamFor(src)
     return TeamsById[PlayerEntryTeam[src]] or TeamsById[PlayerTeam[src]]
 end
 
+-- นับจำนวนคนที่อยู่ใน battle team (เมือง) เดียวกันตอนนี้ — ใช้คุม Config.Team.maxPerCity
+local function CountInBattleTeam(teamId)
+    local n = 0
+    for _, t in pairs(PlayerTeam) do
+        if t == teamId then n = n + 1 end
+    end
+    return n
+end
+
 DBG('server_team.lua loaded OK (teams=%d)', #Config.Team.teams)
 
 -- ─── เริ่มรอบทีม: เรียกจาก GameStart() ใน server.lua ──────────────────────────
@@ -141,6 +150,13 @@ VORPcore.Callback.Register('lp_airdropteam:JoinTeam', function(source, cb, entry
     local battleTeam = battleTeamId and TeamsById[battleTeamId]
     if not battleTeam then
         cb({ ok = false, reason = 'no_team' })
+        return
+    end
+
+    -- จำกัดจำนวนคนต่อเมือง (battle team เดียวกัน) — เช็คสด ๆ ตอน join จริง กันแทรกคิวพร้อมกัน
+    if CountInBattleTeam(battleTeamId) >= Config.Team.maxPerCity then
+        DBG('src=%d rejected: city=%s battle=%s is full (max=%d)', source, tostring(cityId), battleTeamId, Config.Team.maxPerCity)
+        cb({ ok = false, reason = 'city_full' })
         return
     end
 
