@@ -47,23 +47,26 @@ Config.Weapons = {
     },
 }
 
--- ── รางวัลตามอันดับ — เป็นของรับประกัน (ไม่ใช่สุ่ม) ถ้าเสมอกัน เงินหารเท่ากัน / ไอเทมให้เต็มทุกเมืองที่เสมอ ──
+-- ── รางวัลตามอันดับ — ตั๋วกาชาโปรโมทเซิร์ฟเท่านั้น (ไม่มีเงิน/ไอเทมอื่นแล้ว) ──
+-- เสมอกัน = ได้เต็มจำนวนทุกเมืองที่เสมอ (ตั๋วแบ่งเป็นเศษไม่ได้ ต่างจากเงินที่หารได้)
 Config.Rewards = {
     first = {
-        money = { enabled = true, min = 50, max = 100, currency = 0 },
+        money = { enabled = false, min = 0, max = 0, currency = 0 },
         items = {
-            { name = 'loot_gold_tooth', min = 1, max = 1 },
+            { name = 'gacha_promo', min = 10, max = 10 },
         },
     },
     second = {
-        money = { enabled = true, min = 25, max = 50, currency = 0 },
+        money = { enabled = false, min = 0, max = 0, currency = 0 },
         items = {
-            { name = 'loot_silver_coin', min = 2, max = 4 },
+            { name = 'gacha_promo', min = 5, max = 5 },
         },
     },
     third = {
-        money = { enabled = true, min = 10, max = 25, currency = 0 },
-        items = {},
+        money = { enabled = false, min = 0, max = 0, currency = 0 },
+        items = {
+            { name = 'gacha_promo', min = 3, max = 3 },
+        },
     },
 }
 
