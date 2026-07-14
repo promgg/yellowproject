@@ -31,8 +31,7 @@ Config.AFKZones = {
         radius = 50.0,
         duration = 900,  -- seconds required (15 นาที)
         rewards = {
-            { item = "large_meat", label = "Large meat", count = 5, image = "nui://vorp_inventory/html/img/items/apple.png" },
-            -- { item = "money", label = "Money", count = 10, image = "nui://vorp_inventory/html/img/items/money.png" }
+            { item = "afk_coin", label = "เหรียญ AFK", count = 1, image = "nui://vorp_inventory/html/img/items/afk_coin.png" },
         }
     },
 
@@ -42,8 +41,7 @@ Config.AFKZones = {
         radius = 30.0,
         duration = 900,  -- 15 นาที
         rewards = {
-            { item = "large_meat", label = "Large meat", count = 1, image = "nui://vorp_inventory/html/img/items/goldbar.png" },
-            { item = "cooked_meat", label = "Cooked Meat", count = 2, image = "nui://vorp_inventory/html/img/items/meat.png" }
+            { item = "afk_coin", label = "เหรียญ AFK", count = 5, image = "nui://vorp_inventory/html/img/items/afk_coin.png" },
         }
     },
 
@@ -53,8 +51,7 @@ Config.AFKZones = {
         radius = 20.0,
         duration = 900,  -- 15 นาที
         rewards = {
-            { item = "weapon_bow", label = "Bow", count = 1, image = "nui://vorp_inventory/html/img/items/bow.png" },
-            { item = "arrow", label = "Arrow", count = 10, image = "nui://vorp_inventory/html/img/items/arrow.png" }
+            { item = "afk_coin", label = "เหรียญ AFK", count = 5, image = "nui://vorp_inventory/html/img/items/afk_coin.png" },
         }
     }
 }
