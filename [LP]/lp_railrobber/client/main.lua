@@ -1,22 +1,24 @@
--- lp_railrobber / client/main.lua  (STAGE 1 — PvE spine)
+-- lp_railrobber / client/main.lua
 -- The client never decides an outcome. It: shows the intel broker prompt, tells
--- the server "I entered the ambush zone", and (only when the server tells it to,
--- as the heist OWNER) spawns/moves the mission train + guard waves and reports
--- back. Natives here are the ones proven in lp_railrobber_spike.
+-- the server "I entered the ambush zone" / "ambush cleared" / "carriage cleared"
+-- / plant+confirm the bomb / "I picked car N", and (only when the server tells
+-- it to, as the heist OWNER = the buyer) spawns/moves the mission train + NPC
+-- batches and reports back. Natives here are the ones proven in lp_railrobber_spike.
 
 local isOwner   = false
 local myTrain   = 0
-local guards    = {}     -- current wave's guard peds
+local ambushPeds    = {} -- phase 2: ground ambush batch
+local carriagePeds  = {} -- phase 3: carriage batch
+local perimeterPeds = {} -- phase 4: exterior pressure spawns
 local ambushBlip = nil
 local myAmbush  = nil     -- { coords, heading, id } when this client is the buyer heading to the zone
 local observerBlip = nil
+local isBusy    = false   -- true while a plant or lockpick attempt is in flight (blocks re-entry)
 
 local function dbg(m) if Config.Debug then print(('[lp_railrobber] %s'):format(m)) end end
 
 -- Guards' own relationship group: ally to each other (no friendly fire), hostile
--- to players. These natives DO exist in RDR3 (confirmed) — earlier removal was
--- based on a wrong theory; the real "guards don't spawn" bug was an invalid
--- carriage index, not this. Set up once at resource start.
+-- to players. Set up once at resource start; reused by ambush + carriage + perimeter batches.
 local GUARD_GRP = GetHashKey('LP_RR_GUARDS')
 CreateThread(function()
     AddRelationshipGroup('LP_RR_GUARDS')
@@ -56,9 +58,6 @@ local function loadModel(model, timeoutMs)
     return true
 end
 
--- was a bare "failed to load" with no way to tell WHY (bad hash vs one car's
--- model just streaming slowly). Now logs the exact failing car/model + retries
--- once with a longer timeout before giving up, since streaming hiccups are common.
 local function loadTrainCars(hash)
     local cars = Citizen.InvokeNative(0x635423D55CA84FC8, hash) -- GetNumCarsFromTrainConfig
     if cars == 0 then
@@ -89,7 +88,6 @@ local DOOR_MODELS = {
     GetHashKey('p_door_northpassenger03x'),
 }
 local function deleteTrainDoors()
-    -- resolve the train on ANY client (owner has myTrain; others via net id)
     local train = myTrain
     if train == 0 then
         local gs = GlobalState.lp_railrobber
@@ -113,14 +111,13 @@ local function deleteTrainDoors()
     end
 end
 
--- continuously strip carriage doors while a heist train is live (from the moment
--- it spawns / player boards — not just after it stops), so you can move through.
+-- continuously strip carriage doors while a heist train is live, so you can move through.
 CreateThread(function()
     while true do
         local gs = GlobalState.lp_railrobber
         local st = gs and gs.state
         if st == Config.States.TRAIN_EN_ROUTE or st == Config.States.PVE
-            or st == Config.States.BREACHING or st == Config.States.HOLD then
+            or st == Config.States.PLANT or st == Config.States.LOOTING then
             deleteTrainDoors()
             Wait(2000)
         else
@@ -130,10 +127,7 @@ CreateThread(function()
 end)
 
 -- ── intel broker NPC ────────────────────────────────────────────────────────
--- Proximity spawn/despawn (same pattern as nx_shop's spawnNpc/removeNpc): the
--- ped only exists in the world while a player is within Config.IntelNPC.spawnDistance,
--- instead of being created once and living forever. Interaction still uses this
--- project's own lp_textui hold-E, not nx_shop's UiPrompt.
+-- Proximity spawn/despawn (same pattern as nx_shop's spawnNpc/removeNpc).
 local brokerPed = 0
 local brokerModelLoaded = false
 
@@ -152,7 +146,7 @@ local function spawnBroker()
     local t = GetGameTimer() + 3000
     while not DoesEntityExist(brokerPed) and GetGameTimer() < t do Wait(50) end
     if not DoesEntityExist(brokerPed) then brokerPed = 0; return end
-    Citizen.InvokeNative(0x283978A15512B2FE, brokerPed, true) -- SetRandomOutfitVariation (else invisible — same bug as the guards had)
+    Citizen.InvokeNative(0x283978A15512B2FE, brokerPed, true) -- SetRandomOutfitVariation (else invisible)
     PlaceEntityOnGroundProperly(brokerPed)
     SetEntityInvincible(brokerPed, true)
     FreezeEntityPosition(brokerPed, true)
@@ -201,7 +195,7 @@ CreateThread(function()
     end
 end)
 
--- ── intel received (buyer's whole city) — blip the ambush point ─────────────
+-- ── intel received (buyer-exclusive — server only ever targets the buyer) ───
 RegisterNetEvent('lp_railrobber:cl:intelReceived', function(data)
     if ambushBlip and DoesBlipExist(ambushBlip) then RemoveBlip(ambushBlip) end
     local a = data.ambush
@@ -209,13 +203,9 @@ RegisterNetEvent('lp_railrobber:cl:intelReceived', function(data)
     SetBlipSprite(ambushBlip, GetHashKey('blip_ambient_train'), true)
     Citizen.InvokeNative(0x9CB1A1623062F402, ambushBlip, CreateVarString(10, 'LITERAL_STRING', 'จุดซุ่มปล้นรถไฟ'))
 
-    if data.isBuyer then
-        myAmbush = a -- this client must physically reach the zone to trigger the train
-        Notify('ได้ข่าวขบวนสินค้าแล้ว! ตามหมุดสีบนแผนที่ไปยังจุดซุ่ม แล้วรอขบวนที่นั่น', 'success', 6000)
-    else
-        Notify('เมืองของคุณซื้อข่าวปล้นรถไฟ ไปรวมพลที่หมุดจุดซุ่ม', 'info', 6000)
-    end
-    dbg(('intel received ambush=%s isBuyer=%s'):format(a.id, tostring(data.isBuyer)))
+    myAmbush = a -- this client must physically reach the zone to trigger the ambush
+    Notify('ได้ข่าวขบวนสินค้าแล้ว! ตามหมุดสีบนแผนที่ไปยังจุดซุ่ม แล้วรอที่นั่น', 'success', 6000)
+    dbg(('intel received ambush=%s'):format(a.id))
 end)
 
 -- buyer heads to the ambush; when inside the radius, tell the server
@@ -226,7 +216,7 @@ CreateThread(function()
             local d = #(GetEntityCoords(PlayerPedId()) - vector3(myAmbush.coords.x, myAmbush.coords.y, myAmbush.coords.z))
             if d <= Config.AmbushRadius then
                 TriggerServerEvent('lp_railrobber:sv:reachedAmbush')
-                Notify('ถึงจุดซุ่มแล้ว — ขบวนกำลังเข้ามา เตรียมตัว!', 'alert', 5000)
+                Notify('ถึงจุดซุ่มแล้ว! ระวังตัว!', 'alert', 5000)
                 myAmbush = nil -- fire once; server drives everything after this
             else
                 wait = 500
@@ -234,6 +224,47 @@ CreateThread(function()
         end
         Wait(wait)
     end
+end)
+
+-- ── ground ambush batch (phase 2) — kill-agnostic clear, corpse-cleanup on death ──
+RegisterNetEvent('lp_railrobber:cl:spawnAmbush', function(p)
+    if not loadModel(p.model) then return end
+    ambushPeds = {}
+    for i = 1, p.count do
+        local ang = (i / p.count) * 2 * math.pi
+        local wx = p.coords.x + math.cos(ang) * 4.0
+        local wy = p.coords.y + math.sin(ang) * 4.0
+        local ped = CreatePed(p.model, wx, wy, p.coords.z, p.heading, true, true, false, false)
+        Wait(0)
+        Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- outfit (else invisible)
+        Wait(120)
+        local net = PedToNet(ped)
+        if SetNetworkIdExistsOnAllMachines then SetNetworkIdExistsOnAllMachines(net, true) end
+        SetPedRelationshipGroupHash(ped, GUARD_GRP)
+        SetEntityInvincible(ped, false)
+        SetPedCanRagdoll(ped, false)
+        GiveWeaponToPed(ped, p.weapon, 250, false, true)
+        SetCurrentPedWeapon(ped, p.weapon, true)
+        TaskCombatPed(ped, PlayerPedId(), 0, 16)
+        ambushPeds[#ambushPeds + 1] = ped
+    end
+    Notify('มีคนเฝ้าจุดซุ่ม! กำจัดให้หมด', 'alert', 5000)
+    dbg(('spawned %d ambush NPCs'):format(#ambushPeds))
+
+    -- combined thread: delete corpses the instant they die + report all-clear
+    CreateThread(function()
+        while true do
+            Wait(1500)
+            local alive = 0
+            for _, ped in ipairs(ambushPeds) do
+                if ped and DoesEntityExist(ped) then
+                    if IsEntityDead(ped) then DeleteEntity(ped)
+                    else alive = alive + 1 end
+                end
+            end
+            if alive == 0 then TriggerServerEvent('lp_railrobber:sv:ambushCleared'); return end
+        end
+    end)
 end)
 
 -- ── OWNER: spawn the approaching mission train, report its net id ────────────
@@ -252,15 +283,16 @@ RegisterNetEvent('lp_railrobber:cl:spawnTrain', function(p)
     dbg(('spawned + owning train net=%d, cruising @ %.1f'):format(net, p.cruise))
 
     -- Lock state 0 = NONE (fully normal) so the base-game ped can auto-open the
-    -- connecting/side doors by walking into them. (1 kept them shut; forcing them
-    -- open with SetVehicleDoorOpen risked breaking them off — let the game do it.)
+    -- connecting/side doors by walking into them — EXCEPT the locomotive (car 0),
+    -- which stays LOCKED for the whole heist so no player can climb in and drive
+    -- it off script (the mission-train natives already own its speed/route).
     CreateThread(function()
         Wait(600) -- carriages ready
         local cars = Citizen.InvokeNative(0x635423D55CA84FC8, p.hash) or 0
         for i = 0, math.max(0, cars - 1) do
             local car = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, i)
             if car and car ~= 0 and DoesEntityExist(car) then
-                Citizen.InvokeNative(0x96F78A6A075D55D9, car, 0) -- SET_VEHICLE_DOORS_LOCKED (0 = NONE)
+                Citizen.InvokeNative(0x96F78A6A075D55D9, car, i == 0 and 2 or 0) -- SET_VEHICLE_DOORS_LOCKED (2=LOCKED, 0=NONE)
             end
         end
     end)
@@ -277,81 +309,158 @@ RegisterNetEvent('lp_railrobber:cl:spawnTrain', function(p)
     end)
 end)
 
--- ── OWNER: spawn a guard wave — but ONLY once a player gets near the guard car ─
-RegisterNetEvent('lp_railrobber:cl:spawnWave', function(w)
-    if not isOwner or myTrain == 0 then return end
-    CreateThread(function()
-        -- proximity gate: hold the wave until a player is close to the guard carriage
-        -- (fixes the "guards pop in all at once the instant the train spawns" timing)
-        while isOwner and myTrain ~= 0 and DoesEntityExist(myTrain) do
-            local car = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, w.carriage)
-            if not car or car == 0 then car = myTrain end
-            local cc = GetEntityCoords(car)
-            local near = false
-            for _, pl in ipairs(GetActivePlayers()) do
-                local ped = GetPlayerPed(pl)
-                if ped and ped ~= 0 and DoesEntityExist(ped) and #(GetEntityCoords(ped) - cc) <= Config.GuardSpawnRange then
-                    near = true; break
+-- ── OWNER: carriage NPC batch (phase 3) — spawn PER CARRIAGE on approach ─────
+-- Spawning the whole batch the instant the train exists races the carriage
+-- entities still streaming in (far cars aren't queryable yet — confirmed live:
+-- idx=8 kept failing while nearer indices worked fine). Fix: queue the
+-- assignment, don't touch any carriage entity until the buyer is physically
+-- near it — by then it's guaranteed loaded, since nearby entities always
+-- stream in first. Also reads better as a heist: guards ambush car-by-car as
+-- you walk the train, not all at once the moment you board.
+local carriageQueue    = {}   -- [carIndex] = NPC count still waiting to spawn there
+local carriageSpawned  = {}   -- [carIndex] = true once that carriage's NPCs are up
+local carriageModel, carriageWeapon = nil, nil
+
+RegisterNetEvent('lp_railrobber:cl:spawnCarriageBatch', function(p)
+    if not isOwner or myTrain == 0 then dbg('spawnCarriageBatch: not owner / no train — skipped'); return end
+    if not loadModel(p.model) then dbg('spawnCarriageBatch: guard model failed to load'); return end
+
+    carriagePeds = {}
+    carriageQueue = {}
+    carriageSpawned = {}
+    carriageModel, carriageWeapon = p.model, p.weapon
+    local total = 0
+    for _, idx in ipairs(p.assignments) do
+        carriageQueue[idx] = (carriageQueue[idx] or 0) + 1
+        total = total + 1
+    end
+    Notify('ยามกำลังตรวจตราขบวนรถไฟ! ระวังตัวเมื่อเข้าใกล้แต่ละโบกี้', 'alert', 5000)
+    dbg(('carriage batch queued: %d NPCs across %d carriage(s) — spawning on approach'):format(total, #p.assignments))
+end)
+
+-- spawns ALL seats queued for one carriage at once (group, so spacingY offsets
+-- still spread them like before) — returns false if the carriage still isn't
+-- queryable yet (caller just leaves it queued and retries next tick)
+local function spawnCarriageGroup(idx, count)
+    local carriage = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, idx)
+    if not carriage or carriage == 0 or not DoesEntityExist(carriage) then return false end
+
+    local ga = Config.GuardAttach
+    local cc, ch = GetEntityCoords(carriage), GetEntityHeading(carriage)
+    local rad = math.rad(ch)
+    local cosA, sinA = math.cos(rad), math.sin(rad)
+    for seat = 1, count do
+        local lx, ly = ga.x, ga.startY + (seat * ga.spacingY)
+        local wx = cc.x + (lx * cosA - ly * sinA)
+        local wy = cc.y + (lx * sinA + ly * cosA)
+        local wz = cc.z + ga.z
+
+        -- NOT attached: a ped standing on a moving carriage roof is carried by
+        -- the vehicle's own collision, same as the spike proved — attach freezes
+        -- them in place (position pinned every frame breaks combat movement).
+        local ped = CreatePed(carriageModel, wx, wy, wz, ch, true, true, false, false)
+        Wait(0)
+        Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- outfit (else invisible)
+        Wait(80)
+        local net = PedToNet(ped)
+        if SetNetworkIdExistsOnAllMachines then SetNetworkIdExistsOnAllMachines(net, true) end
+        SetPedRelationshipGroupHash(ped, GUARD_GRP)
+        SetEntityInvincible(ped, false)
+        SetPedCanRagdoll(ped, false)
+        GiveWeaponToPed(ped, carriageWeapon, 250, false, true)
+        SetCurrentPedWeapon(ped, carriageWeapon, true)
+        TaskCombatPed(ped, PlayerPedId(), 0, 16)
+        carriagePeds[#carriagePeds + 1] = ped
+    end
+    dbg(('spawned %d NPC(s) on carriage idx=%d (proximity trigger)'):format(count, idx))
+    return true
+end
+
+-- persistent thread: spawn queued carriages as the buyer walks up to them,
+-- clean up corpses, and report all-clear only once EVERY queued carriage has
+-- both been visited (spawned) AND had its NPCs killed — a carriage nobody
+-- ever walked to never silently counts as "cleared".
+CreateThread(function()
+    while true do
+        local wait = 1000
+        if isOwner and myTrain ~= 0 and DoesEntityExist(myTrain) and next(carriageQueue) ~= nil then
+            wait = 500
+            local pc = GetEntityCoords(PlayerPedId())
+            local allVisited = true
+            for idx, count in pairs(carriageQueue) do
+                if not carriageSpawned[idx] then
+                    local carriage = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, idx)
+                    if carriage and carriage ~= 0 and DoesEntityExist(carriage)
+                        and #(pc - GetEntityCoords(carriage)) <= Config.GuardSpawnRange then
+                        if spawnCarriageGroup(idx, count) then carriageSpawned[idx] = true end
+                    end
+                    if not carriageSpawned[idx] then allVisited = false end
                 end
             end
-            if near then break end
-            Wait(400)
+
+            local alive = 0
+            for _, ped in ipairs(carriagePeds) do
+                if ped and DoesEntityExist(ped) then
+                    if IsEntityDead(ped) then DeleteEntity(ped)
+                    else alive = alive + 1 end
+                end
+            end
+
+            if allVisited and alive == 0 then
+                dbg('all carriages visited + cleared -> reporting to server')
+                TriggerServerEvent('lp_railrobber:sv:carriageCleared')
+                carriageQueue = {} -- stop this branch from re-firing
+            end
         end
-        if not (isOwner and myTrain ~= 0 and DoesEntityExist(myTrain)) then return end
+        Wait(wait)
+    end
+end)
 
-        local carriage = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, w.carriage)
-        if not carriage or carriage == 0 then carriage = myTrain end
-        if not loadModel(w.model) then return end
+-- ── OWNER: perimeter NPCs during looting (phase 4 pressure) — no clear-report ──
+RegisterNetEvent('lp_railrobber:cl:spawnPerimeter', function(p)
+    if not isOwner or myTrain == 0 then return end
+    if not loadModel(Config.GuardModel) then return end
+    local tc = GetEntityCoords(myTrain)
+    local batch = {}
+    for i = 1, p.count do
+        local ang = math.random() * 2 * math.pi
+        local rad = Config.LootPerimeterRadius[1] + math.random() * (Config.LootPerimeterRadius[2] - Config.LootPerimeterRadius[1])
+        local wx = tc.x + math.cos(ang) * rad
+        local wy = tc.y + math.sin(ang) * rad
+        local ped = CreatePed(Config.GuardModel, wx, wy, tc.z, math.random(0, 359), true, true, false, false)
+        Wait(0)
+        Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- outfit
+        Wait(80)
+        local net = PedToNet(ped)
+        if SetNetworkIdExistsOnAllMachines then SetNetworkIdExistsOnAllMachines(net, true) end
+        SetPedRelationshipGroupHash(ped, GUARD_GRP)
+        SetEntityInvincible(ped, false)
+        SetPedCanRagdoll(ped, false)
+        GiveWeaponToPed(ped, Config.GuardWeapon, 250, false, true)
+        SetCurrentPedWeapon(ped, Config.GuardWeapon, true)
+        TaskCombatPed(ped, PlayerPedId(), 0, 16)
+        batch[#batch + 1] = ped
+        perimeterPeds[#perimeterPeds + 1] = ped
+    end
+    dbg(('spawned %d perimeter NPCs (pressure during looting)'):format(#batch))
 
-        -- NOT attached: the spike proved a ped standing on a moving carriage roof
-        -- is carried by the vehicle's own collision (same as the player in /rrtop)
-        -- with no AttachEntityToEntity needed. Attach was what froze them in place
-        -- (position pinned every frame -> combat task couldn't move them at all).
-        -- We spawn them at a world position derived from the carriage's own
-        -- heading, so the offset is still relative to the car, just not attached.
-        local ga = Config.GuardAttach
-        local carCoords = GetEntityCoords(carriage)
-        local carHeading = GetEntityHeading(carriage)
-        local rad = math.rad(carHeading)
-        local cosA, sinA = math.cos(rad), math.sin(rad)
-
-        guards = {}
-        for i = 1, w.count do
-            local lx, ly = ga.x, ga.startY + (i * ga.spacingY)
-            local wx = carCoords.x + (lx * cosA - ly * sinA)
-            local wy = carCoords.y + (lx * sinA + ly * cosA)
-            local wz = carCoords.z + ga.z
-
-            local ped = CreatePed(w.model, wx, wy, wz, carHeading, true, true, false, false)
-            Wait(0)
-            Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- SetRandomOutfitVariation (else invisible)
-            Wait(120)
-            local net = PedToNet(ped)
-            if SetNetworkIdExistsOnAllMachines then SetNetworkIdExistsOnAllMachines(net, true) end
-            SetPedRelationshipGroupHash(ped, GUARD_GRP) -- ally to other guards, hostile to players
-            SetEntityInvincible(ped, false)
-            SetPedCanRagdoll(ped, false)
-            GiveWeaponToPed(ped, w.weapon, 250, false, true)
-            SetCurrentPedWeapon(ped, w.weapon, true)
-            TaskCombatPed(ped, PlayerPedId(), 0, 16)
-            guards[#guards + 1] = ped
-        end
-        dbg(('spawned guard wave %d (%d peds) — player reached the car'):format(w.wave, #guards))
-
-        -- watch for the wave being wiped, then report it
+    -- flavor pressure only — just delete corpses on death, no phase gate to report
+    CreateThread(function()
         while true do
             Wait(1500)
-            if not isOwner then return end
-            local alive = 0
-            for _, ped in ipairs(guards) do
-                if ped and DoesEntityExist(ped) and not IsEntityDead(ped) then alive = alive + 1 end
+            local anyAlive = false
+            for _, ped in ipairs(batch) do
+                if ped and DoesEntityExist(ped) then
+                    if IsEntityDead(ped) then DeleteEntity(ped)
+                    else anyAlive = true end
+                end
             end
-            if alive == 0 then TriggerServerEvent('lp_railrobber:sv:waveCleared', w.wave); return end
+            if not anyAlive then return end
         end
     end)
 end)
 
--- ── OWNER: stop the train (end of PvE / Stage 2 breach handoff) ──────────────
+-- ── OWNER: stop the train (bomb confirmed / breach handoff) ──────────────────
 RegisterNetEvent('lp_railrobber:cl:stopTrain', function()
     if myTrain ~= 0 and DoesEntityExist(myTrain) then
         SetTrainCruiseSpeed(myTrain, 0.0)
@@ -369,20 +478,9 @@ RegisterNetEvent('lp_railrobber:cl:stopTrain', function()
                 end
             end
         end)
-        -- report the MIDDLE carriage as the hold centre once it has actually slowed
-        -- (train origin is the loco — a long train's rear would fall outside the radius)
-        CreateThread(function()
-            Wait(4000)
-            if myTrain ~= 0 and DoesEntityExist(myTrain) then
-                local cars = Citizen.InvokeNative(0x635423D55CA84FC8, Config.TrainHash) or 0
-                local midCar = Citizen.InvokeNative(0xD0FB093A4CDB932C, myTrain, math.floor(cars / 2))
-                local c = (midCar and midCar ~= 0 and DoesEntityExist(midCar)) and GetEntityCoords(midCar) or GetEntityCoords(myTrain)
-                TriggerServerEvent('lp_railrobber:sv:trainStopped', { x = c.x, y = c.y, z = c.z })
-            end
-        end)
     end
-    Notify('เคลียร์ยามครบแล้ว! ขบวนกำลังหยุด — เข้าไปงัดตู้', 'success', 6000)
-    dbg('train stopping — breach phase')
+    Notify('รถไฟหยุดแล้ว — เข้าไปงัดตู้', 'success', 6000)
+    dbg('train stopped — looting phase')
 end)
 
 -- ── ALL clients: resolve the train so everyone sees it (bcc-train pattern) ──
@@ -403,12 +501,135 @@ RegisterNetEvent('lp_railrobber:cl:trainSync', function(trainNet)
     end)
 end)
 
--- ── STAGE 2: breach loot cars (any client) ─────────────────────────────────
-local lootCarriages = nil
-local breaching = false
+-- ── Hand prop builder (ported from lp_robbery) ───────────────────────────────
+-- Config.Props เก็บ bone เป็น "ชื่อ" — resolve เป็น index ตรงนี้ แล้วส่งเป็น field
+-- `prop` ให้ lp_progbar สร้าง/แปะ/ลบเองครบทุกทาง.
+local function buildProp(def)
+    if not def or not def.model then return nil end
+    return {
+        model    = def.model,
+        bone     = GetEntityBoneIndexByName(PlayerPedId(), def.bone or 'SKEL_R_Hand'),
+        coords   = def.coords,
+        rotation = def.rotation,
+    }
+end
 
-RegisterNetEvent('lp_railrobber:cl:beginBreach', function(cars)
-    lootCarriages = cars
+-- ── bomb plant at the locomotive (ported from lp_robbery's startBank) ────────
+local lastPlantResult = nil
+RegisterNetEvent('lp_railrobber:cl:plantRequestResult', function(ok) lastPlantResult = ok end)
+
+local function startPlant()
+    if isBusy then return end
+    isBusy = true
+    lastPlantResult = nil
+    TriggerServerEvent('lp_railrobber:sv:requestPlant')
+
+    CreateThread(function()
+        local deadline = GetGameTimer() + 5000
+        while lastPlantResult == nil and GetGameTimer() < deadline do Wait(0) end
+        local ok = lastPlantResult
+        lastPlantResult = nil
+
+        if not ok then isBusy = false; return end
+
+        exports.lp_progbar:Progress({
+            duration = Config.PlantDuration,
+            label = 'กำลังวางระเบิด...',
+            controlDisables = { disableMovement = true },
+            animation = { task = 'WORLD_HUMAN_CROUCH_INSPECT' },
+            prop = buildProp(Config.Props and Config.Props.plant),
+        }, function(cancelled)
+            if cancelled then
+                Notify('ยกเลิก', 'error', 3000)
+                isBusy = false
+                return
+            end
+
+            Notify('หนีเร็ว! ระเบิดใน 15 วิ!', 'error', Config.BombFuseTime * 1000)
+            CreateThread(function()
+                Wait(Config.BombFuseTime * 1000)
+                TriggerServerEvent('lp_railrobber:sv:confirmPlantBlow')
+                isBusy = false
+            end)
+        end)
+    end)
+end
+
+RegisterNetEvent('lp_railrobber:cl:syncExplosion', function(pos)
+    if not pos then return end
+    local pc = GetEntityCoords(PlayerPedId())
+    local epos = vector3(pos.x, pos.y, pos.z)
+    if #(pc - epos) > 150.0 then return end -- everyone near renders/hears it; far clients skip the FX
+    AddExplosion(pos.x, pos.y, pos.z, Config.Explosion.type, Config.Explosion.radius, true, false, 1.0)
+    if #(pc - epos) <= 40.0 then
+        ShakeGameplayCam(Config.Explosion.cameraShake, Config.Explosion.shake)
+    end
+end)
+
+-- proximity poll for the plant prompt — locomotive is always carriage index 0,
+-- buyer-only (mirrors the server gate; UX only, server remains authoritative)
+local plantShown = false
+local sawPlantState = false  -- debug: did the client ever observe state==PLANT at all
+local lastPlantDbg = 0       -- debug: throttle the distance print
+CreateThread(function()
+    while true do
+        local wait = 600
+        local gs = GlobalState.lp_railrobber
+        if gs and gs.state == Config.States.PLANT then
+            if not sawPlantState then
+                sawPlantState = true
+                dbg(('plant-prompt: state=PLANT observed. gs.buyerSrc=%s myServerId=%s match=%s')
+                    :format(tostring(gs.buyerSrc), tostring(GetPlayerServerId(PlayerId())), tostring(gs.buyerSrc == GetPlayerServerId(PlayerId()))))
+            end
+        else
+            sawPlantState = false
+        end
+
+        if gs and gs.state == Config.States.PLANT and gs.buyerSrc == GetPlayerServerId(PlayerId()) and not isBusy then
+            local train = myTrain
+            if train == 0 then
+                if gs.trainNet and NetworkDoesNetworkIdExist(gs.trainNet) then
+                    train = NetworkGetEntityFromNetworkId(gs.trainNet)
+                end
+            end
+            if train ~= 0 and DoesEntityExist(train) then
+                local loco = Citizen.InvokeNative(0xD0FB093A4CDB932C, train, 0)
+                if not loco or loco == 0 then loco = train end
+                local pc = GetEntityCoords(PlayerPedId())
+                local d = #(pc - GetEntityCoords(loco))
+                if GetGameTimer() - lastPlantDbg > 2000 then
+                    lastPlantDbg = GetGameTimer()
+                    dbg(('plant-prompt: loco=%s dist=%.1f range=%.1f'):format(tostring(loco), d, Config.PlantBreachRange))
+                end
+                if d <= Config.PlantBreachRange then
+                    wait = 0
+                    if not plantShown then
+                        plantShown = true
+                        exports.lp_textui:TextUIHold('[E] วางระเบิด', Config.HoldMs, function()
+                            plantShown = false
+                            startPlant()
+                        end, Config.KEY_E)
+                    end
+                elseif plantShown then
+                    plantShown = false
+                    exports.lp_textui:CancelHold()
+                end
+            elseif GetGameTimer() - lastPlantDbg > 2000 then
+                lastPlantDbg = GetGameTimer()
+                dbg(('plant-prompt: no resolvable train entity (myTrain=%d trainNet=%s)'):format(myTrain, tostring(gs.trainNet)))
+            end
+        elseif plantShown then
+            plantShown = false
+            exports.lp_textui:CancelHold()
+        end
+        Wait(wait)
+    end
+end)
+
+-- ── looting: all 10 cars pickable (buyer-only, item + lockpick-gated) ────────
+local lootingActive = false
+RegisterNetEvent('lp_railrobber:cl:beginLooting', function()
+    lootingActive = true
     Notify('เคลียร์ยามแล้ว! เข้าไปงัดตู้สินค้า (E)', 'info', 6000)
 end)
 
@@ -419,21 +640,86 @@ local function resolveTrain()
     return (ent ~= 0 and DoesEntityExist(ent)) and ent or 0
 end
 
+-- ตรวจไอเทมก่อนเล่นมินิเกม (ไม่ใช่งัดไปแล้วถึงมาบอกว่าไม่มีของ) — sync export ที่มีอยู่
+-- แล้วในโปรเจกต์นี้ (ดูตัวอย่างการใช้ใน MJ-Respwan/MJ-Mailbox), อ่านจาก cache ฝั่ง client
+-- เอง ไม่ใช่ round-trip ไปเซิร์ฟเวอร์ — ใช้เป็น early feedback เท่านั้น เซิร์ฟเวอร์ยัง
+-- เช็ค+หักของจริงเองอีกที (sv:lockpickAttempt) ไม่ไว้ใจ client
+local function hasLockpickItem()
+    local item = exports.vorp_inventory:getInventoryItem(Config.LockpickItem)
+    return item and (item.count or 0) > 0
+end
+
+-- ผลจาก sv:lockpickAttempt — แค่บอกว่า "ไปเล่น progbar ต่อได้" เท่านั้น ยังไม่ใช่รางวัล
+-- (item หักไปแล้วตั้งแต่ตรงนี้ที่เซิร์ฟเวอร์ ไม่ว่าจะพลาดหรือสำเร็จ) รางวัลจริงมาจาก
+-- sv:confirmCarLoot ซึ่งยิงก็ต่อเมื่อ progbar เล่นจบแบบไม่ถูกยกเลิกเท่านั้น
+local lastLockpickResult = nil -- { carIndex, ok }
+RegisterNetEvent('lp_railrobber:cl:lockpickAttemptResult', function(carIndex, ok)
+    lastLockpickResult = { carIndex = carIndex, ok = ok }
+end)
+
+local function startCarPick(carIndex)
+    if isBusy then return end
+    if not hasLockpickItem() then
+        Notify('คุณต้องมีชุดงัดกุญแจ', 'error', 3000)
+        return
+    end
+    isBusy = true
+
+    local picked = exports.lp_minigame:Lockpick(Config.CarLockpick)
+    -- item consumed EVERY attempt regardless of outcome — server does the actual
+    -- subItem (never trust the client for economy-affecting state)
+    lastLockpickResult = nil
+    TriggerServerEvent('lp_railrobber:sv:lockpickAttempt', carIndex, picked)
+
+    if not picked then
+        isBusy = false
+        return -- instant retry allowed, no cooldown — cost is the item, not a timer
+    end
+
+    CreateThread(function()
+        local deadline = GetGameTimer() + 3000
+        while not lastLockpickResult and GetGameTimer() < deadline do Wait(0) end
+        local res = lastLockpickResult
+        lastLockpickResult = nil
+
+        if not res or res.carIndex ~= carIndex or not res.ok then
+            isBusy = false
+            return
+        end
+
+        exports.lp_progbar:Progress({
+            duration = Config.CarProgDuration,
+            label = 'กำลังงัดตู้...',
+            controlDisables = { disableMovement = true },
+            animation = { animDict = 'script_common@jail_cell@unlock@key', anim = 'action', flags = 1 },
+        }, function(cancelled)
+            isBusy = false
+            if cancelled then
+                Notify('ยกเลิก', 'error', 3000)
+                return
+            end
+            -- รางวัลจริงเกิดตรงนี้ (ฝั่งเซิร์ฟเวอร์) — เล่น progbar จบไม่ถูกยกเลิกเท่านั้นถึงได้
+            TriggerServerEvent('lp_railrobber:sv:confirmCarLoot', carIndex)
+        end)
+    end)
+end
+
 local breachShown = false
 CreateThread(function()
     while true do
         local wait = 600
         local gs = GlobalState.lp_railrobber
-        if gs and gs.state == Config.States.BREACHING and lootCarriages and not breaching then
+        if gs and gs.state == Config.States.LOOTING and lootingActive
+            and gs.buyerSrc == GetPlayerServerId(PlayerId()) and not isBusy then
             local train = resolveTrain()
             if train ~= 0 then
                 wait = 250
                 local pc = GetEntityCoords(PlayerPedId())
                 local nearIdx
-                for _, idx in ipairs(lootCarriages) do
+                for idx = Config.LootCarriageRange[1], Config.LootCarriageRange[2] do
                     if not (gs.breached and gs.breached[idx]) then
                         local car = Citizen.InvokeNative(0xD0FB093A4CDB932C, train, idx)
-                        if car and car ~= 0 and DoesEntityExist(car) and #(pc - GetEntityCoords(car)) <= Config.BreachRange then
+                        if car and car ~= 0 and DoesEntityExist(car) and #(pc - GetEntityCoords(car)) <= Config.CarBreachRange then
                             nearIdx = idx; break
                         end
                     end
@@ -442,16 +728,7 @@ CreateThread(function()
                     breachShown = true
                     exports.lp_textui:TextUIHold('[E] งัดตู้สินค้า', Config.HoldMs, function()
                         breachShown = false
-                        breaching = true
-                        exports.lp_progbar:Progress({
-                            duration = Config.BreachDurationMs,
-                            label = 'กำลังงัดตู้...',
-                            controlDisables = { disableMovement = true },
-                            animation = { animDict = 'script_common@jail_cell@unlock@key', anim = 'action', flags = 1 },
-                        }, function(cancelled)
-                            breaching = false
-                            if not cancelled then TriggerServerEvent('lp_railrobber:sv:breachCar', nearIdx) end
-                        end)
+                        startCarPick(nearIdx)
                     end, Config.KEY_E)
                 elseif not nearIdx and breachShown then
                     breachShown = false
@@ -466,31 +743,20 @@ CreateThread(function()
     end
 end)
 
--- ── STAGE 2 (scope cut): simple countdown HUD after a successful breach ─────
--- No city-vs-city capture bar for now — just a payout countdown for the breacher.
-local holdHudUp = false
-CreateThread(function()
-    while true do
-        local gs = GlobalState.lp_railrobber
-        if gs and gs.state == Config.States.HOLD then
-            local rem = gs.holdRemaining or 0
-            exports.lp_textui:TextUI(('🚂 งัดตู้สำเร็จ! กำลังรับรางวัลใน %02d:%02d'):format(math.floor(rem / 60), rem % 60))
-            holdHudUp = true
-            Wait(1000)
-        else
-            if holdHudUp then exports.lp_textui:HideUI(); holdHudUp = false end
-            Wait(500)
-        end
-    end
-end)
-
 -- ── teardown (owner) ────────────────────────────────────────────────────────
-local function teardown()
-    isOwner = false
-    for _, ped in ipairs(guards) do
+local function deletePedList(list)
+    for _, ped in ipairs(list) do
         if ped and DoesEntityExist(ped) then DeleteEntity(ped) end
     end
-    guards = {}
+end
+
+local function teardown()
+    isOwner = false
+    deletePedList(ambushPeds); ambushPeds = {}
+    deletePedList(carriagePeds); carriagePeds = {}
+    deletePedList(perimeterPeds); perimeterPeds = {}
+    carriageQueue = {}
+    carriageSpawned = {}
     if myTrain ~= 0 then
         local cars = Citizen.InvokeNative(0x635423D55CA84FC8, Config.TrainHash) or 0
         for i = 0, math.max(0, cars - 1) do
@@ -503,10 +769,10 @@ local function teardown()
     if ambushBlip and DoesBlipExist(ambushBlip) then RemoveBlip(ambushBlip); ambushBlip = nil end
     if observerBlip and DoesBlipExist(observerBlip) then RemoveBlip(observerBlip); observerBlip = nil end
     myAmbush = nil
-    lootCarriages = nil
-    breaching = false
+    lootingActive = false
+    isBusy = false
+    if plantShown then exports.lp_textui:CancelHold(); plantShown = false end
     if breachShown then exports.lp_textui:CancelHold(); breachShown = false end
-    if holdHudUp then exports.lp_textui:HideUI(); holdHudUp = false end
 end
 
 RegisterNetEvent('lp_railrobber:cl:teardown', teardown)

@@ -4,7 +4,7 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 lua54 'yes'
 
 name 'lp_railrobber'
-description 'Moving-train robbery PvPvE (attack/defend King-of-the-Hill, city teams). STAGE 1 = server-authoritative PvE spine.'
+description 'Moving-train robbery: buy intel -> ground ambush -> board + clear train -> plant bomb -> lockpick 10 cars. Server-authoritative, buyer-owned heist.'
 author 'lp_'
 version '0.1.0'
 
