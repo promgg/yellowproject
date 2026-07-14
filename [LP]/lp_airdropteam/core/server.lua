@@ -857,6 +857,23 @@ local function ClaimAirdrop(src, arg)
                     xPlayer.addCurrency(1, black)
                     table.insert(rewards, ("• BlackMoney: $%d"):format(black))
                 end
+            elseif value.Pool then
+                -- สุ่มไอเทมแบบ "N ชิ้นไม่ซ้ำกัน" จากกลุ่ม Pool — ต่างจาก Item เดี่ยวๆ ข้างบนที่ roll ทีละรายการ
+                local minC, maxC = 1, 1
+                if value.Count and #value.Count >= 2 then minC, maxC = value.Count[1], value.Count[2] end
+                local pickCount = math.random(minC, maxC)
+
+                local shuffled = {}
+                for _, item in ipairs(value.Pool) do table.insert(shuffled, item) end
+                for i = #shuffled, 2, -1 do
+                    local j = math.random(i)
+                    shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+                end
+
+                for i = 1, math.min(pickCount, #shuffled) do
+                    exports['vorp_inventory']:addItem(src, shuffled[i], 1)
+                    table.insert(rewards, ("• %s x1"):format(shuffled[i]))
+                end
             end
         end
     end
