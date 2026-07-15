@@ -141,6 +141,11 @@ end
 function Process(action, start, tick, finish)
     ActionStart()
     Action = action
+    -- ถ้าผู้เรียกไม่ส่ง controlDisables มา (ปกติมากในโค้ดที่มีอยู่แล้ว) Action.controlDisables จะเป็น
+    -- nil เพราะ `Action = action` แทนที่ทั้งก้อน ไม่ merge กับ default ด้านบน — DisableActions()
+    -- ด้านล่าง index เข้า nil ตรงๆ ทำให้ thread ทั้งเส้น error ตายเงียบๆ ตั้งแต่ tick แรก (ไม่มีการ
+    -- disable control ใดๆเกิดขึ้นจริงเลยตลอดมา ถึงจะส่ง controlDisables มาก็ตาม) กันด้วย default เปล่า
+    Action.controlDisables = Action.controlDisables or {}
     if Action.icon then
         local img = "nui://vorp_inventory/html/img/items/"
         
@@ -200,6 +205,7 @@ function ActionStart()
                 if not isAnim then
                     if Action.animation ~= nil then
                         if Action.animation.task ~= nil then
+                            print(('[MJ-Progressbar] ActionStart: TaskStartScenarioInPlace task=%s'):format(tostring(Action.animation.task)))
                             TaskStartScenarioInPlace(PlayerPedId(), Action.animation.task, 0, true)
                         elseif Action.animation.animDict ~= nil and Action.animation.anim ~= nil then
                             if Action.animation.flags == nil then
@@ -209,8 +215,17 @@ function ActionStart()
                             local player = PlayerPedId()
                             if (DoesEntityExist(player) and not IsEntityDead(player)) then
                                 loadAnimDict(Action.animation.animDict)
-                                TaskPlayAnim(player, Action.animation.animDict, Action.animation.anim, 3.0, 3.0, -1,
-                                    Action.animation.flags, 0, 0, 0, 0)
+                                print(('[MJ-Progressbar] ActionStart: TaskPlayAnim dict=%s anim=%s flags=%s duration=%s'):format(
+                                    Action.animation.animDict, Action.animation.anim, tostring(Action.animation.flags), tostring(Action.duration)))
+                                -- RDR3 TASK_PLAY_ANIM ต้องการพารามิเตอร์ครบชุดต่างจาก GTA5 (ขาด
+                                -- ikFlags/taskFilter/p12 แบบเดิมทำให้ anim บางตัวเล่นไม่สมูท/clear
+                                -- ไม่ติด) — ใช้ signature เดียวกับที่ lp_progbar พิสูจน์แล้วว่าถูกต้อง
+                                -- duration ใช้ Action.duration ของ progress bar เอง (ไม่ใช่ -1 ลูปตลอดไป
+                                -- แบบเดิม) — ทุก reference ที่ใช้งานได้จริงในโปรเจกต์นี้ (vorp_metabolism)
+                                -- ใช้ duration จำกัดเสมอ ให้ task จบตัวเองตามเวลา ไม่ต้องพึ่ง ClearPedTasks
+                                -- ตัดขัดจังหวะ anim วนไม่รู้จบ (เจอเคสค้างเดินไม่ได้จากตรงนี้มาก่อน)
+                                TaskPlayAnim(player, Action.animation.animDict, Action.animation.anim, 3.0, 3.0,
+                                    Action.duration or -1, Action.animation.flags, 0, false, 0, false, "", true)
                             end
                         else
                             -- TaskStartScenarioInPlace(PlayerPedId(), 'PROP_HUMAN_BUM_BIN', 0, true)
@@ -230,12 +245,23 @@ function ActionStart()
                     local modelSpawn = CreateObject(GetHashKey(Action.prop.model), pCoords.x, pCoords.y, pCoords.z,
                         true, true, true)
 
-                    local netid = ObjToNet(modelSpawn)
-                    SetNetworkIdExistsOnAllMachines(netid, true)
-                    NetworkSetNetworkIdDynamic(netid, true)
-                    SetNetworkIdCanMigrate(netid, false)
-                    if Action.prop.bone == nil then
-                        Action.prop.bone = 60309
+                    -- ตัด ObjToNet/SetNetworkIdExistsOnAllMachines/NetworkSetNetworkIdDynamic/
+                    -- SetNetworkIdCanMigrate ออกทั้งหมด — ตัวหลังสองตัวไม่ใช่ native จริงใน RedM
+                    -- (มีแค่ฝั่ง GTA5) เรียกแล้ว script error กลางบล็อกทำให้ AttachEntityToEntity
+                    -- ไม่ทำงานเลย — อ้างอิง vorp_metabolism ที่สร้าง prop คอสเมติกแบบนี้โดยใช้ entity
+                    -- handle ตรงๆ ไม่ผ่าน network-id เลย (useItemsActions.lua) ใช้ pattern เดียวกัน
+
+                    -- boneName (ชื่อ เช่น "SKEL_L_HAND") ผ่าน GetEntityBoneIndexByName — ใช้ค่านี้ก่อน
+                    -- ถ้ามี เพราะ reference ที่พิสูจน์แล้ว (vorp_metabolism) ให้มาเป็นชื่อ ไม่ใช่เลข ID
+                    -- bone (เลข ID ดิบ) ผ่าน GetPedBoneIndex ยังใช้ได้เหมือนเดิมถ้าไม่ระบุ boneName
+                    local propBoneIdx
+                    if Action.prop.boneName then
+                        propBoneIdx = GetEntityBoneIndexByName(PlayerPedId(), Action.prop.boneName)
+                    else
+                        if Action.prop.bone == nil then
+                            Action.prop.bone = 60309
+                        end
+                        propBoneIdx = GetPedBoneIndex(PlayerPedId(), Action.prop.bone)
                     end
 
                     if Action.prop.coords == nil then
@@ -254,10 +280,10 @@ function ActionStart()
                         }
                     end
 
-                    AttachEntityToEntity(modelSpawn, PlayerPedId(), GetPedBoneIndex(PlayerPedId(), Action.prop.bone),
+                    AttachEntityToEntity(modelSpawn, PlayerPedId(), propBoneIdx,
                         Action.prop.coords.x, Action.prop.coords.y, Action.prop.coords.z, Action.prop.rotation.x,
                         Action.prop.rotation.y, Action.prop.rotation.z, 1, 1, 0, 1, 0, 1)
-                    prop_net = netid
+                    prop_net = modelSpawn
 
                     isProp = true
 
@@ -272,10 +298,6 @@ function ActionStart()
                         local modelSpawn = CreateObject(GetHashKey(Action.propTwo.model), pCoords.x, pCoords.y,
                             pCoords.z, true, true, true)
 
-                        local netid = ObjToNet(modelSpawn)
-                        SetNetworkIdExistsOnAllMachines(netid, true)
-                        NetworkSetNetworkIdDynamic(netid, true)
-                        SetNetworkIdCanMigrate(netid, false)
                         if Action.propTwo.bone == nil then
                             Action.propTwo.bone = 60309
                         end
@@ -300,7 +322,7 @@ function ActionStart()
                             GetPedBoneIndex(PlayerPedId(), Action.propTwo.bone), Action.propTwo.coords.x,
                             Action.propTwo.coords.y, Action.propTwo.coords.z, Action.propTwo.rotation.x,
                             Action.propTwo.rotation.y, Action.propTwo.rotation.z, 1, 1, 0, 1, 0, 1)
-                        propTwo_net = netid
+                        propTwo_net = modelSpawn
 
                         isPropTwo = true
                     end
@@ -314,6 +336,7 @@ function ActionStart()
 end
 
 function Cancel()
+    print(('[MJ-Progressbar] Cancel() called, name=%s'):format(tostring(Action.name)))
     TriggerEvent('progressbar:setstatus', false)
     isDoingAction = false
     wasCancelled = true
@@ -327,6 +350,7 @@ function Cancel()
 end
 
 function Finish()
+    print(('[MJ-Progressbar] Finish() called, name=%s'):format(tostring(Action.name)))
     TriggerEvent('progressbar:setstatus', false)
     isDoingAction = false
     ActionCleanup()
@@ -337,21 +361,42 @@ function ActionCleanup()
     local ped = PlayerPedId()
 
     if Action.animation ~= nil then
-        if Action.animation.task ~= nil or (Action.animation.animDict ~= nil and Action.animation.anim ~= nil) then
-            ClearPedSecondaryTask(ped)
-            StopAnimTask(ped, Action.animDict, Action.anim, 1.0)
+        print(('[MJ-Progressbar] ActionCleanup: task=%s animDict=%s anim=%s'):format(
+            tostring(Action.animation.task), tostring(Action.animation.animDict), tostring(Action.animation.anim)))
+        if Action.animation.task ~= nil then
+            -- scenario (TaskStartScenarioInPlace) เป็น primary task — ต้องเคลียร์ด้วย ClearPedTasks
+            -- (เดิมเรียก ClearPedSecondaryTask ผิด slot ไม่เคลียร์อะไรเลย)
+            ClearPedTasks(ped)
+        elseif Action.animation.animDict ~= nil and Action.animation.anim ~= nil then
+            -- เดิมอ้าง Action.animDict/Action.anim ซึ่งไม่มีจริง (เป็น nil เสมอ เพราะข้อมูลจริงอยู่ที่
+            -- Action.animation.animDict/.anim) ทำให้ StopAnimTask ไม่เคยหยุดอะไรจริงเลย ท่าเลยค้าง
+            -- ผู้เล่นเดินไม่ได้ตลอดไป (primary task ไม่เคยถูกเคลียร์) — แก้ field ให้ตรง + สำรองด้วย
+            -- ClearPedTasks เผื่อ StopAnimTask เดี่ยวๆไม่พอสำหรับบาง anim
+            StopAnimTask(ped, Action.animation.animDict, Action.animation.anim, 1.0)
+            ClearPedTasks(ped)
         else
             ClearPedTasks(ped)
         end
     end
 
-    DetachEntity(NetToObj(prop_net), 1, 1)
-    DeleteEntity(NetToObj(prop_net))
-    DetachEntity(NetToObj(propTwo_net), 1, 1)
-    DeleteEntity(NetToObj(propTwo_net))
-    prop_net = nil
-    propTwo_net = nil
+    -- prop_net/propTwo_net เก็บ entity handle ตรงๆ แล้ว (ไม่ผ่าน ObjToNet/NetToObj อีกต่อไป —
+    -- ดู comment ตรงจุดสร้าง prop) guard ด้วย DoesEntityExist กัน error ถ้า entity หายไปแล้วก่อนหน้า
+    if prop_net then
+        if DoesEntityExist(prop_net) then
+            DetachEntity(prop_net, 1, 1)
+            DeleteEntity(prop_net)
+        end
+        prop_net = nil
+    end
+    if propTwo_net then
+        if DoesEntityExist(propTwo_net) then
+            DetachEntity(propTwo_net, 1, 1)
+            DeleteEntity(propTwo_net)
+        end
+        propTwo_net = nil
+    end
     runProgThread = false
+    print('[MJ-Progressbar] ActionCleanup: done, runProgThread=false')
 end
 
 function loadAnimDict(dict)
@@ -373,6 +418,14 @@ function DisableActions(ped)
         DisableControlAction(0, 31, true) -- disable forward/back
         DisableControlAction(0, 36, true) -- INPUT_DUCK
         DisableControlAction(0, 21, true) -- disable sprint
+    end
+
+    -- ล็อคเฉพาะวิ่ง เดินยังได้ปกติ — ต่างจาก disableMovement ด้านบนที่ล็อคทั้งเดินด้วย
+    -- บล็อคคีย์ Shift ตรงๆ (0x8FFC75D6) แทน control 21 (sprint action) — pattern เดียวกับที่
+    -- MJ-Cooldown ใช้จริงตอนผู้เล่นบาดเจ็บ/เดินกะเผลก (Config.DisableControl ใน MJ-Cooldown/config.lua)
+    -- เชื่อถือได้กว่าเพราะบล็อคที่ตัวคีย์เลย ไม่ผ่าน sprint action ที่อาจมีเงื่อนไข/ toggle แทรกซ้อน
+    if Action.controlDisables.disableSprint then
+        DisableControlAction(0, 0x8FFC75D6, true) -- SHIFT (ปุ่มวิ่งเริ่มต้น)
     end
 
     if Action.controlDisables.disableCarMovement then

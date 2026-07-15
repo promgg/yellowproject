@@ -19,10 +19,9 @@ let H = canvas.height;
 let degrees = 0;
 let new_degrees = 0;
 let time = 0;
-let color = "#12f2eb";
-// // let color = "#eb5757";
-let bgcolor = "rgba(0, 0, 0, 0.35)";
-let bgcolor2 = "#f63737";
+let color = "#e5c275"; // สีทอง — โทนเดียวกับ badge เมือง (lp_eventnotify)
+let bgcolor = "rgba(15, 13, 10, 0.55)"; // วงพื้นหลัง โทนน้ำตาลเข้มเดียวกับ badge เมือง
+let bgcolor2 = "#f63737"; // แดง (cancel) — คงไว้เดิม ไม่เปลี่ยนเพราะเป็นสีสากลของ "ยกเลิก"
 let animation_loop;
 let animation_loop_full;
 let cancel_timeout;
@@ -57,7 +56,7 @@ function init() {
 
 let addition = 0
 function draw(data) {
-    color = "#12f2eb";   
+    color = "#e5c275"; // สีทอง — ต้อง reset ค่าเดิมทับทุกครั้งที่ draw (cancel() เปลี่ยน color เป็นแดงไว้)
     ctx.clearRect(0,0,W,H);
     addition = 0;
     degrees = 0;

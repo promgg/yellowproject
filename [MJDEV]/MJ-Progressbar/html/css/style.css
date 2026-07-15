@@ -22,52 +22,62 @@ body {
     opacity: 0;
 }
 
+/* ลดขนาดลงจากเดิม (10vh -> 6vh, ~60%) */
 #canvas {
     display: block;
-    margin: 50px auto;
-    width: 10vh;
-    height: 10vh;
+    margin: 3vh auto;
+    width: 6vh;
+    height: 6vh;
 }
 
+/* เปลี่ยนวิธีจัดกึ่งกลางไอคอนใหม่ทั้งหมด — เดิมคำนวณตำแหน่ง top ด้วยมือจาก vh คงที่แล้วยังไม่ตรง
+   (มีตัวแปรอื่นที่ทำให้เพี้ยน เช่น bootstrap.min.css ที่โหลดมาด้วยอาจชนกับ ขนาดจริงของรูปที่โหลด)
+   ใช้ flexbox ให้ .icon "ซ้อนทับตำแหน่ง/ขนาดเดียวกับ canvas เป๊ะ" แล้วให้ flexbox จัดกึ่งกลาง
+   เนื้อหาข้างในอัตโนมัติ — ไม่ต้องคำนวณ top/height ของเนื้อหาข้างในเองอีกต่อไป ไม่ว่ารูปจริงจะ
+   ขนาดเท่าไหร่ก็ยังกึ่งกลางเสมอ */
 .icon {
-    height: 0.1vh;
-    width: auto;
-    display: block;
     position: absolute;
+    top: 0;    /* ตรงกับ margin-top ของ #canvas */
     left: 0;
     right: 0;
-    top: 3.5vh;
+    width: 6vh;  /* ตรงกับ width ของ #canvas */
+    height: 6vh; /* ตรงกับ height ของ #canvas */
     margin: 0 auto;
-    border-radius: 15vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .icon > i {
-    height: 4.5vh;
-    width: auto;
-    display: block;
-    position: relative;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.7vh;
+    height: 2.7vh;
     font-weight: bold;
-    font-size: 3vh;
-    border-radius: 15vh;
+    font-size: 1.8vh;
     text-shadow: -1px -1px 1px rgba(0, 0, 0, 0.1), 1px 1px 1px rgba(0,0,0,.5);
 }
 
+.icon > i > img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* เดิมใช้ position:absolute + top คำนวณเองเป็น vh (9.3vh) แล้วจริงมันไม่ตรง (ช่องว่างห่างเกินไป
+   เหมือนปัญหา .icon ที่พลาดมาก่อนหน้านี้) — เปลี่ยนมาปล่อยให้ label ไหลต่อจาก #canvas ตาม normal
+   flow แทน ไม่ต้องคำนวณ top เอง รับประกันว่าจะอยู่ติดขอบล่างของวงเสมอไม่ว่า canvas จะสูงเท่าไหร่จริง */
 .label {
-    height: 4.5vh;
+    height: 2.7vh;
     width: auto;
     display: block;
-    position: absolute;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
     text-align: center;
-    top: 9.5vh;
+    margin: 0 auto;
     font-weight: bold;
-    font-size: 2vh;
-    border-radius: 15vh;
+    font-size: 1.2vh;
     text-shadow: -1px -1px 1px rgba(0, 0, 0, 0.1), 1px 1px 1px rgba(0,0,0,.5);
 }
