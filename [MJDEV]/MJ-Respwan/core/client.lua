@@ -257,18 +257,29 @@ local function playAnimation(dict, anim, duration)
     ClearPedTasks(ped)
 end
 
-RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function()
+-- category มาจาก Config.Items[item].category ที่ server ส่งมา ('heal' = bandage_s/bandage_xl,
+-- 'quick' = painkiller/stamina) — fallback เป็น 'heal' ถ้า item เก่าไม่มี category กำหนดไว้
+-- (เดิมโค้ดนี้เรียก Progress() แค่โชว์ UI แถบ แล้วแยกไปเล่นท่าเองผ่าน playAnimation() ซึ่งเป็นแค่
+-- TaskPlayAnim + Wait(duration) ตรงๆ ไม่มีจุดเช็คยกเลิกเลย — กด canCancel เท่าไหร่ก็ไม่มีผลกับท่าจริง
+-- ย้ายมาส่ง animation เข้า Progress() ตรงๆ แทน ให้ MJ-Progressbar เป็นเจ้าของท่าเต็มๆ รวมกลไกยกเลิก
+-- (Backspace) ที่มีอยู่แล้วในตัว — ยกเลิกได้แค่ท่า/UI เท่านั้น ไอเทม/เลือดเสียไปแล้วตั้งแต่กดใช้ (server
+-- ทำงานทันทีไม่รอ client กลับมา ไม่เปลี่ยนพฤติกรรมส่วนนี้)
+RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
+    local animData = Config.Animations[category] or Config.Animations.heal
     exports['MJ-Progressbar']:Progress({
         name = 'Heal',
-        duration = 5000,
+        duration = animData.duration,
         label = 'Heal',
-        icon = 'bandage',
+        -- รูปไอเทมจริงที่ใช้ (bandage_s/bandage_xl/painkiller/stamina) — MJ-Progressbar ต่อ path
+        -- nui://vorp_inventory/html/img/items/<icon>.png ให้เองอยู่แล้ว (ดู Process() ของมัน)
+        -- fallback 'bandage' ไว้เผื่อ server เก่าไม่ส่ง itemName มา (เข้ากันได้กับของเดิม)
+        icon = itemName or 'bandage',
         useWhileDead = false,
-        canCancel = false
+        canCancel = animData.canCancel,
+        controlDisables = animData.controlDisables or {},
+        animation = { animDict = animData.dict, anim = animData.anim, flags = animData.flags },
+        prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — MJ-Progressbar สร้าง/แปะ/ลบให้เอง
     })
-    local animData = Config.Animations.heal
-    playAnimation(animData.dict, animData.anim, animData.duration)
-    -- playAnimation("mini_games@story@mob4@heal_jules@bandage@arthur", "bandage_fast", 5000)
 end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:ReviveAnim", function()

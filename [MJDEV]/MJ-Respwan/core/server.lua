@@ -133,7 +133,9 @@ CreateThread(function()
                     "**%s** ใช้ไอเท็ม `%s` เพื่อฟื้นฟูเลือด/สตามิน่า",
                     name, key), 3447003)
 
-                TriggerClientEvent("MJ-ReSpwan:Client:HealAnim", _source)
+                -- แนบชื่อ item จริง (key) ไปด้วย ให้ progress bar โชว์รูปไอเทมที่ใช้จริง (ดึงจาก
+                -- nui://vorp_inventory/html/img/items/<key>.png — ต้องมีไฟล์รูปชื่อตรงกับ item ใน DB)
+                TriggerClientEvent("MJ-ReSpwan:Client:HealAnim", _source, value.category, key)
                 TriggerClientEvent("MJ-ReSpwan:Client:HealPlayer", _source, value.health, value.stamina)
             end
 
