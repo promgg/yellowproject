@@ -6,6 +6,16 @@ local MenuData = exports.vorp_menu:GetMenuData()
 -- ธนาคารที่กำลังโชว์ floating prompt/TextUI อยู่ตอนนี้ (โชว์ได้ทีละอันเดียว)
 local activeBank = nil
 local activeBankMode = nil -- 'open' | 'closed'
+local currentBankName = nil
+local currentBankInfo = nil
+local currentAllBanks = nil
+local TEXTUI_RELEASE_DELAY = 350
+
+local function suppressTextUI(state, releaseDelayMs)
+    if GetResourceState("lp_textui") == "started" then
+        exports.lp_textui:SetSuppressed(state, releaseDelayMs or 0)
+    end
+end
 
 local function clearActivePrompt()
     if activeBank then
@@ -29,8 +39,11 @@ AddEventHandler("onResourceStop", function(resourceName)
             end
         end
         clearActivePrompt()
+        suppressTextUI(false, 0)
         DisplayRadar(true)
         MenuData.CloseAll()
+        SetNuiFocus(false, false)
+        SendNUIMessage({ action = "close" })
         ClearPedTasks(PlayerPedId(), true, true)
     end
 end)
@@ -93,8 +106,9 @@ local function createNpcByDistance(distance, index)
 end
 
 local function getBankInfo(bankConfig)
-    local result = VORPcore.Callback.TriggerAwait("vorp_bank:getinfo", bankConfig.city)
-    Openbank(bankConfig.city, result[1], result[2])
+    suppressTextUI(true)
+    local result = VORPcore.Callback.TriggerAwait("vorp_bank:getinfo", bankConfig.city) or {}
+    Openbank(bankConfig.city, result[1] or {}, result[2] or {}, result[3] or {})
     TaskStandStill(PlayerPedId(), -1)
     DisplayRadar(false)
 end
@@ -119,14 +133,22 @@ local function updateActivePrompt(index, bankConfig, closed)
 
     if closed then
         local msg = ("%s %s%s - %s%s"):format(T.openHours, bankConfig.StoreOpen, T.amTimeZone, bankConfig.StoreClose, T.pmTimeZone)
-        exports.lp_textui:TextUI(msg, nil, bankAnchor(bankConfig))
+        local shown = exports.lp_textui:TextUI(msg, nil, bankAnchor(bankConfig))
+        if shown == false then
+            activeBank = nil
+            activeBankMode = nil
+        end
     else
         local msg = ("[E] %s %s"):format(T.bank, bankConfig.name)
-        exports.lp_textui:TextUIHold(msg, Config.HoldMs, function()
+        local shown = exports.lp_textui:TextUIHold(msg, Config.HoldMs, function()
             inmenu = true
             getBankInfo(bankConfig)
             clearActivePrompt()
         end, Config.Key, bankAnchor(bankConfig))
+        if shown == false then
+            activeBank = nil
+            activeBankMode = nil
+        end
     end
 end
 
@@ -209,273 +231,199 @@ end)
 
 local function closeMenu()
     MenuData.CloseAll()
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = "close" })
     inmenu = false
+    currentBankName = nil
+    currentBankInfo = nil
+    currentAllBanks = nil
     ClearPedTasks(PlayerPedId())
     DisplayRadar(true)
+    suppressTextUI(false, TEXTUI_RELEASE_DELAY)
 end
 
-function Openbank(bankName, bankinfo, allbanks)
+local function notifyInvalid()
+    Notify({ text = T.invalid, time = 4000, type = "error" })
+end
+
+local function validPositiveNumber(value, integerOnly)
+    local amount = tonumber(value)
+    if not amount or amount ~= amount or amount == math.huge or amount <= 0 then
+        return nil
+    end
+
+    if integerOnly then
+        amount = math.floor(amount)
+        if amount < 1 then return nil end
+    end
+
+    return amount
+end
+
+local function makeAccountId(bankName, charidentifier)
+    local code = tostring(bankName or "BK"):gsub("[^%w]", ""):upper():sub(1, 2)
+    if code == "" then code = "BK" end
+    return ("%s-1849-%s"):format(code, tostring(charidentifier or GetPlayerServerId(PlayerId())))
+end
+
+local function transferBankPayload(bankName, allbanks)
+    local result = {}
+
+    for _, bank in ipairs(allbanks or {}) do
+        if bank.name and bank.name ~= bankName and Config.banks[bank.name] then
+            result[#result + 1] = {
+                name = bank.name,
+                label = Config.banks[bank.name].name or bank.name,
+                money = tonumber(bank.money) or 0,
+            }
+        end
+    end
+
+    return result
+end
+
+function Openbank(bankName, bankinfo, allbanks, playerinfo)
     MenuData.CloseAll()
     if not bankinfo.money then
         closeMenu()
         return
     end
 
-    local elements = {
-        { label = T.cashbalance .. bankinfo.money, value = 'nothing', desc = T.cashbalance2 },
-        { label = T.depocash,                      value = 'dcash',   desc = T.depocash2 },
-        { label = T.takecash,                      value = 'wcash',   desc = T.takecash2 }
-    }
+    local bankConfig = Config.banks[bankName]
+    local ownCity = bankinfo.isOwnCity ~= false
+    local transfers = transferBankPayload(bankName, allbanks)
 
-    if Config.banktransfer and #allbanks > 1 then
-        elements[#elements + 1] = {
-            label = T.bankacc,
-            value = 'others',
-            desc = T.bankaccinfo
-        }
-    end
+    currentBankName = bankName
+    currentBankInfo = bankinfo
+    currentAllBanks = allbanks
+    inmenu = true
 
-    if Config.banks[bankName].items and bankinfo.isOwnCity ~= false then
-        elements[#elements + 1] = {
-            label = T.depoitem,
-            value = 'bitem',
-            desc = T.depoitem2 .. bankinfo.invspace
-        }
-    end
-
-    if Config.banks[bankName].upgrade and bankinfo.isOwnCity ~= false then
-        elements[#elements + 1] = {
-            label = T.upgradeitem,
-            value = 'upitem',
-            desc = T.upgradeitem2 .. Config.banks[bankName].costslot
-        }
-    end
-
-    if Config.banks[bankName].gold then
-        elements[#elements + 1] = {
-            label = T.goldbalance .. bankinfo.gold,
-            value = 'nothing',
-            desc = T.cashbalance2
-        }
-        elements[#elements + 1] = {
-            label = T.depogold,
-            value = 'dgold',
-            desc = T.depogold2
-        }
-        elements[#elements + 1] = {
-            label = T.takegold,
-            value = 'wgold',
-            desc = T.takegold2
-        }
-    end
-
-
-    MenuData.Open('default', GetCurrentResourceName(), 'Openbank' .. bankName,
-        {
-            title    = bankName,
-            subtext  = T.welcome,
-            align    = 'top-left',
-            elements = elements,
+    suppressTextUI(true)
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = "open",
+        bank = {
+            name = bankName,
+            displayName = "ธนาคาร " .. (bankConfig.city or bankName),
+            subtitle = (bankConfig.city or bankName) .. " Savings & Trust",
+            hours = bankConfig.StoreHoursAllowed and
+                (("เปิดทำการ %02d:00-%02d:00"):format(bankConfig.StoreOpen, bankConfig.StoreClose)) or
+                "เปิดทำการ 24 ชั่วโมง",
         },
-        function(data, _)
-            if (data.current.value == 'dcash') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.confirmCash,                                  -- button name
-                    placeholder = T.inputsLang.insertAmountCash,                        -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.depositCash,                         -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9.]{1,10}",                                       -- only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyCash,                               -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:depositcash", result, Config.banks[bankName].city, bankinfo)
-                        closeMenu()
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-            if (data.current.value == 'dgold') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.confirmGold,                                  -- button name
-                    placeholder = T.inputsLang.insertAmountGold,                        -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.depositGold,                         -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9.]{1,10}",                                       -- only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyGold,                               -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:depositgold", result, Config.banks[bankName].city, bankinfo)
-                        closeMenu()
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-            if (data.current.value == 'wcash') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.confirmCashW,                                 -- button name
-                    placeholder = T.inputsLang.insertAmountCashW,                       -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.withdrawCash,                        -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9.]{1,10}",                                       -- only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyCashW,                              -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:withcash", result, Config.banks[bankName].city, bankinfo)
-                        closeMenu()
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-            if (data.current.value == 'wgold') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.confirmGoldW,                                 -- button name
-                    placeholder = T.inputsLang.insertAmountGoldW,                       -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.withdrawGold,                        -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9.]{1,10}",                                       -- only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyGoldW,                              -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:withgold", result, Config.banks[bankName].city, bankinfo)
-                        closeMenu()
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-            if (data.current.value == 'bitem') then
-                if bankinfo.invspace > 0 then
-                    TriggerServerEvent("vorp_banking:server:OpenBankInventory", bankName)
-                    closeMenu()
-                else
-                    Notify({ text = "you need to buy slots first", time = 4000, type = "error" })
-                end
-            end
-
-            if (data.current.value == 'upitem') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.confirmUp,                                    -- button name
-                    placeholder = T.inputsLang.insertAmountUp,                          -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.upgradeSlots,                        -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9]{1,10}",                                        --  only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyUp,                                 -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:UpgradeSafeBox", math.floor(result), bankName)
-                        closeMenu()
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-            if (data.current.value == 'others') then
-                Openallbanks(bankName, allbanks)
-            end
-        end,
-        function()
-            closeMenu()
-        end)
+        account = {
+            accountId = makeAccountId(bankName, playerinfo.charidentifier),
+            money = tonumber(bankinfo.money) or 0,
+            gold = tonumber(bankinfo.gold) or 0,
+            invspace = tonumber(bankinfo.invspace) or 0,
+        },
+        player = {
+            id = GetPlayerServerId(PlayerId()),
+            money = tonumber(playerinfo.money) or 0,
+            gold = tonumber(playerinfo.gold) or 0,
+            name = ((playerinfo.firstname or "") .. " " .. (playerinfo.lastname or "")):gsub("^%s*(.-)%s*$", "%1"),
+        },
+        capabilities = {
+            gold = bankConfig.gold == true,
+            locker = bankConfig.items == true and ownCity,
+            upgrade = bankConfig.upgrade == true and ownCity,
+            transfer = Config.banktransfer == true and #transfers > 0,
+            costSlot = tonumber(bankConfig.costslot) or 0,
+            maxSlots = tonumber(bankConfig.maxslots) or 0,
+        },
+        transferBanks = transfers,
+    })
 end
 
-function Openallbanks(bankName, allbanks)
-    MenuData.CloseAll()
-    local elements = {}
+RegisterNUICallback("close", function(_, cb)
+    closeMenu()
+    cb({ ok = true })
+end)
 
-    for _, bank in pairs(allbanks) do
-        if bankName ~= bank.name then
-            table.insert(elements,
-                {
-                    label = bank.name .. " : " .. bank.money .. "$",
-                    value = 'transfer',
-                    desc = T.transferinfo,
-                    info = bank.name
-                })
+RegisterNUICallback("transaction", function(data, cb)
+    if not currentBankName or not currentBankInfo then
+        return cb({ ok = false, error = "bank session unavailable" })
+    end
+
+    local direction = data and tostring(data.direction or "") or ""
+    local currency = data and tostring(data.currency or "") or ""
+    local amount = validPositiveNumber(data and data.amount, false)
+    local bankConfig = Config.banks[currentBankName]
+
+    if not amount or (direction ~= "deposit" and direction ~= "withdraw") or
+        (currency ~= "cash" and currency ~= "gold") or (currency == "gold" and not bankConfig.gold) then
+        notifyInvalid()
+        return cb({ ok = false, error = T.invalid })
+    end
+
+    local events = {
+        deposit = { cash = "vorp_bank:depositcash", gold = "vorp_bank:depositgold" },
+        withdraw = { cash = "vorp_bank:withcash", gold = "vorp_bank:withgold" },
+    }
+    local eventName = events[direction][currency]
+    local bankName = currentBankName
+    closeMenu()
+    TriggerServerEvent(eventName, amount, bankName)
+    cb({ ok = true })
+end)
+
+RegisterNUICallback("openLocker", function(_, cb)
+    if not currentBankName or not currentBankInfo then
+        return cb({ ok = false, error = "bank session unavailable" })
+    end
+
+    local bankConfig = Config.banks[currentBankName]
+    if bankConfig.items ~= true or currentBankInfo.isOwnCity == false or (tonumber(currentBankInfo.invspace) or 0) <= 0 then
+        Notify({ text = "You need to buy locker slots first", time = 4000, type = "error" })
+        return cb({ ok = false, error = "กรุณาอัปเกรดพื้นที่ล็อคเกอร์ก่อน" })
+    end
+
+    local bankName = currentBankName
+    closeMenu()
+    TriggerServerEvent("vorp_banking:server:OpenBankInventory", bankName)
+    cb({ ok = true })
+end)
+
+RegisterNUICallback("upgradeLocker", function(data, cb)
+    if not currentBankName or not currentBankInfo then
+        return cb({ ok = false, error = "bank session unavailable" })
+    end
+
+    local slots = validPositiveNumber(data and data.slots, true)
+    local bankConfig = Config.banks[currentBankName]
+    if not slots or bankConfig.upgrade ~= true or currentBankInfo.isOwnCity == false then
+        notifyInvalid()
+        return cb({ ok = false, error = T.invalid })
+    end
+
+    local bankName = currentBankName
+    closeMenu()
+    TriggerServerEvent("vorp_bank:UpgradeSafeBox", slots, bankName)
+    cb({ ok = true })
+end)
+
+RegisterNUICallback("transfer", function(data, cb)
+    if not currentBankName or not currentAllBanks or Config.banktransfer ~= true then
+        return cb({ ok = false, error = "bank session unavailable" })
+    end
+
+    local amount = validPositiveNumber(data and data.amount, false)
+    local fromBank = data and tostring(data.fromBank or "") or ""
+    local allowed = false
+
+    for _, bank in ipairs(currentAllBanks) do
+        if bank.name == fromBank and fromBank ~= currentBankName and Config.banks[fromBank] then
+            allowed = true
+            break
         end
     end
 
-    MenuData.Open('default', GetCurrentResourceName(), 'Openallbanks' .. bankName,
-        {
-            title    = bankName,
-            subtext  = T.welcome,
-            align    = 'top-left',
-            elements = elements,
-        },
-        function(data, _)
-            if (data.current.value == 'transfer') then
-                local myInput = {
-                    type = "enableinput",                                               -- don't touch
-                    inputType = "input",                                                -- input type
-                    button = T.inputsLang.Transfer,                                     -- button name
-                    placeholder = T.inputsLang.insertAmountCash,                        -- placeholder name
-                    style = "block",                                                    -- don't touch
-                    attributes = {
-                        inputHeader = T.inputsLang.depositTransfer,                     -- header
-                        type = "text",                                                  -- inputype text, number,date,textarea
-                        pattern = "[0-9.]{1,10}",                                       -- only numbers "[0-9]" | for letters only "[A-Za-z]+"
-                        title = T.inputsLang.numOnlyCash,                               -- if input doesnt match show this message
-                        style = "border-radius: 10px; background-color: ; border:none;" -- style
-                    }
-                }
-                TriggerEvent("vorpinputs:advancedInput", json.encode(myInput), function(cb)
-                    local result = tonumber(cb)
-                    if result ~= nil and result > 0 then
-                        TriggerServerEvent("vorp_bank:transfer", result, data.current.info, bankName)
-                    else
-                        Notify({ text = T.invalid, time = 4000, type = "error" })
-                    end
-                end)
-            end
-        end,
-        function()
-            Openbank(bankName, allbanks)
-        end)
-end
+    if not amount or not allowed then
+        notifyInvalid()
+        return cb({ ok = false, error = T.invalid })
+    end
+
+    local toBank = currentBankName
+    closeMenu()
+    TriggerServerEvent("vorp_bank:transfer", amount, fromBank, toBank)
+    cb({ ok = true })
+end)

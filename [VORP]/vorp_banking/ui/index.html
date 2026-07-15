@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VORP Banking</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <svg class="icon-library" aria-hidden="true">
+        <symbol id="i-deposit" viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 19h16"/></symbol>
+        <symbol id="i-withdraw" viewBox="0 0 24 24"><path d="M12 21V9m0 0 5 5m-5-5-5 5M4 5h16"/></symbol>
+        <symbol id="i-locker" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4m5-4v4"/></symbol>
+        <symbol id="i-upgrade" viewBox="0 0 24 24"><path d="M12 4v12m0-12-5 5m5-5 5 5M5 20h14"/></symbol>
+        <symbol id="i-cash" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 9H6v1m11-1h1v1M7 15H6v-1m11 1h1v-1"/></symbol>
+        <symbol id="i-gold" viewBox="0 0 24 24"><path d="m7 8 3-3h4l3 3-2 9H9L7 8Z"/><path d="M8 10h8"/></symbol>
+        <symbol id="i-transfer" viewBox="0 0 24 24"><path d="M4 8h14m0 0-4-4m4 4-4 4M20 16H6m0 0 4-4m-4 4 4 4"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    </svg>
+
+    <main id="bank-root" class="bank-root is-hidden" aria-live="polite">
+        <section class="bank-shell" aria-label="ธนาคาร">
+            <header class="bank-header">
+                <div class="title-block"><h1 id="bank-title">ธนาคาร</h1><p id="bank-subtitle">VALENTINE SAVINGS &amp; TRUST</p></div>
+                <div class="account-id">บัญชีเลขที่ <b id="account-id">--</b></div>
+            </header>
+
+            <section class="balance-hero" aria-label="ยอดเงิน">
+                <span>ยอดเงินในบัญชี</span>
+                <strong><small>$</small> <b id="bank-money">0.00</b></strong>
+                <div class="wallet-summary">
+                    <svg><use href="#i-cash"/></svg>
+                    <span>เงินสดในกระเป๋า</span><b>$ <i id="wallet-money">0.00</i></b>
+                    <div id="gold-summary" class="gold-summary"><svg><use href="#i-gold"/></svg><span>ทองในบัญชี</span><b><i id="bank-gold">0.00</i> G</b></div>
+                </div>
+            </section>
+
+            <section class="action-grid" aria-label="บริการธนาคาร">
+                <button type="button" class="action-card is-primary" data-action="deposit"><svg><use href="#i-deposit"/></svg><span><b>ฝากเงิน</b><small>นำเงินสดหรือทองเข้าบัญชี</small></span><i>01</i></button>
+                <button type="button" class="action-card" data-action="withdraw"><svg><use href="#i-withdraw"/></svg><span><b>ถอนเงิน</b><small>ถอนจากบัญชีเข้ากระเป๋า</small></span><i>02</i></button>
+                <button id="locker-button" type="button" class="action-card" data-action="locker"><svg><use href="#i-locker"/></svg><span><b>เปิดล็อคเกอร์</b><small id="locker-caption">พื้นที่ปัจจุบัน 0 ช่อง</small></span><i>03</i></button>
+                <button id="upgrade-button" type="button" class="action-card" data-action="upgrade"><svg><use href="#i-upgrade"/></svg><span><b>อัปเกรดล็อคเกอร์</b><small id="upgrade-caption">เพิ่มพื้นที่จัดเก็บ</small></span><i>04</i></button>
+            </section>
+
+            <button id="transfer-button" type="button" class="transfer-button is-hidden"><svg><use href="#i-transfer"/></svg>โอนเงินระหว่างสาขา</button>
+
+            <footer class="bank-footer"><span id="player-id">ID : --</span><span id="opening-hours">เปิดทำการ</span><span><kbd>ESC</kbd> ปิด</span></footer>
+        </section>
+
+        <section id="modal" class="modal-backdrop is-hidden" aria-modal="true" role="dialog">
+            <form id="modal-form" class="bank-modal">
+                <button id="modal-close" type="button" class="modal-close" aria-label="ปิด"><svg><use href="#i-close"/></svg></button>
+                <header><span id="modal-kicker">BANK SERVICE</span><h2 id="modal-title">ทำรายการ</h2><p id="modal-description"></p></header>
+
+                <div id="transaction-fields" class="modal-fields">
+                    <div id="currency-tabs" class="currency-tabs"><button type="button" data-currency="cash" class="is-active"><svg><use href="#i-cash"/></svg>เงินสด</button><button type="button" data-currency="gold"><svg><use href="#i-gold"/></svg>ทอง</button></div>
+                    <label class="amount-input"><span id="amount-symbol">$</span><input id="amount-input" type="number" min="0.01" step="0.01" inputmode="decimal" autocomplete="off" placeholder="0.00"><small id="amount-unit">USD</small></label>
+                    <div class="quick-amounts"><button type="button" data-amount="100">100</button><button type="button" data-amount="250">250</button><button type="button" data-amount="500">500</button><button type="button" data-amount="all">ทั้งหมด</button></div>
+                    <div class="transaction-summary"><span id="available-label">ยอดที่ใช้ได้</span><b id="available-value">$0.00</b></div>
+                </div>
+
+                <div id="upgrade-fields" class="modal-fields is-hidden">
+                    <div class="slot-overview"><div><span>พื้นที่ปัจจุบัน</span><b><i id="current-slots">0</i> / <i id="max-slots">0</i></b></div><div><span>ราคาต่อช่อง</span><b>$ <i id="slot-price">0</i></b></div></div>
+                    <div class="slot-meter"><span id="slot-meter-fill"></span></div>
+                    <label class="slot-input"><span>จำนวนช่องที่ต้องการเพิ่ม</span><div><button id="slot-minus" type="button">−</button><input id="slot-count" type="number" min="1" step="1" value="1"><button id="slot-plus" type="button">+</button></div></label>
+                    <div class="transaction-summary"><span>ยอดชำระทั้งหมด</span><b id="upgrade-total">$0.00</b></div>
+                </div>
+
+                <div id="transfer-fields" class="modal-fields is-hidden">
+                    <label class="select-field"><span>โอนจากบัญชีสาขา</span><select id="transfer-bank"></select></label>
+                    <label class="amount-input"><span>$</span><input id="transfer-amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"><small>USD</small></label>
+                    <p class="fee-note" id="transfer-note">เงินจะถูกโอนเข้าบัญชีสาขาปัจจุบันหลังหักค่าธรรมเนียม</p>
+                </div>
+
+                <p id="form-error" class="form-error" role="alert"></p>
+                <button id="confirm-button" type="submit" class="confirm-button">ยืนยันรายการ</button>
+            </form>
+        </section>
+
+        <div id="toast" class="toast is-hidden"></div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

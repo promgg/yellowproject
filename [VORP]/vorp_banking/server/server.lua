@@ -85,7 +85,7 @@ end
 VORPcore.Callback.Register('vorp_bank:getinfo', function(source, cb, bankName)
     local _source = source
     local Character = resolveRequest(_source, bankName)
-    if not Character then return cb({ {}, {} }) end -- ฝั่ง client เช็ค `if not bankinfo.money` แล้วปิดเมนูเอง
+    if not Character then return cb({ {}, {}, {} }) end -- client closes the UI when bank data is unavailable
 
     local charidentifier = Character.charIdentifier
     local identifier = Character.identifier
@@ -106,8 +106,15 @@ VORPcore.Callback.Register('vorp_bank:getinfo', function(source, cb, bankName)
 
     local bankinfo = { money = row[1].money, gold = row[1].gold, invspace = row[1].invspace, name = bankName, isOwnCity = isOwnCity }
     local allBanks = MySQL.query.await("SELECT name, money FROM bank_users WHERE charidentifier = @charidentifier", { charidentifier = charidentifier }) or {}
+    local playerInfo = {
+        money = Character.money or 0,
+        gold = Character.gold or 0,
+        firstname = Character.firstname or "",
+        lastname = Character.lastname or "",
+        charidentifier = charidentifier,
+    }
 
-    return cb({ bankinfo, allBanks })
+    return cb({ bankinfo, allBanks, playerInfo })
 end)
 
 -- source ที่กำลังมี upgrade request ค้างอยู่ (กัน double-submit ระหว่างรอ MySQL.scalar ตอบ)
