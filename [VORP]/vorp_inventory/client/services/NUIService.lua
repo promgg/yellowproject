@@ -398,6 +398,22 @@ local function useWeapon(data)
 	local isWeaponAGun = Citizen.InvokeNative(0x705BE297EEBDB95D, weapName)
 	local isWeaponOneHanded = Citizen.InvokeNative(0xD955FEE4B87AFA07, weapName)
 	local isArmed = Citizen.InvokeNative(0xCB690F680A3EA971, ped, 4)
+
+	-- Do not equip the same inventory weapon instance twice. When the player is
+	-- already holding this exact weapon, a second Use/Fastslot request used to
+	-- enter the dual-wield branch and create a ghost copy in the off hand.
+	-- A different weapon ID is still allowed to dual wield, even when both
+	-- instances use the same weapon model.
+	local selectedWeapon = UserWeapons[weaponId]
+	local sameWeaponInstanceEquipped = isArmed
+		and weaponHash == weapName
+		and (selectedWeapon:getUsed() or selectedWeapon:getUsed2())
+	if sameWeaponInstanceEquipped then
+		selectedWeapon:loadComponents()
+		NUIService.LoadInv()
+		return
+	end
+
 	local notdual = false
 	if (isWeaponAGun and isWeaponOneHanded) and isArmed and not Config.DuelWield then
 		return
@@ -566,7 +582,12 @@ function NUIService.LoadInv()
 	local payload = {}
 
 	Core.Callback.TriggerAsync("vorpinventory:get_slots", function(result)
-		SendNUIMessage({ action = "changecheck", check = string.format("%.1f", result.totalInvWeight), info = string.format("%.1f", result.slots) })
+		SendNUIMessage({
+			action = "changecheck",
+			check = string.format("%.1f", result.totalInvWeight),
+			info = string.format("%.1f", result.slots),
+			useWeight = result.useWeight == true,
+		})
 		SendNUIMessage({
 			action = "updateStatusHud",
 			show   = not IsRadarHidden(),
@@ -646,6 +667,7 @@ function NUIService.initiateData()
 			AddDollarItem = Config.AddDollarItem,
 			AddAmmoItem = Config.AddAmmoItem,
 			DoubleClickToUse = Config.DoubleClickToUse,
+			UseWeight = Config.UseWeight == true,
 			UseRolItem = Config.UseRolItem,
 			WeightMeasure = Config.WeightMeasure or "Kg",
 		}

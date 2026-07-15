@@ -77,12 +77,16 @@ Core.Callback.Register("vorpinventory:get_slots", function(source, cb, _)
     if not user then return end
 
     local character <const>      = user.getUsedCharacter
-    local totalItems <const>     = InventoryAPI.getUserTotalCountItems(character.identifier, character.charIdentifier)
-    local totalWeapons <const>   = InventoryAPI.getUserTotalCountWeapons(character.identifier, character.charIdentifier, true)
-    local totalInvWeight <const> = (totalItems + totalWeapons)
-    return cb({
-        totalInvWeight = totalInvWeight,
-        slots = character.invCapacity,
+	local totalInvWeight = 0
+	if Config.UseWeight then
+		local totalItems <const>   = InventoryAPI.getUserTotalCountItems(character.identifier, character.charIdentifier)
+		local totalWeapons <const> = InventoryAPI.getUserTotalCountWeapons(character.identifier, character.charIdentifier, true)
+		totalInvWeight = totalItems + totalWeapons
+	end
+	return cb({
+		totalInvWeight = totalInvWeight,
+		slots = character.invCapacity,
+		useWeight = Config.UseWeight == true,
         money = character.money,
         gold = character.gold,
         rol = character.rol

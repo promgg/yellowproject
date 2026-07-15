@@ -16,10 +16,16 @@ const state = {
     rol: 0,
     playerId: 0,
     searchText: "",
+    categoryFilter: "all",
+    sortMode: "category",
+    favorites: {},
     context: null,
+    dragPayload: null,
+    manualDropTarget: null,
     language: {},
     config: {
         DoubleClickToUse: true,
+        UseWeight: false,
         WeightMeasure: "KG",
         MaxItemTransferAmount: 200,
     },
@@ -34,6 +40,8 @@ const state = {
     },
     pendingGive: null,
     pendingQuantity: null,
+    pendingConfirm: null,
+    preferenceSaveTimer: null,
 };
 
 const els = {};
@@ -51,11 +59,30 @@ const secondaryCallbacks = {
     container: { move: "MoveToContainer", take: "TakeFromContainer", idKey: "Container" },
 };
 
+const draggableSecondaryTypes = new Set(["custom", "horse", "cart", "house", "bank", "hideout", "clan", "container"]);
+const groupCategories = {
+    2: "medical",
+    3: "foods",
+    4: "tools",
+    5: "weapons",
+    6: "ammo",
+    7: "documents",
+    8: "animals",
+    9: "valuables",
+    10: "horse",
+    11: "herbs",
+};
+const categoryOrder = ["medical", "foods", "weapons", "ammo", "tools", "animals", "documents", "valuables", "horse", "herbs", "other"];
+
 function cacheElements() {
     els.root = document.getElementById("inventory-root");
     els.fastSlots = document.getElementById("fast-slots");
+    els.inventoryGridWrap = document.getElementById("inventory-grid-wrap");
     els.inventoryGrid = document.getElementById("inventory-grid");
     els.inventoryEmpty = document.getElementById("inventory-empty");
+    els.inventorySearch = document.getElementById("inventory-search");
+    els.inventoryCategory = document.getElementById("inventory-category");
+    els.inventorySort = document.getElementById("inventory-sort");
     els.weightFill = document.getElementById("weight-fill");
     els.weightText = document.getElementById("weight-text");
     els.moneyValue = document.getElementById("money-value");
@@ -65,6 +92,7 @@ function cacheElements() {
     els.selectedMeta = document.getElementById("selected-meta");
     els.actionStrip = document.getElementById("action-strip");
     els.contextMenu = document.getElementById("context-menu");
+    els.itemTooltip = document.getElementById("item-tooltip");
     els.secondaryPanel = document.getElementById("secondary-panel");
     els.secondaryTitle = document.getElementById("secondary-title");
     els.secondaryCapacity = document.getElementById("secondary-capacity");
@@ -79,6 +107,14 @@ function cacheElements() {
     els.quantityClose = document.getElementById("quantity-close");
     els.quantityTitle = document.getElementById("quantity-title");
     els.quantityInput = document.getElementById("quantity-input");
+    els.quantityMin = document.getElementById("quantity-min");
+    els.quantityMax = document.getElementById("quantity-max");
+    els.confirmModal = document.getElementById("confirm-modal");
+    els.confirmClose = document.getElementById("confirm-close");
+    els.confirmTitle = document.getElementById("confirm-title");
+    els.confirmMessage = document.getElementById("confirm-message");
+    els.confirmCancel = document.getElementById("confirm-cancel");
+    els.confirmAccept = document.getElementById("confirm-accept");
     els.transaction = document.getElementById("transaction-loader");
     els.transactionText = document.getElementById("transaction-text");
 }
@@ -90,6 +126,8 @@ function setVisible(visible) {
         closeContextMenu();
         closePlayerModal();
         closeQuantityModal();
+        closeConfirmModal();
+        hideItemTooltip();
         state.selectedItem = null;
         state.selectedSlot = null;
         renderSelectedItem();
@@ -107,7 +145,7 @@ function renderInventory() {
 }
 
 function renderSecondaryInventory() {
-    const items = Array.isArray(state.secondaryItems) ? state.secondaryItems : [];
+    const items = sortInventoryItems(normalizeList(state.secondaryItems));
     els.secondaryPanel.classList.toggle("is-hidden", !state.secondary.visible);
     els.secondaryTitle.textContent = state.secondary.title || "Storage";
     els.secondaryCapacity.textContent = formatSecondaryCapacity();
@@ -138,7 +176,14 @@ function renderFastSlots() {
             button.appendChild(createImage(normalized, normalized.label));
             button.insertAdjacentHTML("beforeend", `<span class="fast-slot-amount">${formatAmount(normalized, true)}</span>`);
             button.insertAdjacentHTML("beforeend", `<span class="fast-slot-label">${escapeHtml(normalized.label)}</span>`);
+            bindDragSource(button, {
+                source: "fast-slot",
+                slot: slot.slot,
+                item: normalized,
+            });
         }
+
+        bindFastSlotDropTarget(button, slot.slot);
 
         button.addEventListener("click", () => {
             state.selectedSlot = slot.slot;
@@ -162,7 +207,378 @@ function renderFastSlots() {
     });
 }
 
+function beginFastSlotDrag(event, payload, element) {
+    payload.all = Boolean(event.shiftKey || event.originalEvent?.shiftKey);
+    state.dragPayload = payload;
+    state.manualDropTarget = null;
+    element.classList.add("is-dragging");
+    document.body.classList.add("is-dragging");
+    hideItemTooltip();
+    closeContextMenu();
+
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = payload.source === "fast-slot" ? "move" : "copyMove";
+        event.dataTransfer.setData("text/plain", JSON.stringify({
+            source: payload.source,
+            slot: payload.slot || null,
+            name: payload.item?.name || "",
+        }));
+    }
+}
+
+function endFastSlotDrag() {
+    state.dragPayload = null;
+    state.manualDropTarget = null;
+    document.body.classList.remove("is-dragging");
+    document.querySelectorAll(".is-dragging, .is-drop-target, .is-drop-blocked").forEach((element) => {
+        element.classList.remove("is-dragging", "is-drop-target", "is-drop-blocked");
+    });
+    hideItemTooltip();
+}
+
+function handleFastSlotDrop(targetSlot, droppedPayload) {
+    const payload = droppedPayload || state.dragPayload;
+    endFastSlotDrag();
+    if (!payload || !payload.item) return;
+
+    if (payload.source === "fast-slot") {
+        moveFastSlot(payload.slot, targetSlot);
+        return;
+    }
+
+    if (payload.source === "main-inventory" && isFastSlotEligible(payload.item)) {
+        assignItemToFastSlot(payload.item, targetSlot);
+    }
+}
+
+function getJqueryDragDrop() {
+    const jq = window.jQuery;
+    if (!jq || !jq.fn || typeof jq.fn.draggable !== "function") return null;
+    return jq;
+}
+
+function clearManualDropTarget() {
+    const previous = state.manualDropTarget;
+    if (previous?.element) {
+        previous.element.classList.remove("is-drop-target", "is-drop-blocked");
+    }
+    state.manualDropTarget = null;
+}
+
+function setManualDropTarget(target) {
+    const previous = state.manualDropTarget;
+    if (previous?.element && previous.element !== target?.element) {
+        previous.element.classList.remove("is-drop-target", "is-drop-blocked");
+    }
+
+    state.manualDropTarget = target || null;
+    if (!target?.element) return;
+
+    target.element.classList.toggle("is-drop-target", Boolean(target.allowed));
+    target.element.classList.toggle("is-drop-blocked", !target.allowed);
+}
+
+function getDragPointer(event, helper) {
+    const helperElement = helper?.jquery ? helper[0] : helper;
+    if (helperElement && typeof helperElement.getBoundingClientRect === "function") {
+        const rect = helperElement.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            return {
+                clientX: rect.left + (rect.width / 2),
+                clientY: rect.top + (rect.height / 2),
+            };
+        }
+    }
+
+    const original = event?.originalEvent || event || {};
+    const clientX = Number(original.clientX ?? event?.clientX);
+    const clientY = Number(original.clientY ?? event?.clientY);
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+    return { clientX, clientY };
+}
+
+function resolveManualDropTarget(event, payload, helper) {
+    const pointer = getDragPointer(event, helper);
+    if (!pointer || !payload) return null;
+
+    const hit = document.elementFromPoint(pointer.clientX, pointer.clientY);
+    if (!hit || typeof hit.closest !== "function") return null;
+
+    const fastSlot = hit.closest(".fast-slot");
+    if (fastSlot && els.fastSlots.contains(fastSlot)) {
+        const accepted = payload.source === "fast-slot" || payload.source === "main-inventory";
+        const allowed = accepted && (payload.source === "fast-slot" || isFastSlotEligible(payload.item));
+        return {
+            kind: "fast-slot",
+            element: fastSlot,
+            slot: numberOrZero(fastSlot.dataset.slot),
+            allowed,
+        };
+    }
+
+    if (hit.closest("#secondary-grid")) {
+        const accepted = payload.source === "main-inventory" && draggableSecondaryTypes.has(state.type);
+        return {
+            kind: "secondary-grid",
+            element: els.secondaryGrid,
+            allowed: accepted && getTransferMax("move", payload.item) > 0,
+        };
+    }
+
+    if (hit.closest("#inventory-grid")) {
+        if (payload.source === "fast-slot") {
+            return { kind: "inventory-grid", element: els.inventoryGrid, allowed: true };
+        }
+
+        if (payload.source === "secondary-inventory") {
+            const accepted = draggableSecondaryTypes.has(state.type);
+            return {
+                kind: "inventory-grid",
+                element: els.inventoryGrid,
+                allowed: accepted && getTransferMax("take", payload.item) > 0,
+            };
+        }
+    }
+
+    return null;
+}
+
+function updateManualDropTarget(event, payload, helper) {
+    const target = resolveManualDropTarget(event, payload, helper);
+    if (target) {
+        setManualDropTarget(target);
+    } else {
+        clearManualDropTarget();
+    }
+}
+
+function handleManualDrop(payload, target) {
+    if (!payload || !target?.allowed) {
+        endFastSlotDrag();
+        return;
+    }
+
+    if (target.kind === "fast-slot" && target.slot) {
+        handleFastSlotDrop(target.slot, payload);
+        return;
+    }
+
+    if (target.kind === "secondary-grid") {
+        handleInventoryDrop("move", payload);
+        return;
+    }
+
+    if (target.kind === "inventory-grid") {
+        handleMainInventoryDrop(payload);
+        return;
+    }
+
+    endFastSlotDrag();
+}
+
+function createDragHelper(element) {
+    const jq = getJqueryDragDrop();
+    if (!jq) return element.cloneNode(true);
+
+    const helper = document.createElement("div");
+    helper.className = "drag-helper";
+    const image = element.querySelector("img");
+    if (image) {
+        const clone = image.cloneNode(false);
+        clone.draggable = false;
+        helper.appendChild(clone);
+    }
+    return jq(helper);
+}
+
+function bindDragSource(element, payload) {
+    const jq = getJqueryDragDrop();
+    if (jq) {
+        element.draggable = false;
+        const draggable = jq(element);
+        if (draggable.hasClass("ui-draggable")) draggable.draggable("destroy");
+        draggable.data("nxDragPayload", payload).draggable({
+            helper() {
+                return createDragHelper(this);
+            },
+            appendTo: "body",
+            zIndex: 100001,
+            cursorAt: { top: 32, left: 32 },
+            distance: 4,
+            revert(dropped) {
+                return !dropped && !state.manualDropTarget?.allowed;
+            },
+            revertDuration: 120,
+            scroll: false,
+            cancel: ".favorite-star",
+            start(event) {
+                beginFastSlotDrag(event, payload, element);
+            },
+            drag(event, ui) {
+                updateManualDropTarget(event, payload, ui?.helper);
+            },
+            stop(event, ui) {
+                if (!state.dragPayload) {
+                    endFastSlotDrag();
+                    return;
+                }
+
+                const resolved = resolveManualDropTarget(event, payload, ui?.helper);
+                if (resolved) setManualDropTarget(resolved);
+                const target = state.manualDropTarget;
+                handleManualDrop(payload, target);
+            },
+        });
+        return;
+    }
+
+    element.draggable = true;
+    element.addEventListener("dragstart", (event) => beginFastSlotDrag(event, payload, element));
+    element.addEventListener("dragend", endFastSlotDrag);
+}
+
+function bindFastSlotDropTarget(element, targetSlot) {
+    if (getJqueryDragDrop()) return;
+
+    element.addEventListener("dragover", (event) => {
+        if (!state.dragPayload || !["fast-slot", "main-inventory"].includes(state.dragPayload.source)) return;
+        event.preventDefault();
+        const allowed = state.dragPayload.source === "fast-slot" || isFastSlotEligible(state.dragPayload.item);
+        event.dataTransfer.dropEffect = state.dragPayload.source === "fast-slot" ? "move" : "copy";
+        element.classList.toggle("is-drop-target", allowed);
+        element.classList.toggle("is-drop-blocked", !allowed);
+    });
+    element.addEventListener("dragleave", (event) => {
+        if (!element.contains(event.relatedTarget)) element.classList.remove("is-drop-target", "is-drop-blocked");
+    });
+    element.addEventListener("drop", (event) => {
+        event.preventDefault();
+        handleFastSlotDrop(targetSlot);
+    });
+}
+
+function bindInventoryDropZone(element, acceptedSource, direction) {
+    if (getJqueryDragDrop()) return;
+
+    element.addEventListener("dragover", (event) => {
+        const payload = state.dragPayload;
+        if (!payload || payload.source !== acceptedSource || !draggableSecondaryTypes.has(state.type)) return;
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        const allowed = getTransferMax(direction, payload.item) > 0;
+        element.classList.toggle("is-drop-target", allowed);
+        element.classList.toggle("is-drop-blocked", !allowed);
+    });
+
+    element.addEventListener("dragleave", (event) => {
+        if (!element.contains(event.relatedTarget)) {
+            element.classList.remove("is-drop-target", "is-drop-blocked");
+        }
+    });
+
+    element.addEventListener("drop", (event) => {
+        const payload = state.dragPayload;
+        if (!payload || payload.source !== acceptedSource || !draggableSecondaryTypes.has(state.type)) return;
+
+        event.preventDefault();
+        handleInventoryDrop(direction, payload);
+    });
+}
+
+function bindMainInventoryDropZone(element) {
+    if (getJqueryDragDrop()) return;
+
+    element.addEventListener("dragover", (event) => {
+        const payload = state.dragPayload;
+        if (!payload) return;
+
+        const allowed = payload.source === "fast-slot"
+            || (payload.source === "secondary-inventory"
+                && draggableSecondaryTypes.has(state.type)
+                && getTransferMax("take", payload.item) > 0);
+        if (payload.source !== "fast-slot" && payload.source !== "secondary-inventory") return;
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        element.classList.toggle("is-drop-target", allowed);
+        element.classList.toggle("is-drop-blocked", !allowed);
+    });
+
+    element.addEventListener("dragleave", (event) => {
+        if (!element.contains(event.relatedTarget)) {
+            element.classList.remove("is-drop-target", "is-drop-blocked");
+        }
+    });
+
+    element.addEventListener("drop", (event) => {
+        const payload = state.dragPayload;
+        if (!payload || !["fast-slot", "secondary-inventory"].includes(payload.source)) return;
+        event.preventDefault();
+        handleMainInventoryDrop(payload);
+    });
+}
+
+function handleMainInventoryDrop(payload) {
+    if (!payload) return;
+
+    if (payload.source === "fast-slot") {
+        const sourceSlot = numberOrZero(payload.slot);
+        endFastSlotDrag();
+        if (sourceSlot) removeFastSlot(sourceSlot);
+        return;
+    }
+
+    if (payload.source === "secondary-inventory") {
+        handleInventoryDrop("take", payload);
+    }
+}
+
+function handleInventoryDrop(direction, payload) {
+    if (!payload || !payload.item || !draggableSecondaryTypes.has(state.type)) return;
+
+    const max = getTransferMax(direction, payload.item);
+    const moveAll = payload.all;
+    const item = payload.item;
+    endFastSlotDrag();
+
+    if (max <= 0) {
+        postNui("TransferLimitExceeded", { max: 0 });
+        return;
+    }
+
+    if (moveAll) {
+        moveTakeSelected(direction, normalizeItem(item), max);
+    } else {
+        beginMoveTake(direction, item);
+    }
+}
+
 function renderWeight() {
+    if (!state.config.UseWeight) {
+        const limits = new Map();
+        normalizeList(state.inventoryItems).forEach((entry) => {
+            const item = normalizeItem(entry);
+            const limit = numberOrZero(item.limit);
+            if (item.type === "item_weapon" || limit <= 0) return;
+
+            const key = String(item.name).toLowerCase();
+            const current = limits.get(key) || { count: 0, limit };
+            current.count += numberOrZero(item.count);
+            current.limit = limit;
+            limits.set(key, current);
+        });
+
+        const limitedItems = Array.from(limits.values());
+        const fullItems = limitedItems.filter((item) => item.count >= item.limit).length;
+        const pct = limitedItems.length > 0 ? (fullItems / limitedItems.length) * 100 : 0;
+
+        els.weightFill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+        els.weightFill.classList.toggle("is-over", false);
+        els.weightText.textContent = `LIMITS ${fullItems}/${limitedItems.length} FULL`;
+        return;
+    }
+
     const weight = numberOrZero(state.weight);
     const maxWeight = numberOrZero(state.maxWeight);
     const unit = String(state.config.WeightMeasure || "KG").toUpperCase();
@@ -219,13 +635,16 @@ function renderActions() {
         if (state.secondary.visible) {
             actions.push({ label: "Move", handler: () => beginMoveTake("move", item) });
         }
-        actions.push({ label: "Slot", handler: () => addSelectedToFastSlot(item) });
+        if (isFastSlotEligible(item)) {
+            actions.push({ label: "Slot", handler: () => addSelectedToFastSlot(item) });
+        }
         if (selectedItemIsInSelectedSlot(item)) {
             actions.push({ label: "Clear", handler: () => removeFastSlot(state.selectedSlot) });
         }
     } else {
         actions.push({ label: "Take", handler: () => beginMoveTake("take", item) });
     }
+    actions.push({ label: isFavorite(item) ? "Unfavorite" : "Favorite", handler: () => toggleFavorite(item) });
 
     actions.forEach((action) => {
         const button = document.createElement("button");
@@ -286,6 +705,10 @@ function createItemCard(item, index, inventoryName) {
     button.dataset.itemId = String(normalized.id ?? normalized.name ?? index);
     button.classList.toggle("is-selected", isSelected(normalized, inventoryName));
 
+    if (isFavorite(normalized)) {
+        button.insertAdjacentHTML("beforeend", `<span class="favorite-star" aria-hidden="true">★</span>`);
+    }
+
     if (normalized.used || normalized.used2) {
         button.insertAdjacentHTML("beforeend", `<span class="equipped-dot"></span>`);
     }
@@ -297,6 +720,17 @@ function createItemCard(item, index, inventoryName) {
 
     button.appendChild(createImage(normalized, normalized.label));
     button.insertAdjacentHTML("beforeend", `<span class="item-label">${escapeHtml(normalized.label)}</span>`);
+
+    if (inventoryName === "main" || draggableSecondaryTypes.has(state.type)) {
+        bindDragSource(button, {
+            source: inventoryName === "main" ? "main-inventory" : "secondary-inventory",
+            item: normalized,
+        });
+    }
+
+    button.addEventListener("mouseenter", (event) => showItemTooltip(normalized, event));
+    button.addEventListener("mousemove", positionItemTooltip);
+    button.addEventListener("mouseleave", hideItemTooltip);
 
     button.addEventListener("click", () => selectItem(item, inventoryName, null));
     button.addEventListener("dblclick", () => {
@@ -338,6 +772,7 @@ function selectItem(item, inventoryName, event) {
 
 function openContextMenu(x, y) {
     if (!state.selectedItem) return;
+    hideItemTooltip();
     els.contextMenu.innerHTML = "";
 
     const item = normalizeItem(state.selectedItem);
@@ -356,6 +791,7 @@ function openContextMenu(x, y) {
     } else {
         entries.push({ label: "Take", handler: () => beginMoveTake("take", item) });
     }
+    entries.push({ label: isFavorite(item) ? "Unfavorite" : "Favorite", handler: () => toggleFavorite(item) });
 
     entries.forEach((entry) => {
         const button = document.createElement("button");
@@ -409,12 +845,20 @@ function requestNearPlayers(item, qty) {
 
 function beginDrop(item) {
     const normalized = normalizeItem(item);
+    const confirmDrop = (qty) => {
+        openConfirmModal(
+            "Discard item",
+            `Discard ${qty} x ${normalized.label}? This action cannot be undone.`,
+            () => dropSelected(normalized, qty),
+        );
+    };
+
     if (normalized.type === "item_weapon" || normalized.count <= 1) {
-        dropSelected(normalized, 1);
+        confirmDrop(1);
         return;
     }
 
-    openQuantityModal("Drop amount", normalized.count, (qty) => dropSelected(normalized, qty));
+    openQuantityModal("Drop amount", normalized.count, confirmDrop);
 }
 
 function dropSelected(item, qty) {
@@ -432,7 +876,11 @@ function dropSelected(item, qty) {
 
 function beginMoveTake(direction, item) {
     const normalized = normalizeItem(item);
-    const max = normalized.type === "item_weapon" ? 1 : normalized.count;
+    const max = getTransferMax(direction, normalized);
+    if (max <= 0) {
+        postNui("TransferLimitExceeded", { max: 0 });
+        return;
+    }
     if (max <= 1) {
         moveTakeSelected(direction, normalized, 1);
         return;
@@ -466,13 +914,61 @@ function moveTakeSelected(direction, item, qty) {
     postNui(callback, payload);
 }
 
+function getTransferMax(direction, item) {
+    const normalized = normalizeItem(item);
+    const isWeapon = normalized.type === "item_weapon";
+
+    const globalCap = Math.max(1, Math.floor(numberOrZero(state.config.MaxItemTransferAmount) || normalized.count || 1));
+    let max = isWeapon ? 1 : Math.min(Math.max(0, Math.floor(normalized.count)), globalCap);
+    const itemLimit = Math.floor(numberOrZero(normalized.limit));
+
+    if (direction === "move") {
+        const inventoryLimit = Math.floor(numberOrZero(state.secondary.capacity));
+        if (inventoryLimit > 0) {
+            max = Math.min(max, Math.max(0, inventoryLimit - computeSecondaryUsedCount()));
+        }
+
+        if (!isWeapon && itemLimit > 0) {
+            const storedCount = countItemByName(state.secondaryItems, normalized.name);
+            max = Math.min(max, Math.max(0, itemLimit - storedCount));
+        }
+    } else if (direction === "take" && !isWeapon && itemLimit > 0) {
+        const carriedCount = countItemByName(state.inventoryItems, normalized.name);
+        max = Math.min(max, Math.max(0, itemLimit - carriedCount));
+    }
+
+    return Math.max(0, Math.floor(max));
+}
+
+function countItemByName(items, name) {
+    const key = String(name || "").toLowerCase();
+    return normalizeList(items).reduce((total, entry) => {
+        const item = normalizeItem(entry);
+        if (String(item.name).toLowerCase() !== key) return total;
+        return total + (item.type === "item_weapon" ? 1 : numberOrZero(item.count));
+    }, 0);
+}
+
 function addSelectedToFastSlot(item) {
     const normalized = normalizeItem(item);
-    const slot = state.selectedSlot || firstAvailableFastSlot();
+    if (!isFastSlotEligible(normalized)) return;
+    const existingSlot = findFastSlotByItem(normalized);
+    const slot = state.selectedSlot || existingSlot?.slot || firstAvailableFastSlot();
 
     if (!slot) return;
 
-    state.fastSlots = state.fastSlots.map((entry) => entry.slot === slot ? { slot, item: normalized } : entry);
+    assignItemToFastSlot(normalized, slot);
+}
+
+function assignItemToFastSlot(item, slot) {
+    const normalized = normalizeItem(item);
+    const itemKey = fastSlotItemKey(normalized);
+
+    state.fastSlots = normalizeFastSlots().map((entry) => {
+        if (entry.slot === slot) return { slot, item: normalized };
+        if (entry.item && fastSlotItemKey(entry.item) === itemKey) return { slot: entry.slot, item: null };
+        return entry;
+    });
     state.selectedSlot = slot;
     renderFastSlots();
     postNui("AddItemToFastSlot", {
@@ -482,6 +978,26 @@ function addSelectedToFastSlot(item) {
         type: normalized.type,
         name: normalized.name,
     });
+}
+
+function moveFastSlot(fromSlot, toSlot) {
+    const sourceSlot = numberOrZero(fromSlot);
+    const targetSlot = numberOrZero(toSlot);
+    if (!sourceSlot || !targetSlot || sourceSlot === targetSlot) return;
+
+    const slots = normalizeFastSlots();
+    const source = slots.find((entry) => entry.slot === sourceSlot);
+    const target = slots.find((entry) => entry.slot === targetSlot);
+    if (!source?.item) return;
+
+    state.fastSlots = slots.map((entry) => {
+        if (entry.slot === sourceSlot) return { slot: sourceSlot, item: target?.item || null };
+        if (entry.slot === targetSlot) return { slot: targetSlot, item: source.item };
+        return entry;
+    });
+    state.selectedSlot = targetSlot;
+    renderFastSlots();
+    postNui("MoveFastSlot", { fromSlot: sourceSlot, toSlot: targetSlot });
 }
 
 function removeFastSlot(slot) {
@@ -537,6 +1053,14 @@ function closeQuantityModal() {
     state.pendingQuantity = null;
 }
 
+function setQuantityPreset(useMaximum) {
+    const min = Math.max(1, Math.floor(numberOrZero(els.quantityInput.min) || 1));
+    const max = Math.max(min, Math.floor(numberOrZero(els.quantityInput.max) || min));
+    els.quantityInput.value = String(useMaximum ? max : min);
+    els.quantityInput.focus();
+    els.quantityInput.select();
+}
+
 function submitQuantity(event) {
     event.preventDefault();
     const value = Math.floor(numberOrZero(els.quantityInput.value));
@@ -550,6 +1074,61 @@ function submitQuantity(event) {
     const callback = state.pendingQuantity;
     closeQuantityModal();
     if (callback) callback(value);
+}
+
+function openConfirmModal(title, message, onConfirm) {
+    state.pendingConfirm = onConfirm;
+    els.confirmTitle.textContent = title || "Confirm";
+    els.confirmMessage.textContent = message || "Are you sure?";
+    els.confirmModal.classList.remove("is-hidden");
+    setTimeout(() => els.confirmAccept.focus(), 0);
+}
+
+function closeConfirmModal() {
+    els.confirmModal.classList.add("is-hidden");
+    state.pendingConfirm = null;
+}
+
+function acceptConfirmation() {
+    const callback = state.pendingConfirm;
+    closeConfirmModal();
+    if (callback) callback();
+}
+
+function preferenceItemKey(item) {
+    return String(normalizeItem(item).name || "").trim().toLowerCase();
+}
+
+function isFavorite(item) {
+    return Boolean(state.favorites[preferenceItemKey(item)]);
+}
+
+function toggleFavorite(item) {
+    const key = preferenceItemKey(item);
+    if (!key) return;
+
+    if (state.favorites[key]) {
+        delete state.favorites[key];
+    } else {
+        state.favorites[key] = true;
+    }
+
+    saveInventoryPreferences();
+    renderInventory();
+    renderSecondaryInventory();
+    renderActions();
+}
+
+function saveInventoryPreferences() {
+    if (state.preferenceSaveTimer) clearTimeout(state.preferenceSaveTimer);
+    state.preferenceSaveTimer = setTimeout(() => {
+        state.preferenceSaveTimer = null;
+        postNui("SetInventoryPreferences", {
+            sortMode: state.sortMode,
+            categoryFilter: state.categoryFilter,
+            favorites: Object.keys(state.favorites).filter((key) => state.favorites[key]),
+        });
+    }, 200);
 }
 
 function handleMessage(event) {
@@ -567,6 +1146,7 @@ function handleMessage(event) {
             if (data.timenow !== undefined) state.timeNow = data.timenow;
             renderInventory();
             renderFastSlots();
+            renderWeight();
             break;
         case "setSecondInventoryItems":
             state.secondaryItems = normalizeList(data.itemList || data.items || []);
@@ -576,6 +1156,7 @@ function handleMessage(event) {
         case "changecheck":
             state.weight = numberOrZero(data.check ?? data.weight ?? data.current);
             state.maxWeight = numberOrZero(data.info ?? data.maxWeight ?? data.capacity);
+            if (data.useWeight !== undefined) state.config.UseWeight = Boolean(data.useWeight);
             renderWeight();
             break;
         case "updateStatusHud":
@@ -613,6 +1194,9 @@ function handleMessage(event) {
         case "fastSlots":
         case "updateFastSlots":
             updateFastSlots(data.slots || data.fastSlots || data.items || []);
+            break;
+        case "inventoryPreferences":
+            applyInventoryPreferences(data.preferences || data);
             break;
         default:
             break;
@@ -686,6 +1270,17 @@ function updateFastSlots(slots) {
         });
     }
 
+    const seenItems = new Set();
+    next.forEach((entry) => {
+        if (!entry.item) return;
+        const key = fastSlotItemKey(entry.item);
+        if (seenItems.has(key)) {
+            entry.item = null;
+            return;
+        }
+        seenItems.add(key);
+    });
+
     state.fastSlots = next;
     renderFastSlots();
 }
@@ -736,14 +1331,66 @@ function normalizeFastSlots() {
 }
 
 function getFilteredItems(items) {
-    const list = normalizeList(items);
+    let list = normalizeList(items);
     const query = String(state.searchText || "").trim().toLowerCase();
-    if (!query) return list;
 
-    return list.filter((item) => {
-        const normalized = normalizeItem(item);
-        return normalized.name.toLowerCase().includes(query) || normalized.label.toLowerCase().includes(query);
+    if (query) {
+        list = list.filter((item) => {
+            const normalized = normalizeItem(item);
+            return normalized.name.toLowerCase().includes(query) || normalized.label.toLowerCase().includes(query);
+        });
+    }
+
+    if (state.categoryFilter !== "all") {
+        list = list.filter((item) => getItemCategory(item) === state.categoryFilter);
+    }
+
+    return sortInventoryItems(list);
+}
+
+function getItemCategory(item) {
+    const normalized = normalizeItem(item);
+    if (normalized.type === "item_weapon") return "weapons";
+    return groupCategories[Math.floor(numberOrZero(normalized.group))] || "other";
+}
+
+function sortInventoryItems(items) {
+    return normalizeList(items).slice().sort((leftEntry, rightEntry) => {
+        const left = normalizeItem(leftEntry);
+        const right = normalizeItem(rightEntry);
+        const favoriteDelta = Number(isFavorite(right)) - Number(isFavorite(left));
+        if (favoriteDelta !== 0) return favoriteDelta;
+
+        if (state.sortMode === "count") {
+            const countDelta = numberOrZero(right.count) - numberOrZero(left.count);
+            if (countDelta !== 0) return countDelta;
+        } else if (state.sortMode === "category") {
+            const leftCategory = categoryOrder.indexOf(getItemCategory(left));
+            const rightCategory = categoryOrder.indexOf(getItemCategory(right));
+            const categoryDelta = (leftCategory < 0 ? 999 : leftCategory) - (rightCategory < 0 ? 999 : rightCategory);
+            if (categoryDelta !== 0) return categoryDelta;
+        }
+
+        return left.label.localeCompare(right.label, undefined, { sensitivity: "base" });
     });
+}
+
+function applyInventoryPreferences(preferences) {
+    const source = preferences && typeof preferences === "object" ? preferences : {};
+    const favorites = Array.isArray(source.favorites) ? source.favorites : [];
+    state.sortMode = ["category", "name", "count"].includes(source.sortMode) ? source.sortMode : "category";
+    state.categoryFilter = ["all", ...categoryOrder].includes(source.categoryFilter) ? source.categoryFilter : "all";
+    state.favorites = {};
+    favorites.forEach((name) => {
+        const key = String(name || "").trim().toLowerCase();
+        if (key) state.favorites[key] = true;
+    });
+
+    els.inventorySort.value = state.sortMode;
+    els.inventoryCategory.value = state.categoryFilter;
+    renderInventory();
+    renderSecondaryInventory();
+    renderActions();
 }
 
 function formatAmount(item, fastSlot) {
@@ -773,19 +1420,66 @@ function computeSecondaryUsedCount() {
 }
 
 function formatSecondaryCapacity() {
-    if (state.secondary.capacity === null && state.secondary.weight === null) return "";
-    const weight = state.secondary.weight !== null ? formatNumber(state.secondary.weight) : formatNumber(computeSecondaryUsedCount());
+    const used = formatNumber(computeSecondaryUsedCount());
     const capacity = state.secondary.capacity !== null ? formatNumber(state.secondary.capacity) : "";
-    return capacity ? `${weight}/${capacity}` : weight;
+    return capacity ? `${used}/${capacity}` : used;
 }
 
 function buildSelectedMeta(item) {
     const pieces = [];
     if (item.type === "item_weapon" && item.serial_number) pieces.push(`Serial ${item.serial_number}`);
-    if (item.weight !== undefined) pieces.push(`${formatNumber(item.weight)} ${String(state.config.WeightMeasure || "KG").toUpperCase()}`);
+    if (state.config.UseWeight && item.weight !== undefined) pieces.push(`${formatNumber(item.weight)} ${String(state.config.WeightMeasure || "KG").toUpperCase()}`);
     if (item.metadata && item.metadata.description) pieces.push(stripHtml(String(item.metadata.description)));
     if (item.desc) pieces.push(stripHtml(String(item.desc)));
     return pieces.filter(Boolean).join(" / ");
+}
+
+function showItemTooltip(item, event) {
+    if (!els.contextMenu.classList.contains("is-hidden")) {
+        hideItemTooltip();
+        return;
+    }
+
+    const normalized = normalizeItem(item);
+    const unit = String(state.config.WeightMeasure || "KG").toUpperCase();
+    const rows = [];
+    const category = getItemCategory(normalized);
+    const count = normalized.type === "item_weapon" ? 1 : numberOrZero(normalized.count);
+    const limit = numberOrZero(normalized.limit);
+    const weight = numberOrZero(normalized.weight);
+    const durability = normalized.percentage ?? normalized.metadata?.durability ?? normalized.metadata?.quality;
+    const serial = normalized.serial_number || normalized.metadata?.serial_number || normalized.metadata?.serial;
+    const description = normalized.metadata?.description || normalized.desc || normalized.custom_desc;
+
+    rows.push(["Category", category]);
+    rows.push(["Amount", limit > 0 ? `${count}/${limit}` : String(count)]);
+    if (state.config.UseWeight && weight > 0) {
+        rows.push(["Weight", `${formatNumber(weight)} ${unit}`]);
+        rows.push(["Total", `${formatNumber(weight * count)} ${unit}`]);
+    }
+    if (durability !== undefined && durability !== null && durability !== "") rows.push(["Durability", `${formatNumber(durability)}%`]);
+    if (serial) rows.push(["Serial", String(serial)]);
+
+    els.itemTooltip.innerHTML = `
+        <strong>${escapeHtml(normalized.label)}${isFavorite(normalized) ? " ★" : ""}</strong>
+        ${rows.map(([label, value]) => `<div class="item-tooltip-row"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`).join("")}
+        ${description ? `<div class="item-tooltip-desc">${escapeHtml(stripHtml(String(description)))}</div>` : ""}
+    `;
+    els.itemTooltip.classList.remove("is-hidden");
+    positionItemTooltip(event);
+}
+
+function positionItemTooltip(event) {
+    if (!event || els.itemTooltip.classList.contains("is-hidden")) return;
+    const x = Math.min(window.innerWidth - 205, event.clientX + 14);
+    const y = Math.min(window.innerHeight - 130, event.clientY + 14);
+    els.itemTooltip.style.left = `${Math.max(6, x)}px`;
+    els.itemTooltip.style.top = `${Math.max(6, y)}px`;
+}
+
+function hideItemTooltip() {
+    if (!els.itemTooltip) return;
+    els.itemTooltip.classList.add("is-hidden");
 }
 
 function toTransferPayload(item, qty) {
@@ -841,6 +1535,20 @@ function getSecondaryId(idKey) {
 function firstAvailableFastSlot() {
     const entry = normalizeFastSlots().find((slot) => !slot.item);
     return entry ? entry.slot : 1;
+}
+
+function fastSlotItemKey(item) {
+    return String(normalizeItem(item).name || "").trim().toLowerCase();
+}
+
+function isFastSlotEligible(item) {
+    const normalized = normalizeItem(item);
+    return normalized.type === "item_weapon" || normalized.canUse === true;
+}
+
+function findFastSlotByItem(item) {
+    const itemKey = fastSlotItemKey(item);
+    return normalizeFastSlots().find((entry) => entry.item && fastSlotItemKey(entry.item) === itemKey) || null;
 }
 
 function selectedItemIsInSelectedSlot(item) {
@@ -923,18 +1631,42 @@ function bindEvents() {
         if (event.key === "Escape") {
             if (!els.playerModal.classList.contains("is-hidden")) return closePlayerModal();
             if (!els.quantityModal.classList.contains("is-hidden")) return closeQuantityModal();
+            if (!els.confirmModal.classList.contains("is-hidden")) return closeConfirmModal();
             postNui("NUIFocusOff", {});
         }
     });
+    els.inventorySearch.addEventListener("input", () => {
+        state.searchText = els.inventorySearch.value;
+        renderInventory();
+    });
+    els.inventoryCategory.addEventListener("change", () => {
+        state.categoryFilter = els.inventoryCategory.value;
+        saveInventoryPreferences();
+        renderInventory();
+    });
+    els.inventorySort.addEventListener("change", () => {
+        state.sortMode = els.inventorySort.value;
+        saveInventoryPreferences();
+        renderInventory();
+        renderSecondaryInventory();
+    });
     els.playerModalClose.addEventListener("click", closePlayerModal);
     els.quantityClose.addEventListener("click", closeQuantityModal);
+    els.quantityMin.addEventListener("click", () => setQuantityPreset(false));
+    els.quantityMax.addEventListener("click", () => setQuantityPreset(true));
     els.quantityForm.addEventListener("submit", submitQuantity);
+    els.confirmClose.addEventListener("click", closeConfirmModal);
+    els.confirmCancel.addEventListener("click", closeConfirmModal);
+    els.confirmAccept.addEventListener("click", acceptConfirmation);
+    bindInventoryDropZone(els.secondaryGrid, "main-inventory", "move");
+    bindMainInventoryDropZone(els.inventoryGrid);
 }
 
 function init() {
     cacheElements();
     bindEvents();
     requestActionsConfig();
+    postNui("RequestInventoryPreferences", {});
     renderInventory();
     renderFastSlots();
     renderWeight();

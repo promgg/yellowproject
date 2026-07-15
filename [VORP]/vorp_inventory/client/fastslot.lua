@@ -1,0 +1,163 @@
+-- ============================================================================
+--  Fast Slot / Hotbar (open rewrite) — แทน client/MJDevFastSlot.lua ตัวเข้ารหัส
+--  - อ่านปุ่มด้วย control hash ของ RDR3 และปิด action เลือกอาวุธเดิมของเกม
+--  - กดปุ่ม -> ส่งแค่ "หมายเลขช่อง" ให้ server ตัดสิน (server-authoritative)
+--  - รับ sync จาก server มาแสดงผ่าน NUI (จำนวนสด)
+--  โหลดก่อน controllers/* เพื่อให้ global NUIAddItemToFastSlot/NUIRemoveItemFromFastSlot
+--  ถูกนิยามก่อน NUIController.lua ไป RegisterNUICallback
+-- ============================================================================
+
+local MAX_SLOTS = Config.FastSlotCount or 6
+
+-- debug log (เปิดด้วย Config.Debug = true)
+local function dbg(...)
+    if Config.Debug then
+        print("^2[fastslot:cl]^7", ...)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- NUI callbacks (globals ที่ controllers/NUIController.lua เรียกใช้)
+-- ---------------------------------------------------------------------------
+
+-- ผู้เล่นลากไอเทมใส่ช่อง — app.js ส่ง { slot, item = normalized, id, type, name }
+function NUIAddItemToFastSlot(data, cb)
+    if type(data) == "table" and data.slot then
+        local item = data.item or {}
+        local metadata = (type(item.metadata) == "table") and item.metadata or nil
+        local name = data.name or item.name
+        dbg("NUIAddItemToFastSlot: slot", data.slot, "name", name, "type", data.type or item.type)
+        TriggerServerEvent("vorp_inventory:fastslot:assign",
+            tonumber(data.slot),
+            name,
+            data.type or item.type or "item_standard",
+            metadata)
+    else
+        dbg("NUIAddItemToFastSlot: ^1data ไม่ถูกต้อง^7", json.encode(data or {}))
+    end
+    if cb then cb("ok") end
+end
+
+-- ผู้เล่นเอาไอเทมออกจากช่อง — app.js ส่ง { slot }
+function NUIRemoveItemFromFastSlot(data, cb)
+    if type(data) == "table" and data.slot then
+        dbg("NUIRemoveItemFromFastSlot: slot", data.slot)
+        TriggerServerEvent("vorp_inventory:fastslot:remove", tonumber(data.slot))
+    end
+    if cb then cb("ok") end
+end
+
+-- ลาก Fast Slot ไปอีกช่อง: server เป็นผู้สลับ/ย้าย binding ตามเลขช่องเท่านั้น
+function NUIMoveFastSlot(data, cb)
+    local fromSlot = type(data) == "table" and tonumber(data.fromSlot) or nil
+    local toSlot = type(data) == "table" and tonumber(data.toSlot) or nil
+
+    if fromSlot and toSlot then
+        dbg("NUIMoveFastSlot:", fromSlot, "->", toSlot)
+        TriggerServerEvent("vorp_inventory:fastslot:move", fromSlot, toSlot)
+    else
+        dbg("NUIMoveFastSlot: ^1data ไม่ถูกต้อง^7", json.encode(data or {}))
+    end
+
+    if cb then cb("ok") end
+end
+
+function NUISetInventoryPreferences(data, cb)
+    if type(data) == "table" then
+        TriggerServerEvent("vorp_inventory:preferences:update", data)
+    end
+    if cb then cb("ok") end
+end
+
+function NUIRequestInventoryPreferences(_, cb)
+    TriggerServerEvent("vorp_inventory:preferences:request")
+    if cb then cb("ok") end
+end
+
+-- ---------------------------------------------------------------------------
+-- sync จาก server -> NUI
+-- ---------------------------------------------------------------------------
+
+RegisterNetEvent("vorp_inventory:fastslot:sync", function(slots)
+    dbg("รับ sync จาก server:", json.encode(slots or {}))
+    SendNUIMessage({ action = "setFastSlots", slots = slots or {} })
+end)
+
+RegisterNetEvent("vorp_inventory:preferences:sync", function(preferences)
+    SendNUIMessage({ action = "inventoryPreferences", preferences = preferences or {} })
+end)
+
+-- อาวุธ: server สั่งให้ client ใช้ผ่าน export useWeapon เดิม (ยังเป็น best-effort — จูนเพิ่ม Phase ถัดไป)
+RegisterNetEvent("vorp_inventory:fastslot:useWeapon", function(data)
+    pcall(function()
+        exports.vorp_inventory:useWeapon(data)
+    end)
+end)
+
+-- ขอ sync เริ่มต้นเมื่อเลือกตัวละครเสร็จ (เผื่อ NUI พร้อมหลัง event ฝั่ง server)
+AddEventHandler("vorp:SelectedCharacter", function()
+    Citizen.SetTimeout(2000, function()
+        TriggerServerEvent("vorp_inventory:fastslot:request")
+        TriggerServerEvent("vorp_inventory:preferences:request")
+    end)
+end)
+
+-- รองรับ restart vorp_inventory ขณะผู้เล่นออนไลน์ โดยไม่ต้องเลือกตัวละครใหม่
+AddEventHandler("onClientResourceStart", function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    Citizen.SetTimeout(1500, function()
+        TriggerServerEvent("vorp_inventory:fastslot:request")
+        TriggerServerEvent("vorp_inventory:preferences:request")
+    end)
+end)
+
+-- ---------------------------------------------------------------------------
+-- commands — คำสั่งทดสอบแต่ละช่องผ่าน F8
+-- ---------------------------------------------------------------------------
+
+-- ตัวใช้จริงร่วมกันของคำสั่ง F8 และ control-hash poll
+local function useFastSlot(slot)
+    dbg("กดปุ่มช่อง", slot)
+    if IsPauseMenuActive() then dbg("บล็อก: pause menu เปิดอยู่"); return end
+    dbg("ส่ง event use ช่อง", slot, "-> server")
+    TriggerServerEvent("vorp_inventory:fastslot:use", slot)
+end
+
+-- ลงทะเบียนคำสั่งสำหรับทดสอบ pipeline ตรงๆ ผ่านคอนโซล F8: vorpfastslot1
+-- ไม่ใช้ RegisterKeyMapping เพราะ RedM runtime บางเวอร์ชันไม่มี global นี้และจะทำให้
+-- ไฟล์หยุดโหลดก่อนถึง control-hash poll ด้านล่าง
+for i = 1, MAX_SLOTS do
+    local cmd = ("vorpfastslot%d"):format(i)
+    local slot = i
+    RegisterCommand(cmd, function() useFastSlot(slot) end, false)
+    dbg("ลงทะเบียนคำสั่งช่อง", i, "(cmd:", cmd .. ")")
+end
+
+-- (2) control-hash poll — hash ปุ่มเลขจาก Config.FastSlot ทำงานทันทีไม่ต้อง bind เอง
+--     control type ของ context ปกติ (OnFoot/OnMount/InVehicle) คือ 0
+--     DisableControlAction(0, ...): กัน native weapon-select ตอนกดเลข (แก้อาการชักอาวุธ)
+if Config.FastSlot then
+    CreateThread(function()
+        while true do
+            for i = 1, MAX_SLOTS do
+                local kc = Config.FastSlot[i]
+                if kc and kc.key then
+                    -- กัน native weapon-select ตอนกดเลข (แก้อาการชักอาวุธ)
+                    if Config.DisableWeaponWheelForFastSlot then
+                        DisableControlAction(0, kc.key, true)
+                    end
+                    -- เช็คทั้ง enabled+disabled just-pressed กันพลาดจังหวะ (แพทเทิร์นเดียวกับ MJ-Alert-Doctor)
+                    if IsControlJustPressed(0, kc.key) or IsDisabledControlJustPressed(0, kc.key) then
+                        useFastSlot(i)
+                    end
+                end
+            end
+            if Config.DisableWeaponWheelForFastSlot and Config.FastSlotDisableControls then
+                for _, control in ipairs(Config.FastSlotDisableControls) do
+                    DisableControlAction(0, control, true)
+                end
+            end
+            Wait(0)
+        end
+    end)
+end

@@ -521,13 +521,17 @@ function InventoryService.onPickup(data)
 				end
 
 				if not notListed then
-					local itemsToTalWeight = InventoryAPI.getUserTotalCountItems(identifier, charId)
-					local sourceInventoryWeaponWeight = InventoryAPI.getUserTotalCountWeapons(identifier, charId, true)
-					totalInvWeight = (itemsToTalWeight + weapon:getWeight() + sourceInventoryWeaponWeight)
 					sourceInventoryWeaponCount = InventoryAPI.getUserTotalCountWeapons(identifier, charId) + 1
+					if Config.UseWeight then
+						local itemsToTalWeight = InventoryAPI.getUserTotalCountItems(identifier, charId)
+						local sourceInventoryWeaponWeight = InventoryAPI.getUserTotalCountWeapons(identifier, charId, true)
+						totalInvWeight = itemsToTalWeight + weapon:getWeight() + sourceInventoryWeaponWeight
+					end
 				end
 
-				if totalInvWeight <= invCapacity or sourceInventoryWeaponCount <= DefaultAmount then
+				local withinWeightLimit = not Config.UseWeight or totalInvWeight <= invCapacity
+				local withinWeaponLimit = notListed or DefaultAmount == -1 or sourceInventoryWeaponCount <= DefaultAmount
+				if withinWeightLimit and withinWeaponLimit then
 					local weaponObj = ItemPickUps[uid].obj
 
 					weapon:setDropped(0)
@@ -547,6 +551,8 @@ function InventoryService.onPickup(data)
 					TriggerClientEvent("vorpInventory:playerAnim", _source, uid)
 					InventoryService.addWeapon(_source, weaponId)
 					SvUtils.SendDiscordWebhook(info)
+				else
+					Core.NotifyRightTip(_source, T.fullInventoryWeapon, 2000)
 				end
 			else
 				Core.NotifyRightTip(_source, T.fullInventoryWeapon, 2000)
@@ -889,6 +895,9 @@ function InventoryService.giveWeapon2(player, weaponId, target)
 	end
 
 	local function canCarryWeapons()
+		if not Config.UseWeight then
+			return true
+		end
 		local itemsTotalWeight = InventoryAPI.getUserTotalCountItems(sourceIdentifier, sourceCharId)
 		local sourceTotalWeaponsWeight = InventoryAPI.getUserTotalCountWeapons(sourceIdentifier, sourceCharId, true)
 		local totalInvWeight = itemsTotalWeight + sourceTotalWeaponsWeight + newWeight

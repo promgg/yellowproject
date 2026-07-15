@@ -93,6 +93,12 @@ function InventoryAPI.canCarryAmountItem(player, amount, cb)
 		return respond(cb, false)
 	end
 
+	-- Limit mode has no global bag capacity. The item-specific check is performed by
+	-- canCarryItem, where the requested item name is available.
+	if not Config.UseWeight then
+		return respond(cb, true)
+	end
+
 	local function cancarryammount()
 		local totalAmount = InventoryAPI.getUserTotalCountItems(character.identifier, character.charIdentifier)
 		local totalAmountWeapons = InventoryAPI.getUserTotalCountWeapons(character.identifier, character.charIdentifier, true)
@@ -111,6 +117,11 @@ exports("canCarryItems", InventoryAPI.canCarryAmountItem)
 ---@param amount number amount of item
 ---@param cb fun(canCarry: boolean)? async or sync callback
 function InventoryAPI.canCarryItem(target, itemName, amount, cb)
+	amount = tonumber(amount)
+	if not amount or amount <= 0 then
+		return respond(cb, false)
+	end
+
 	local user = Core.getUser(target)
 	if not user then
 		return respond(cb, false)
@@ -141,7 +152,7 @@ function InventoryAPI.canCarryItem(target, itemName, amount, cb)
 	end
 
 	if svItem.limit ~= -1 and not exceedsItemLimit(character.identifier, svItem.limit) then
-		canCarry = not exceedsInvLimit(character.identifier, character.charIdentifier, character.invCapacity, svItem.weight)
+		canCarry = not Config.UseWeight or not exceedsInvLimit(character.identifier, character.charIdentifier, character.invCapacity, svItem.weight)
 	elseif svItem.limit == -1 then
 		canCarry = true
 	end
@@ -406,6 +417,8 @@ exports("getItemMatchingMetadata", InventoryAPI.getItemMatchingMetadata)
 ---@param degradation number? used for internal purposes moveToPlayer takeFromPlayer its a timestamp items are being exchanged
 ---@param percentage number? used for internal purposes for synscripts to support degradation
 ---@param cb fun(success: boolean)? async or sync callback
+---Important: this is the legacy system/admin grant API and intentionally does not enforce
+---player capacity. Gameplay resources must call canCarryItem before charging/removing inputs.
 function InventoryAPI.addItem(source, name, amount, metadata, cb, allow, degradation, percentage)
 	local _source = source
 
@@ -1292,6 +1305,11 @@ exports("subBullets", InventoryAPI.subBullets)
 ---@param weaponName string|number weapon name not neccesary but allows to check if weapon is in the list of not weapons
 ---@return boolean
 function InventoryAPI.canCarryAmountWeapons(player, amount, cb, weaponName)
+	amount = tonumber(amount)
+	if not amount or amount <= 0 then
+		return respond(cb, false)
+	end
+
 	local _source = player
 	local sourceCharacter = Core.getUser(_source)
 
@@ -1330,7 +1348,7 @@ function InventoryAPI.canCarryAmountWeapons(player, amount, cb, weaponName)
 	local job = sourceCharacter.job
 	local DefaultAmount = Config.MaxItemsInInventory.Weapons
 
-	if weaponName and isInventoryFull(identifier, charId, invCapacity) then
+	if Config.UseWeight and weaponName and isInventoryFull(identifier, charId, invCapacity) then
 		return respond(cb, false)
 	end
 
@@ -1615,12 +1633,13 @@ function InventoryAPI.giveWeapon(player, weaponId, target, cb)
 		end
 
 		if not notListed then
-			local itemsToTalWeight = InventoryAPI.getUserTotalCountItems(sourceIdentifier, sourceCharId)
-			local sourceTotalWeaponWeight = InventoryAPI.getUserTotalCountWeapons(sourceIdentifier, sourceCharId, true)
-
-			if (weight + itemsToTalWeight + sourceTotalWeaponWeight) > invCapacity then
-				Core.NotifyRightTip(_source, "inventory full", 2000)
-				return respond(cb, false)
+			if Config.UseWeight then
+				local itemsToTalWeight = InventoryAPI.getUserTotalCountItems(sourceIdentifier, sourceCharId)
+				local sourceTotalWeaponWeight = InventoryAPI.getUserTotalCountWeapons(sourceIdentifier, sourceCharId, true)
+				if (weight + itemsToTalWeight + sourceTotalWeaponWeight) > invCapacity then
+					Core.NotifyRightTip(_source, "inventory full", 2000)
+					return respond(cb, false)
+				end
 			end
 
 			local sourceTotalWeaponCount = InventoryAPI.getUserTotalCountWeapons(sourceIdentifier, sourceCharId) + 1

@@ -25,7 +25,7 @@ shared_scripts {
 client_scripts {
   'client/exports.lua',
   'client/client.lua',
-  'client/MJDevFastSlot.lua',
+  'client/fastslot.lua', -- open hotbar (แทน MJDevFastSlot.lua ตัวเข้ารหัส) โหลดก่อน controllers ให้ global พร้อม
   'client/models/*.lua',
   'client/services/*.lua',
   'client/controllers/*.lua',
@@ -40,6 +40,7 @@ server_scripts {
   'server/models/*.lua',
   'server/services/*.lua',
   'server/controllers/*.lua',
+  'server/fastslot.lua', -- open hotbar server (persist ผูก charidentifier) โหลดหลัง services ให้ InventoryService พร้อม
   'server/respawn.lua',
 
 }

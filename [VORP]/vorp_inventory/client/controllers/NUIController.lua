@@ -17,6 +17,9 @@ RegisterNUICallback('TransferLimitExceeded', NUIService.TransferLimitExceeded)
 
 RegisterNUICallback('AddItemToFastSlot', NUIAddItemToFastSlot)
 RegisterNUICallback('RemoveItemFromFastSlot', NUIRemoveItemFromFastSlot)
+RegisterNUICallback('MoveFastSlot', NUIMoveFastSlot)
+RegisterNUICallback('SetInventoryPreferences', NUISetInventoryPreferences)
+RegisterNUICallback('RequestInventoryPreferences', NUIRequestInventoryPreferences)
 
 --========================================================================--
 -- shared

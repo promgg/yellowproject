@@ -2,7 +2,7 @@ Lang = "English"
 
 Config = {
 	-- ======================= DEVELOPMENT ============================== --
-	Debug                      = false, -- If your server is live set this to false.  to true only if you are testing things
+	Debug                      = true, -- If your server is live set this to false.  to true only if you are testing things
 
 	InventoryOrder             = "weapons", -- Items or weapons what should should first in inventory
 
@@ -49,6 +49,8 @@ Config = {
 
 	UseLanternPutOnBelt        = true,    -- If true then lanterns will be put on belt
 
+	UseWeight                  = false,   -- false = use per-item limits and weapon-count limits; ignore character weight capacity
+
 	WeightMeasure              = "kg",    -- Weight measure (kg, lbs, etc)
 
 	DeleteItemOnUseWhenExpired = true,   -- if true items on use that are expired will be deleted
@@ -91,7 +93,7 @@ Config = {
 		}
 	},
 
-	-- HOW MANY WEAPONS ALLOWED PER PLAYER FOR ITEMS IS IN VORP CORE CONFIG
+	-- Weapon count limit. Standard-item limits come from the `items.limit` database column.
 	MaxItemsInInventory        = {
 		Weapons = 6,
 	},
@@ -219,6 +221,20 @@ Config = {
 			key = 0xB03A913B,
 			contest = "Item Slot 7"  -- เพิ่มไอเทมใน Slot 7
 		},
+	},
+
+	-- ===== Fast Slot / Hotbar (ระบบเปิดใหม่ แทน MJDevFastSlot.lua ที่เข้ารหัส) =====
+	-- จำนวนช่อง — NUI รองรับ 6 ช่อง (อย่าตั้งเกิน 6 นอกจากจะแก้ html/app.js ด้วย)
+	FastSlotCount = 6,
+	-- ปุ่มเริ่มต้นต่อช่อง (ผู้เล่น rebind เองได้ในเมนู Settings > Key Bindings ของ RedM ผ่าน RegisterKeyMapping)
+	-- ใช้ชื่อปุ่มมาตรฐาน FiveM/RedM (ไม่ใช่ control hash) เช่น '1'..'6', 'F1'..'F6'
+	FastSlotDefaultKeys = { '1', '2', '3', '4', '5', '6' },
+	-- ปิด weapon wheel ของ RDR3 ตอนใช้ hotbar (กันกดเลขแล้วชักอาวุธแทนการใช้ไอเทม)
+	-- ถ้ายังเจออาการชักปืน ให้เติม control hash ที่ต้องบล็อกลง FastSlotDisableControls (จูนในเกม)
+	DisableWeaponWheelForFastSlot = true,
+	FastSlotDisableControls = {
+		-- เติม control hash ที่ทำให้เกิดการชักอาวุธเมื่อกดเลข (ค้นหา/จูนในเกม Phase ทดสอบ)
+		-- ตัวอย่าง: 0x4CC0E2FE, -- INPUT_OPEN_WHEEL_MENU
 	},
 	-- dropp items can have a diferent model added them here item name and object
 	spawnableProps             = {

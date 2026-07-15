@@ -165,6 +165,7 @@ function exports.vorp_inventory:setWeaponCustomDesc(weaponId, desc, callback) en
 ---@param amount number amount of item
 ---@param metadata table?  item metadata
 ---@param callback fun(boolean:boolean)? callback function async or sync leave nil
+---System/admin grant API; call canCarryItem first for normal gameplay rewards or purchases.
 function exports.vorp_inventory:addItem(source, item, amount, metadata, callback) end
 
 --- see [documentation](https://docs.vorp-core.com/api-reference/inventory)<br>
