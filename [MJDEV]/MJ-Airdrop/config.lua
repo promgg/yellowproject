@@ -22,7 +22,7 @@ Config["NotifyClaim"] = true
 
 -- === Timing / Misc ===
 Config["AutoTime"] = true
-Config["TimeAirdrop"] = {"13:00", "18:00", "20:30", "21:00", "21:30", "22:00", "22:30", "01:00"} -- HH:MM
+Config["TimeAirdrop"] = {"13:00", "18:00", "20:30", "21:00", "21:30", "22:00", "22:30", "06:00"} -- HH:MM
 Config['Command'] = 'ap'                       -- คำสั่งแอดมินเรียกอีเวนต์
 Config["Prop"] = "mp008_p_mp_valuables02x"    -- โมเดลวัตถุของกล่อง airdrop
 
