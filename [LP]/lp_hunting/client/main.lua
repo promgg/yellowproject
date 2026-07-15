@@ -5,12 +5,21 @@
       1) thread เดียว สแกนหาซากสัตว์ตายแล้ว + อยู่ใน Config.SkinTiers + ในระยะ + ยังไม่ถูกถลก
          (sleep-throttled + sticky/hysteresis แบบ nx_crafting) — และ mark ซากเป็น fully-looted
          เพื่อ "ซ่อน prompt SKIN [E] ของเกม" ให้เห็นแค่ lp_textui ของเรา
-      2) เข้าใกล้ -> โชว์ exports.lp_textui:TextUIHold('[E] ชำแหละ', ..., worldAnchor)
-      3) ค้าง [E] ครบ -> ปลด fully-looted ชั่วคราว -> TASK_LOOT_ENTITY (เกมเล่นท่าถลก ANIM_SCENE จริง
-         ครบทุกตัว: คุกเข่า+มีด+sync กับซาก) — เราไม่สร้างท่าเอง
+      2) เข้าใกล้ -> โชว์ exports.lp_textui:TextUIHold('[E] ชำแหละ', ...) แบบปกติ (fixed bottom-center)
+         ไม่ใช้ worldAnchor
+      3) ค้าง [E] ครบ -> เช็ค lp_hunting:cb:canSkin กับ server ก่อน (มีมีดไหม / กระเป๋าเต็มไหม) ถ้าไม่ผ่าน:
+         ไม่เริ่มถลก ซากไม่ถูกแตะต้อง (server ตั้ง despawn timer ให้ ดู Config.AbandonedCarcassDespawnMs)
+         — ถ้าผ่านหมด: สวมมีดจริงก่อนเสมอผ่าน exports.vorp_inventory:useWeapon() (แค่ "เป็นเจ้าของ" มีด
+         ไม่พอ — ต้องผ่าน native GiveDelayedWeaponToPed จริงๆ เกมถึงจะเล่นแอนิเมชันถลกแบบเต็ม
+         ดูรายละเอียดใน server/main.lua findOwnedKnife()) แล้ว:
+         ปลด fully-looted ชั่วคราว -> TASK_LOOT_ENTITY (เกมเล่นท่าถลก ANIM_SCENE จริง ครบทุกตัว:
+         คุกเข่า+มีด+sync กับซาก) — เราไม่สร้างท่าเอง
       4) ดัก EVENT_LOOT_COMPLETE (เกมถลกเสร็จ) -> ลบ prop หนังออกจากมือ -> ยิง netId ให้ server แจกของ
-         (ส่ง "แค่ netId" — server ตัดสิน model/ระยะ/tier/ไอเทมเองทั้งหมด ไม่เชื่อ client)
+         (ส่ง "แค่ netId" — server ตัดสิน model/ระยะ/tier/ไอเทมเองทั้งหมด ไม่เชื่อ client — เช็คกระเป๋าซ้ำ
+         อีกชั้นเป็น defense-in-depth แม้ข้อ 3 ควรกันไว้แล้วก็ตาม)
 ]]
+
+local VORPcore = exports.vorp_core:GetCore()
 
 -- debounce กันซากเดิมถูกยิง event ซ้ำระหว่างรอ server ตอบ (ไม่ใช่ anti-cheat จริง — แค่กัน UX ซ้ำซ้อน
 -- ฝั่ง server มี compare-and-set ของจริงอยู่แล้ว) ล้างอัตโนมัติหลัง timeout เผื่อ server ปฏิเสธ (เช่น
@@ -264,7 +273,6 @@ CreateThread(function()
                     activeCarcass = nearestPed
                     activeNetId   = NetworkGetNetworkIdFromEntity(nearestPed)
                     local tier      = Config.SkinTiers[GetEntityModel(nearestPed)]
-                    local pedCoords = GetEntityCoords(nearestPed)
                     local netId     = activeNetId
                     local target    = nearestPed
                     dbg('prompt shown: %s netId=%s dist=%.2f', tier and tier.name or '?', tostring(netId), nearestDist)
@@ -273,12 +281,36 @@ CreateThread(function()
                         Config.HoldMs,
                         function()
                             if activeCarcass == target and DoesEntityExist(target) and IsPedDeadOrDying(target, true) then
+                                -- เช็คกระเป๋าก่อนเริ่มแอนิเมชันถลก กันเสียเวลาเล่นท่าเต็มๆ แล้วจบด้วยกระเป๋าเต็ม
+                                -- (server เช็คซ้ำอีกชั้นตอนแจกจริงเสมอ อันนี้แค่ UX ไม่ใช่ anti-cheat)
+                                -- ถ้าเต็ม: ไม่เริ่มถลก ไม่แตะซาก (ไม่ mark/ไม่ลบ) ปล่อยให้สแกนรอบถัดไปเจอใหม่เอง
+                                local result = VORPcore.Callback.TriggerAwait('lp_hunting:cb:canSkin', netId)
+                                if not result or not result.ok then
+                                    local reason = result and result.reason
+                                    local msg = 'กระเป๋าเต็ม ไม่สามารถชำแหละได้'
+                                    if reason == 'noKnife' then
+                                        msg = Config.RequireKnifeMsg or 'ต้องมีมีดในกระเป๋าถึงจะชำแหละได้'
+                                    end
+                                    exports.pNotify:SendNotification({ text = msg, type = 'error', timeout = 4000 })
+                                    activeCarcass, activeNetId = nil, nil
+                                    return
+                                end
+
+                                -- สวมมีดจริงก่อนเริ่มถลกเสมอ ผ่าน flow official ของ vorp_inventory (useWeapon)
+                                -- ไม่ใช้ native ตรงๆ — "เป็นเจ้าของ" มีดในกระเป๋าอย่างเดียวไม่พอ ต้องผ่าน
+                                -- native GiveDelayedWeaponToPed (เรียกอยู่ข้างใน Weapon:equipwep()) ก่อน
+                                -- เกมถึงจะเห็นว่าตัวละคร "ถือมีดจริง" แล้วเล่นแอนิเมชันถลกแบบเต็ม
+                                -- (เรียกซ้ำได้ปลอดภัยแม้สวมอยู่แล้ว) รอสั้นๆ ให้ native ให้อาวุธจริงก่อน
+                                if result.knifeWeaponId then
+                                    exports.vorp_inventory:useWeapon({ id = result.knifeWeaponId, type = 'item_weapon' })
+                                    Wait(300)
+                                end
+
                                 activeCarcass, activeNetId = nil, nil
                                 startSkinning(target, netId)
                             end
-                        end,
-                        nil, -- default ปุ่ม E (0x17BEC168)
-                        { coords = pedCoords, offset = vector3(0.0, 0.0, 0.3) }
+                        end
+                        -- แบบปกติ (fixed bottom-center) แทน world-anchored — ไม่ต้องส่ง controlCode/worldAnchor
                     )
                 end
             end

@@ -23,4 +23,5 @@ dependencies {
     'vorp_core',
     'vorp_inventory',
     'lp_textui',
+    'pNotify',
 }

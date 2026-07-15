@@ -17,8 +17,9 @@
 
 local VorpCore = exports.vorp_core:GetCore()
 
-local cooldowns      = {} -- [src] = GetGameTimer() ล่าสุดที่ชำแหละสำเร็จ (rate limit)
-local handledCarcass = {} -- [netId] = true (anti-dupe compare-and-set)
+local cooldowns       = {} -- [src] = GetGameTimer() ล่าสุดที่ชำแหละสำเร็จ (rate limit)
+local handledCarcass  = {} -- [netId] = true (anti-dupe compare-and-set)
+local scheduledDespawn = {} -- [netId] = true — กันตั้ง despawn timer ซ้ำถ้าซากตัวเดียวโดน reject หลายรอบ
 
 local function dbg(fmt, ...)
     if Config.Debug then print(('[lp_hunting] ' .. fmt):format(...)) end
@@ -49,6 +50,97 @@ local function getExtraBlockedZoneAt(coords)
     end
     return nil
 end
+
+-- resolve entity + tier + ไอเทมที่ต้องเช็ค จาก netId เดียว (ใช้ร่วมกันทั้ง pre-check callback ด้านล่าง
+-- และ event แจกรางวัลจริง) คืน nil ถ้า resolve ไม่ผ่านจุดใดจุดหนึ่ง (ไม่ dbg เหตุผลตรงนี้ — ผู้เรียกที่
+-- รู้ context ว่ากำลังทำอะไรอยู่จะ dbg เอง)
+local function resolveCarcass(netId)
+    local ent = NetworkGetEntityFromNetworkId(netId)
+    if not ent or ent == 0 or not DoesEntityExist(ent) then return nil end
+
+    local model = GetEntityModel(ent)
+    local tier  = Config.SkinTiers[model]
+    if not tier then return nil end
+
+    local meatBucket = Config.Items[tier.meat]
+    if not meatBucket then return nil end
+    local meatItem = meatBucket.meat
+
+    local hideItem = nil
+    if tier.hide then
+        local hideKey    = Config.HideRankToItemsKey[tier.hide]
+        local hideBucket = hideKey and Config.Items[hideKey]
+        if not hideBucket then return nil end
+        hideItem = hideBucket.hide
+    end
+
+    return ent, tier, meatItem, hideItem
+end
+
+-- คืน id (แถวอาวุธจริงใน vorp_inventory) ของมีดชนิดใดชนิดหนึ่งที่ผู้เล่นเป็นเจ้าของ หรือ nil ถ้าไม่มีเลย
+--
+-- หมายเหตุสำคัญ: แค่ "เป็นเจ้าของ" มีดในฐานข้อมูล vorp_inventory ไม่พอ — ตรวจโค้ด
+-- [VORP]/vorp_inventory/client/models/WeaponClass.lua (Weapon:equipwep()) แล้วพบว่ามีดจะ "มีจริง"
+-- ในสายตาเกม (ให้ผลกับ native TASK_LOOT_ENTITY) ก็ต่อเมื่อผ่าน native GiveDelayedWeaponToPed แล้ว
+-- เท่านั้น ซึ่งเกิดขึ้นเฉพาะตอนผู้เล่น "สวม/equip" มีดผ่าน flow ของ vorp_inventory เอง (กด Use ใน
+-- กระเป๋า) เท่านั้น — id ที่คืนจากฟังก์ชันนี้เอาไปให้ client เรียก
+-- exports.vorp_inventory:useWeapon({id=..., type='item_weapon'}) เพื่อสวมมีดจริงก่อนเริ่มถลกเสมอ
+-- (เรียกซ้ำได้ปลอดภัยแม้สวมอยู่แล้ว ไม่ใช่การเดา state)
+local function findOwnedKnife(source)
+    local ok, weapons = pcall(function() return exports.vorp_inventory:getUserInventoryWeapons(source) end)
+    if not ok or type(weapons) ~= 'table' then return nil end
+    for _, w in pairs(weapons) do
+        for _, knifeName in ipairs(Config.KnifeWeapons or {}) do
+            if w.name == knifeName then return w.id end
+        end
+    end
+    return nil
+end
+
+-- ตั้ง despawn timer ให้ซากตัวนี้ครั้งเดียว (กันตั้งซ้ำถ้าถูก reject หลายรอบ) — ลบทิ้งถ้ายัง
+-- ไม่ถูกถลกสำเร็จภายในเวลานี้ (กันซากค้างแผนที่ไม่รู้จบตอนกระเป๋าเต็มแล้วไม่มีใครกลับมาเก็บ)
+-- ถ้าถลกสำเร็จไปแล้วก่อนถึงเวลานี้ ent จะถูกลบไปแล้วจาก path แจกรางวัลจริง -> DoesEntityExist เช็คพอ
+local function scheduleAbandonedDespawn(netId, ent)
+    if scheduledDespawn[netId] then return end
+    scheduledDespawn[netId] = true
+    SetTimeout(Config.AbandonedCarcassDespawnMs or 300000, function()
+        scheduledDespawn[netId] = nil
+        if ent and DoesEntityExist(ent) then
+            dbg('abandoned carcass despawn (never collected): netId=%d', netId)
+            DeleteEntity(ent)
+        end
+    end)
+end
+
+-- pre-check ก่อนเริ่มแอนิเมชันถลก (client เรียกตอนกด [E] ค้างครบ ก่อน TASK_LOOT_ENTITY) — กันเสียเวลา
+-- เล่นท่าถลกเต็มๆ แล้วจบด้วยกระเป๋าเต็ม ซากยังไม่ถูกแตะต้อง (ไม่ mark/ลบ) แค่ตอบว่าถลกได้ไหมเฉยๆ
+-- server ยังเช็ค canCarryItem ซ้ำอีกชั้นตอนแจกจริงเสมอ (ใน lp_hunting:sv:skin) อันนี้เป็นแค่ UX
+-- คืน { ok = true } หรือ { ok = false, reason = 'noKnife'|'full'|'invalid' } ให้ client โชว์ข้อความที่ตรงเหตุ
+VorpCore.Callback.Register('lp_hunting:cb:canSkin', function(source, cb, netId)
+    netId = tonumber(netId)
+    if not netId then return cb({ ok = false, reason = 'invalid' }) end
+
+    local ent, _, meatItem, hideItem = resolveCarcass(netId)
+    if not ent then return cb({ ok = false, reason = 'invalid' }) end
+
+    local knifeWeaponId = findOwnedKnife(source)
+    if not knifeWeaponId then
+        dbg('pre-check reject src=%d netId=%d: no knife', source, netId)
+        return cb({ ok = false, reason = 'noKnife' })
+    end
+
+    local canCarry = exports.vorp_inventory:canCarryItem(source, meatItem, 1)
+        and (not hideItem or exports.vorp_inventory:canCarryItem(source, hideItem, 1))
+
+    if not canCarry then
+        dbg('pre-check reject src=%d netId=%d: inventory full', source, netId)
+        scheduleAbandonedDespawn(netId, ent) -- ซากยังอยู่ แต่ตั้งเวลาลบถ้าไม่มีใครกลับมาเก็บ
+        return cb({ ok = false, reason = 'full' })
+    end
+
+    -- client จะเรียก exports.vorp_inventory:useWeapon({id=knifeWeaponId}) ก่อนเริ่มถลกเสมอ (สวมมีดจริง)
+    return cb({ ok = true, knifeWeaponId = knifeWeaponId })
+end)
 
 RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     local _source = source
@@ -135,6 +227,20 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
         end
     end
 
+    -- (4.6) ต้องมีมีดถึงจะถลกได้จริง (ปกติ client เช็คผ่าน lp_hunting:cb:canSkin ก่อนเริ่มแอนิเมชันไปแล้ว —
+    -- จุดนี้เป็น defense-in-depth เผื่อ client ถูกแก้ให้ยิง event นี้ตรงๆ ข้ามการเช็คก่อน)
+    if not findOwnedKnife(_source) then
+        dbg('reject src=%d netId=%d: no knife', _source, netId)
+        TriggerClientEvent('pNotify:SendNotification', _source, {
+            text = Config.RequireKnifeMsg or 'ต้องมีมีดในกระเป๋าถึงจะชำแหละได้',
+            type = 'error',
+            timeout = 4000,
+        })
+        handledCarcass[netId] = nil -- ไม่มีมีดไม่ใช่ความผิดของซาก ปลดล็อกให้ลองใหม่ได้หลังหามีดมา
+        scheduleAbandonedDespawn(netId, ent)
+        return
+    end
+
     local user = VorpCore.getUser(_source)
     if not user then return end
     local Character = user.getUsedCharacter
@@ -164,6 +270,8 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     end
 
     -- (5) canCarryItem ก่อน addItem เสมอ (mirror vorp_hunting) — หนังเช็คเฉพาะเมื่อสัตว์ตัวนี้มีหนัง
+    -- ปกติ client เช็คผ่าน lp_hunting:cb:canSkin ก่อนเริ่มแอนิเมชันไปแล้ว (ไม่ควรมาถึงตรงนี้ถ้าเต็ม)
+    -- จุดนี้เป็น defense-in-depth เผื่อ client เก่า/ถูกแก้ข้ามการเช็คก่อน
     if not exports.vorp_inventory:canCarryItem(_source, meatItem, 1)
         or (hideItem and not exports.vorp_inventory:canCarryItem(_source, hideItem, 1)) then
         TriggerClientEvent('pNotify:SendNotification', _source, {
@@ -172,6 +280,7 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
             timeout = 4000,
         })
         handledCarcass[netId] = nil -- กระเป๋าเต็มไม่ใช่ความผิดของซาก ปลดล็อกให้ลองใหม่ได้หลังเคลียร์กระเป๋า
+        scheduleAbandonedDespawn(netId, ent) -- ซากยังอยู่ แต่ตั้งเวลาลบถ้าไม่มีใครกลับมาเก็บ
         return
     end
 

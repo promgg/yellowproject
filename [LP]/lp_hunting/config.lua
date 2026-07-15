@@ -18,6 +18,22 @@ Config.HoldMs     = 900  -- ms — เวลาที่ต้องกด E ค
 Config.Xp         = 1    -- XP ที่ได้ต่อการชำแหละ 1 ครั้ง (Character.addXp)
 Config.RateLimitMs = 3000 -- ms — server กันชำแหละถี่เกินต่อคน (ปกติแอนิเมชันเกมกินเวลามากกว่านี้อยู่แล้ว)
 
+-- ถ้าเช็คก่อนถลกแล้วพบว่ากระเป๋าเต็ม จะไม่เริ่มแอนิเมชันถลกเลย — ซากยังอยู่ให้กลับมาถลกทีหลังได้
+-- (ไม่ลบทิ้งทันทีเหมือนเดิม) แต่กันซากกองค้างแผนที่ไม่รู้จบด้วย despawn timer นี้: หลังถูก reject
+-- ครั้งแรกของซากตัวนั้น ถ้ายังไม่มีใครถลกสำเร็จภายในเวลานี้ server จะลบซากทิ้งเอง
+Config.AbandonedCarcassDespawnMs = 5 * 60 * 1000 -- 5 นาที
+
+-- RDR3 native TASK_LOOT_ENTITY จะเล่นแอนิเมชันคุกเข่า+มีดแบบเต็มก็ต่อเมื่อผู้เล่นมีอาวุธมีดอยู่ในคลัง
+-- อาวุธ (ไม่จำเป็นต้องถืออยู่ในมือตอนนั้น) — ถ้าไม่มีมีดเลย เกม fallback เป็นการเก็บแบบไม่มีท่าทาง
+-- (ข้ามอนิเมชันไปเงียบๆ) จึงต้องเช็คก่อนเริ่มถลกเสมอ รายชื่อตรงกับ noSerialNumber knife list ใน
+-- [VORP]/vorp_inventory/config/config.lua (มีดทุกแบบไม่มี serial number)
+Config.KnifeWeapons = {
+    'WEAPON_MELEE_KNIFE', 'WEAPON_MELEE_KNIFE_JAWBONE', 'WEAPON_MELEE_KNIFE_TRADER',
+    'WEAPON_MELEE_KNIFE_CIVIL_WAR', 'WEAPON_MELEE_KNIFE_HORROR', 'WEAPON_MELEE_KNIFE_MINER',
+    'WEAPON_MELEE_KNIFE_RUSTIC', 'WEAPON_MELEE_KNIFE_VAMPIRE',
+}
+Config.RequireKnifeMsg = 'ต้องมีมีดในกระเป๋าถึงจะชำแหละได้'
+
 -- ห้ามชำแหละถ้าซากอยู่ในเขตเมืองของ nx_cityselect (Config.Cities[i].zones/minZ/maxZ ของรีซอร์สนั้น)
 -- ใช้ exports.nx_cityselect:GetCityAtCoords() ตัดสินฝั่ง server เสมอ (ไม่เชื่อ client) — ปิดเช็คนี้ได้
 -- ด้วยการตั้ง false เฉยๆ ถ้าไม่ต้องการ, หรือถ้า nx_cityselect ไม่ได้ ensure ไว้ระบบจะ fail-open (อนุญาตให้
