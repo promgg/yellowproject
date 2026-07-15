@@ -2,7 +2,7 @@ Lang = "English"
 
 Config = {
 	-- ======================= DEVELOPMENT ============================== --
-	Debug                      = true, -- If your server is live set this to false.  to true only if you are testing things
+	Debug                      = false, -- If your server is live set this to false.  to true only if you are testing things
 
 	InventoryOrder             = "weapons", -- Items or weapons what should should first in inventory
 
