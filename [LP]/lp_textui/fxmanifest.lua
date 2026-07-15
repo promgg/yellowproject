@@ -26,7 +26,8 @@ exports {
     'StopProgress',
     'ResetProgress',
     'TextUIHold',
-    'CancelHold'
+    'CancelHold',
+    'SetSuppressed'
 }
 
 lua54 'yes'

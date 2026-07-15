@@ -64,7 +64,7 @@ end
 -- Loads + ownership-checks a loadout row. Returns the row (with `components` decoded) or nil, msg.
 local function fetchOwnedWeapon(source, weaponId, weaponName, character)
     local rows = MySQL.query.await(
-        'SELECT id, name, label, custom_label, components, comps, charidentifier FROM loadout WHERE id = @id LIMIT 1',
+        'SELECT id, name, label, custom_label, serial_number, components, comps, charidentifier FROM loadout WHERE id = @id LIMIT 1',
         { id = weaponId }
     )
     local row = rows and rows[1]
@@ -117,7 +117,7 @@ RegisterServerEvent('lp_gunsmith:sv:requestWeaponList', function()
     local character = getCharacter(source)
     if not character then return end
 
-    MySQL.query('SELECT id, name, label, custom_label, components FROM loadout WHERE charidentifier = @charid AND curr_inv = @curr_inv AND (dropped = 0 OR dropped IS NULL)', {
+    MySQL.query('SELECT id, name, label, custom_label, serial_number, components FROM loadout WHERE charidentifier = @charid AND curr_inv = @curr_inv AND (dropped = 0 OR dropped IS NULL)', {
         charid = character.charIdentifier,
         curr_inv = 'default',
     }, function(rows)
@@ -130,6 +130,7 @@ RegisterServerEvent('lp_gunsmith:sv:requestWeaponList', function()
                     id = row.id,
                     name = weaponName,
                     label = row.custom_label or row.label or weaponName,
+                    serialNumber = row.serial_number,
                     components = (ok and type(decoded) == 'table') and decoded or {},
                 }
             end
@@ -144,21 +145,35 @@ RegisterServerEvent('lp_gunsmith:sv:requestMyComponents', function()
     local character = getCharacter(source)
     if not character then return end
 
-    MySQL.query('SELECT name, components FROM loadout WHERE charidentifier = @charid AND curr_inv = @curr_inv AND (dropped = 0 OR dropped IS NULL)', {
+    MySQL.query('SELECT id, name, serial_number, components FROM loadout WHERE charidentifier = @charid AND curr_inv = @curr_inv AND (dropped = 0 OR dropped IS NULL)', {
         charid = character.charIdentifier,
         curr_inv = 'default',
     }, function(rows)
-        local map = {}
+        local weapons = {}
         for _, row in ipairs(rows or {}) do
             local weaponName = row.name and row.name:upper()
             if weaponName and Config.Components[weaponName] then
                 local ok, decoded = pcall(json.decode, row.components)
-                if ok and type(decoded) == 'table' and #decoded > 0 then
-                    map[weaponName] = decoded
+                local components = (ok and type(decoded) == 'table') and decoded or {}
+                local weaponId = tonumber(row.id)
+                weapons[#weapons + 1] = {
+                    id = weaponId,
+                    name = weaponName,
+                    serialNumber = row.serial_number,
+                    components = components,
+                }
+
+                -- Also repair vorp_inventory's live cache. This matters when
+                -- lp_gunsmith was restarted while the player stayed online.
+                local syncOk, synced = pcall(function()
+                    return exports.vorp_inventory:syncWeaponComponents(source, weaponId, components)
+                end)
+                if not syncOk or not synced then
+                    TriggerClientEvent('vorpInventory:syncWeaponComponents', source, weaponId, components)
                 end
             end
         end
-        TriggerClientEvent('lp_gunsmith:client:myComponents', source, map)
+        TriggerClientEvent('lp_gunsmith:client:myComponents', source, weapons)
     end)
 end)
 
@@ -274,9 +289,21 @@ local function handleComponentChange(source, weaponId, weaponName, slot, newComp
 
         logTx(source, isRemove and 'REMOVE' or 'APPLY', weaponId, weaponName, slot, newComponent or currentInSlot, price)
 
+        -- The DB is authoritative, but vorp_inventory also keeps a live Weapon
+        -- object on both server and client. Update that exact object by ID so
+        -- two guns with the same model never inherit one another's components.
+        local syncOk, synced = pcall(function()
+            return exports.vorp_inventory:syncWeaponComponents(source, weaponId, merged)
+        end)
+        if not syncOk or not synced then
+            print(('[lp_gunsmith] WARNING: unable to sync live component cache for weaponId=%s: %s')
+                :format(tostring(weaponId), syncOk and 'weapon cache rejected the update' or tostring(synced)))
+        end
+
         finishRequest(source, true, isRemove and Config.Text.Removed or Config.Text.Applied, {
             id = weaponId,
             name = weaponName,
+            serialNumber = weapon.serial_number,
             label = weapon.custom_label or weapon.label or weaponName,
             components = merged,
         })

@@ -19,17 +19,18 @@ end
 
 -- auto-migrate: สร้างตารางถ้ายังไม่มี (idempotent ปลอดภัย รันซ้ำได้) — ไม่ต้อง import sql เอง
 CreateThread(function()
-    MySQL.query([[
+    MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `vorp_fastslots` (
           `charidentifier` INT(11)      NOT NULL,
           `slot`           INT(11)      NOT NULL,
           `item_name`      VARCHAR(100) NOT NULL,
           `item_type`      VARCHAR(30)  NOT NULL DEFAULT 'item_standard',
+          `weapon_id`      INT(11)      DEFAULT NULL,
           `metadata`       LONGTEXT     DEFAULT NULL,
           PRIMARY KEY (`charidentifier`, `slot`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ]])
-    MySQL.query([[
+    MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `vorp_inventory_preferences` (
           `charidentifier`  INT(11)      NOT NULL,
           `sort_mode`       VARCHAR(20)  NOT NULL DEFAULT 'category',
@@ -38,6 +39,18 @@ CreateThread(function()
           PRIMARY KEY (`charidentifier`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ]])
+
+    local hasWeaponId = MySQL.scalar.await([[
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'vorp_fastslots'
+          AND COLUMN_NAME = 'weapon_id'
+        LIMIT 1
+    ]])
+    if not hasWeaponId then
+        MySQL.query.await("ALTER TABLE vorp_fastslots ADD COLUMN weapon_id INT(11) DEFAULT NULL AFTER item_type")
+    end
 end)
 
 -- bindings[charid][slot] = { name = ..., type = ..., metadata = table|nil }
@@ -69,6 +82,9 @@ end
 -- match แบบ "ชื่อล้วน" — hotbar ส่วนใหญ่เป็นของกิน/ยา ที่ stack รวมกัน ไม่มี metadata แยกแยะ
 -- การ match metadata แบบเป๊ะทำให้หาไอเทมไม่เจอบ่อย (เช่นผ้าพันแผล) จึงใช้ชื่ออย่างเดียวเพื่อความ robust
 local function matchesBinding(item, binding)
+    if binding.type == "item_weapon" and binding.weaponId then
+        return tonumber(item.id) == tonumber(binding.weaponId)
+    end
     return item.name == binding.name
 end
 
@@ -133,6 +149,7 @@ local function buildSyncPayload(_source, charid)
         slots[#slots + 1] = {
             slot = slot,
             item = {
+                id = binding.weaponId,
                 name = binding.name,
                 label = label,
                 count = count,
@@ -180,6 +197,7 @@ local function persistBindings(charid)
                 slot = slot,
                 name = binding.name,
                 type = binding.type,
+                weaponId = binding.weaponId,
                 metadata = binding.metadata and json.encode(binding.metadata) or nil,
             }
         end
@@ -194,8 +212,8 @@ local function persistBindings(charid)
             local remaining = #snapshot
             for _, row in ipairs(snapshot) do
                 MySQL.update(
-                    "INSERT INTO vorp_fastslots (charidentifier, slot, item_name, item_type, metadata) VALUES (?, ?, ?, ?, ?)",
-                    { charid, row.slot, row.name, row.type, row.metadata },
+                    "INSERT INTO vorp_fastslots (charidentifier, slot, item_name, item_type, weapon_id, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+                    { charid, row.slot, row.name, row.type, row.weaponId, row.metadata },
                     function()
                         remaining = remaining - 1
                         if remaining == 0 then flush() end
@@ -213,7 +231,7 @@ end
 -- ---------------------------------------------------------------------------
 
 local function loadBindings(charid, cb)
-    MySQL.query("SELECT slot, item_name, item_type, metadata FROM vorp_fastslots WHERE charidentifier = ? ORDER BY slot ASC", { charid }, function(rows)
+    MySQL.query("SELECT slot, item_name, item_type, weapon_id, metadata FROM vorp_fastslots WHERE charidentifier = ? ORDER BY slot ASC", { charid }, function(rows)
         local map = {}
         local seenItems = {}
         local removedDuplicates = false
@@ -225,10 +243,13 @@ local function loadBindings(charid, cb)
             end
 
             local slot = tonumber(row.slot)
-            local itemKey = string.lower(tostring(row.item_name or ""))
+            local weaponId = tonumber(row.weapon_id)
+            local itemKey = row.item_type == "item_weapon" and weaponId
+                and ("weapon:%d"):format(weaponId)
+                or string.lower(tostring(row.item_name or ""))
             if slot and slot >= 1 and slot <= MAX_SLOTS and itemKey ~= "" and not seenItems[itemKey] then
                 seenItems[itemKey] = true
-                map[slot] = { name = row.item_name, type = row.item_type, metadata = meta }
+                map[slot] = { name = row.item_name, type = row.item_type, weaponId = weaponId, metadata = meta }
             else
                 removedDuplicates = true
             end
@@ -405,7 +426,7 @@ RegisterServerEvent("vorp_inventory:preferences:update", function(data)
 end)
 
 -- assign: ผู้เล่นลากไอเทมใส่ช่อง (มาจาก NUIAddItemToFastSlot ฝั่ง client)
-RegisterServerEvent("vorp_inventory:fastslot:assign", function(slot, itemName, itemType, metadata)
+RegisterServerEvent("vorp_inventory:fastslot:assign", function(slot, itemName, itemType, metadata, requestedWeaponId)
     local _source = source
     slot = tonumber(slot)
     if not slot or slot < 1 or slot > MAX_SLOTS then return end
@@ -418,7 +439,12 @@ RegisterServerEvent("vorp_inventory:fastslot:assign", function(slot, itemName, i
     srcToChar[_source] = charid
 
     -- trust boundary: ผู้เล่นต้องมีไอเทมนี้จริงถึงจะผูกได้
-    local requestedBinding = { name = itemName }
+    requestedWeaponId = tonumber(requestedWeaponId)
+    local requestedBinding = {
+        name = itemName,
+        type = itemType,
+        weaponId = itemType == "item_weapon" and requestedWeaponId or nil,
+    }
     local liveItem = findLiveItem(_source, requestedBinding)
     if not liveItem then
         dbg("assign REJECTED: src", _source, "charid", charid, "slot", slot, "item", itemName, "-> ผู้เล่นไม่มีไอเทมนี้ในกระเป๋า")
@@ -429,7 +455,12 @@ RegisterServerEvent("vorp_inventory:fastslot:assign", function(slot, itemName, i
     -- standard item as a weapon and bypass the usable-item restriction.
     itemType = liveItem.type == "item_weapon" and "item_weapon" or "item_standard"
     metadata = type(liveItem.metadata) == "table" and liveItem.metadata or nil
-    local binding = { name = liveItem.name, type = itemType, metadata = metadata }
+    local binding = {
+        name = liveItem.name,
+        type = itemType,
+        weaponId = itemType == "item_weapon" and tonumber(liveItem.id) or nil,
+        metadata = metadata,
+    }
 
     if itemType == "item_standard" and not UsableItemsFunctions[liveItem.name] then
         dbg("assign REJECTED: item", itemName, "is not registered as usable")
@@ -443,10 +474,15 @@ RegisterServerEvent("vorp_inventory:fastslot:assign", function(slot, itemName, i
 
         -- A hotbar item is unique by item name, matching findLiveItem/matchesBinding semantics.
         -- Assigning it to a new slot moves it instead of cloning it into multiple slots.
-        local itemKey = string.lower(itemName)
+        local itemKey = itemType == "item_weapon" and binding.weaponId
+            and ("weapon:%d"):format(binding.weaponId)
+            or string.lower(itemName)
         local duplicateSlots = {}
         for existingSlot, existingBinding in pairs(charBindings) do
-            if existingSlot ~= slot and string.lower(tostring(existingBinding.name or "")) == itemKey then
+            local existingKey = existingBinding.type == "item_weapon" and existingBinding.weaponId
+                and ("weapon:%d"):format(existingBinding.weaponId)
+                or string.lower(tostring(existingBinding.name or ""))
+            if existingSlot ~= slot and existingKey == itemKey then
                 duplicateSlots[#duplicateSlots + 1] = existingSlot
             end
         end

@@ -83,8 +83,6 @@ RegisterNetEvent("vorp:PlayerForceRespawn", function()
     --AMMO
     if value.Ammo.AllAmmo then
         if not SharedUtils.IsValueInArray(job, value.Ammo.JobLock) then
-            TriggerClientEvent('syn_weapons:removeallammo', _source)  -- syn script
-            TriggerClientEvent('vorp_weapons:removeallammo', _source) -- vorp script
             InventoryAPI.removeAllUserAmmo(_source)
         end
     end

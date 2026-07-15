@@ -2,6 +2,11 @@ ClientItems = {}
 InventoryService = {}
 UserWeapons = {}
 UserInventory = {}
+local initialLoadPending = false
+local initialItemCount = 0
+local initialWeaponCount = 0
+local selectedCharacter = false
+local inventoryReady = false
 
 
 function InventoryService.receiveItem(name, id, amount, metadata, degradation, percentage)
@@ -92,18 +97,58 @@ function InventoryService.setWeaponSerialNumber(id, serial_number)
 	end
 end
 
+-- Keep the client-side weapon instance in sync when another server resource
+-- changes the persisted component list (for example lp_gunsmith). The weapon
+-- ID is important here: two copies of the same model may have different parts.
+function InventoryService.syncWeaponComponents(id, components)
+	id = tonumber(id)
+	if not id or not UserWeapons[id] or type(components) ~= "table" then return end
+
+	local normalized = {}
+	for _, component in ipairs(components) do
+		if type(component) == "string" then
+			normalized[#normalized + 1] = component
+		end
+	end
+
+	UserWeapons[id].components = normalized
+end
+
 function InventoryService.onSelectedCharacter()
 	SetNuiFocus(false, false)
 	SendNUIMessage({ action = "hide" })
-	print("Loading Inventory")
+	UserInventory = {}
+	UserWeapons = {}
+	initialLoadPending = true
+	selectedCharacter = true
+	inventoryReady = false
+	initialItemCount = 0
+	initialWeaponCount = 0
+	print("[vorp_inventory] loading inventory")
 	TriggerServerEvent("vorpinventory:getItemsTable")
-	Wait(300)
 	TriggerServerEvent("vorpinventory:getInventory")
-	Wait(1000)
-	TriggerServerEvent("vorpCore:LoadAllAmmo")
-	Wait(1000)
-	print("ammo loaded")
+end
+
+function InventoryService.initialLoadComplete(itemCount, weaponCount)
+	if not initialLoadPending then return end
+
+	initialItemCount = tonumber(itemCount) or 0
+	initialWeaponCount = tonumber(weaponCount) or 0
+	TriggerServerEvent("vorpCore:LoadAllAmmo", true)
+end
+
+function InventoryService.ammoLoadComplete()
+	if not initialLoadPending then return end
+
+	initialLoadPending = false
+	inventoryReady = true
+	print(("[vorp_inventory] inventory ready items=%d weapons=%d")
+		:format(initialItemCount, initialWeaponCount))
 	TriggerEvent("vorpinventory:loaded")
+end
+
+function InventoryService.isReady()
+	return selectedCharacter and inventoryReady
 end
 
 function InventoryService.processItems(items)
@@ -116,8 +161,11 @@ end
 
 -- Load inventory weapons on client start
 function InventoryService.getLoadout(loadout)
+	local primaryWeapons = {}
+	local secondaryWeapons = {}
+
 	for _, weapon in ipairs(loadout) do
-		local weaponAmmo = weapon.ammo
+		local weaponAmmo = weapon.ammo or {}
 		for type, amount in pairs(weaponAmmo) do
 			weaponAmmo[type] = tonumber(amount)
 		end
@@ -125,10 +173,12 @@ function InventoryService.getLoadout(loadout)
 		local weaponUsed = false
 		local weaponUsed2 = false
 
-		if weapon.used == 1 then weaponUsed = true end
-		if weapon.used2 == 1 then weaponUsed2 = true end
+		if weapon.used == true or tonumber(weapon.used) == 1 then weaponUsed = true end
+		if weapon.used2 == true or tonumber(weapon.used2) == 1 then weaponUsed2 = true end
+		weaponUsed = weaponUsed or weaponUsed2
 
-		if weapon.currInv == "default" and (weapon.dropped == nil or weapon.dropped == 0) then
+		local currentInventory = weapon.currInv or weapon.curr_inv
+		if currentInventory == "default" and (weapon.dropped == nil or tonumber(weapon.dropped) == 0) then
 			local newWeapon = Weapon:New({
 				id = tonumber(weapon.id),
 				identifier = weapon.identifier,
@@ -139,7 +189,7 @@ function InventoryService.getLoadout(loadout)
 				used = weaponUsed,
 				used2 = weaponUsed2,
 				desc = weapon.custom_desc or Utils.GetWeaponDefaultDesc(weapon.name),
-				currInv = weapon.curr_inv,
+				currInv = currentInventory,
 				dropped = 0,
 				group = 5,
 				custom_label = weapon.custom_label,
@@ -151,9 +201,32 @@ function InventoryService.getLoadout(loadout)
 			UserWeapons[newWeapon:getId()] = newWeapon
 
 			if newWeapon:getUsed() then
-				Utils.useWeapon(newWeapon:getId())
+				local restoreList = newWeapon:getUsed2() and secondaryWeapons or primaryWeapons
+				restoreList[#restoreList + 1] = newWeapon
 			end
 		end
+	end
+
+	-- Restore normal slots before off-hand slots so dual-wield weapons are placed
+	-- consistently. Components are reapplied after the weapon exists on the ped.
+	local function restoreWeapon(weapon)
+		Utils.useWeapon(weapon:getId())
+		weapon:loadComponents()
+
+		local weaponHash = joaat(weapon:getName())
+		local stateKey = string.format("GetEquippedWeaponData_%d", weaponHash)
+		LocalPlayer.state:set(stateKey, {
+			weaponId = weapon:getId(),
+			serialNumber = weapon:getSerialNumber(),
+		}, false)
+	end
+
+	for _, weapon in ipairs(primaryWeapons) do
+		restoreWeapon(weapon)
+	end
+
+	for _, weapon in ipairs(secondaryWeapons) do
+		restoreWeapon(weapon)
 	end
 end
 

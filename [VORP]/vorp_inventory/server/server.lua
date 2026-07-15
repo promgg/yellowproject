@@ -45,8 +45,7 @@ end)
 AddEventHandler('playerDropped', function()
     local _source <const> = source
     if _source then
-        local user <const>    = Core.getUser(_source)
-        local weapons <const> = UsersWeapons.default
+        local user <const> = Core.getUser(_source)
 
         if AmmoData[_source] then
             AmmoData[_source] = nil
@@ -59,14 +58,16 @@ AddEventHandler('playerDropped', function()
             end
         end
 
-        if not user then return end
-
-        local charid <const> = user.getUsedCharacter.charIdentifier
-
-        for key, value in pairs(weapons) do
-            if value.charId == charid then
-                UsersWeapons.default[key] = nil
-                break
+        local charid = user and user.getUsedCharacter.charIdentifier or nil
+        if WeaponDatabase and WeaponDatabase.ClearSource then
+            WeaponDatabase.ClearSource(_source, charid)
+        elseif charid then
+            -- Fallback for an unusual partial resource start: clear every weapon,
+            -- not only the first matching entry.
+            for key, value in pairs(UsersWeapons.default) do
+                if tostring(value.charId) == tostring(charid) then
+                    UsersWeapons.default[key] = nil
+                end
             end
         end
     end

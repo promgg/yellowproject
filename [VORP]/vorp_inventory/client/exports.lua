@@ -39,3 +39,7 @@ end)
 exports('getInventoryItems', function()
     return Utils.GetInventoryItems()
 end)
+
+exports('isInventoryReady', function()
+    return InventoryService and InventoryService.isReady and InventoryService.isReady() or false
+end)

@@ -1126,6 +1126,38 @@ end
 
 exports("getUserWeapon", InventoryAPI.getUserWeapon)
 
+---Synchronize an externally persisted weapon component list with the live
+---server/client caches. This intentionally does not write the DB; the calling
+---server resource remains the authority for its own validated transaction.
+---@param player number
+---@param weaponId number
+---@param components table
+---@return boolean
+function InventoryAPI.syncWeaponComponents(player, weaponId, components)
+	weaponId = tonumber(weaponId)
+	if not weaponId or type(components) ~= "table" then return false end
+
+	local user = Core.getUser(player)
+	local character = user and user.getUsedCharacter
+	local weapon = UsersWeapons.default[weaponId]
+	if not character or not weapon then return false end
+	if tostring(weapon:getCharId()) ~= tostring(character.charIdentifier) then return false end
+	if weapon:getCurrInv() ~= "default" then return false end
+
+	local normalized = {}
+	for _, component in ipairs(components) do
+		if type(component) == "string" then
+			normalized[#normalized + 1] = component
+		end
+	end
+
+	weapon.components = normalized
+	TriggerClientEvent("vorpInventory:syncWeaponComponents", player, weaponId, normalized)
+	return true
+end
+
+exports("syncWeaponComponents", InventoryAPI.syncWeaponComponents)
+
 --- get all user weapons
 ---@param player number source
 ---@param cb fun(weapons: table)? async or sync callback
@@ -1149,7 +1181,9 @@ function InventoryAPI.getUserWeapons(player, cb)
 				id = currentWeapon:getId(),
 				propietary = currentWeapon:getPropietary(),
 				used = currentWeapon:getUsed(),
+				used2 = currentWeapon:getUsed2(),
 				ammo = currentWeapon:getAllAmmo(),
+				components = currentWeapon:getAllComponents(),
 				desc = currentWeapon:getDesc(),
 				group = 5,
 				source = currentWeapon:getSource(),
@@ -1584,7 +1618,6 @@ function InventoryAPI.registerWeapon(_target, wepname, ammos, components, comps,
 			weight = weight
 		})
 		UsersWeapons.default[weaponId] = newWeapon
-		TriggerEvent("syn_weapons:registerWeapon", weaponId)
 		TriggerClientEvent("vorpInventory:receiveWeapon", _target, weaponId, targetIdentifier, name, ammo, label, serialNumber, label, _target, desc, weight)
 	end)
 	return respond(cb, true)
@@ -1653,13 +1686,15 @@ function InventoryAPI.giveWeapon(player, weaponId, target, cb)
 	if weapon then
 		weapon:setPropietary(sourceIdentifier)
 		weapon:setCharId(sourceCharId)
+		weapon:setUsed(false)
+		weapon:setUsed2(false)
 		local weaponPropietary = weapon:getPropietary()
 		local weaponAmmo = weapon:getAllAmmo()
 		local label = weapon:getLabel()
 		local serialNumber = weapon:getSerialNumber()
 		local customLabel = weapon:getCustomLabel()
 		local customDesc = weapon:getCustomDesc()
-		local query = "UPDATE loadout SET identifier = @identifier, charidentifier = @charid WHERE id = @id"
+		local query = "UPDATE loadout SET identifier = @identifier, charidentifier = @charid, used = 0, used2 = 0 WHERE id = @id"
 		local params = { identifier = sourceIdentifier, charid = sourceCharId, id = weaponId }
 
 		DBService.updateAsync(query, params, function(r)
@@ -1695,7 +1730,9 @@ function InventoryAPI.subWeapon(player, weaponId, cb)
 
 	if userWeapons then
 		userWeapons:setPropietary('')
-		local query = "UPDATE loadout SET identifier = @identifier, charidentifier = @charid WHERE id = @id"
+		userWeapons:setUsed(false)
+		userWeapons:setUsed2(false)
+		local query = "UPDATE loadout SET identifier = @identifier, charidentifier = @charid, used = 0, used2 = 0 WHERE id = @id"
 		local params = {
 			identifier = '',
 			charid = charId,
@@ -1965,6 +2002,7 @@ function InventoryAPI.openInventory(source, id)
 	local identifier = sourceCharacter.identifier
 	local charid = sourceCharacter.charIdentifier
 	local capacity = CustomInventoryInfos[id]:getLimit() > 0 and tostring(CustomInventoryInfos[id]:getLimit()) or 'oo'
+	local ignoreItemStackLimit = CustomInventoryInfos[id]:getIgnoreItemStack()
 	local weight = nil
 	if CustomInventoryInfos[id]:useWeight() then
 		weight = CustomInventoryInfos[id]:getWeight() > 0 and tostring(CustomInventoryInfos[id]:getWeight())
@@ -2002,7 +2040,7 @@ function InventoryAPI.openInventory(source, id)
 
 
 	local function triggerAndReloadInventory()
-		TriggerClientEvent("vorp_inventory:OpenCustomInv", _source, CustomInventoryInfos[id]:getName(), id, capacity, weight)
+		TriggerClientEvent("vorp_inventory:OpenCustomInv", _source, CustomInventoryInfos[id]:getName(), id, capacity, weight, ignoreItemStackLimit)
 		InventoryService.reloadInventory(_source, id)
 	end
 

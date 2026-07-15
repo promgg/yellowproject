@@ -1,11 +1,12 @@
 -- ตาราง fast slot / hotbar แบบเปิด (แทนระบบใน MJDevFastSlot.lua ตัวเข้ารหัสเดิม)
 -- ผูกช่องกับตัวละคร (charidentifier) เพื่อให้ช่องอยู่ครบหลัง relog / สลับตัวละคร / รีสตาร์ท resource
--- เก็บ "ชื่อไอเทม + metadata" ไม่เก็บ item id เพราะ id ของ vorp_inventory เปลี่ยนทุก session
+-- ไอเทมทั่วไปผูกด้วยชื่อ + metadata; อาวุธผูกด้วย weapon_id เพื่อแยกปืนรุ่นเดียวกันคนละกระบอก
 CREATE TABLE IF NOT EXISTS `vorp_fastslots` (
   `charidentifier` INT(11)      NOT NULL,
   `slot`           INT(11)      NOT NULL,
   `item_name`      VARCHAR(100) NOT NULL,
   `item_type`      VARCHAR(30)  NOT NULL DEFAULT 'item_standard',
+  `weapon_id`      INT(11)      DEFAULT NULL,
   `metadata`       LONGTEXT     DEFAULT NULL,
   PRIMARY KEY (`charidentifier`, `slot`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

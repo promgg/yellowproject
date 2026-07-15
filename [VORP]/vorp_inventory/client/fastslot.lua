@@ -31,7 +31,8 @@ function NUIAddItemToFastSlot(data, cb)
             tonumber(data.slot),
             name,
             data.type or item.type or "item_standard",
-            metadata)
+            metadata,
+            tonumber(data.id or item.id))
     else
         dbg("NUIAddItemToFastSlot: ^1data ไม่ถูกต้อง^7", json.encode(data or {}))
     end

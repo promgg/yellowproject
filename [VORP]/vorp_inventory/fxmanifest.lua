@@ -51,6 +51,8 @@ ui_page 'html/ui.html'
 ---@deprecated
 server_exports { 'vorp_inventoryApi' }
 
+dependency 'lp_textui'
+
 -- version
 version '4.1'
 vorp_checker 'yes'

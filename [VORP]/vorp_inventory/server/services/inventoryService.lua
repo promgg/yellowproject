@@ -243,8 +243,31 @@ function InventoryService.setWeaponBullets(weaponId, type, amount)
 end
 
 function InventoryService.usedWeapon(id, _used, _used2)
-	local query <const> = 'UPDATE loadout SET used = @used, used2 = @used2 WHERE id = @id'
-	local params <const> = { used = _used and 1 or 0, used2 = _used2 and 1 or 0, id = id }
+	local _source = source
+	local user = Core.getUser(_source)
+	local weaponId = tonumber(id)
+	if not user or not weaponId then return end
+
+	local character = user.getUsedCharacter
+	local weapon = UsersWeapons.default[weaponId]
+	if not weapon or tostring(weapon.charId) ~= tostring(character.charIdentifier) then return end
+
+	local used = _used == true or tonumber(_used) == 1
+	local used2 = _used2 == true or tonumber(_used2) == 1
+	weapon:setUsed(used or used2)
+	weapon:setUsed2(used2)
+
+	local query <const> = [[
+		UPDATE loadout
+		SET used = @used, used2 = @used2
+		WHERE id = @id AND charidentifier = @charidentifier AND curr_inv = 'default'
+	]]
+	local params <const> = {
+		used = (used or used2) and 1 or 0,
+		used2 = used2 and 1 or 0,
+		id = weaponId,
+		charidentifier = character.charIdentifier,
+	}
 	DBService.updateAsync(query, params, function(r) end)
 end
 
@@ -441,8 +464,10 @@ function InventoryService.subWeapon(source, weaponId)
 	if not weaponId or not userWeapons[weaponId] then return false end
 
 	userWeapons[weaponId]:setPropietary('')
+	userWeapons[weaponId]:setUsed(false)
+	userWeapons[weaponId]:setUsed2(false)
 	local params <const> = { charId = charId, id = weaponId, }
-	DBService.updateAsync('UPDATE loadout SET identifier = "", dropped = 1, charidentifier = @charId WHERE id = @id', params)
+	DBService.updateAsync('UPDATE loadout SET identifier = "", dropped = 1, used = 0, used2 = 0, charidentifier = @charId WHERE id = @id', params)
 	return true
 end
 
@@ -1098,6 +1123,18 @@ function InventoryService.getInventory()
 	local sourceCharId = sourceCharacter.charIdentifier
 
 	local characterInventory = {}
+	local itemCount = 0
+	local weaponCount = 0
+	local itemsReady = false
+	local weaponsReady = false
+
+	local function finishInitialLoad()
+		if not itemsReady or not weaponsReady then return end
+
+		print(("[vorp_inventory] load complete src=%s char=%s items=%d weapons=%d")
+			:format(_source, sourceCharId, itemCount, weaponCount))
+		TriggerClientEvent("vorpInventory:loadComplete", _source, itemCount, weaponCount)
+	end
 
 	if sourceCharId ~= nil then
 		DBService.GetInventory(sourceCharId, "default", function(inventory)
@@ -1149,21 +1186,27 @@ function InventoryService.getInventory()
 						percentage = item.percentage
 					})
 					characterInventory[item.id] = itemObj
+					itemCount = itemCount + 1
 				end
 			end
 			UsersInventories.default[sourceIdentifier] = characterInventory
 			local data = msgpack.pack(characterInventory)
 			TriggerClientEvent("vorpInventory:giveInventory", _source, data)
+			itemsReady = true
+			finishInitialLoad()
 		end)
 
-
-		local userWeapons = {}
-		for _, weapon in pairs(UsersWeapons.default) do
-			if weapon.propietary == sourceIdentifier and weapon.charId == sourceCharId and weapon.currInv == "default" and weapon.dropped == 0 then
-				userWeapons[#userWeapons + 1] = weapon
+		WeaponDatabase.LoadPlayerWeapons(_source, sourceCharacter, function(userWeapons)
+			local activeUser = Core.getUser(_source)
+			if not activeUser or tostring(activeUser.getUsedCharacter.charIdentifier) ~= tostring(sourceCharId) then
+				return
 			end
-		end
-		TriggerClientEvent("vorpInventory:giveLoadout", _source, userWeapons)
+
+			weaponCount = #userWeapons
+			TriggerClientEvent("vorpInventory:giveLoadout", _source, userWeapons)
+			weaponsReady = true
+			finishInitialLoad()
+		end)
 
 		for id, _ in pairs(CustomInventoryInfos) do
 			if UsersInventories[id][sourceIdentifier] then
@@ -1242,14 +1285,16 @@ function InventoryService.updateAmmo(ammoinfo)
 	end)
 end
 
-function InventoryService.LoadAllAmmo()
+function InventoryService.LoadAllAmmo(notifyLoadComplete)
 	local _source = source
-	local sourceCharacter = Core.getUser(_source).getUsedCharacter
+	local user = Core.getUser(_source)
+	if not user then return end
+	local sourceCharacter = user.getUsedCharacter
 	local charidentifier = sourceCharacter.charIdentifier
 	local query = "SELECT ammo FROM characters WHERE charidentifier=@charidentifier"
 	local params = { charidentifier = charidentifier }
 	DBService.queryAsync(query, params, function(result)
-		if result[1] and result[1].ammo then
+		if result and result[1] and result[1].ammo then
 			local ammo = json.decode(result[1].ammo)
 			AmmoData[_source] = { charidentifier = charidentifier, ammo = ammo }
 			if next(ammo) then
@@ -1262,6 +1307,10 @@ function InventoryService.LoadAllAmmo()
 				-- update players client side
 				TriggerClientEvent("vorpinventory:recammo", _source, AmmoData[_source])
 			end
+		end
+
+		if notifyLoadComplete == true then
+			TriggerClientEvent("vorpInventory:ammoLoadComplete", _source)
 		end
 	end)
 end
@@ -1620,9 +1669,11 @@ function InventoryService.MoveToCustom(obj)
 			return Core.NotifyObjective(_source, message, 2000)
 		end
 
-		local query = "UPDATE loadout SET identifier = '',curr_inv = @invId WHERE charidentifier = @charid AND id = @weaponId"
+		local query = "UPDATE loadout SET identifier = '', curr_inv = @invId, used = 0, used2 = 0 WHERE charidentifier = @charid AND id = @weaponId"
 		local params = { invId = invId, charid = sourceCharIdentifier, weaponId = item.id }
 		DBService.updateAsync(query, params)
+		UsersWeapons.default[item.id]:setUsed(false)
+		UsersWeapons.default[item.id]:setUsed2(false)
 		UsersWeapons.default[item.id]:setCurrInv(invId)
 		UsersWeapons[invId][item.id] = UsersWeapons.default[item.id]
 		UsersWeapons.default[item.id] = nil
@@ -1705,13 +1756,15 @@ function InventoryService.TakeFromCustom(obj)
 			return Core.NotifyObjective(_source, T.fullInventory, 2000)
 		end
 
-		local query = "UPDATE loadout SET curr_inv = 'default', charidentifier = @charid, identifier = @identifier WHERE id = @weaponId"
+		local query = "UPDATE loadout SET curr_inv = 'default', used = 0, used2 = 0, charidentifier = @charid, identifier = @identifier WHERE id = @weaponId"
 		local params = { identifier = sourceIdentifier, weaponId = item.id, charid = sourceCharIdentifier }
 		DBService.updateAsync(query, params)
 		UsersWeapons[invId][item.id]:setCurrInv("default")
 		UsersWeapons.default[item.id] = UsersWeapons[invId][item.id]
 		UsersWeapons.default[item.id].propietary = sourceIdentifier
 		UsersWeapons.default[item.id].charId = sourceCharIdentifier
+		UsersWeapons.default[item.id]:setUsed(false)
+		UsersWeapons.default[item.id]:setUsed2(false)
 		UsersWeapons[invId][item.id] = nil
 		local weapon = UsersWeapons.default[item.id]
 		local name = weapon:getName()

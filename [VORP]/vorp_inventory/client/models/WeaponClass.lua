@@ -100,7 +100,6 @@ local function addWeapon(weapon, slot, id)
 	Citizen.InvokeNative(0x12FB95FE3D579238, playerPedId, itemData:Buffer(), true, slot, false, false)
 	if move then
 		Citizen.InvokeNative(0x12FB95FE3D579238, playerPedId, equippedWeapons[1].guid, true, 1, false, false)
-		TriggerServerEvent("syn_weapons:applyDupeTint", id, itemData:Buffer(), weaponHash)
 	end
 	if id then
 		local nWeapon = {

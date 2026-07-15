@@ -64,30 +64,48 @@ local isShowing  = false
 local holdActive = false
 local holdGen    = 0
 local worldGen   = 0
+local isSuppressed = false
+local suppressOwners = {}
+local suppressGen = {}
 
--- โหมด world: ยิงตำแหน่งจอทุกเฟรม (GetScreenCoordFromWorldCoord) โดยไม่สร้าง DOM ใหม่
+-- โหมด world: คำนวณตำแหน่งจอทุกเฟรม (native เบา) แต่ยิง SendNUIMessage เฉพาะตอนค่าที่จอ
+-- เปลี่ยนจริงเท่านั้น — ตอนผู้เล่น/กล้องนิ่ง (เคสส่วนใหญ่ตอนยืนอ่าน/รอโต้ตอบ) พิกัดจอจะเท่าเดิม
+-- ทุกเฟรม ยิง NUI message ซ้ำๆ ทั้งที่ไม่มีอะไรเปลี่ยนคือส่วนที่กิน resmon จริง (cost หลักอยู่ที่
+-- IPC/serialize ข้าม CEF ไม่ใช่ตัว native เอง) ตัดตรงนี้ลด SendNUIMessage ได้เกือบทั้งหมดตอนยืนนิ่ง
 -- generation counter กัน thread เก่าค้างทับ thread ใหม่เมื่อสลับ anchor/ปิด UI
+local WORLD_POS_EPSILON = 0.0008 -- หน่วย normalized 0-1 ของจอ ต่ำกว่านี้ถือว่าไม่ขยับ (ไม่ต้องส่งซ้ำ)
+
 local function worldPosThread(anchor)
     worldGen = worldGen + 1
     local gen = worldGen
     Citizen.CreateThread(function()
+        local lastOnScreen, lastSx, lastSy = nil, nil, nil
         while gen == worldGen and isShowing do
             local ox, oy, oz = 0.0, 0.0, 0.0
             if anchor.offset then ox, oy, oz = anchor.offset.x or 0.0, anchor.offset.y or 0.0, anchor.offset.z or 0.0 end
             local onScreen, sx, sy = GetScreenCoordFromWorldCoord(
                 anchor.coords.x + ox, anchor.coords.y + oy, anchor.coords.z + oz
             )
-            SendNUIMessage({ action = 'lp_textui:worldPos', onScreen = onScreen and true or false, x = sx, y = sy })
+            local changed = onScreen ~= lastOnScreen
+                or lastSx == nil or math.abs(sx - lastSx) > WORLD_POS_EPSILON
+                or lastSy == nil or math.abs(sy - lastSy) > WORLD_POS_EPSILON
+            if changed then
+                SendNUIMessage({ action = 'lp_textui:worldPos', onScreen = onScreen and true or false, x = sx, y = sy })
+                lastOnScreen, lastSx, lastSy = onScreen, sx, sy
+            end
             Citizen.Wait(0)
         end
     end)
 end
 
 local function TextUI(message, key, worldAnchor)
+    if isSuppressed then return false end
+
     isShowing = true
     worldGen  = worldGen + 1 -- ปิด world thread เก่า (ถ้ามี) ก่อนเปิดของใหม่
     SendNUIMessage({ action = 'lp_textui:show', message = message or '', key = key, world = worldAnchor ~= nil })
     if worldAnchor then worldPosThread(worldAnchor) end
+    return true
 end
 
 local function HideUI()
@@ -98,7 +116,9 @@ local function HideUI()
 end
 
 local function StartProgress(duration)
+    if isSuppressed then return false end
     SendNUIMessage({ action = 'lp_textui:progress', duration = duration })
+    return true
 end
 
 local function StopProgress()
@@ -166,6 +186,8 @@ end
 -- ── Mode 2: hold-to-interact — polls controlCode itself, drives the ring,
 -- fires callback() only on a full, uninterrupted hold. Release early = reset.
 local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
+    if isSuppressed then return false end
+
     controlCode = controlCode or 0x17BEC168 -- E
 
     TextUI(message, nil, worldAnchor)
@@ -178,6 +200,7 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
 
     Citizen.CreateThread(function()
         local heldStart = nil
+        local lastSentPct = nil -- ปัดเป็นจำนวนเต็มก่อนส่ง กันยิง SendNUIMessage ทุกเฟรมทั้งที่ % ยังไม่ขยับ
         while gen == holdGen and holdActive do
             Citizen.Wait(0)
             -- กันปุ่มชนกับ ambient scenario ของเกมหลัก (เช่น นั่งลงเองใกล้ก้อนหิน/ต้นไม้)
@@ -187,7 +210,11 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
                 heldStart = heldStart or GetGameTimer()
                 local elapsed = GetGameTimer() - heldStart
                 local pct = math.min(100, (elapsed / holdMs) * 100)
-                setHoldProgress(pct)
+                local pctRounded = math.floor(pct + 0.5)
+                if pctRounded ~= lastSentPct then
+                    setHoldProgress(pct)
+                    lastSentPct = pctRounded
+                end
                 if elapsed >= holdMs then
                     holdActive = false
                     HideUI()
@@ -204,6 +231,7 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
             end
         end
     end)
+    return true
 end
 
 local function CancelHold()
@@ -215,9 +243,46 @@ local function CancelHold()
     blockNearbyAmbientPrompts(false)
 end
 
+-- Temporarily blocks every TextUI caller while a full-screen NUI is open.
+-- Suppression is tracked per invoking resource so a bank -> locker handoff, or
+-- two overlapping UIs, cannot release another resource's active lock.
+local function SetSuppressed(state, releaseDelayMs, ownerName)
+    local owner = tostring(ownerName or GetInvokingResource() or "lp_textui")
+    suppressGen[owner] = (suppressGen[owner] or 0) + 1
+    local gen = suppressGen[owner]
+
+    if state == true then
+        suppressOwners[owner] = true
+        isSuppressed = true
+        CancelHold()
+        HideUI()
+        return
+    end
+
+    local delay = math.max(0, tonumber(releaseDelayMs) or 0)
+    if delay == 0 then
+        suppressOwners[owner] = nil
+        isSuppressed = next(suppressOwners) ~= nil
+        return
+    end
+
+    SetTimeout(delay, function()
+        if gen == suppressGen[owner] then
+            suppressOwners[owner] = nil
+            isSuppressed = next(suppressOwners) ~= nil
+        end
+    end)
+end
+
 -- กัน ped ที่ถูกกันไว้ค้าง flag ถาวรถ้า resource นี้ restart กลางที่ถือค้างพอดี
 -- (guardedPeds เป็น local state หายตอน restart แต่ flag บนตัว ped ในโลกยังอยู่ ต้องคืนค่าก่อน)
 AddEventHandler('onResourceStop', function(res)
+    if suppressOwners[res] then
+        suppressGen[res] = (suppressGen[res] or 0) + 1
+        suppressOwners[res] = nil
+        isSuppressed = next(suppressOwners) ~= nil
+    end
+
     if res ~= GetCurrentResourceName() then return end
     blockNearbyAmbientPrompts(false)
 end)
@@ -229,6 +294,7 @@ exports('StopProgress', StopProgress)
 exports('ResetProgress', ResetProgress)
 exports('TextUIHold', TextUIHold)
 exports('CancelHold', CancelHold)
+exports('SetSuppressed', SetSuppressed)
 
 RegisterNetEvent('lp_textui:client:show', TextUI)
 RegisterNetEvent('lp_textui:client:hide', HideUI)
@@ -237,6 +303,7 @@ RegisterNetEvent('lp_textui:client:progressStop', StopProgress)
 RegisterNetEvent('lp_textui:client:progressReset', ResetProgress)
 RegisterNetEvent('lp_textui:client:showHold', TextUIHold)
 RegisterNetEvent('lp_textui:client:cancelHold', CancelHold)
+RegisterNetEvent('lp_textui:client:suppress', SetSuppressed)
 
 -- ── Test commands (F8 console) ──────────────────────────────────────────
 -- /textui_test        show "[E] ..." once (key auto-extracted from brackets)

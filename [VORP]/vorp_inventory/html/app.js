@@ -36,6 +36,7 @@ const state = {
         title: "",
         capacity: null,
         weight: null,
+        ignoreItemStackLimit: false,
         ids: {},
     },
     pendingGive: null,
@@ -713,7 +714,7 @@ function createItemCard(item, index, inventoryName) {
         button.insertAdjacentHTML("beforeend", `<span class="equipped-dot"></span>`);
     }
 
-    const amount = formatAmount(normalized, false);
+    const amount = formatAmount(normalized, false, inventoryName);
     if (amount) {
         button.insertAdjacentHTML("beforeend", `<span class="item-amount">${escapeHtml(amount)}</span>`);
     }
@@ -728,7 +729,7 @@ function createItemCard(item, index, inventoryName) {
         });
     }
 
-    button.addEventListener("mouseenter", (event) => showItemTooltip(normalized, event));
+    button.addEventListener("mouseenter", (event) => showItemTooltip(normalized, event, inventoryName));
     button.addEventListener("mousemove", positionItemTooltip);
     button.addEventListener("mouseleave", hideItemTooltip);
 
@@ -928,7 +929,7 @@ function getTransferMax(direction, item) {
             max = Math.min(max, Math.max(0, inventoryLimit - computeSecondaryUsedCount()));
         }
 
-        if (!isWeapon && itemLimit > 0) {
+        if (!isWeapon && itemLimit > 0 && !state.secondary.ignoreItemStackLimit) {
             const storedCount = countItemByName(state.secondaryItems, normalized.name);
             max = Math.min(max, Math.max(0, itemLimit - storedCount));
         }
@@ -1209,11 +1210,13 @@ function handleDisplay(data) {
 
     if (state.type === "main") {
         state.secondary.visible = false;
+        state.secondary.ignoreItemStackLimit = false;
     } else {
         state.secondary.visible = true;
         state.secondary.title = data.title || data.name || state.type;
         state.secondary.capacity = data.capacity ?? null;
         state.secondary.weight = data.weight ?? null;
+        state.secondary.ignoreItemStackLimit = data.ignoreItemStackLimit === true;
         state.secondary.ids = {
             ...state.secondary.ids,
             id: data.id,
@@ -1393,10 +1396,13 @@ function applyInventoryPreferences(preferences) {
     renderActions();
 }
 
-function formatAmount(item, fastSlot) {
+function formatAmount(item, fastSlot, inventoryName) {
     if (item.type === "item_weapon") return item.count > 0 && !fastSlot ? String(item.count) : "";
     const count = numberOrZero(item.count);
     const limit = numberOrZero(item.limit);
+    if (inventoryName === "second" && state.secondary.ignoreItemStackLimit) {
+        return count > 0 ? String(count) : "";
+    }
     if (limit > 0) return `${count}/${limit}`;
     return count > 1 || fastSlot ? String(count) : "";
 }
@@ -1434,7 +1440,7 @@ function buildSelectedMeta(item) {
     return pieces.filter(Boolean).join(" / ");
 }
 
-function showItemTooltip(item, event) {
+function showItemTooltip(item, event, inventoryName) {
     if (!els.contextMenu.classList.contains("is-hidden")) {
         hideItemTooltip();
         return;
@@ -1452,7 +1458,8 @@ function showItemTooltip(item, event) {
     const description = normalized.metadata?.description || normalized.desc || normalized.custom_desc;
 
     rows.push(["Category", category]);
-    rows.push(["Amount", limit > 0 ? `${count}/${limit}` : String(count)]);
+    const ignoresStackLimit = inventoryName === "second" && state.secondary.ignoreItemStackLimit;
+    rows.push(["Amount", limit > 0 && !ignoresStackLimit ? `${count}/${limit}` : String(count)]);
     if (state.config.UseWeight && weight > 0) {
         rows.push(["Weight", `${formatNumber(weight)} ${unit}`]);
         rows.push(["Total", `${formatNumber(weight * count)} ${unit}`]);

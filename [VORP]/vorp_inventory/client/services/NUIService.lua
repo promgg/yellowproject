@@ -12,6 +12,14 @@ InInventory               = false
 NUIService                = {}
 SynPending                = false
 
+local TEXTUI_RELEASE_DELAY = 350
+
+local function suppressTextUI(state, releaseDelayMs)
+	if GetResourceState("lp_textui") == "started" then
+		exports.lp_textui:SetSuppressed(state, releaseDelayMs or 0)
+	end
+end
+
 RegisterNetEvent('inv:dropstatus', function(x)
 	candrop = x
 end)
@@ -69,10 +77,11 @@ function NUIService.ReloadInventory(inventory, packed)
 	SynPending = false
 end
 
-function NUIService.OpenCustomInventory(name, id, capacity, weight)
+function NUIService.OpenCustomInventory(name, id, capacity, weight, ignoreItemStackLimit)
 	CanOpen = Core.Callback.TriggerAwait("vorp_inventory:Server:CanOpenCustom", id)
 	if not CanOpen then return end
 
+	suppressTextUI(true)
 	ApplyPosfx()
 	DisplayRadar(false)
 	CanOpen = false
@@ -84,6 +93,7 @@ function NUIService.OpenCustomInventory(name, id, capacity, weight)
 		id = tostring(id),
 		capacity = capacity,
 		weight = weight,
+		ignoreItemStackLimit = ignoreItemStackLimit == true,
 	})
 	InInventory = true
 end
@@ -101,6 +111,7 @@ function NUIService.OpenPlayerInventory(name, id)
 	if not CanOpen then return end
 
 	CanOpen = false
+	suppressTextUI(true)
 	ApplyPosfx()
 	DisplayRadar(false)
 	SetNuiFocus(true, true)
@@ -154,6 +165,7 @@ function NUIService.CloseInv()
 	SetNuiFocus(false, false)
 	SendNUIMessage({ action = "hide" })
 	InInventory = false
+	suppressTextUI(false, TEXTUI_RELEASE_DELAY)
 	TriggerEvent("vorp_stables:setClosedInv", false)
 	TriggerEvent("syn:closeinv")
 end
@@ -169,6 +181,7 @@ AddEventHandler("onResourceStop", function(resourceName)
 	SetNuiFocus(false, false)
 	SendNUIMessage({ action = "hide" })
 	InInventory = false
+	suppressTextUI(false, 0)
 end)
 
 function NUIService.setProcessingPayFalse()
@@ -394,6 +407,7 @@ local function useWeapon(data)
 	if not weaponId or not UserWeapons[weaponId] then
 		return print("Weapon not found")
 	end
+
 	local weapName = joaat(UserWeapons[weaponId]:getName())
 	local isWeaponAGun = Citizen.InvokeNative(0x705BE297EEBDB95D, weapName)
 	local isWeaponOneHanded = Citizen.InvokeNative(0xD955FEE4B87AFA07, weapName)
@@ -428,7 +442,6 @@ local function useWeapon(data)
 		end
 		UserWeapons[weaponId]:loadComponents()
 		UserWeapons[weaponId]:setUsed(true)
-		TriggerServerEvent("syn_weapons:weaponused", data)
 	elseif not UserWeapons[weaponId]:getUsed() and not Citizen.InvokeNative(0x8DECB02F88F428BC, ped, weapName, 0, true) or Citizen.InvokeNative(0x30E7C16B12DA8211, weapName) then
 		notdual = true
 	end
@@ -437,7 +450,6 @@ local function useWeapon(data)
 		UserWeapons[weaponId]:equipwep()
 		UserWeapons[weaponId]:loadComponents()
 		UserWeapons[weaponId]:setUsed(true)
-		TriggerServerEvent("syn_weapons:weaponused", data)
 	end
 	if UserWeapons[weaponId]:getUsed() then
 		local serial = UserWeapons[weaponId]:getSerialNumber()
@@ -606,6 +618,7 @@ function NUIService.LoadInv()
 end
 
 function NUIService.OpenInv()
+	suppressTextUI(true)
 	ApplyPosfx()
 	DisplayRadar(false)
 	PlaySoundFrontend("SELECT", "RDRO_Character_Creator_Sounds", true, 0)

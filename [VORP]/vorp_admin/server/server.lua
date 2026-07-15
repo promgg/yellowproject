@@ -463,9 +463,9 @@ RegisterNetEvent("vorp_admin:ClearAllItems", function(type, target, _, name)
             local id <const> = value.id
             exports.vorp_inventory:subWeapon(target, id)
             exports.vorp_inventory:deleteWeapon(target, id)
-            TriggerClientEvent('syn_weapons:removeallammo', target)
-            exports.vorp_inventory:removeAllUserAmmo(target)
         end
+
+        exports.vorp_inventory:removeAllUserAmmo(target)
 
         Core.NotifyRightTip(_source, T.Notify.weaponsWiped, 4000)
         Core.NotifyRightTip(target, T.Notify.weaponWipe, 5000)

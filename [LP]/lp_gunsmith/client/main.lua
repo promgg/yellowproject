@@ -22,8 +22,10 @@ local sessionDirty = false
 local customized = {}
 local pendingPick = nil
 
+-- Saved customization indexed by the unique loadout weapon ID, never by model
+-- name. Multiple guns of the same model can therefore keep different parts.
 local myComponents = {}
-local lastAppliedHash = nil
+local lastAppliedKey = nil
 
 local function notify(msg, msgType)
     exports.pNotify:SendNotification({ type = msgType or 'error', text = msg, timeout = 4000 })
@@ -90,8 +92,23 @@ local function refreshHeldWeapon(weaponName, components)
 
     local slots = Config.Components[weaponName]
     if slots then
+        local desired = {}
+        for _, comp in ipairs(components) do
+            desired[comp] = true
+        end
+
         for slot, options in pairs(slots) do
-            if not Config.EssentialSlots[slot] then
+            local hasReplacement = false
+            for _, comp in ipairs(options) do
+                if desired[comp] then
+                    hasReplacement = true
+                    break
+                end
+            end
+
+            -- Essential parts must not be left empty, but they still need their
+            -- previous variant removed when a replacement for that slot exists.
+            if hasReplacement or not Config.EssentialSlots[slot] then
                 for _, comp in ipairs(options) do
                     Citizen.InvokeNative(0x19F70C4D80494FF8, ped, joaat(comp), wHash) -- RemoveWeaponComponentFromPed
                 end
@@ -388,7 +405,7 @@ local function exitGunsmith()
     local pending = customized
     customized = {}
     for _, entry in pairs(pending) do
-        myComponents[entry.name] = entry.components
+        myComponents[tonumber(entry.id)] = entry
     end
 
     freezePlayer(true)
@@ -399,13 +416,12 @@ local function exitGunsmith()
         controlDisables = { disableMovement = true, disableCombat = true },
         animation = Config.ApplyProgress.animation,
     }, function()
-        CreateThread(function()
-            for _, entry in pairs(pending) do
-                refreshHeldWeapon(entry.name, entry.components)
-            end
-            lastAppliedHash = false
-            freezePlayer(false)
-        end)
+        -- The per-weapon cache was updated as each server transaction completed.
+        -- Let the exact equipped weapon-ID watcher reconcile the current weapon;
+        -- iterating every edited weapon here could apply the wrong instance when
+        -- a player owns two guns with the same model.
+        lastAppliedKey = nil
+        freezePlayer(false)
     end)
 end
 
@@ -559,7 +575,7 @@ RegisterNetEvent('lp_gunsmith:client:receiveWeaponList', function(weapons)
         elements[#elements + 1] = {
             label = w.label,
             value = tostring(w.id),
-            desc = w.name,
+            desc = ('%s | ID %s | SN %s'):format(w.name, tostring(w.id), tostring(w.serialNumber or '-')),
             weapon = w,
         }
     end
@@ -597,7 +613,16 @@ RegisterNetEvent('lp_gunsmith:client:applyResult', function(ok, message, weapon)
 
     if ok and weapon then
         sessionDirty = true
-        customized[weapon.id] = { name = weapon.name, components = weapon.components }
+        local weaponId = tonumber(weapon.id)
+        local entry = {
+            id = tonumber(weapon.id),
+            name = weapon.name,
+            serialNumber = weapon.serialNumber,
+            components = weapon.components,
+        }
+        customized[weaponId] = entry
+        myComponents[weaponId] = entry
+        lastAppliedKey = nil
 
         if pick and pick.weapon then
             pick.weapon.components = weapon.components
@@ -623,31 +648,74 @@ end)
 -- Post-relog persistence: fetch this character's saved customizations on spawn, then re-apply
 -- them each time a saved weapon becomes the one in hand (vorp_inventory stores them but doesn't
 -- redraw). vorp:SelectedCharacter is a server-fired event, so it MUST be a RegisterNetEvent.
-RegisterNetEvent('lp_gunsmith:client:myComponents', function(map)
-    myComponents = map or {}
+RegisterNetEvent('lp_gunsmith:client:myComponents', function(weapons)
+    myComponents = {}
+    for _, weapon in ipairs(weapons or {}) do
+        local weaponId = tonumber(weapon.id)
+        if weaponId then
+            myComponents[weaponId] = weapon
+        end
+    end
+    lastAppliedKey = nil
 end)
 
 RegisterNetEvent('vorp:SelectedCharacter', function()
     myComponents = {}
-    lastAppliedHash = nil
+    lastAppliedKey = nil
     Wait(4000)
     TriggerServerEvent('lp_gunsmith:sv:requestMyComponents')
 end)
+
+-- A resource restart can happen after vorp:SelectedCharacter already fired.
+-- Reload the authoritative component list so the held-weapon watcher still works.
+AddEventHandler('onClientResourceStart', function(startedResource)
+    if startedResource ~= RESOURCE then return end
+
+    CreateThread(function()
+        Wait(2000)
+        TriggerServerEvent('lp_gunsmith:sv:requestMyComponents')
+    end)
+end)
+
+local function getHeldWeaponCustomization(curHash)
+	local stateKey = string.format('GetEquippedWeaponData_%d', curHash)
+    local equipped = LocalPlayer.state[stateKey]
+    local equippedId = equipped and tonumber(equipped.weaponId)
+    local exact = equippedId and myComponents[equippedId]
+
+    if exact and joaat(exact.name) == curHash then
+        return exact, equippedId
+    end
+
+    -- Compatibility fallback for a weapon equipped by an older caller that did
+    -- not publish its weapon ID. It is only safe when this character owns one
+    -- instance of that model; duplicates deliberately wait for an exact ID.
+    local match = nil
+    for weaponId, weapon in pairs(myComponents) do
+        if joaat(weapon.name) == curHash then
+            if match then return nil, nil end
+            match = { weapon = weapon, id = weaponId }
+        end
+    end
+    return match and match.weapon or nil, match and match.id or nil
+end
 
 CreateThread(function()
     while true do
         Wait(500)
         local ped = PlayerPedId()
         local _, curHash = GetCurrentPedWeapon(ped, true, 0, true)
-        if curHash ~= lastAppliedHash then
-            lastAppliedHash = curHash
-            if curHash and curHash ~= `WEAPON_UNARMED` and next(myComponents) then
-                for name, comps in pairs(myComponents) do
-                    if joaat(name) == curHash and comps and #comps > 0 then
-                        CreateThread(function() refreshHeldWeapon(name, comps) end)
-                        break
-                    end
-                end
+        local customization, weaponId = nil, nil
+        if curHash and curHash ~= `WEAPON_UNARMED` and next(myComponents) then
+            customization, weaponId = getHeldWeaponCustomization(curHash)
+        end
+
+        local appliedKey = ('%s:%s'):format(tostring(curHash), tostring(weaponId or 'none'))
+        if appliedKey ~= lastAppliedKey then
+            lastAppliedKey = appliedKey
+            if customization and customization.components and #customization.components > 0 then
+                local entry = customization
+                CreateThread(function() refreshHeldWeapon(entry.name, entry.components) end)
             end
         end
     end
