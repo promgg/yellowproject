@@ -55,10 +55,26 @@ Config.lantern = {
 Config.horseFood = {
     'consumable_haycube',
     'consumable_carrots',
-    'consumable_apple'
+    'consumable_apple',
+    'hr_grass', -- อาหารม้าจากร้าน nx_shop / รางวัลล็อกอิน (lp_welfarelogin) — ให้ bcc รู้จักด้วย
 }
 
-Config.reviver = 'consumable_horse_reviver'
+-- ไอเท็มชุบม้า — รองรับหลายชื่อ ตัวใดที่ผู้เล่นมีจะถูกใช้ตัวแรก (เดิมมีแค่ consumable_horse_reviver
+-- แต่ร้าน nx_shop / welfare / battlepass แจก hr_medicine "ยารักษาม้า" ซึ่ง bcc เดิมไม่รู้จัก → ใช้ชุบไม่ได้)
+Config.reviverItems = { 'consumable_horse_reviver', 'hr_medicine' }
+Config.reviver = 'consumable_horse_reviver' -- คงไว้เผื่อโค้ดเก่าอ้างถึง (ตัว logic จริงใช้ reviverItems)
+
+-- แปรงขัดม้าแบบใช้ครั้งเดียว (consumable) จากร้าน/รางวัล — ไม่มีระบบ durability ต่างจาก Config.horsebrush
+-- (ตัวหลักที่เป็นเครื่องมือใช้ซ้ำได้) — ให้เอฟเฟกต์แปรงเหมือนกันแต่หัก 1 ชิ้นต่อการใช้
+Config.simpleBrushItems = { 'hr_brush' }
+-----------------------------------------------------
+
+-- ===== NUI โรงม้าใหม่ (bcc-stables:PaidHeal + หน้าจัดการม้า) =====
+-- รักษาม้าแบบจ่ายเงิน (ปุ่ม "รักษาม้า" ใน UI ใหม่) — server หักเงินแล้วเติมเลือด/สตามิน่าเต็ม + ปลดสถานะล้ม/ตาย
+Config.healPrice    = 500 -- ราคาต่อครั้ง
+Config.healCurrency = 0   -- 0 = เงินสด, 1 = ทอง (2 = rol ถ้าใช้)
+-- ระดับความผูกพันที่โชว์บนหัวเรื่อง NUI คำนวณจาก xp / bondXpPerLevel + 1 (โชว์อย่างเดียว ปรับได้)
+Config.stableUI = { bondXpPerLevel = 100 }
 -----------------------------------------------------
 
 --- Horse Flaming Hooves

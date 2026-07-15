@@ -32,6 +32,7 @@ files {
     "ui/js/*.*",
     "ui/css/*.*",
     "ui/fonts/*.*",
+    "ui/webfonts/*.*", -- Font Awesome solid webfont (ไอคอนปุ่ม/สถิติ NUI ใหม่)
     "ui/img/*.*"
 }
 

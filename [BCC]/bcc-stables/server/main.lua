@@ -755,15 +755,83 @@ Core.Callback.Register('bcc-stables:HorseReviveItem', function(source, cb)
     local user = Core.getUser(src)
     if not user then return cb(false) end
 
-    local reviveItem = Config.reviver
-    local hasItem = exports.vorp_inventory:getItem(src, reviveItem)
-
-    if not hasItem then
-        return cb(false)
+    -- รองรับไอเท็มชุบหลายชื่อ (Config.reviverItems) — หาตัวแรกที่ผู้เล่นมีแล้วหักตัวนั้น
+    -- fallback เป็น { Config.reviver } เผื่อ config เก่าที่ยังไม่มี reviverItems
+    local reviverList = Config.reviverItems or { Config.reviver }
+    for _, reviveItem in ipairs(reviverList) do
+        local hasItem = exports.vorp_inventory:getItem(src, reviveItem)
+        if hasItem then
+            exports.vorp_inventory:subItem(src, reviveItem, 1)
+            return cb(true)
+        end
     end
 
-    exports.vorp_inventory:subItem(src, reviveItem, 1)
-    cb(true)
+    return cb(false)
+end)
+
+-- แปรงขัดม้าแบบใช้ครั้งเดียว (Config.simpleBrushItems เช่น hr_brush จากร้าน) — หัก 1 ชิ้น แล้วสั่ง
+-- แปรงเหมือนแปรงหลัก แต่ข้าม durability (ส่ง skipDurability=true ไป client ดู BrushHorse ฝั่ง client)
+for _, brushItem in ipairs(Config.simpleBrushItems or {}) do
+    exports.vorp_inventory:registerUsableItem(brushItem, function(data)
+        local src = data.source
+        local user = Core.getUser(src)
+        if not user then return end
+
+        exports.vorp_inventory:closeInventory(src)
+        exports.vorp_inventory:subItem(src, brushItem, 1)
+        TriggerClientEvent('bcc-stables:BrushHorse', src, true) -- skipDurability = true
+    end)
+end
+
+-- รักษาม้าแบบจ่ายเงิน (ปุ่ม "รักษาม้า" ใน NUI ใหม่) — server เป็นผู้ตัดสินทั้งหมด:
+-- ตรวจว่าม้าเป็นของผู้เล่นจริง (charid+identifier) -> เช็คเงินพอ (ไม่เชื่อ client) -> หักเงิน ->
+-- UPDATE เลือด/สตามิน่าเต็ม + ปลดสถานะล้ม(writhe)/ตาย(dead) -> แจ้งผล  (ตาม 12-point checklist)
+local paidHealCd = {} -- [src] = GetGameTimer() กัน spam
+RegisterServerEvent('bcc-stables:PaidHeal', function(horseId)
+    local src = source
+    local user = Core.getUser(src)
+    if not user then return end
+
+    -- rate-limit กันกดรัว (กัน race หักเงินซ้อน)
+    local now = GetGameTimer()
+    if paidHealCd[src] and (now - paidHealCd[src]) < 1500 then return end
+    paidHealCd[src] = now
+
+    horseId = tonumber(horseId)
+    if not horseId then return end
+
+    local character = user.getUsedCharacter
+    local identifier = character.identifier
+    local charid = character.charIdentifier
+
+    -- ตรวจ ownership จาก DB เอง ไม่เชื่อ client ว่าเป็นเจ้าของ
+    local horse = MySQL.query.await('SELECT `id` FROM `player_horses` WHERE `id` = ? AND `charid` = ? AND `identifier` = ?',
+        { horseId, charid, identifier })
+    if not horse or not horse[1] then
+        Core.NotifyRightTip(src, _U('noHorse') or 'ไม่พบม้า', 4000)
+        return
+    end
+
+    local price = Config.healPrice or 500
+    local currency = Config.healCurrency or 0
+    local balance = (currency == 1) and character.gold or character.money
+    if balance < price then
+        Core.NotifyRightTip(src, (currency == 1 and (_U('shortGold') or 'ทองไม่พอ')) or (_U('shortCash') or 'เงินไม่พอ'), 4000)
+        return
+    end
+
+    -- หักเงินก่อน แล้วค่อยรักษา (ผ่านการตรวจครบแล้ว)
+    character.removeCurrency(currency, price)
+    MySQL.query.await('UPDATE `player_horses` SET `health` = ?, `stamina` = ?, `dead` = ?, `writhe` = ? WHERE `id` = ? AND `charid` = ? AND `identifier` = ?',
+        { 100, 100, 0, 0, horseId, charid, identifier })
+
+    Core.NotifyRightTip(src, _U('horseHealed') or 'รักษาม้าเรียบร้อย', 4000)
+    TriggerClientEvent('bcc-stables:cl:healResult', src, horseId) -- ให้ NUI อัปเดตแถบ HP/สเตมิน่าเป็นเต็ม
+    print(('[bcc-stables][TX] PaidHeal src=%s horse=%s price=%s cur=%s'):format(src, horseId, price, currency))
+end)
+
+AddEventHandler('playerDropped', function()
+    paidHealCd[source] = nil
 end)
 
 Core.Callback.Register('bcc-stables:CheckPlayerCooldown', function(source, cb, type)

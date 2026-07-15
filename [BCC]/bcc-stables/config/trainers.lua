@@ -1,23 +1,23 @@
 Trainers = {
-    valentine = {
-        shop = {
-            prompt = 'Valentine Trainer',               -- Text Below the Prompt Button
-            distance = 3.0,                             -- Distance Between Player and Shop to Show Prompts
-        },
-        blip = {
-            show = true,                                -- Show Blip On Map
-            name = 'Valentine Trainer',                 -- Name of Blip on Map
-            sprite = -1103135225,
-            color = 'WHITE',                            -- See Blip Colors in config/main.lua
-        },
-        npc = {
-            active = true,                              -- Turns NPC On / Off
-            model = 'MP_LM_STEALHORSE_BUYERS_01',       -- Model Used for NPC
-            coords = vector3(-359.5, 774.31, 116.39),   -- NPC and Shop Blip Positions
-            heading = 356.94,                           -- NPC Heading
-            distance = 100.0,                           -- Distance Between Player and Shop for NPC to Spawn
-        }
-    },
+    -- valentine = {
+    --     shop = {
+    --         prompt = 'Valentine Trainer',               -- Text Below the Prompt Button
+    --         distance = 3.0,                             -- Distance Between Player and Shop to Show Prompts
+    --     },
+    --     blip = {
+    --         show = true,                                -- Show Blip On Map
+    --         name = 'Valentine Trainer',                 -- Name of Blip on Map
+    --         sprite = -1103135225,
+    --         color = 'WHITE',                            -- See Blip Colors in config/main.lua
+    --     },
+    --     npc = {
+    --         active = true,                              -- Turns NPC On / Off
+    --         model = 'MP_LM_STEALHORSE_BUYERS_01',       -- Model Used for NPC
+    --         coords = vector3(-359.5, 774.31, 116.39),   -- NPC and Shop Blip Positions
+    --         heading = 356.94,                           -- NPC Heading
+    --         distance = 100.0,                           -- Distance Between Player and Shop for NPC to Spawn
+    --     }
+    -- },
     -----------------------------------------------------
 
     -- tumbleweed = {

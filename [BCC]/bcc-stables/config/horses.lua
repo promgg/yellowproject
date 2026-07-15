@@ -1,3 +1,11 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  NUI โรงม้าใหม่: เพิ่ม field `stats` (ไม่บังคับ) ต่อสี/รุ่นม้าเพื่อโชว์แถบสถิติ 6 ตัวใน UI
+--  รูปแบบ:  stats = { health=4, stamina=4, speed=4, acceleration=4, agility=4, courage=4 }  -- แต่ละค่า 0-10
+--  ตัวอย่าง:
+--    ['a_c_horse_arabian_white'] = { color='White', cashPrice=1500, goldPrice=72, invLimit=30,
+--        stats = { health=6, stamina=8, speed=9, acceleration=8, agility=7, courage=6 } },
+--  ถ้าไม่กำหนด stats → UI จะ fallback เป็น 4/10 ทุกตัว (health/stamina ใช้ค่าจริงจาก DB /10 แทน)
+-- ═══════════════════════════════════════════════════════════════════════════════
 Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% of cashPrice / Cash Price is Regular Game Price
 	-- {
 	-- 	breed = 'American Paint',

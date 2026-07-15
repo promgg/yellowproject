@@ -35,9 +35,9 @@ Stables = {
         },
         horse = {
             -- หมายเหตุ: offset จาก npc.coords แบบกะคร่าวๆ (+4,+4) ยังไม่ได้ทดสอบในเกมจริง อาจต้องปรับให้ม้า/กล้องไม่ทับ NPC
-            coords = vector3(-361.3135, 795.9982, 116.1748),  -- Horse Spawn and Return Positions
-            heading = 271.6457,                         -- Horse Spawn Heading
-            camera = vector3(-363.3135, 793.9982, 116.1748),  -- Camera Location to View Horse When In-Menu
+            coords = vector3(-369.5995, 786.8049, 116.1612),  -- Horse Spawn and Return Positions
+            heading = 231.6457,                         -- Horse Spawn Heading
+            camera = vector3(-367.0119, 787.6921, 116.1654),  -- Camera Location to View Horse When In-Menu
         },
         trainerBuy = false,                             -- Only Trainers can Buy Horses from this Stable
 	},

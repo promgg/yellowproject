@@ -204,6 +204,32 @@ CreateThread(function()
     end
 end)
 
+-- หา meta ของม้าจากชื่อโมเดล ใน config/horses.lua (breed/color/invLimit/stats) — ใช้แนบไปกับ
+-- myHorsesData ให้ NUI ใหม่โชว์สถิติ 6 ตัว + สายพันธุ์ + จำนวนช่องกระเป๋า โดยไม่ต้องอ่าน native
+function ResolveHorseMeta(model)
+    if not model or not Horses then return nil end
+    for _, breedEntry in ipairs(Horses) do
+        local colors = breedEntry.colors or {}
+        local c = colors[model]
+        if c then
+            return {
+                breed = breedEntry.breed,
+                color = c.color,
+                slots = tonumber(c.invLimit) or 0,
+                stats = c.stats, -- { health, stamina, speed, acceleration, agility, courage } (0-10) ถ้ากำหนดไว้
+            }
+        end
+    end
+    return nil
+end
+
+-- ระดับความผูกพันจาก xp — สูตรง่ายๆ ปรับได้ผ่าน Config.stableUI.bondXpPerLevel (ค่าเริ่ม 100)
+-- xp เป็นค่าจริงจาก DB (player_horses.xp) ส่วน level ใช้โชว์บนหัวเรื่อง NUI เท่านั้น
+function BondLevelFromXp(xp)
+    local per = (Config.stableUI and Config.stableUI.bondXpPerLevel) or 100
+    return math.floor((tonumber(xp) or 0) / per) + 1
+end
+
 function OpenStable(site)
     CheckPlayerJob(false, site)
     DisplayRadar(false)
@@ -214,6 +240,18 @@ function OpenStable(site)
 
     local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
     if horseData then
+        -- แนบ meta ให้แต่ละตัว (ไม่แตะข้อมูล DB เดิม แค่เพิ่ม field ให้ NUI ใช้)
+        for _, h in ipairs(horseData) do
+            local meta = ResolveHorseMeta(h.model)
+            if meta then
+                h.breedLabel = meta.breed
+                h.colorLabel = meta.color
+                h.slots = meta.slots
+                h.stats = meta.stats
+            end
+            h.bondLevel = BondLevelFromXp(h.xp)
+        end
+
         SendNUIMessage({
             action = 'show',
             shopData = JobMatchedHorses,
@@ -221,7 +259,9 @@ function OpenStable(site)
             translations = Translations,
             location = StableName,
             currencyType = Config.currencyType,
-            myHorsesData = horseData
+            myHorsesData = horseData,
+            healPrice = (Config.healPrice or 500),
+            healCurrencyLabel = ((Config.healCurrency or Config.currencyType) == 1) and '' or '$',
         })
         SetNuiFocus(true, true)
     else
@@ -451,9 +491,9 @@ function GetSelectedHorse()
     SpawnHorse(data)
 end
 
-RegisterNUICallback('CloseStable', function(data, cb)
-    cb('ok')
-
+-- ปิดโรงม้า: ซ่อน NUI, คืน focus/กล้อง/เรดาร์, ลบ preview ped — แยกออกมาให้ callback ใหม่
+-- (summonHorse/returnHorse) เรียกใช้ร่วมได้ ไม่ต้องก็อปโค้ด teardown ซ้ำ
+function TeardownStable()
     SendNUIMessage({ action = 'hide' })
     SetNuiFocus(false, false)
 
@@ -466,6 +506,12 @@ RegisterNUICallback('CloseStable', function(data, cb)
     DisplayRadar(true)
     InMenu = false
     ClearPedTasksImmediately(PlayerPedId())
+end
+
+RegisterNUICallback('CloseStable', function(data, cb)
+    cb('ok')
+
+    TeardownStable()
 
     if data.MenuAction == 'save' then
         local result = Core.Callback.TriggerAwait('bcc-stables:BuyTack', data)
@@ -473,6 +519,55 @@ RegisterNUICallback('CloseStable', function(data, cb)
             SaveComps()
         end
     end
+end)
+
+-- ===== callback ใหม่สำหรับ action bar ของ NUI ใหม่ (ต่อกับฟังก์ชัน/อีเวนต์เดิม ไม่แตะ logic server) =====
+-- เรียกม้า: ปิดเมนูก่อน (คืนกล้อง/โฟกัส) แล้ว spawn ม้าตัวหลักออกมาในโลก
+RegisterNUICallback('summonHorse', function(_, cb)
+    cb('ok')
+    TeardownStable()
+    GetSelectedHorse()
+end)
+
+-- ส่งม้ากลับโรงม้า: ปิดเมนูก่อน แล้วเก็บม้าที่อยู่ในโลก (ReturnHorse จัดการ save + ลบ ped)
+RegisterNUICallback('returnHorse', function(_, cb)
+    cb('ok')
+    TeardownStable()
+    ReturnHorse()
+end)
+
+-- เปิดกระเป๋าอานม้าของม้าที่กำลังพรีวิว — ยิง API เปิดกระเป๋าม้าตรงๆ (ข้ามเช็ค saddlebag component
+-- ของ OpenInventory) เพราะกระเป๋าผูกกับ id ม้าตัวนั้นเสมอ (vorp_inventory: 'horse_<id>')
+RegisterNUICallback('openCargo', function(data, cb)
+    cb('ok')
+    local horseId = (data and data.horseId) or MyEntityID
+    if horseId then
+        TriggerServerEvent('bcc-stables:OpenInventory', horseId)
+    end
+end)
+
+-- รักษาม้าแบบจ่ายเงิน (server ตัดสินราคา/หักเงิน/เติมเลือด ดู server/main.lua bcc-stables:PaidHeal)
+RegisterNUICallback('healHorse', function(data, cb)
+    cb('ok')
+    local horseId = data and data.horseId
+    if horseId then
+        TriggerServerEvent('bcc-stables:PaidHeal', horseId)
+    end
+end)
+
+-- server รักษาม้าสำเร็จ → บอก NUI ให้อัปเดตแถบ HP/สเตมิน่าของม้าตัวนั้นเป็นเต็ม
+RegisterNetEvent('bcc-stables:cl:healResult', function(horseId)
+    SendNUIMessage({ action = 'healed', horseId = horseId })
+end)
+
+-- แจ้งเตือนจาก NUI ใหม่ (ปุ่มไอคอนล้วน — ชื่อ/ผลลัพธ์เด้งเป็น pNotify ฝั่งเกมแทน toast ใน NUI)
+RegisterNUICallback('stableNotify', function(data, cb)
+    cb('ok')
+    exports.pNotify:SendNotification({
+        type = (data and data.kind) or 'info',
+        text = (data and data.text) or '',
+        timeout = (data and data.timeout) or 2500,
+    })
 end)
 
 -- Save Horse Tack to Database
@@ -1386,7 +1481,7 @@ function SaveXp(xpSource)
     TriggerServerEvent('bcc-stables:UpdateHorseXp', newXp, MyHorseId)
 end
 
-RegisterNetEvent('bcc-stables:BrushHorse', function()
+RegisterNetEvent('bcc-stables:BrushHorse', function(skipDurability)
     if not MyHorse or MyHorse == 0 then
         return Core.NotifyRightTip(_U('noHorse'), 4000)
     end
@@ -1400,7 +1495,9 @@ RegisterNetEvent('bcc-stables:BrushHorse', function()
 
     ClearPedTasks(playerPed)
 
-    if Config.horsebrush.durability then
+    -- skipDurability = true มาจากแปรงแบบใช้ครั้งเดียว (hr_brush) ที่ถูกหักไปแล้วฝั่ง server — ไม่ต้องไป
+    -- ลด durability ของ Config.horsebrush.item (แปรงหลักคนละตัว) ไม่งั้นจะไปกินความทนของแปรงหลักผิดตัว
+    if Config.horsebrush.durability and not skipDurability then
         TriggerServerEvent('bcc-stables:HorseBrushDurability')
     end
 
@@ -1855,7 +1952,8 @@ end
 RegisterNUICallback('rotate', function(data, cb)
     cb('ok')
     local direction = data.RotateHorse
-    local dir = direction == 'left' and 1 or -1
+    -- 6° ต่อครั้ง (เดิม 1° แทบไม่ขยับ) — NUI ใหม่กดค้างยิงซ้ำทุก 90ms → หมุนต่อเนื่องลื่น
+    local dir = direction == 'left' and 6 or -6
 
     Rotation(dir)
 end)
