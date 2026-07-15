@@ -19,6 +19,7 @@ html, body {
   width: 1920px;
   height: 1080px;
   overflow: hidden;
+  top:160px;
 }
 
 #root.hidden {
@@ -78,7 +79,7 @@ html, body {
    LP_reserver (left:-7 top:513 width:389 height:219 on a 1920x1080 canvas) */
 #badge-restart {
   left: -7px;
-  top: 513px;
+  top: 380px;
   width: 389px;
   height: 219px;
 }
