@@ -32,7 +32,7 @@ Config.ServerDistancePadding = 1.5
 Config.HoldMs = 900 -- ms — how long [E] must be held (lp_textui:TextUIHold) to open the station
 
 -- ── Pricing / rate limit ────────────────────────────────────────────────
-Config.ComponentPrice = 35.0   -- flat cash price per component application
+Config.ComponentPrice = 100.0  -- flat cash price per component application
 Config.RemoveComponentPrice = 15.0 -- price to strip a slot back to bare/no component
 -- min ms between accepted apply/remove requests per player. Kept LOW because
 -- picks are now rapid (no per-pick progress bar) and the client requestBusy guard
