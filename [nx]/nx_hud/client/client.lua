@@ -508,13 +508,12 @@ local function getMountEntity(ped)
 end
 
 local function getHorseHealthPercent(horse)
-    local currentHealth = invokeNativeFloat(0x82368787EA73C0F7, horse)
-    local maxHealth = invokeNativeInteger(0x4700A416E8324EF3, horse)
-
-    if currentHealth and maxHealth and maxHealth > 0 then
-        return normalize(currentHealth, 0, maxHealth)
-    end
-
+    -- เดิมเรียก native พิเศษ 0x82368787EA73C0F7 (current) / 0x4700A416E8324EF3 (max) ก่อน แต่บน
+    -- build นี้มันคืนค่าเพี้ยน/คนละสเกล และเพราะ 0.0 เป็น truthy ใน Lua guard เดิม
+    -- (if currentHealth and maxHealth and maxHealth > 0) เลยผ่านแล้วคำนวณได้ 0% แทนที่จะตกไป
+    -- fallback — ทำให้แถบเลือดม้าโชว์ว่าง/ค่าผิด. เปลี่ยนมาใช้ path เดียวกับเลือด "คน" ที่พิสูจน์แล้วว่า
+    -- ถูก (GetEntityHealth + GetEntityMaxHealth ดึง max จริงแบบ dynamic ต่อม้าแต่ละตัว — bonded
+    -- horse ที่ max สูงกว่าปกติก็คำนวณ % ถูก) ตัด native พิเศษที่พังทิ้ง
     return getEntityHealthPercent(horse, Config.Horse.HealthMin, Config.Horse.HealthMax)
 end
 
