@@ -90,9 +90,12 @@ end
 
 RegisterNetEvent("vorp:SelectedCharacter")
 AddEventHandler("vorp:SelectedCharacter", function()
-	TriggerEvent("vorp_weapons:initalizing")
-	Wait(1000)
+	-- Clear the old ped loadout before vorp_inventory finishes its asynchronous
+	-- character load. Waiting here used to race the inventory restore: on a fast
+	-- DB response the equipped weapons were restored first, then erased one
+	-- second later, leaving the weapon wheel empty while `used` stayed true.
 	RemoveAllPedWeapons(PlayerPedId(), true, true)
+	TriggerEvent("vorp_weapons:initalizing")
 end)
 
 
