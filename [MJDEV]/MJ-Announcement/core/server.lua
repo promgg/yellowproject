@@ -4,8 +4,16 @@ local currentAnnouceID = 1
 
 -- เปลี่ยนคำสั่ง 'ac' ให้ใช้ RegisterCommand แทน
 RegisterCommand('ac', function(source, args, rawCommand)
-    local xPlayer = VorpCore.getUser(source).getUsedCharacter
-    
+    if source == 0 then
+        -- server console / txAdmin — เชื่อถือได้อยู่แล้ว ไม่มี xPlayer ให้เช็ค group
+        if #args == 0 then return end
+        TriggerClientEvent('JKL-annoucement_nui:annouce', -1, table.concat(args, ' '))
+        return
+    end
+
+    local xUser = VorpCore.getUser(source)
+    local xPlayer = xUser and xUser.getUsedCharacter
+
     -- ตรวจสอบสิทธิ์ผู้ใช้
     if xPlayer and xPlayer.group == 'admin' then
         if #args == 0 then
@@ -24,7 +32,16 @@ end, false)
 
 -- คำสั่งรีสตาร์ทเซิร์ฟเวอร์
 RegisterCommand('svrestart', function(source, args, rawCommand)
-    local xPlayer = VorpCore.getUser(source).getUsedCharacter
+    if source == 0 then
+        -- server console / txAdmin — เชื่อถือได้อยู่แล้ว ไม่มี xPlayer ให้เช็ค group
+        if args[1] == nil then return end
+        local masseg = table.concat(args, ' ')
+        TriggerClientEvent('JKL-Announcement:message', -1, 'เซิฟเวอร์จะทำการรีสตาร์ทเวลา  ' .. masseg .. ' น. ขอให้ผู้เล่นดิสออกจากเซิฟเวอร์ด้วยครับ ' )
+        return
+    end
+
+    local xUser = VorpCore.getUser(source)
+    local xPlayer = xUser and xUser.getUsedCharacter
     if xPlayer and xPlayer.group == 'admin' then
         if args[1] == nil then
             return
