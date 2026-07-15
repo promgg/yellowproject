@@ -1,6 +1,7 @@
 Config = {}
 
-Config.Enabled = true
+-- Native minimap positioning is superseded by nx_hud's integrated NUI radar.
+Config.Enabled = false
 Config.Debug = false
 
 -- GTA/FiveM can move these minimap components. RedM builds commonly ignore
