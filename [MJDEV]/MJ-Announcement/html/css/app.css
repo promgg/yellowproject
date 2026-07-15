@@ -12,7 +12,7 @@
     position: fixed;
     align-items: center;
     left: 50%;
-    top: 7vh;
+    top: 17vh;
 }
 
 .card {
@@ -75,7 +75,7 @@
     width: 3.5vh;
     height: 3.5vh;
     position: absolute;
-    background: #000; /* ดำล้วนตามสเปค (bg-black) */
+    background: #000000; /* ดำล้วนตามสเปค (bg-black) */
     border-radius: .2vh;
     transform: rotate(45deg);
     display: flex;
@@ -98,7 +98,7 @@
 }
 
 .logo img {
-    width: 80%;
+    width: 140%;
     transform: rotate(-45deg);
 }
 
