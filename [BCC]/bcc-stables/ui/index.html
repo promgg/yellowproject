@@ -2,48 +2,141 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>bcc-stables</title>
   <link href="css/fa-base.min.css" rel="stylesheet" />
   <link href="css/fa-solid.min.css" rel="stylesheet" />
   <link href="css/style.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="stable-root" class="hidden">
-    <!-- ===== TOP BAR ===== -->
-    <div id="topbar">
-      <button id="btn-back" type="button">‹ ย้อนกลับ</button>
-      <div id="topbar-right">
-        <span id="top-datetime"></span>
+  <!-- ===========================================================================
+       bcc-stables NUI — layout/visual language ported from ui/mockup.html
+       (list-panel / preview-stage / detail-panel / shortcut-bar / mode-switcher).
+       Dropped from the mockup on purpose (owner's instruction):
+         1) .minimal-header (top bar) — removed entirely
+         2) .horse-visual (fake horse placeholder) — removed, real 3D horse renders
+            through the transparent background behind this NUI
+         3) opaque mockup background/scene decoration — replaced with the same
+            transparent vignette the previous style.css used, so the game camera
+            shows through
+       Functional wiring (nui() calls, RegisterNUICallback names, SendNUIMessage
+       'show'/'hide'/'healed' handling) is preserved 1:1 from the previous app.js.
+       ============================================================================ -->
+  <div id="stable-root" class="hidden" data-mode="main">
+
+    <!-- ===== LEFT: list panel — 3 modes: main (owned) / shop / tack ===== -->
+    <section class="list-panel minimal-panel" aria-label="รายการม้า">
+      <nav class="mode-switcher" aria-label="หมวดโรงม้า">
+        <button class="mode-tab active" type="button" data-mode-target="main">
+          <i class="fa-solid fa-horse-head"></i>
+          <span><small>MY STABLE</small><strong>คลังม้าของฉัน</strong></span>
+          <b id="tab-count-main">0</b>
+        </button>
+        <button class="mode-tab" type="button" data-mode-target="shop">
+          <i class="fa-solid fa-store"></i>
+          <span><small>HORSE SHOP</small><strong>ร้านค้าม้า</strong></span>
+          <b id="tab-count-shop">0</b>
+        </button>
+        <button class="mode-tab" type="button" data-mode-target="tack">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+          <span><small>TACK</small><strong>แต่งอาน</strong></span>
+        </button>
+      </nav>
+      <div class="stable-loc" id="stable-location"></div>
+
+      <div class="panel-heading main-only">
+        <div><small>OWNED HORSES</small><h2>เลือกม้าที่ต้องการ</h2></div>
+        <span id="owned-count">0 ตัว</span>
       </div>
-    </div>
-
-    <!-- ===== HORSE HEADER (top center) ===== -->
-    <div id="horse-header">
-      <div id="horse-name">—</div>
-      <div id="horse-meta">—</div>
-    </div>
-
-    <!-- left: HORSE INFO stats -->
-    <div id="stat-panel" class="side-panel">
-      <div class="panel-title">HORSE INFO</div>
-      <div class="panel-underline"></div>
-      <div id="stat-rows"><!-- injected --></div>
-    </div>
-
-    <!-- right: current condition (HP/stamina จริงจาก DB — รักษาแล้วขึ้นจริง) + saddlebag -->
-    <div id="saddlebag-panel" class="side-panel">
-      <div class="cond-title">สภาพม้า</div>
-      <div id="cond-rows"><!-- HP/stamina bars injected --></div>
-      <div class="sb-divider"></div>
-      <div class="sb-title">กระเป๋าอานม้า</div>
-      <div class="sb-slots">จำนวน <span id="sb-slot-count">0</span> ช่อง</div>
-      <!-- ปุ่มเฉพาะตัวม้านี้ (กระเป๋า/แต่งอาน/ปล่อย) รวมไว้ข้างกัน -->
-      <div id="horse-actions">
-        <button id="btn-cargo" type="button"><i class="fa-solid fa-box-open"></i> เปิดกระเป๋า</button>
-        <button id="btn-tack" type="button"><i class="fa-solid fa-toolbox"></i> แต่งอาน</button>
-        <button id="btn-release" class="danger" type="button"><i class="fa-solid fa-xmark"></i> ปล่อยม้า</button>
+      <div class="panel-heading shop-only">
+        <div><small>HORSE CATALOG</small><h2>เลือกสายพันธุ์ม้า</h2></div>
+        <span class="open-tag">เปิดขาย</span>
       </div>
+      <div class="panel-heading tack-only">
+        <div><small>TACK &amp; GEAR</small><h2>เลือกหมวดอุปกรณ์</h2></div>
+        <span id="tack-cat-active-label"></span>
+      </div>
+
+      <label class="search-box main-only">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="owned-search" type="search" placeholder="ค้นหาชื่อม้า..." autocomplete="off" />
+      </label>
+      <label class="search-box shop-only">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="shop-search" type="search" placeholder="ค้นหาสายพันธุ์หรือสี..." autocomplete="off" />
+      </label>
+
+      <div id="owned-list" class="horse-list main-only"></div>
+      <div id="shop-list" class="horse-list shop-only"></div>
+      <div id="tack-cat-list" class="horse-list tack-only"></div>
+    </section>
+
+    <!-- ===== CENTER: preview stage — the space above stays empty/transparent,
+         the live 3D horse (game camera) renders behind this NUI ===== -->
+    <section class="preview-stage" aria-label="พื้นที่แสดงม้า">
+      <div class="horse-title">
+        <small id="preview-breed">—</small>
+        <h1 id="preview-name">—</h1>
+        <span id="preview-subtitle">—</span>
+      </div>
+
+      <!-- กดค้างเพื่อหมุนม้า (ไม่ใช่คลิก) -->
+      <div class="preview-controls">
+        <button id="rot-left" class="rot-btn" type="button" data-dir="left" aria-label="หมุนซ้าย"><i class="fa-solid fa-rotate-left"></i></button>
+        <span>กดค้างเพื่อหมุน</span>
+        <button id="rot-right" class="rot-btn" type="button" data-dir="right" aria-label="หมุนขวา"><i class="fa-solid fa-rotate-right"></i></button>
+      </div>
+
+      <!-- เปลี่ยนม้าที่ครอบครอง (main mode เท่านั้น) -->
+      <div class="preview-nav main-only">
+        <button id="preview-prev" type="button"><i class="fa-solid fa-chevron-left"></i></button>
+        <span><strong id="preview-index">00</strong><small id="preview-total">/ 00</small></span>
+        <button id="preview-next" type="button"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </section>
+
+    <!-- ===== RIGHT: detail panel — content swaps per mode ===== -->
+    <aside class="detail-panel minimal-panel main-only">
+      <div class="detail-kicker"><span></span> HORSE PROFILE</div>
+      <div class="detail-head">
+        <div><h2>ข้อมูลม้า</h2><small>สถานะและการจัดการ</small></div>
+        <b class="ready-dot" id="main-status-dot">พร้อมใช้งาน</b>
+      </div>
+
+      <div class="quick-info">
+        <div><small>ความผูกพัน</small><strong id="bond-label">—</strong></div>
+        <div><small>กระเป๋า</small><strong id="slot-label">—</strong></div>
+      </div>
+
+      <div class="condition-block">
+        <div class="condition-line">
+          <i class="fa-solid fa-heart"></i><span>พลังชีวิต</span>
+          <div class="progress"><b id="cond-health-bar" style="width:0%"></b></div><strong id="cond-health-num">0%</strong>
+        </div>
+        <div class="condition-line">
+          <i class="fa-solid fa-bolt"></i><span>สเตมิน่า</span>
+          <div class="progress"><b id="cond-stamina-bar" style="width:0%"></b></div><strong id="cond-stamina-num">0%</strong>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="owned-stats"></div>
+
+      <div class="action-stack">
+        <button class="main-action" id="btn-summon" type="button">
+          <i class="fa-solid fa-horse-head"></i>
+          <span><strong>เรียกม้าตัวนี้</strong><small>ตั้งเป็นม้าหลักและออกจากโรงม้า</small></span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+        <div class="secondary-actions">
+          <button id="btn-cargo" type="button"><i class="fa-solid fa-box-open"></i> กระเป๋า</button>
+          <button id="btn-tack" type="button"><i class="fa-solid fa-screwdriver-wrench"></i> แต่งอาน</button>
+          <button id="btn-return" type="button"><i class="fa-solid fa-arrow-right-to-bracket"></i> เก็บม้า</button>
+          <button id="btn-setmain" type="button"><i class="fa-solid fa-star"></i> ตั้งเป็นม้าหลัก</button>
+          <button id="btn-heal" type="button"><i class="fa-solid fa-kit-medical"></i> <span id="heal-label">รักษาม้า</span></button>
+        </div>
+      </div>
+
+      <button class="release-link" id="btn-release" type="button"><i class="fa-solid fa-triangle-exclamation"></i> ปล่อยม้าตัวนี้</button>
 
       <!-- ยืนยันก่อนปล่อยม้า -->
       <div id="release-confirm" class="hidden">
@@ -53,29 +146,71 @@
           <button id="rc-no" type="button">ยกเลิก</button>
         </div>
       </div>
-    </div>
+    </aside>
 
-    <!-- horse selector (prev/next through owned horses) — main mode only -->
-    <button id="sel-prev" class="sel-arrow" type="button">‹</button>
-    <button id="sel-next" class="sel-arrow" type="button">›</button>
-
-    <!-- rotate controls (กดค้างหมุนต่อเนื่อง) -->
-    <div id="rotate-controls">
-      <button class="rot-btn" data-dir="left" type="button"><i class="fa-solid fa-rotate-left"></i></button>
-      <button class="rot-btn" data-dir="right" type="button"><i class="fa-solid fa-rotate-right"></i></button>
-    </div>
-
-    <!-- ===== BOTTOM: context row + horizontal action bar (mode switcher) ===== -->
-    <div id="bottom">
-      <!-- context row: mode-specific header/controls (shop detail, tack categories + save) -->
-      <div id="mode-context" class="hidden"></div>
-
-      <div id="action-bar-wrap">
-        <button id="ab-prev" class="ab-scroll" type="button">‹</button>
-        <div id="action-bar"><!-- slots injected per mode --></div>
-        <button id="ab-next" class="ab-scroll" type="button">›</button>
+    <aside class="detail-panel minimal-panel shop-only">
+      <div class="detail-kicker"><span></span> PURCHASE</div>
+      <div class="detail-head">
+        <div><h2>สรุปการซื้อ</h2><small>ตรวจสอบก่อนยืนยัน</small></div>
+        <b class="ready-dot">พร้อมขาย</b>
       </div>
-    </div>
+
+      <div class="shop-price">
+        <small>ราคาม้าตัวนี้</small>
+        <strong id="shop-price">—</strong>
+        <span>รวมค่าจดทะเบียนแล้ว</span>
+      </div>
+
+      <div class="option-group">
+        <label>เลือกเพศ</label>
+        <div class="segmented" id="shop-gender">
+          <button class="active" type="button" data-gender="male"><i class="fa-solid fa-mars"></i> เพศผู้</button>
+          <button type="button" data-gender="female"><i class="fa-solid fa-venus"></i> เพศเมีย</button>
+        </div>
+      </div>
+
+      <div class="shop-meta">
+        <span><small>ความจุ</small><strong id="shop-slots">—</strong></span>
+        <span><small>สี</small><strong id="shop-color">—</strong></span>
+      </div>
+
+      <div class="stat-grid compact" id="shop-stats"></div>
+
+      <button class="buy-button" id="btn-buy" type="button">
+        <span><small>ยืนยันการซื้อ</small><strong id="buy-label">เลือกม้าจากรายการ</strong></span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+      <p class="purchase-note"><i class="fa-solid fa-circle-info"></i> ม้าจะถูกส่งเข้าคลังทันทีหลังซื้อ</p>
+    </aside>
+
+    <aside class="detail-panel minimal-panel tack-only">
+      <div class="detail-kicker"><span></span> TACK OPTIONS</div>
+      <div class="detail-head">
+        <div><h2 id="tack-cat-title">—</h2><small>เลือกอุปกรณ์ที่ต้องการสวมใส่</small></div>
+        <b class="ready-dot">พรีวิวสด</b>
+      </div>
+
+      <div id="tack-options" class="horse-list tack-options-list"></div>
+
+      <div class="tack-total">
+        <span>ยอดรวมที่เลือกไว้</span>
+        <strong id="tack-total-price">—</strong>
+      </div>
+
+      <button class="buy-button" id="btn-tack-save" type="button">
+        <span><small>บันทึกการแต่งอาน</small><strong>ยืนยันและปิดโรงม้า</strong></span>
+        <i class="fa-solid fa-floppy-disk"></i>
+      </button>
+    </aside>
+
+    <footer class="shortcut-bar">
+      <button class="shortcut-close" id="btn-close" type="button"><kbd>ESC</kbd> <span id="close-label">ปิด</span></button>
+      <span class="main-only"><kbd>A</kbd><kbd>D</kbd> เปลี่ยนม้า</span>
+      <span><kbd>Q</kbd><kbd>E</kbd> หมุนม้า</span>
+      <b class="main-only"><i></i> คลังม้าของฉัน</b>
+      <b class="shop-only"><i></i> ร้านค้าม้า</b>
+      <b class="tack-only"><i></i> แต่งอาน</b>
+    </footer>
   </div>
 
   <script src="js/app.js"></script>

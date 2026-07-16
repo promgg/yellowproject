@@ -1,9 +1,12 @@
 /* =========================================================================
-   bcc-stables — NUI ใหม่ (vanilla) แทน Vue app เดิม
-   หน้าจอเดียว: ม้า 3D โชว์ผ่านจอโปร่ง, panel stats ซ้าย/saddlebag ขวา,
-   แถบล่าง (action-bar-wrap) สลับ 3 โหมด: main (actions) / shop (ซื้อม้า) / tack (แต่งอาน)
-   ปุ่ม action = ไอคอนล้วน (hover โชว์ชื่อ, คลิก→ผลเด้ง pNotify ผ่าน client callback)
-   ส่ง "คำขอ" ผ่าน RegisterNUICallback เดิมของ client/main.lua เท่านั้น
+   bcc-stables — NUI logic.
+   Visual layout ported from ui/mockup.js/mockup.html (list-panel / preview-
+   stage / detail-panel / shortcut-bar / mode-switcher, 3rd "tack" mode added).
+   Every RegisterNUICallback call, payload shape, and message-listener
+   contract is preserved 1:1 from the previous working app.js — verified
+   against client/main.lua's RegisterNUICallback list. No callback names
+   were invented; see report for the two intentional small UX additions
+   (gender toggle on purchase, live tack total) called out separately.
    ========================================================================= */
 
 const RES = (window.GetParentResourceName && GetParentResourceName()) || 'bcc-stables';
@@ -23,20 +26,11 @@ let myHorses = [];
 let selIdx = 0;
 let mode = 'main';        // 'main' | 'shop' | 'tack'
 let shopSelKey = null;    // "<breedIdx>|<model>"
+let shopGender = 'male';  // เพศตอนซื้อม้า (เพิ่มจาก mockup — server รองรับอยู่แล้ว ไม่แตะ client/server lua)
 let tackCat = null;
-let tackPending = {};      // { <category>: hash } เลือกยังไม่บันทึก (คิดราคา)
+let tackPending = {};     // { <category>: hash } เลือกยังไม่บันทึก (คิดราคา)
 
-/* ปุ่ม main mode (แถบล่าง) — ไอคอนล้วน ชื่อโชว์ตอน hover / ผลเด้ง pNotify ตอนคลิก
-   แต่งอาน + ปล่อยม้า ย้ายไปอยู่ panel ขวาข้างปุ่มเปิดกระเป๋าแล้ว (เป็นของเฉพาะตัวม้านั้น) */
-const ACTIONS = [
-  { key: 'summon',  ico: 'fa-horse-head',    name: 'เรียกม้า' },
-  { key: 'return',  ico: 'fa-warehouse',     name: 'ส่งม้ากลับโรงม้า' },
-  { key: 'heal',    ico: 'fa-kit-medical',   name: 'รักษาม้า' },
-  { key: 'setmain', ico: 'fa-star',          name: 'ตั้งเป็นม้าตัวหลัก' },
-  { key: 'shop',    ico: 'fa-cart-shopping', name: 'ซื้อม้า' },
-];
-
-/* 4 สถิติสายพันธุ์ (จาก config/horses.lua) — ไม่รวม health/stamina แล้ว (แยกไปโชว์เป็นสภาพจริง) */
+/* 4 สถิติสายพันธุ์ (จาก config/horses.lua) — ไม่รวม health/stamina (แยกไปโชว์เป็นสภาพจริง) */
 const STATS = [
   { key: 'speed',        ico: 'fa-gauge-high',    label: 'ความเร็ว' },
   { key: 'acceleration', ico: 'fa-forward',       label: 'อัตราเร่ง' },
@@ -44,11 +38,7 @@ const STATS = [
   { key: 'courage',      ico: 'fa-shield-halved', label: 'ความกล้าหาญ' },
 ];
 const STAT_MAX = 10;
-/* สภาพปัจจุบัน HP/สเตมิน่า (0-100 จริงจาก DB — ปุ่มรักษาม้าทำให้ขึ้นจริง) */
-const CONDITIONS = [
-  { key: 'health',  ico: 'fa-heart', label: 'พลังชีวิต', color: '#e05a5a' },
-  { key: 'stamina', ico: 'fa-bolt',  label: 'สเตมิน่า',  color: '#5ac0e0' },
-];
+const CONDITIONS = ['health', 'stamina'];
 const TACK_CATS = ['Saddles', 'Saddlecloths', 'Stirrups', 'SaddleBags', 'Manes', 'Tails',
   'SaddleHorns', 'Bedrolls', 'Masks', 'Mustaches', 'Holsters', 'Bridles', 'Horseshoes'];
 
@@ -56,70 +46,104 @@ const TACK_CATS = ['Saddles', 'Saddlecloths', 'Stirrups', 'SaddleBags', 'Manes',
 const root = document.getElementById('stable-root');
 const el = (id) => document.getElementById(id);
 
-// tooltip ลอย (hover ปุ่มไอคอน) — เบา ไม่ยิง pNotify กันสแปม
+// tooltip ลอย (hover) — เบา ไม่ยิง pNotify กันสแปม
 const tip = document.createElement('div');
 tip.id = 'hover-tip'; tip.className = 'hidden';
 document.body.appendChild(tip);
-function showTip(text, x, y) { tip.textContent = text; tip.style.left = x + 'px'; tip.style.top = (y - 40) + 'px'; tip.classList.remove('hidden'); }
+function showTip(text, x, y) { tip.textContent = text; tip.style.left = x + 'px'; tip.style.top = (y - 34) + 'px'; tip.classList.remove('hidden'); }
 function hideTip() { tip.classList.add('hidden'); }
+function wireTip(node, text) {
+  if (!text) return;
+  node.addEventListener('mouseenter', () => { const r = node.getBoundingClientRect(); showTip(text, r.left + r.width / 2, r.top); });
+  node.addEventListener('mouseleave', hideTip);
+}
 
 /* ===================== helpers ===================== */
 function t(key, fb) { return (DATA.translations && DATA.translations[key]) || fb || key; }
 function genderLabel(g) { return g === 'male' ? 'เพศผู้' : g === 'female' ? 'เพศเมีย' : 'ไม่ทราบเพศ'; }
 function currentHorse() { return myHorses[selIdx] || null; }
-// currencyType=1 (ทองอย่างเดียว) โชว์ทอง, นอกนั้นจ่ายเงินสดเสมอ (ตัดสินใจแล้วว่าจ่ายสดพอ ไม่มีปุ่มสลับ)
+// currencyType=1 (ทองอย่างเดียว) โชว์ทอง, นอกนั้นจ่ายเงินสดเสมอ
 function priceText(cash, gold) {
   if (DATA.currencyType === 1) return `${gold} ทอง`;
   return `$${cash}`;
 }
-
-/* ===================== header / stats / saddlebag ===================== */
-function renderHeader() {
-  const h = currentHorse();
-  if (!h) { el('horse-name').textContent = t('noPersonalHorse', 'ไม่มีม้า'); el('horse-meta').textContent = ''; return; }
-  el('horse-name').textContent = h.name || '—';
-  const parts = [];
-  if (h.breedLabel) parts.push(h.breedLabel);
-  parts.push(genderLabel(h.gender));
-  parts.push(`ความผูกพัน Lv. ${h.bondLevel != null ? h.bondLevel : 1}`);
-  parts.push(`XP ${h.xp != null ? h.xp : 0}`);
-  el('horse-meta').textContent = parts.join(' • ');
-}
-function statValue(h, key) {
-  if (h && h.stats && typeof h.stats[key] === 'number') return h.stats[key];
+function statValue(statsObj, key) {
+  if (statsObj && typeof statsObj[key] === 'number') return statsObj[key];
   return 4; // ไม่ได้กำหนดใน config → ค่าเริ่มต้น 4/10
 }
-function renderStats() {
-  const h = currentHorse();
-  el('stat-rows').innerHTML = STATS.map((s) => {
-    const v = Math.max(0, Math.min(STAT_MAX, statValue(h, s.key)));
-    const segs = Array.from({ length: STAT_MAX }, (_, i) => `<span class="stat-seg${i < v ? ' on' : ''}"></span>`).join('');
-    return `<div class="stat-row"><span class="stat-ico"><i class="fa-solid ${s.ico}"></i></span><span class="stat-label">${s.label}</span><span class="stat-bar">${segs}</span><span class="stat-num">${v} / ${STAT_MAX}</span></div>`;
+function statDots(value) {
+  const v = Math.max(0, Math.min(STAT_MAX, value));
+  return Array.from({ length: STAT_MAX }, (_, i) => `<b class="${i < v ? 'on' : ''}"></b>`).join('');
+}
+function statGridMarkup(statsObj) {
+  return STATS.map((s) => {
+    const v = statValue(statsObj, s.key);
+    return `<div class="stat-item"><i class="fa-solid ${s.ico}"></i><span>${s.label}</span><strong>${v}/${STAT_MAX}</strong><div class="stat-dots">${statDots(v)}</div></div>`;
   }).join('');
 }
-// สภาพปัจจุบัน HP/สเตมิน่า (0-100 จริง) — แถบ % จริง รักษาแล้วอัปเดต
-function renderCondition() {
-  const h = currentHorse();
-  el('cond-rows').innerHTML = CONDITIONS.map((c) => {
-    const raw = (h && typeof h[c.key] === 'number') ? h[c.key] : 0;
-    const pct = Math.max(0, Math.min(100, raw));
-    return `<div class="cond-row">
-        <i class="fa-solid ${c.ico} cond-ico" style="color:${c.color}"></i>
-        <div class="cond-bar"><div class="cond-fill" style="width:${pct}%;background:${c.color}"></div></div>
-        <span class="cond-num">${Math.round(pct)}</span>
-      </div>`;
-  }).join('');
-}
-function renderSaddlebag() {
-  const h = currentHorse();
-  el('sb-slot-count').textContent = (h && h.slots != null) ? h.slots : 0;
-}
-function renderMineInfo() { renderHeader(); renderStats(); renderCondition(); renderSaddlebag(); }
 
-// พรีวิวม้าตัวที่ selIdx (main mode)
-function previewCurrent() {
+/* ===================== MAIN mode: owned horses ===================== */
+function renderOwnedList() {
+  const list = el('owned-list');
+  if (!myHorses.length) {
+    list.innerHTML = '<div class="card-empty">ยังไม่มีม้าในโรงม้า</div>';
+    return;
+  }
+  list.innerHTML = myHorses.map((h, i) => `
+    <button class="horse-card${i === selIdx ? ' active' : ''}${h.dead ? ' dead' : ''}" type="button" data-index="${i}">
+      <span class="horse-thumb"><i class="fa-solid fa-horse-head"></i></span>
+      <span>
+        <strong>${h.name || '—'}</strong>
+        <small>${h.breedLabel || ''}</small>
+        <span class="card-meta"><span>ผูกพัน Lv.${h.bondLevel != null ? h.bondLevel : 1}</span><span>${h.slots != null ? h.slots : 0} ช่อง</span></span>
+      </span>
+      ${Number(h.selected) === 1 ? '<em class="selected-pin">ม้าหลัก</em>' : ''}
+    </button>`).join('');
+  list.querySelectorAll('[data-index]').forEach((b) => b.addEventListener('click', () => selectHorseIndex(Number(b.dataset.index))));
+}
+function renderMainPreview() {
   const h = currentHorse();
-  renderMineInfo();
+  el('preview-index').textContent = myHorses.length ? String(selIdx + 1).padStart(2, '0') : '00';
+  el('preview-total').textContent = `/ ${String(myHorses.length).padStart(2, '0')}`;
+
+  if (!h) {
+    el('preview-breed').textContent = '';
+    el('preview-name').textContent = t('noPersonalHorse', 'ไม่มีม้า');
+    el('preview-subtitle').textContent = '';
+    el('bond-label').textContent = '—';
+    el('slot-label').textContent = '—';
+    el('cond-health-bar').style.width = '0%'; el('cond-health-num').textContent = '0%';
+    el('cond-stamina-bar').style.width = '0%'; el('cond-stamina-num').textContent = '0%';
+    el('owned-stats').innerHTML = '';
+    setMainActionsEnabled(false);
+    return;
+  }
+  el('preview-breed').textContent = (h.breedLabel || '').toUpperCase();
+  el('preview-name').textContent = h.name || '—';
+  el('preview-subtitle').textContent = [h.colorLabel, genderLabel(h.gender)].filter(Boolean).join(' · ');
+  el('bond-label').textContent = `ระดับ ${h.bondLevel != null ? h.bondLevel : 1}`;
+  el('slot-label').textContent = `${h.slots != null ? h.slots : 0} ช่อง`;
+
+  const hp = Math.max(0, Math.min(100, typeof h.health === 'number' ? h.health : 0));
+  const st = Math.max(0, Math.min(100, typeof h.stamina === 'number' ? h.stamina : 0));
+  el('cond-health-bar').style.width = hp + '%'; el('cond-health-num').textContent = Math.round(hp) + '%';
+  el('cond-stamina-bar').style.width = st + '%'; el('cond-stamina-num').textContent = Math.round(st) + '%';
+
+  el('owned-stats').innerHTML = statGridMarkup(h.stats);
+  el('heal-label').textContent = `รักษาม้า · ${DATA.healCurrencyLabel}${DATA.healPrice}`;
+  setMainActionsEnabled(true);
+}
+function setMainActionsEnabled(enabled) {
+  ['btn-summon', 'btn-cargo', 'btn-tack', 'btn-return', 'btn-setmain', 'btn-heal', 'btn-release'].forEach((id) => { el(id).disabled = !enabled; });
+}
+function renderOwnedCount() {
+  el('tab-count-main').textContent = String(myHorses.length);
+  el('owned-count').textContent = `${myHorses.length} ตัว`;
+}
+function previewCurrent() {
+  renderOwnedList();
+  renderMainPreview();
+  const h = currentHorse();
   if (!h) return;
   nui('loadMyHorse', { HorseId: h.id, HorseComp: h.components || '{}', HorseModel: h.model, HorseGender: h.gender });
 }
@@ -129,114 +153,169 @@ function selectHorseIndex(idx) {
   previewCurrent();
 }
 
-/* ===================== ACTION BAR — render per mode ===================== */
-function iconBtn(cls, dataAttrs, ico, tipText) {
-  return `<button class="${cls}" ${dataAttrs} data-tip="${tipText || ''}" type="button"><span class="ab-ico"><i class="fa-solid ${ico}"></i></span></button>`;
-}
-
-function renderBar() {
-  const bar = el('action-bar');
-  if (mode === 'main') {
-    bar.innerHTML = ACTIONS.map((a) => {
-      const tipText = a.key === 'heal' ? `${a.name} (${DATA.healCurrencyLabel}${DATA.healPrice})` : a.name;
-      return iconBtn('action-btn', `data-act="${a.key}"`, a.ico, tipText);
-    }).join('');
-    bar.querySelectorAll('.action-btn').forEach((b) => b.addEventListener('click', () => onAction(b.dataset.act)));
-  } else if (mode === 'shop') {
-    const cards = [];
-    DATA.shopData.forEach((breed, bi) => {
-      const colors = breed.colors || {};
-      Object.keys(colors).forEach((model) => {
-        const c = colors[model]; const key = `${bi}|${model}`;
-        cards.push(`<button class="shop-slot${shopSelKey === key ? ' active' : ''}" data-key="${key}" data-model="${model}" data-tip="${breed.breed} • ${c.color || ''}" type="button">
-            <span class="ss-breed">${breed.breed}</span><span class="ss-color">${c.color || ''}</span><span class="ss-price">${priceText(c.cashPrice, c.goldPrice)}</span>
-          </button>`);
-      });
-    });
-    bar.innerHTML = cards.join('') || '<span class="bar-empty">ไม่มีม้าให้ซื้อ</span>';
-    bar.querySelectorAll('.shop-slot').forEach((s) => s.addEventListener('click', () => openShopSlot(s.dataset.key, s.dataset.model)));
-  } else if (mode === 'tack') {
-    if (!tackCat) { bar.innerHTML = '<span class="bar-empty">เลือกหมวดอุปกรณ์ด้านบน</span>'; return; }
-    const opts = DATA.compData[tackCat] || [];
-    const rows = [`<button class="tack-slot${tackPending[tackCat] === 0 ? ' active' : ''}" data-id="-1" data-hash="" data-tip="ถอดออก" type="button"><span class="ab-ico"><i class="fa-solid fa-xmark"></i></span><span class="ts-label">ถอด</span></button>`];
-    opts.forEach((o, i) => {
-      const active = tackPending[tackCat] === o.hash;
-      rows.push(`<button class="tack-slot${active ? ' active' : ''}" data-id="${i}" data-hash="${o.hash}" data-tip="#${i + 1} ${priceText(o.cashPrice, o.goldPrice)}" type="button"><span class="ts-label">#${i + 1}</span><span class="ts-price">${priceText(o.cashPrice, o.goldPrice)}</span></button>`);
-    });
-    bar.innerHTML = rows.join('');
-    bar.querySelectorAll('.tack-slot').forEach((s) => s.addEventListener('click', () => onTackPick(s.dataset.id, s.dataset.hash)));
-  }
-  // hover tooltip (ทุกโหมด)
-  bar.querySelectorAll('[data-tip]').forEach((b) => {
-    b.addEventListener('mouseenter', (e) => { const r = b.getBoundingClientRect(); if (b.dataset.tip) showTip(b.dataset.tip, r.left + r.width / 2, r.top); });
-    b.addEventListener('mouseleave', hideTip);
+/* ===================== SHOP mode ===================== */
+function shopEntries() {
+  const out = [];
+  (DATA.shopData || []).forEach((breed, bi) => {
+    const colors = breed.colors || {};
+    Object.keys(colors).forEach((model) => out.push({ bi, model, breed, cfg: colors[model] }));
   });
+  return out;
+}
+function findShopColor(key) {
+  const [bi, model] = key.split('|');
+  const breed = DATA.shopData[Number(bi)];
+  if (!breed) return null;
+  return { breed, model, cfg: (breed.colors || {})[model] };
+}
+function renderShopList() {
+  const list = el('shop-list');
+  const entries = shopEntries();
+  el('tab-count-shop').textContent = String(entries.length);
+  if (!entries.length) { list.innerHTML = '<div class="card-empty">ไม่มีม้าให้ซื้อ</div>'; return; }
+  list.innerHTML = entries.map(({ bi, model, breed, cfg }) => {
+    const key = `${bi}|${model}`;
+    return `<button class="horse-card${shopSelKey === key ? ' active' : ''}" type="button" data-key="${key}" data-model="${model}">
+      <span class="horse-thumb"><i class="fa-solid fa-horse"></i></span>
+      <span>
+        <strong>${breed.breed}</strong>
+        <small>${cfg.color || ''}</small>
+        <span class="card-meta"><span>${cfg.invLimit != null ? cfg.invLimit + ' ช่อง' : ''}</span><span class="card-price">${priceText(cfg.cashPrice, cfg.goldPrice)}</span></span>
+      </span>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('[data-key]').forEach((b) => b.addEventListener('click', () => openShopSlot(b.dataset.key, b.dataset.model)));
+}
+function renderShopPreview() {
+  const info = shopSelKey ? findShopColor(shopSelKey) : null;
+  if (!info || !info.cfg) {
+    el('preview-breed').textContent = '';
+    el('preview-name').textContent = 'เลือกม้าจากรายการ';
+    el('preview-subtitle').textContent = '';
+    el('preview-index').textContent = '00'; el('preview-total').textContent = '/ 00';
+    el('shop-price').textContent = '—';
+    el('shop-slots').textContent = '—';
+    el('shop-color').textContent = '—';
+    el('shop-stats').innerHTML = '';
+    el('buy-label').textContent = 'เลือกม้าจากรายการ';
+    el('btn-buy').disabled = true;
+    return;
+  }
+  const { breed, cfg } = info;
+  const entries = shopEntries();
+  const idx = entries.findIndex((e) => `${e.bi}|${e.model}` === shopSelKey);
+  el('preview-breed').textContent = (breed.breed || '').toUpperCase();
+  el('preview-name').textContent = cfg.color || breed.breed;
+  el('preview-subtitle').textContent = priceText(cfg.cashPrice, cfg.goldPrice);
+  el('preview-index').textContent = String(idx + 1).padStart(2, '0');
+  el('preview-total').textContent = `/ ${String(entries.length).padStart(2, '0')}`;
+
+  el('shop-price').textContent = priceText(cfg.cashPrice, cfg.goldPrice);
+  el('shop-slots').textContent = cfg.invLimit != null ? `${cfg.invLimit} ช่อง` : '—';
+  el('shop-color').textContent = cfg.color || '—';
+  el('shop-stats').innerHTML = statGridMarkup(cfg.stats);
+  el('buy-label').textContent = DATA.currencyType === 1
+    ? `ซื้อด้วยทอง · ${cfg.goldPrice} ทอง`
+    : `ซื้อด้วยเงินสด · $${cfg.cashPrice}`;
+  el('btn-buy').disabled = false;
+}
+function openShopSlot(key, model) {
+  shopSelKey = key;
+  nui('loadHorse', { horseModel: model });
+  renderShopList();
+  renderShopPreview();
+}
+function onBuy() {
+  if (!shopSelKey) { notify('เลือกม้าก่อน', 'warning'); return; }
+  const info = findShopColor(shopSelKey);
+  if (!info || !info.cfg) return;
+  const isCash = DATA.currencyType !== 1;
+  nui('BuyHorse', { ModelH: info.model, IsCash: isCash, gender: shopGender, captured: 0, cashPrice: info.cfg.cashPrice, goldPrice: info.cfg.goldPrice });
 }
 
-/* ===================== mode-context (row above bar) ===================== */
-function renderContext() {
-  const ctx = el('mode-context');
-  if (mode === 'shop') {
-    const info = shopSelKey ? findShopColor(shopSelKey) : null;
-    if (info && info.cfg) {
-      ctx.innerHTML = `<span class="ctx-name">${info.breed.breed} • ${info.cfg.color || ''}</span>
-        <span class="ctx-price">${priceText(info.cfg.cashPrice, info.cfg.goldPrice)}</span>
-        <button id="ctx-buy" type="button">ซื้อม้า</button>`;
-      el('ctx-buy').addEventListener('click', onBuy);
-    } else {
-      ctx.innerHTML = '<span class="ctx-hint">เลือกม้าจากแถบด้านล่างเพื่อดูตัวอย่าง</span>';
-    }
-    ctx.classList.remove('hidden');
-  } else if (mode === 'tack') {
-    const chips = TACK_CATS.filter((cat) => Array.isArray(DATA.compData[cat]) && DATA.compData[cat].length)
-      .map((cat) => `<button class="tack-chip${tackCat === cat ? ' active' : ''}" data-cat="${cat}" type="button">${t(cat, cat)}</button>`).join('');
-    ctx.innerHTML = `<div class="tack-chips">${chips}</div><button id="ctx-tack-save" type="button">บันทึก</button>`;
-    ctx.querySelectorAll('.tack-chip').forEach((c) => c.addEventListener('click', () => { tackCat = c.dataset.cat; renderContext(); renderBar(); }));
-    el('ctx-tack-save').addEventListener('click', onTackSave);
-    ctx.classList.remove('hidden');
-  } else {
-    ctx.classList.add('hidden');
-    ctx.innerHTML = '';
-  }
+/* ===================== TACK mode ===================== */
+function availableTackCats() { return TACK_CATS.filter((c) => Array.isArray(DATA.compData[c]) && DATA.compData[c].length); }
+function computeTackTotal() {
+  let cash = 0, gold = 0;
+  Object.keys(tackPending).forEach((cat) => {
+    const hash = tackPending[cat]; if (!hash) return;
+    const opt = (DATA.compData[cat] || []).find((o) => o.hash === hash);
+    if (opt) { cash += opt.cashPrice || 0; gold += opt.goldPrice || 0; }
+  });
+  return { cash, gold };
+}
+function renderTackCatList() {
+  const list = el('tack-cat-list');
+  const cats = availableTackCats();
+  if (!cats.length) { list.innerHTML = '<div class="card-empty">ไม่มีอุปกรณ์ให้เลือก</div>'; return; }
+  list.innerHTML = cats.map((cat) => {
+    const count = (DATA.compData[cat] || []).length;
+    return `<button class="horse-card${tackCat === cat ? ' active' : ''}" type="button" data-cat="${cat}">
+      <span class="horse-thumb"><i class="fa-solid fa-layer-group"></i></span>
+      <span><strong>${t(cat, cat)}</strong><small>${count} แบบ</small></span>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { tackCat = b.dataset.cat; renderTackCatList(); renderTackOptions(); }));
+  el('tack-cat-active-label').textContent = tackCat ? t(tackCat, tackCat) : '';
+}
+function renderTackOptions() {
+  el('tack-cat-title').textContent = tackCat ? t(tackCat, tackCat) : 'เลือกหมวดด้านซ้าย';
+  const box = el('tack-options');
+  if (!tackCat) { box.innerHTML = ''; el('btn-tack-save').disabled = false; updateTackTotal(); return; }
+  const opts = DATA.compData[tackCat] || [];
+  const removeActive = tackPending[tackCat] === 0;
+  const rows = [`<button class="tack-option${removeActive ? ' active' : ''}" type="button" data-id="-1" data-hash="">
+      <i class="fa-solid fa-xmark"></i><span class="to-label">ถอดออก</span><span class="to-price"></span>
+    </button>`];
+  opts.forEach((o, i) => {
+    const active = tackPending[tackCat] === o.hash;
+    rows.push(`<button class="tack-option${active ? ' active' : ''}" type="button" data-id="${i}" data-hash="${o.hash}">
+      <i class="fa-solid fa-check"></i><span class="to-label">แบบที่ ${i + 1}</span><span class="to-price">${priceText(o.cashPrice, o.goldPrice)}</span>
+    </button>`);
+  });
+  box.innerHTML = rows.join('');
+  box.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => onTackPick(b.dataset.id, b.dataset.hash)));
+  updateTackTotal();
+}
+function updateTackTotal() {
+  const total = computeTackTotal();
+  el('tack-total-price').textContent = priceText(total.cash, total.gold);
+}
+function onTackPick(id, hash) {
+  if (!tackCat) return;
+  nui(tackCat, { id: id, hash: hash });
+  tackPending[tackCat] = (id === '-1') ? 0 : hash;
+  renderTackOptions();
+}
+function onTackSave() {
+  const total = computeTackTotal();
+  nui('CloseStable', { MenuAction: 'save', cashPrice: total.cash, goldPrice: total.gold, currencyType: DATA.currencyType === 1 ? 1 : 0 });
+  root.classList.add('hidden');
 }
 
 /* ===================== mode switching ===================== */
 function setMode(m) {
   mode = m;
   hideRelease();
-  const main = (m === 'main');
-  // panels/selector/rotate เฉพาะ main mode
-  el('stat-panel').classList.toggle('hidden', !main);
-  el('saddlebag-panel').classList.toggle('hidden', !main);
-  el('sel-prev').classList.toggle('hidden', !main);
-  el('sel-next').classList.toggle('hidden', !main);
-  el('btn-back').textContent = main ? '‹ ย้อนกลับ' : '‹ กลับ';
-  if (m === 'main') previewCurrent();
-  else if (m === 'shop') { shopSelKey = null; }
-  else if (m === 'tack') { const cats = TACK_CATS.filter((c) => Array.isArray(DATA.compData[c]) && DATA.compData[c].length); tackCat = cats[0] || null; }
-  renderContext();
-  renderBar();
-}
+  root.dataset.mode = m;
+  document.querySelectorAll('[data-mode-target]').forEach((b) => b.classList.toggle('active', b.dataset.modeTarget === m));
 
-/* ===================== action handlers ===================== */
-function onAction(key) {
-  const h = currentHorse();
-  switch (key) {
-    case 'summon': nui('summonHorse', {}); notify('กำลังเรียกม้า...'); break;
-    case 'return': nui('returnHorse', {}); notify('ส่งม้ากลับโรงม้าแล้ว'); break;
-    case 'shop': setMode('shop'); break;
-    case 'heal':
-      if (!h) return; nui('healHorse', { horseId: h.id }); break; // ผลเด้ง pNotify จาก server (Core.NotifyRightTip)
-    case 'setmain':
-      if (!h) return;
-      nui('selectHorse', { horseId: h.id });
-      myHorses.forEach((x) => (x.selected = 0)); h.selected = 1;
-      notify('ตั้งเป็นม้าตัวหลักแล้ว', 'success');
-      break;
+  if (m === 'main') {
+    previewCurrent();
+  } else if (m === 'shop') {
+    shopSelKey = null;
+    renderShopList();
+    renderShopPreview();
+  } else if (m === 'tack') {
+    const cats = availableTackCats();
+    tackCat = cats[0] || null;
+    renderTackCatList();
+    renderTackOptions();
   }
 }
+function backOrClose() { if (mode !== 'main') setMode('main'); else closeUI(); }
 
-/* ปล่อยม้า — ต้องยืนยันผ่าน popup ก่อน (btn-release → โชว์ #release-confirm → rc-yes) */
+/* ===================== release (sell) ===================== */
 function askRelease() {
   const h = currentHorse();
   if (!h) return;
@@ -251,45 +330,9 @@ function doRelease() {
   nui('sellHorse', { horseId: h.id, captured: h.captured });
   myHorses.splice(selIdx, 1);
   if (selIdx >= myHorses.length) selIdx = Math.max(0, myHorses.length - 1);
-  if (myHorses.length) previewCurrent(); else renderMineInfo();
+  renderOwnedCount();
+  if (myHorses.length) previewCurrent(); else { renderOwnedList(); renderMainPreview(); }
   notify('ปล่อยม้าแล้ว', 'success');
-}
-
-/* ===================== shop ===================== */
-function findShopColor(key) {
-  const [bi, model] = key.split('|');
-  const breed = DATA.shopData[Number(bi)];
-  if (!breed) return null;
-  return { breed, model, cfg: (breed.colors || {})[model] };
-}
-function openShopSlot(key, model) {
-  shopSelKey = key;
-  nui('loadHorse', { horseModel: model });
-  renderBar(); renderContext();
-}
-function onBuy() {
-  if (!shopSelKey) { notify('เลือกม้าก่อน', 'warning'); return; }
-  const info = findShopColor(shopSelKey);
-  if (!info || !info.cfg) return;
-  const isCash = DATA.currencyType !== 1;
-  nui('BuyHorse', { ModelH: info.model, IsCash: isCash, gender: 'male', captured: 0, cashPrice: info.cfg.cashPrice, goldPrice: info.cfg.goldPrice });
-}
-
-/* ===================== tack ===================== */
-function onTackPick(id, hash) {
-  nui(tackCat, { id: id, hash: hash });
-  tackPending[tackCat] = (id === '-1') ? 0 : hash;
-  renderBar();
-}
-function onTackSave() {
-  let cash = 0, gold = 0;
-  Object.keys(tackPending).forEach((cat) => {
-    const hash = tackPending[cat]; if (!hash) return;
-    const opt = (DATA.compData[cat] || []).find((o) => o.hash === hash);
-    if (opt) { cash += opt.cashPrice || 0; gold += opt.goldPrice || 0; }
-  });
-  nui('CloseStable', { MenuAction: 'save', cashPrice: cash, goldPrice: gold, currencyType: DATA.currencyType === 1 ? 1 : 0 });
-  root.classList.add('hidden');
 }
 
 /* ===================== open / close ===================== */
@@ -305,7 +348,11 @@ function openUI(p) {
   selIdx = myHorses.findIndex((h) => Number(h.selected) === 1);
   if (selIdx < 0) selIdx = 0;
   tackPending = {};
-  el('top-datetime').textContent = DATA.location || '';
+  shopGender = 'male';
+  el('shop-gender').querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.gender === 'male'));
+  el('stable-location').textContent = DATA.location || '';
+  renderOwnedCount();
+  el('tab-count-shop').textContent = String(shopEntries().length);
   setMode('main');
   root.classList.remove('hidden');
 }
@@ -316,14 +363,35 @@ function closeUI() {
 }
 
 /* ===================== events ===================== */
-el('btn-back').addEventListener('click', () => { if (mode !== 'main') setMode('main'); else closeUI(); });
-el('sel-prev').addEventListener('click', () => selectHorseIndex(selIdx - 1));
-el('sel-next').addEventListener('click', () => selectHorseIndex(selIdx + 1));
+el('btn-close').addEventListener('click', backOrClose);
+el('preview-prev').addEventListener('click', () => selectHorseIndex(selIdx - 1));
+el('preview-next').addEventListener('click', () => selectHorseIndex(selIdx + 1));
+document.querySelectorAll('[data-mode-target]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.modeTarget)));
+
+el('btn-summon').addEventListener('click', () => { nui('summonHorse', {}); notify('กำลังเรียกม้า...'); });
+el('btn-return').addEventListener('click', () => { nui('returnHorse', {}); notify('ส่งม้ากลับโรงม้าแล้ว'); });
 el('btn-cargo').addEventListener('click', () => { const h = currentHorse(); if (h) nui('openCargo', { horseId: h.id }); });
 el('btn-tack').addEventListener('click', () => setMode('tack'));
+el('btn-heal').addEventListener('click', () => { const h = currentHorse(); if (h) nui('healHorse', { horseId: h.id }); });
+el('btn-setmain').addEventListener('click', () => {
+  const h = currentHorse(); if (!h) return;
+  nui('selectHorse', { horseId: h.id });
+  myHorses.forEach((x) => (x.selected = 0)); h.selected = 1;
+  renderOwnedList();
+  notify('ตั้งเป็นม้าตัวหลักแล้ว', 'success');
+});
 el('btn-release').addEventListener('click', askRelease);
 el('rc-yes').addEventListener('click', doRelease);
 el('rc-no').addEventListener('click', hideRelease);
+
+el('btn-buy').addEventListener('click', onBuy);
+el('shop-gender').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+  shopGender = b.dataset.gender;
+  el('shop-gender').querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+}));
+
+el('btn-tack-save').addEventListener('click', onTackSave);
+
 // กดค้างหมุนต่อเนื่อง — ยิง rotate ซ้ำทุก 90ms ระหว่างกด (client หมุน ~6°/ครั้ง → ~66°/วิ)
 let rotTimer = null;
 function startRotate(dir) { nui('rotate', { RotateHorse: dir }); clearInterval(rotTimer); rotTimer = setInterval(() => nui('rotate', { RotateHorse: dir }), 90); }
@@ -333,19 +401,54 @@ document.querySelectorAll('.rot-btn').forEach((b) => {
   b.addEventListener('mouseup', stopRotate);
   b.addEventListener('mouseleave', stopRotate);
 });
-el('ab-prev').addEventListener('click', () => { el('action-bar').scrollLeft -= 240; });
-el('ab-next').addEventListener('click', () => { el('action-bar').scrollLeft += 240; });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (mode !== 'main') setMode('main'); else closeUI(); } });
+
+// คีย์ลัด: A/D เปลี่ยนม้า (main mode), Q/E กดค้างหมุนม้า, ESC ย้อนกลับ/ปิด — ปิดขณะพิมพ์ในช่องค้นหา
+let qDown = false, eDown = false;
+document.addEventListener('keydown', (e) => {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (typing) document.activeElement.blur(); else backOrClose(); return; }
+  if (typing) return;
+  if (mode === 'main') {
+    if (k === 'a') selectHorseIndex(selIdx - 1);
+    if (k === 'd') selectHorseIndex(selIdx + 1);
+  }
+  if (k === 'q' && !qDown) { qDown = true; startRotate('left'); }
+  if (k === 'e' && !eDown) { eDown = true; startRotate('right'); }
+});
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'q') { qDown = false; if (!eDown) stopRotate(); }
+  if (k === 'e') { eDown = false; if (!qDown) stopRotate(); }
+});
+
+// ค้นหา (client-side filter, ไม่กระทบข้อมูลจริง)
+el('owned-search').addEventListener('input', () => {
+  const term = el('owned-search').value.trim().toLocaleLowerCase('th');
+  el('owned-list').querySelectorAll('.horse-card[data-index]').forEach((card) => {
+    const idx = Number(card.dataset.index);
+    const h = myHorses[idx];
+    const hay = `${h && h.name || ''} ${h && h.breedLabel || ''}`.toLocaleLowerCase('th');
+    card.hidden = term && !hay.includes(term);
+  });
+});
+el('shop-search').addEventListener('input', () => {
+  const term = el('shop-search').value.trim().toLocaleLowerCase('th');
+  el('shop-list').querySelectorAll('.horse-card[data-key]').forEach((card) => {
+    card.hidden = term && !card.textContent.toLocaleLowerCase('th').includes(term);
+  });
+});
 
 window.addEventListener('message', (ev) => {
   const d = ev.data || {};
   if (d.action === 'show') openUI(d);
   else if (d.action === 'hide') { root.classList.add('hidden'); hideTip(); }
   else if (d.action === 'healed') {
-    // server รักษาม้าสำเร็จ → อัปเดต HP/สเตมิน่าของม้าตัวนั้นในรายการเป็นเต็ม แล้ว re-render แถบสภาพ
+    // server รักษาม้าสำเร็จ → อัปเดต HP/สเตมิน่าของม้าตัวนั้นในรายการเป็นเต็ม แล้ว re-render
     const h = myHorses.find((x) => Number(x.id) === Number(d.horseId));
     if (h) { h.health = 100; h.stamina = 100; h.dead = 0; h.writhe = 0; }
-    if (mode === 'main') renderCondition();
+    if (mode === 'main') renderMainPreview();
   }
 });
 
@@ -355,12 +458,13 @@ if (window.location.protocol !== 'nui:' && window.location.protocol !== 'https:'
     location: 'Valentine Stable', currencyType: 2, healPrice: 500,
     shopData: [{ breed: 'Morgan', colors: {
       'a_c_horse_morgan_bay': { color: 'Bay', cashPrice: 130, goldPrice: 6, invLimit: 30 },
-      'a_c_horse_morgan_palomino': { color: 'Palomino', cashPrice: 150, goldPrice: 7, invLimit: 30 },
+      'a_c_horse_morgan_palomino': { color: 'Palomino', cashPrice: 150, goldPrice: 7, invLimit: 30, stats: { speed: 7, acceleration: 6, agility: 8, courage: 5 } },
     } }],
     compData: { Saddles: [{ hash: '0x003897CA', cashPrice: 10, goldPrice: 1 }], Manes: [{ hash: '0xAA0217AB', cashPrice: 5, goldPrice: 1 }] },
     translations: { Saddles: 'อาน', Manes: 'แผงคอ' },
     myHorsesData: [
-      { id: 1, name: 'DaGo', model: 'a_c_horse_morgan_bay', components: '{}', gender: 'male', xp: 2, health: 100, stamina: 100, selected: 1, captured: 0, breedLabel: 'Morgan', bondLevel: 1, slots: 30, stats: { health: 4, stamina: 4, speed: 4, acceleration: 4, agility: 4, courage: 4 } },
+      { id: 1, name: 'DaGo', model: 'a_c_horse_morgan_bay', components: '{}', gender: 'male', xp: 2, health: 100, stamina: 100, selected: 1, captured: 0, breedLabel: 'Morgan', colorLabel: 'Bay', bondLevel: 1, slots: 30, stats: { speed: 4, acceleration: 4, agility: 4, courage: 4 } },
+      { id: 2, name: 'Copper', model: 'a_c_horse_morgan_palomino', components: '{}', gender: 'female', xp: 40, health: 66, stamina: 54, selected: 0, captured: 0, breedLabel: 'Morgan', colorLabel: 'Palomino', bondLevel: 2, slots: 30, stats: { speed: 6, acceleration: 5, agility: 7, courage: 4 } },
     ],
   });
 }
