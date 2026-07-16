@@ -145,6 +145,46 @@ ConfigShops.Locations = {
         },
         DrawLight = false,                               -- if you need a light in the store put true
     },
+    {                                                     -- Annesburg (พิกัดฐานอ้างอิงจากจุด barber/police ของ Annesburg ใน ez_radialmenu — ทดสอบในเกมแล้วปรับ heading/กล้องอีกที)
+        Prompt = {
+            Position = vector3(2924.3, 1343.7, 44.4), -- prompt location
+            Label = "Enter Clothing Store",           -- prompt label
+        },
+        Npc = {
+            Enable = true,
+            Model = "CS_FRANCIS_SINCLAIR",
+            Position = vector4(2923.0, 1342.3, 44.4, 45.0),
+            Scenario = 'WORLD_HUMAN_STAND_WAITING',
+        },
+        Blip = {
+            Enable = true,
+            Sprite = 1195729388,
+            Name = "Annesburg Clothing Store",
+            -- Color = 'BLIP_MODIFIER_MP_COLOR_23',
+        },
+        EditCharacter = { -- where the player will be teleported to edit character
+            Position = vector4(2925.6, 1345.1, 44.4, 200.0),
+        },
+        SpawnBack = { -- where the player will be teleported to after editing character
+            Position = vector4(2924.0, 1343.0, 44.4, 30.0),
+        },
+        CameraPosition = { -- camera position for the character editor
+            Position = vector3(2924.6, 1344.1, 45.0),
+            Heading = 45.0,
+            MaxUp = 45.8,
+            MaxDown = 44.0,
+            ZoomInRange = 1.0,
+            ZoomOutRange = 1.0,
+        },
+        -- CAN BE MULTIPLE
+        TypeOfShop = {
+            { type = SHOP_TYPES.CLOTHING, label = "Clothing Store", input = 0xC7B5340A },       -- enter key
+            { type = SHOP_TYPES.HAIR,     label = "Hair Store",     input = 0xD9D0E1C0 },       -- space key
+            { type = SHOP_TYPES.MAKEUP,   label = "Makeup Store",   input = 0x9959A6F0 },       -- C key
+
+        },
+        DrawLight = false,                               -- if you need a light in the store put true
+    },
     -- {                                                    -- Saint Denis
     --     Prompt = {
     --         Position = vector3(2552.4, -1165.22, 53.73), -- prompt location
