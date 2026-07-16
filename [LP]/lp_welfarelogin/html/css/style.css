@@ -30,60 +30,73 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
   position: absolute; left: 0; top: 0;
   width: 1920px; height: 1080px;
   background-image: url('../assets/preview.png');
-  background-size: 1920px 1080px;
+  background-size: 2420px 1080px;
   opacity: 0.5; pointer-events: none; z-index: 999; display: none;
 }
 
 /* ══════════════════════════════════════
-   MAIN PANEL  left:430 top:212 w:1060 h:596
+   MAIN PANEL  left:430 top:222 w:1060 h:750
+   (แถว title+tab ยุบเหลือแถวเดียวแล้ว เลยไม่ต้องเผื่อพื้นที่เยอะเท่าตอนแยก 2 แถว —
+   ลด height 872→750 ตัด dead space บนหัวออก, top ขยับกลับลงมา (100→222) แต่ panel
+   bottom ยังอยู่ที่ 972 เท่าเดิม (222+750=972) online-bar เลยไม่ต้องขยับตาม)
    ══════════════════════════════════════ */
 #panel {
   position: absolute;
-  left: 430px; top: 212px;
-  width: 1060px; height: 596px;
+  left: 430px; top: 200px;
+  width: 1060px; height: 750px;
 }
 #panel-bg {
   position: absolute;
   left: 0; top: 0;
-  width: 1060px; height: 596px;
-  object-fit: cover;
+  width: 1060px; height: 750px;
+  object-fit: fill;
   opacity: 0.9;
   pointer-events: none;
 }
 
-/* ── Title ── */
+/* ── Header row — title ชิดซ้าย (แนวเดียวกับขอบ grid ที่ left:70) / tab+day+close ชิดขวา
+   ชิดขอบ grid ฝั่งขวาเหมือนกัน (grid right edge = left:70+width:920 = 990, panel width 1060
+   → right:70 ถึงจะชิดพอดี, เดิม right:176 เว้นช่องว่างเกินไปไม่ตรงกับฝั่งซ้าย) ── */
 #title-th {
   position: absolute;
-  left: 199px; top: 76px;
+  left: 70px; top: 24px;
   font-family: 'Kanit', sans-serif;
   font-size: 24px; color: #fff;
   white-space: nowrap; line-height: 1;
 }
 #title-en {
   position: absolute;
-  left: 200px; top: 105px;
+  left: 71px; top: 53px;
   font-family: 'Copperplate Gothic Bold', Georgia, serif;
   font-size: 14px; color: #ae8e6a;
   letter-spacing: 1px; line-height: 1;
 }
 #title-line {
   position: absolute;
-  left: 345px; top: 88px;
+  left: 216px; top: 36px;
   width: 97px; height: 1px;
   background: #a4a4a4;
 }
 #title-dot {
   position: absolute;
-  left: 441px; top: 85px;
+  left: 312px; top: 33px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: #a4a4a4;
 }
+#day-counter {
+  position: absolute;
+  right: 114px; top: 28px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 15px; font-weight: 500; color: #f0ca78;
+  text-shadow: 0 0 6px rgba(240,202,120,0.4);
+  line-height: 1;
+}
 
-/* ── Close button ── */
+/* ── Close button — ชิดขอบขวาของ grid (right:70 ตรงกับ grid right edge) ── */
 #close-btn {
   position: absolute;
-  right: 176px; top: 78px;
+  right: 70px; top: 26px;
   width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
   font-family: 'Alexandria', sans-serif;
@@ -96,134 +109,136 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
 }
 #close-btn:hover { color: #fff; border-color: #ae8e6a; background: rgba(174,142,106,0.2); }
 
-/* ── Row tags ── */
-#free-tag, #vip-tag {
+/* ── Tab bar (Free/VIP) — ชิดขวา ก่อน DAY X/30 + ปุ่มปิด แถวเดียวกับ title ── */
+#tab-bar {
   position: absolute;
-  left: 186px;
-  font-family: 'Kanit', sans-serif;
-  font-size: 12px; line-height: 1;
-  letter-spacing: 0.5px;
+  right: 224px; top: 24px;
+  display: flex; gap: 10px;
 }
-#free-tag { top: 121px; color: #c9c9c9; }
-#vip-tag  { top: 327px; color: #f0ca78; text-shadow: 0 0 5px rgba(240,202,120,0.4); }
+.tab-btn {
+  width: 130px; height: 32px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
+  color: #9c9c9c;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tab-btn:hover { color: #fff; border-color: #685540; }
+.tab-btn.active {
+  color: #f0ca78;
+  background: rgba(190,137,59,0.18);
+  border-color: #edb87e;
+  box-shadow: 0 0 6px rgba(240,202,120,0.35);
+  text-shadow: 0 0 5px rgba(240,202,120,0.4);
+}
 
 /* ══════════════════════════════════════
-   CARD SECTIONS
+   CARD GRID  6 คอลัมน์ × 5 แถว — เห็นครบ 30 วันไม่ต้อง scroll
    ══════════════════════════════════════ */
-#daily-section {
+.card-grid {
+  /* top:85 + height:650 = 735, อยู่ในกรอบ panel ใหม่ (750) พอดี เหลือขอบล่าง 15px
+     ไม่มี border/พื้นหลังทึบของตัวเอง ปล่อยให้ panel-bg (กระดาษฉีกที่ครอปแล้ว ยืดเต็ม panel)
+     โชว์ทะลุแทน ให้ดูเป็นการ์ดใบเดียวต่อเนื่องกันทั้งหมด */
+  display: none;
   position: absolute;
-  left: 186px; top: 135px;
-  width: 688px; height: 194px;
-  background: rgba(0,0,0,0.5);
-  border: 1px solid #232323;
-}
-#reward-section {
-  position: absolute;
-  left: 186px; top: 341px;
-  width: 688px; height: 194px;
-  background:
-    linear-gradient(0deg, rgba(200,147,89,0.16) 0%, rgba(55,29,0,0) 100%),
-    linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 100%);
-  border: 1px solid #232323;
-}
-#daily-cards, #reward-cards {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 18px;
-  padding: 16px 14px 0 14px;
-  overflow-x: scroll;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  width: 100%; height: 100%;
+  left: 70px; top: 85px;
+  width: 920px; height: 650px;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 10px;
+  padding: 12px;
   box-sizing: border-box;
 }
-#daily-cards::-webkit-scrollbar,
-#reward-cards::-webkit-scrollbar { display: none; }
-
-/* custom horizontal scrollbars */
-.scroll-track {
-  position: absolute;
-  left: 287px;
-  width: 488px; height: 7px;
-  background: rgba(35,35,35,0.85);
-  border-radius: 3.5px;
-  z-index: 10;
+.card-grid.active { display: grid; }
+#vip-grid {
+  background:
+    linear-gradient(0deg, rgba(200,147,89,0.12) 0%, rgba(55,29,0,0) 100%);
 }
-#scroll-track-top { top: 305px; }
-#scroll-track-bot { top: 515px; }
 
-.scroll-thumb {
+/* ── VIP lock watermark — โชว์ทับ #vip-grid ทั้งแถบตอนผู้เล่นยังไม่ใช่ VIP บอกเหตุผลที่ล็อก
+   ชัดเจน (ต่างจาก card ทั่วไปที่ state-locked เพราะยังไม่ถึงวัน) ตำแหน่ง/ขนาดตรงกับ grid เป๊ะ ── */
+#vip-lock-watermark {
   position: absolute;
-  left: 0; top: 0;
-  height: 100%;
-  background: #8b6c49;
-  border-radius: 3.5px;
-  min-width: 30px;
-  cursor: pointer;
+  left: 70px; top: 85px;
+  width: 920px; height: 650px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(0,0,0,0.55);
+  pointer-events: none;
+  z-index: 5;
+}
+#vip-lock-icon { font-size: 40px; opacity: 0.85; filter: drop-shadow(0 0 6px rgba(240,202,120,0.4)); }
+#vip-lock-text {
+  font-family: 'Kanit', sans-serif;
+  font-size: 16px; font-weight: 500; color: #f0ca78;
+  text-align: center; line-height: 1.5;
+  text-shadow: 0 0 8px rgba(0,0,0,0.8);
 }
 
 /* ══════════════════════════════════════
-   CARDS
+   CARDS — ขนาดตาม grid cell เอง ไม่ fix px แล้ว (เดิม fix เพราะเป็นแถว scroll)
    ══════════════════════════════════════ */
 .card {
-  flex-shrink: 0;
-  width: 101px; height: 136px;
-  border-radius: 2px;
+  width: 100%; height: 100%;
+  border-radius: 3px;
   overflow: hidden;
   position: relative;
+  display: flex; flex-direction: column; align-items: center;
 }
-.card.card-last { width: 101px; }
 
 .card-num {
-  position: absolute;
-  left: 0; right: 0; top: 10px;
+  margin-top: 7px;
   font-family: 'Alexandria', sans-serif;
   font-size: 12px; text-align: center; line-height: 1;
 }
 .card-img {
-  position: absolute;
-  left: 10px; top: 21px;
-  width: 80px; height: 80px;
+  width: 46%; max-width: 56px;
+  aspect-ratio: 1 / 1;
   object-fit: cover; pointer-events: none;
-}
-.card.card-last .card-img {
-  left: 10px;
-  width: 80px; height: 80px;
-  object-fit: cover;
+  margin-top: 4px;
 }
 .card-label {
-  position: absolute;
-  left: 50%; bottom: 11px;
-  transform: translateX(-50%);
   font-family: 'Alexandria', sans-serif;
-  font-size: 9px; color: #fff;
+  font-size: 10px; color: #fff;
   text-align: center; white-space: nowrap;
-  width: 88px;
+  overflow: hidden; text-overflow: ellipsis;
+  width: 92%;
+  margin-top: 3px;
 }
+
+/* — claim button (แทนที่การคลิกทั้งการ์ดแบบเดิม) — */
+.card-btn {
+  margin-top: auto; margin-bottom: 6px;
+  width: 84%; height: 19px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 10px; text-align: center; line-height: 19px;
+  border-radius: 3px;
+}
+.card-btn-claim {
+  color: #131313; background: #f0ca78; font-weight: 500; cursor: pointer;
+}
+.card-btn-claim:hover { background: #fce7aa; }
+.card-btn-claimed { color: #d7a757; background: rgba(190,137,59,0.15); border: 1px solid rgba(215,167,87,0.4); }
+.card-btn-locked  { color: #6b6b6b; background: rgba(255,255,255,0.04); }
 
 /* — state: current (claimable) — */
 .card.state-current {
   border: 1px solid rgba(255,255,255,0.9);
   box-shadow: 0 0 6px rgba(180,180,180,0.6);
   background: radial-gradient(ellipse at bottom, rgba(255,255,255,0.05) 0%, transparent 80%);
-  cursor: pointer;
 }
 .card.state-current .card-num { color: #fff; text-shadow: 0 0 5px #cacaca; }
 .card.state-current:hover { box-shadow: 0 0 10px rgba(240,202,120,0.8); border-color: #f0ca78; }
 
 /* VIP claimable = gold glow */
-#reward-cards .card.state-current {
+#vip-grid .card.state-current {
   border: 1px solid #edb87e;
   box-shadow: 0 0 6px #94583d;
   background: radial-gradient(ellipse at bottom, rgba(190,137,59,0.25) 0%, transparent 80%);
 }
-#reward-cards .card.state-current .card-num { color: #f0ca78; text-shadow: 0 0 5px #ac8253; }
-
-/* — state: inactive — */
-.card.state-inactive { border: 1px solid rgba(255,255,255,0.5); }
-.card.state-inactive .card-num { color: #cdcdcd; }
-.card.state-inactive .card-img { opacity: 0.5; }
+#vip-grid .card.state-current .card-num { color: #f0ca78; text-shadow: 0 0 5px #ac8253; }
 
 /* — state: completed (claimed) — */
 .card.state-completed {
@@ -250,11 +265,13 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
 .card.state-locked .card-img { opacity: 0.5; }
 
 /* ══════════════════════════════════════
-   SCORE BAR  left:615 top:808 w:691 h:88
+   SCORE BAR  left:615 top:986 w:691 h:88
+   (เดิม top:808 ชิดขอบล่าง panel พอดี — เลื่อนลงตามความสูง panel ใหม่ 760
+   บวกช่องว่าง ~14px ให้เห็นแยกจาก grid ด้านบนชัดเจน)
    ══════════════════════════════════════ */
 #score-bar {
   position: absolute;
-  left: 615px; top: 808px;
+  left: 615px; top: 960px;
   width: 691px; height: 88px;
   background: rgba(0,0,0,0.5);
   border: 1px solid #232323;

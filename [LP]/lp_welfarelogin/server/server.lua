@@ -242,6 +242,7 @@ local function buildState(src, st)
         onlineHours = displayHours,
         onlineMax   = Config.OnlineMaxHours or 6,
         isVip       = vip,
+        currentDay  = cd, -- สำหรับ "DAY X / 30" ที่หัว UI
     }
 end
 

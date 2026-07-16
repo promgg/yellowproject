@@ -17,22 +17,25 @@
     <div id="title-en">DAILY LOGIN</div>
     <div id="title-line"></div>
     <div id="title-dot"></div>
+    <div id="day-counter"></div>
 
     <div id="close-btn">✕</div>
 
-    <!-- Row 1: daily login — FREE track -->
-    <div id="free-tag"></div>
-    <div id="daily-section">
-      <div id="daily-cards"></div>
+    <!-- Free/VIP switch instead of two stacked scroll rows -->
+    <div id="tab-bar">
+      <button class="tab-btn active" id="tab-free" data-track="free">FREE</button>
+      <button class="tab-btn" id="tab-vip" data-track="vip">VIP</button>
     </div>
-    <div id="scroll-track-top" class="scroll-track"><div class="scroll-thumb"></div></div>
 
-    <!-- Row 2: daily login — VIP track -->
-    <div id="vip-tag"></div>
-    <div id="reward-section">
-      <div id="reward-cards"></div>
+    <div id="daily-grid" class="card-grid active"></div>
+    <div id="vip-grid" class="card-grid"></div>
+
+    <!-- overlay แยกจาก #vip-grid ตั้งใจ (ไม่ใช่ลูก) เพราะ buildCards() เคลียร์ innerHTML
+         ของ grid ทุกครั้งที่ render ใหม่ ถ้าใส่ไว้ข้างในจะโดนลบทิ้งไปด้วย -->
+    <div id="vip-lock-watermark" class="hidden">
+      <div id="vip-lock-icon">🔒</div>
+      <div id="vip-lock-text">ต้องเป็นสมาชิก VIP<br>จึงจะรับรางวัลแถวนี้ได้</div>
     </div>
-    <div id="scroll-track-bot" class="scroll-track"><div class="scroll-thumb"></div></div>
   </div>
 
   <!-- Online-time reward score bar (auto, display only) -->

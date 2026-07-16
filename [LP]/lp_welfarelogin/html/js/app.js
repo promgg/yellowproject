@@ -3,13 +3,14 @@ var _resourceName = (function () {
 })();
 
 var root          = document.getElementById('root');
-var dailyCards    = document.getElementById('daily-cards');   // Row 1 = FREE track
-var rewardCards   = document.getElementById('reward-cards');  // Row 2 = VIP track
+var dailyGrid     = document.getElementById('daily-grid'); // FREE track
+var vipGrid       = document.getElementById('vip-grid');   // VIP track
+var dayCounterEl  = document.getElementById('day-counter');
 var scoreSlots    = document.getElementById('score-slots');
 var scoreLineFill = document.getElementById('score-line-fill');
 
-var TRACK_W = 488;
-var isVip   = false;
+var isVip       = false;
+var activeTrack = 'free';
 
 /* ── POST to Lua ── */
 function post(name, data) {
@@ -22,54 +23,78 @@ function post(name, data) {
   } catch (e) {}
 }
 
-/* ── custom scrollbar sync ── */
-function initScrollbar(container, track) {
-  var thumb = track.querySelector('.scroll-thumb');
-  function update() {
-    var sw = container.scrollWidth, cw = container.clientWidth;
-    if (sw <= cw) { thumb.style.width = TRACK_W + 'px'; thumb.style.left = '0px'; }
-    else {
-      var tw = Math.max(30, (cw / sw) * TRACK_W);
-      var tl = (container.scrollLeft / (sw - cw)) * (TRACK_W - tw);
-      thumb.style.width = tw + 'px';
-      thumb.style.left  = tl + 'px';
+/* ── tab switch (Free/VIP) — แทนที่ 2 แถว scroll เดิม ── */
+function switchTrack(track) {
+  activeTrack = track;
+  document.getElementById('tab-free').classList.toggle('active', track === 'free');
+  document.getElementById('tab-vip').classList.toggle('active', track === 'vip');
+  dailyGrid.classList.toggle('active', track === 'free');
+  vipGrid.classList.toggle('active', track === 'vip');
+  // watermark โชว์เฉพาะตอนอยู่แท็บ VIP และผู้เล่นยังไม่ใช่ VIP จริง
+  document.getElementById('vip-lock-watermark').classList.toggle('hidden', !(track === 'vip' && !isVip));
+}
+document.getElementById('tab-free').addEventListener('click', function () { switchTrack('free'); });
+document.getElementById('tab-vip').addEventListener('click', function () { switchTrack('vip'); });
+
+/* ── card state → ปุ่มรับรางวัล (ข้อความ/สถานะจริง ไม่ใช้คำว่า "เลือก" ตามภาพต้นแบบ
+   เพราะ action จริงคือ "รับ" ของ ไม่ใช่ "เลือก") ── */
+function btnTextFor(state) {
+  if (state === 'current')   return 'รับรางวัล';
+  if (state === 'completed') return 'รับแล้ว';
+  return 'ยังไม่ถึง';
+}
+function btnClassFor(state) {
+  if (state === 'current')   return 'card-btn card-btn-claim';
+  if (state === 'completed') return 'card-btn card-btn-claimed';
+  return 'card-btn card-btn-locked';
+}
+
+/* ── build a card grid; track ∈ 'free'|'vip' ── */
+function buildCards(container, cards, track) {
+  container.innerHTML = '';
+  cards.forEach(function (c) {
+    var card = document.createElement('div');
+    card.className = 'card state-' + (c.state || 'locked');
+
+    var num = document.createElement('div');
+    num.className = 'card-num';
+    num.textContent = c.num !== undefined ? c.num : '';
+    card.appendChild(num);
+
+    var img = document.createElement('img');
+    img.className = 'card-img';
+    img.alt = '';
+    var activeImg = (c.state === 'current' || c.state === 'completed');
+    if (c.img) {
+      img.src = 'nui://vorp_inventory/html/img/items/' + c.img + '.png';
+      img.onerror = function () {
+        this.onerror = null;
+        this.src = activeImg ? 'assets/item-active.png' : 'assets/item-dimmed.png';
+      };
+    } else {
+      img.src = activeImg ? 'assets/item-active.png' : 'assets/item-dimmed.png';
     }
-  }
-  container.addEventListener('scroll', update);
-  thumb.addEventListener('mousedown', function (e) {
-    e.preventDefault();
-    var startX = e.clientX, startSL = container.scrollLeft;
-    var sw = container.scrollWidth, cw = container.clientWidth;
-    var tw = parseFloat(thumb.style.width) || TRACK_W;
-    function onMove(mv) {
-      var ratio = (mv.clientX - startX) / (TRACK_W - tw);
-      container.scrollLeft = startSL + ratio * (sw - cw);
+    card.appendChild(img);
+
+    var label = document.createElement('div');
+    label.className = 'card-label';
+    label.textContent = c.label || '';
+    card.appendChild(label);
+
+    var btn = document.createElement('button');
+    btn.className = btnClassFor(c.state);
+    btn.type = 'button';
+    btn.textContent = btnTextFor(c.state);
+    btn.disabled = c.state !== 'current';
+    if (c.state === 'current') {
+      btn.addEventListener('click', function () {
+        post('claim', { track: track, day: c.num });
+      });
     }
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    card.appendChild(btn);
+
+    container.appendChild(card);
   });
-  update();
-  return update;
-}
-var updateTopScroll, updateBotScroll, scrollSyncWired = false, scrollLock = false;
-
-/* ── scroll คู่แบบ lp_battlepass — เลื่อนแถวหนึ่ง อีกแถวเลื่อนตาม (การ์ดวันเดียวกันอยู่ตำแหน่งเดียวกัน) ── */
-function onScrollSync(from, to) {
-  if (scrollLock) return;
-  scrollLock = true;
-  to.scrollLeft = from.scrollLeft;
-  scrollLock = false;
-}
-
-function enableWheelScroll(container) {
-  container.addEventListener('wheel', function (e) {
-    e.preventDefault();
-    container.scrollLeft += e.deltaY || e.deltaX;
-  }, { passive: false });
 }
 
 /* ── SVG icons ── */
@@ -112,54 +137,6 @@ var CHECK_SVG = [
   'M8.826 11.73L12.576 7.23L11.424 6.27L8.199 10.1393L6.53025 8.46975',
   'L5.46975 9.53025L7.71975 11.7802L8.30025 12.3608L8.826 11.73Z"/></svg>'
 ].join('');
-
-/* ── build a card row; track ∈ 'free'|'vip' ── */
-function buildCards(container, cards, track) {
-  container.innerHTML = '';
-  cards.forEach(function (c, i) {
-    var isLast = (i === cards.length - 1);
-    var card = document.createElement('div');
-    card.className = 'card state-' + (c.state || 'locked') + (isLast ? ' card-last' : '');
-
-    var num = document.createElement('div');
-    num.className = 'card-num';
-    num.textContent = c.num !== undefined ? c.num : (i + 1);
-    card.appendChild(num);
-
-    var img = document.createElement('img');
-    img.className = 'card-img';
-    img.alt = '';
-    if (c.img) {
-      img.src = 'nui://vorp_inventory/html/img/items/' + c.img + '.png';
-      img.onerror = function () {
-        this.onerror = null;
-        this.src = (c.state === 'current' || c.state === 'completed')
-          ? 'assets/item-active.png'
-          : (isLast ? 'assets/item-last.png' : 'assets/item-dimmed.png');
-      };
-    } else {
-      var active = (c.state === 'current' || c.state === 'completed');
-      img.src = active ? 'assets/item-active.png'
-              : isLast ? 'assets/item-last.png'
-              : 'assets/item-dimmed.png';
-    }
-    card.appendChild(img);
-
-    var label = document.createElement('div');
-    label.className = 'card-label';
-    label.textContent = c.label || '';
-    card.appendChild(label);
-
-    /* claimable → click to claim */
-    if (c.state === 'current') {
-      card.addEventListener('click', function () {
-        post('claim', { track: track, day: c.num });
-      });
-    }
-
-    container.appendChild(card);
-  });
-}
 
 /* ── score bar slots ── */
 function buildScoreSlots(slots, onlineHours, onlineMax) {
@@ -204,38 +181,26 @@ function buildScoreSlots(slots, onlineHours, onlineMax) {
 /* ── open / render ── */
 function render(data) {
   isVip = !!data.isVip;
-  buildCards(dailyCards,  data.dayCards || [], 'free');
-  buildCards(rewardCards, data.vipCards || [], 'vip');
+  var dayCards = data.dayCards || [];
+  var vipCards = data.vipCards || [];
 
-  if (!updateTopScroll) {
-    enableWheelScroll(dailyCards);
-    enableWheelScroll(rewardCards);
-    updateTopScroll = initScrollbar(dailyCards,  document.getElementById('scroll-track-top'));
-    updateBotScroll = initScrollbar(rewardCards, document.getElementById('scroll-track-bot'));
-  }
-  if (!scrollSyncWired) {
-    scrollSyncWired = true;
-    dailyCards.addEventListener('scroll', function () { onScrollSync(dailyCards, rewardCards); });
-    rewardCards.addEventListener('scroll', function () { onScrollSync(rewardCards, dailyCards); });
-  }
-  if (updateTopScroll) {
-    updateTopScroll();
-    updateBotScroll();
-  }
+  buildCards(dailyGrid, dayCards, 'free');
+  buildCards(vipGrid,   vipCards, 'vip');
+
+  var cd = data.currentDay || 1;
+  var total = dayCards.length || vipCards.length || 30;
+  dayCounterEl.textContent = 'DAY ' + Math.min(cd, total) + ' / ' + total;
+
+  switchTrack(activeTrack);
 
   buildScoreSlots(data.onlineSlots || [], data.onlineHours || 0, data.onlineMax || 6);
 }
 
-/* RedM/CEF บางครั้งวาดเฟรมแรกของ NUI ไม่สมบูรณ์ตอนเพิ่งเปิด (เห็นชัดที่ #score-bar
-   ใหญ่/ล้นกว่าปกติ) แล้วกลับมาถูกขนาดเองพอมี DOM reflow (เช่นตอนผู้เล่น scroll การ์ด)
-   บังคับ reflow ทันทีหลัง render แทนที่จะรอผู้เล่นบังเอิญ scroll ไปเจอเอง */
+/* RedM/CEF บางครั้งวาดเฟรมแรกของ NUI ไม่สมบูรณ์ตอนเพิ่งเปิด บังคับ reflow ทันทีหลัง render */
 function forceReflow() {
   document.documentElement.style.display = 'none';
   void document.documentElement.offsetHeight; // sync reflow
   document.documentElement.style.display = '';
-
-  dailyCards.scrollLeft += 1;  dailyCards.scrollLeft -= 1;
-  rewardCards.scrollLeft += 1; rewardCards.scrollLeft -= 1;
   window.dispatchEvent(new Event('resize'));
 }
 
@@ -281,7 +246,7 @@ window.test = function (currentDay, onlineHrs, vip) {
   }
   var done = Math.floor(onlineHrs);
   var onlineSlots = [1, 2, 3, 4, 5, 6].map(function (h) { return { hours: h, state: h <= done ? 'done' : 'locked' }; });
-  open({ dayCards: dayCards, vipCards: vipCards, onlineSlots: onlineSlots, onlineHours: onlineHrs, onlineMax: 6, isVip: vip });
+  open({ dayCards: dayCards, vipCards: vipCards, onlineSlots: onlineSlots, onlineHours: onlineHrs, onlineMax: 6, isVip: vip, currentDay: currentDay });
   console.log('[welfare] day=' + currentDay + ' online=' + onlineHrs + 'h vip=' + vip);
 };
 
