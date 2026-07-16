@@ -5,7 +5,7 @@
 
 Config = {}
 
-Config.Debug = true -- gate for dbg() prints
+Config.Debug = false -- gate for dbg() prints
 
 -- ACE permission required for /event_start /event_stop (server console always allowed)
 Config.AdminAce = 'lp_eventnotify.admin'
