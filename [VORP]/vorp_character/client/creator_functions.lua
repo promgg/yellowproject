@@ -144,6 +144,27 @@ function SetMetaPedTag(ped, drawable, albedo, normal, material, palette, tint0, 
     Citizen.InvokeNative(0xBC6DF00D7A4A6819, ped, drawable, albedo, normal, material, palette, tint0, tint1, tint2)
 end
 
+-- Cross-resource access to the Shirt MetaPed tag (used by nx_cityselect's
+-- city-badge outfit toggle so it doesn't need to reimplement the RDR2
+-- asset-hash lookup/apply natives itself)
+exports('GetShirtTag', function()
+    return GetMetaPedData("Shirt", PlayerPedId())
+end)
+
+exports('SetShirtTag', function(data)
+    if not data then return end
+    local ped = PlayerPedId()
+    -- mirror ApplyAllComponents' real sequence: apply the item first (drawable
+    -- doubles as the item hash for ApplyShopItemToPed), THEN tag/tint it —
+    -- SetMetaPedTag alone only recolors whatever mesh is already active, it
+    -- doesn't swap the mesh itself
+    ApplyShopItemToPed(data.drawable, ped)
+    SetMetaPedTag(ped, data.drawable, data.albedo, data.normal, data.material, data.palette, data.tint0, data.tint1, data.tint2)
+    Citizen.InvokeNative(0xAAB86462966168CE, ped, 1)
+    UpdatePedVariation(ped)
+    IsPedReadyToRender(ped)
+end)
+
 function SetTextureOutfitTints(ped, category, data)
     Citizen.InvokeNative(0x4EFC1F8FF1AD94DE, ped, joaat(category), data.palette, data.tint0, data.tint1, data.tint2)
 end
