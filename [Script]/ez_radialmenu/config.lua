@@ -22,9 +22,11 @@ Config.MenuItems = {
             {
                 id = 'rewardcode',
                 title = 'RewardCode',
-                icon = "gift", 
+                icon = "gift",
                 type = 'command',
-                event = 'opencode',
+                -- เดิมเป็น 'opencode' ซึ่งไม่มี command นี้อยู่จริงเลย (MJ-CodeReward
+                -- ลงทะเบียนคำสั่งผู้เล่นเป็น Config.PlayerCommand = 'pcode') กดแล้วเลยไม่มีอะไรเกิดขึ้น
+                event = 'pcode',
                 shouldClose = true,
             },
         }
