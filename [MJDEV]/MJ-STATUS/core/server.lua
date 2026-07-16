@@ -1,9 +1,25 @@
 local VORPcore = exports['vorp_core']:GetCore()
 
+-- กันกดกิน/ดื่มรัวๆ: server หัก item ทันทีทุกครั้งที่ callback ยิง (client ท่ากิน ~7 วิ ไม่ได้บล็อก
+-- การหัก item ที่ server ทำไปแล้ว) spam คลิกเลยกินหมดสต็อกในพริบตา + ท่า/prop ซ้อนกันหลายอัน —
+-- cooldown ต่อคนเท่าความยาวท่ากิน กันหักซ้ำระหว่างท่ายังเล่นอยู่
+local EAT_COOLDOWN_MS = 6500 -- ~ความยาวท่ากิน/ดื่ม (PlayAnimEat/Drink รวม ~6-7 วิ)
+local eatCooldown = {}       -- [src] = GetGameTimer() ที่กินได้อีกครั้ง
+
+AddEventHandler('playerDropped', function()
+    if source then eatCooldown[source] = nil end
+end)
+
 -- ฟังก์ชั่นใช้งานไอเท็มที่กินได้
 local function useConsumableItem(playerId, item)
     local consumable = Config.FoodItems[item]
     if consumable then
+        local now = GetGameTimer()
+        if eatCooldown[playerId] and now < eatCooldown[playerId] then
+            return -- ยังกินคำก่อนไม่เสร็จ — ไม่หัก item ซ้ำ ไม่ยิงท่า/prop ซ้อน
+        end
+        eatCooldown[playerId] = now + EAT_COOLDOWN_MS
+
         exports.vorp_inventory:closeInventory(playerId)
         exports.vorp_inventory:subItem(playerId, item, 1)
         local EatAnimDict = consumable.EatAnimDict

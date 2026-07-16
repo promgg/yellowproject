@@ -260,64 +260,72 @@ function ScreenEffect(effect, durationMinutes)
     AnimpostfxStop(effect)
 end
 
+-- prop ต้องสร้าง "แล้วแปะเข้ามือทันทีในเฟรมเดียวกัน" ไม่งั้นมันจะลอยอยู่กลางอากาศที่พิกัดผู้เล่น
+-- ระหว่าง Wait ก่อนแปะ (บั๊กเดิม: CreateObject ที่ z+0.2 → Wait(1000) → ค่อย Attach = prop ลอย 1 วิ)
+-- แก้เป็น: เล่นท่าก่อน → รอให้มือยกขึ้น → ค่อยสร้าง+แปะ prop พร้อมกัน + โหลด/ลบโมเดลให้ครบ
+local function spawnHeldProp(propName)
+    local ped = PlayerPedId()
+    local hashItem = GetHashKey(propName)
+    if not IsModelValid(hashItem) then return nil end
+
+    RequestModel(hashItem)
+    local t0 = GetGameTimer()
+    while not HasModelLoaded(hashItem) and GetGameTimer() - t0 < 2000 do Wait(10) end
+    if not HasModelLoaded(hashItem) then return nil end
+
+    local coords = GetEntityCoords(ped)
+    local prop = CreateObject(hashItem, coords.x, coords.y, coords.z, true, true, false, false, true)
+    SetEntityAsMissionEntity(prop, true, true)
+    local boneIndex = GetEntityBoneIndexByName(ped, "SKEL_R_Finger12")
+    AttachEntityToEntity(prop, ped, boneIndex, 0.02, 0.028, 0.001, 15.0, 175.0, 0.0, true, true, false, true, 1, true)
+    SetModelAsNoLongerNeeded(hashItem)
+    return prop
+end
+
+local function removeHeldProp(prop)
+    if prop and DoesEntityExist(prop) then
+        DeleteEntity(prop)
+    end
+end
+
 function PlayAnimDrink(propName)
-    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId()))
+    local ped = PlayerPedId()
     local dict = "amb_rest_drunk@world_human_drinking@male_a@idle_a"
     local anim = "idle_a"
 
-    -- if (not IsPedMale(PlayerPedId())) then
-    --     dict = "amb_rest_drunk@world_human_drinking@female_a@idle_b"
-    --     anim = "idle_b"
-    -- end
-
     RequestAnimDict(dict)
     while (not HasAnimDictLoaded(dict)) do
-        Wait(100)
+        Wait(50)
     end
 
-    local hashItem = GetHashKey(propName)
+    TaskPlayAnim(ped, dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
+    Wait(800) -- ให้มือยกขึ้นก่อน ค่อยโผล่ prop (ไม่สร้างค้างไว้ให้ลอย)
 
-    local prop = CreateObject(hashItem, x, y, z + 0.2, true, true, false, false, true)
-    local boneIndex = GetEntityBoneIndexByName(PlayerPedId(), "SKEL_R_Finger12")
+    local prop = spawnHeldProp(propName)
+    Wait(5200)
 
-    Wait(1000)
-
-    TaskPlayAnim(PlayerPedId(), dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
-    AttachEntityToEntity(prop, PlayerPedId(), boneIndex, 0.02, 0.028, 0.001, 15.0, 175.0, 0.0, true, true, false, true, 1,true)
-    Wait(6000)
-
-    DeleteObject(prop)
-    ClearPedSecondaryTask(PlayerPedId())
+    removeHeldProp(prop)
+    ClearPedSecondaryTask(ped)
 end
 
 function PlayAnimEat(propName)
-    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId()))
+    local ped = PlayerPedId()
     local dict = "mech_inventory@eating@multi_bite@wedge_a4-2_b0-75_w8_h9-4_eat_cheese"
     local anim = "quick_right_hand"
 
-    --if (!IsPedMale(PlayerPedId())) then
-    --    dict = "amb_rest_drunk@world_human_drinking@female_a@idle_b"
-    --    anim = "idle_b"
-    --end
-
     RequestAnimDict(dict)
     while (not HasAnimDictLoaded(dict)) do
-        Wait(100)
+        Wait(50)
     end
 
-    local hashItem = GetHashKey(propName)
+    TaskPlayAnim(ped, dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
+    Wait(800) -- ให้มือยกขึ้นก่อน ค่อยโผล่ prop (ไม่สร้างค้างไว้ให้ลอย)
 
-    local prop = CreateObject(hashItem, x, y, z + 0.2, true, true, false, false, true)
-    local boneIndex = GetEntityBoneIndexByName(PlayerPedId(), "SKEL_R_Finger12")
+    local prop = spawnHeldProp(propName)
+    Wait(5200)
 
-    Wait(1000)
-
-    TaskPlayAnim(PlayerPedId(), dict, anim, 1.0, 8.0, 5000, 31, 0.0, false, false, false)
-    AttachEntityToEntity(prop, PlayerPedId(), boneIndex, 0.02, 0.028, 0.001, 15.0, 175.0, 0.0, true, true, false, true, 1, true)
-    Wait(6000)
-
-    DeleteObject(prop)
-    ClearPedSecondaryTask(PlayerPedId())
+    removeHeldProp(prop)
+    ClearPedSecondaryTask(ped)
 end
 
 -- Play an animation
