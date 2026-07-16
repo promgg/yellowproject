@@ -38,7 +38,7 @@ Config = {
 
     initGold                 = 0.0,          -- Initial gold amount for new players.
 
-    initMoney                = 200.0,        -- Initial money amount for new players.
+    initMoney                = 2000.0,       -- Initial money amount for new players.
 
     initRol                  = 0.0,          -- Initial role-play currency amount for new players.
 
