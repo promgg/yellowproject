@@ -350,19 +350,24 @@ end)
 -- ════════════════════════════════════════════════════════════════════════════
 --  Usable items — เพิ่ม XP / เลเวล โดยตรง (ไม่จำกัดเพดาน)
 -- ════════════════════════════════════════════════════════════════════════════
+-- vorp_inventory ไม่มี re-entrancy guard ในเส้น UseItem — เดิม subItem แล้วเพิ่ม XP ทันทีโดยไม่เช็คว่า
+-- หักไอเทมสำเร็จ กดรัวๆ (callback ยิงซ้อนก่อน subItem รอบแรกจะ propagate) ได้ XP หลายเท่าจากไอเทมใบเดียว
+-- แก้: ให้ XP เข้าเฉพาะตอน subItem คืน success=true เท่านั้น (คลิกที่ 2 ที่ไอเทมหมดแล้ว sub จะ fail ไม่เพิ่ม XP ซ้ำ)
 for _, v in ipairs(Config.XpUpItem or {}) do
     exports.vorp_inventory:registerUsableItem(v.item, function(data)
         local src = data.source
-        exports.vorp_inventory:subItem(src, v.item, 1)
-        doAddXP(src, v.xp, false)
+        exports.vorp_inventory:subItem(src, v.item, 1, nil, function(success)
+            if success then doAddXP(src, v.xp, false) end
+        end)
     end)
 end
 
 for _, v in ipairs(Config.LevelUpItem or {}) do
     exports.vorp_inventory:registerUsableItem(v.item, function(data)
         local src = data.source
-        exports.vorp_inventory:subItem(src, v.item, 1)
-        doAddXP(src, v.level * Config.XpPerLevel, false)
+        exports.vorp_inventory:subItem(src, v.item, 1, nil, function(success)
+            if success then doAddXP(src, v.level * Config.XpPerLevel, false) end
+        end)
     end)
 end
 
