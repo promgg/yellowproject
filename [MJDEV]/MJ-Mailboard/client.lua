@@ -1,5 +1,4 @@
 local VORPcore = exports.vorp_core:GetCore()
-local Text3D = exports["MJ-Text3D"]:GetText3D()
 
 local nearMailboard = false
 -- จุดที่สามารถกดเปิด UI ได้
@@ -30,24 +29,30 @@ Citizen.CreateThread(function()
     while true do
         local playerPed = PlayerPedId()
         local playerCoords = GetEntityCoords(playerPed)
-        -- nearMailboard = false
+        local foundNear = false
 
         for _, loc in pairs(Config.BoardLocations) do
             local dist = #(playerCoords - vector3(loc.x, loc.y, loc.z))
             if dist < Config.InteractDistance then
-                nearMailboard = true
-                if nearMailboard then
-                    Text3D.AddWorldText("getAll", loc.x, loc.y, loc.z-0.5, "กด [E] เปิดกระดานจดหมาย!")
+                foundNear = true
+                if not nearMailboard then
+                    exports.lp_textui:TextUI("กด [E] เปิดกระดานจดหมาย!", nil, { coords = vector3(loc.x, loc.y, loc.z - 0.5) })
                 end
                 if IsControlJustPressed(0, 0xCEFD9220) then -- ปุ่ม E
+                    exports.lp_textui:HideUI()
                     SetNuiFocus(true, true)
                     SendNUIMessage({ action = "showUI", show = true })
                     TriggerServerEvent("mailboard:getAll")
-                    nearMailboard = false
+                    foundNear = false
                 end
                 break
             end
         end
+
+        if nearMailboard and not foundNear then
+            exports.lp_textui:HideUI()
+        end
+        nearMailboard = foundNear
 
         if nearMailboard then
             Citizen.Wait(0)
@@ -119,6 +124,7 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         SetNuiFocus(false, false)
         SendNUIMessage({ action = "showUI", show = false })
+        exports.lp_textui:HideUI()
          for _, obj in pairs(boardObjects) do
             DeleteObject(obj)
         end
