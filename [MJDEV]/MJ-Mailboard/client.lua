@@ -1,12 +1,6 @@
 local VORPcore = exports.vorp_core:GetCore()
 
 local nearMailboard = false
--- จุดที่สามารถกดเปิด UI ได้
-local mailboardLocations = {
-    { x = -277.61, y = 804.44, z = 119.39 },
-    { x = 1322.01, y = -1321.74, z = 77.89 },
-    -- เพิ่มตำแหน่งอื่น ๆ ได้ตามต้องการ
-}
 
 local boardObjects = {} -- เก็บ Object ที่ถูกสร้างขึ้น
 local objectModel = GetHashKey(Config.BoardModel) -- ใช้โมเดลจาก Config

@@ -1,7 +1,21 @@
+:root {
+  --gold: #c89545;
+  --gold-light: #e1bf7d;
+  --gold-soft: rgba(200, 149, 69, 0.13);
+  --paper: #f4eee4;
+  --muted: #9c9488;
+  --dim: #6f6a63;
+  --panel: rgba(16, 15, 13, 0.88);
+  --panel-deep: rgba(10, 10, 9, 0.94);
+  --line: rgba(224, 194, 140, 0.17);
+  --green: #83b98d;
+  --danger: #b66054;
+}
+
 body {
   font-family: 'Kanit', sans-serif;
   /* background-color: #111; */
-  color: #fff;
+  color: var(--paper);
   margin: 0;
   padding: 0;
 }
@@ -10,9 +24,9 @@ body {
   max-width: 900px;
   margin: 40px auto;
   padding: 20px;
-  background-color: #000000d0;
+  background-color: var(--panel);
   border-radius: 12px;
-  box-shadow: 0 0 10px rgba(255, 10, 10, 0.651);
+  box-shadow: 0 0 10px rgba(200, 149, 69, 0.35);
   /* ถ้าต้องการจัดกึ่งกลางแนวนอนก็ใช้ margin: auto; แบบนี้ก็พอแล้ว */
 }
 
@@ -38,8 +52,8 @@ body {
   text-align: center;
   margin-bottom: 25px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e74c3c;  /* เส้นขีดตรงสีแดงสด */
-  background-color: #000000;
+  border-bottom: 2px solid var(--gold);  /* เส้นขีดตรงสีทอง */
+  background-color: var(--panel-deep);
   position: relative;
 }
 
@@ -48,16 +62,16 @@ body {
   width: 100px;
   height: auto;
   margin-bottom: 12px;
-  filter: drop-shadow(0 0 4px #e74c3c); /* เงาแดงนิดๆ */
+  filter: drop-shadow(0 0 4px var(--gold)); /* เงาทองนิดๆ */
 }
 
 /* หัวข้อใหญ่ */
 h1 {
   margin: 0;
   font-size: 32px;
-  color: #e74c3c;
+  color: var(--gold-light);
   letter-spacing: 3px;
-  text-shadow: 1px 1px 3px #a93226;
+  text-shadow: 1px 1px 3px #573d18;
   font-weight: 700;
 }
 
@@ -65,10 +79,10 @@ h1 {
 h2 {
   margin-top: 6px;
   font-size: 20px;
-  color: #ddd;
+  color: var(--muted);
   font-weight: 500;
   font-style: italic;
-  text-shadow: 0 0 4px #e74c3c99;
+  text-shadow: 0 0 4px rgba(200, 149, 69, 0.6);
 }
 
 .filter-buttons {
@@ -87,21 +101,21 @@ h2 {
 }
 
 .btn.red {
-  background-color: #e74c3c;
-  color: #fff;
+  background-color: var(--gold);
+  color: var(--paper);
 }
 
 .btn.red:hover {
-  background-color: #c0392b;
+  background-color: #a67d3d;
 }
 
 .btn.black {
-  background-color: #333;
-  color: #fff;
+  background-color: var(--panel-deep);
+  color: var(--paper);
 }
 
 .btn.black:hover {
-  background-color: #222;
+  background-color: var(--panel);
 }
 
 .post-author {
@@ -114,33 +128,12 @@ h2 {
   border-top-right-radius: 6px; */
   font-size: 12px;
   font-weight: bold;
-  color: #fff;
-  text-shadow: 0 0 4px #fff;
-  animation: rgbGlow 3s infinite linear;
-}
-
-/* แอนิเมชันเรืองแสงแบบ RGB */
-@keyframes rgbGlow {
-  0% {
-    text-shadow: 0 0 6px red;
-    color: red;
-  }
-  33% {
-    text-shadow: 0 0 6px lime;
-    color: lime;
-  }
-  66% {
-    text-shadow: 0 0 6px cyan;
-    color: cyan;
-  }
-  100% {
-    text-shadow: 0 0 6px red;
-    color: red;
-  }
+  color: var(--gold-light);
+  text-shadow: 0 0 4px rgba(200, 149, 69, 0.55);
 }
 
 .send-btn:hover {
-  background-color: #d40000;
+  background-color: #a67d3d;
 }
 
 .post-list {
@@ -149,8 +142,8 @@ h2 {
 
 .post {
   position: relative; /* เพิ่มเพื่อให้ตำแหน่ง absolute ทำงานภายใน post นี้ */
-  background-color: #222;
-  border-left: 4px solid #e74c3c;
+  background-color: var(--panel);
+  border-left: 4px solid var(--gold);
   margin-bottom: 15px;
   padding: 15px;
   border-radius: 8px;
@@ -177,7 +170,7 @@ h2 {
   display: block;
   margin-top: 6px;
   font-size: 12px;
-  color: #ff6b6b;
+  color: rgba(225, 191, 125, 0.75);
   font-style: italic;
 }
 
@@ -185,15 +178,15 @@ h2 {
   position: absolute;
   top: 10px;
   right: 10px;
-  background-color: #c0392b;
-  color: #fff;
+  background-color: var(--danger);
+  color: var(--paper);
   border: none;
   border-radius: 4px;
   padding: 5px 10px;
 }
 
 .delete-btn:hover {
-  background-color: #a93226;
+  background-color: #8f473d;
 }
 
 .modal {
@@ -214,18 +207,18 @@ h2 {
 }
 
 .modal-content {
-  background-color: #000000c9;
+  background-color: var(--panel-deep);
   padding: 20px;
   border-radius: 10px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 15px rgba(200, 149, 69, 0.2);
 }
 
 .modal-content h2 {
   margin-top: 0;
   margin-bottom: 20px;
-  color: #fff;
+  color: var(--paper);
 }
 
 .modal-content input[type="text"] {
@@ -235,8 +228,8 @@ h2 {
   font-size: 14px;
   border: none;
   border-radius: 6px;
-  background-color: #333;
-  color: #fff;
+  background-color: var(--panel);
+  color: var(--paper);
 }
 
 .form-buttons {
@@ -258,7 +251,7 @@ h2 {
 
   /* Scrollbar สำหรับ Chrome, Edge, Safari */
   scrollbar-width: thin;              /* Firefox */
-  scrollbar-color: #e74c3c transparent; /* Firefox */
+  scrollbar-color: var(--gold) transparent; /* Firefox */
 }
 
 /* Chrome, Edge, Safari */
@@ -271,12 +264,12 @@ h2 {
 }
 
 .post-list::-webkit-scrollbar-thumb {
-  background-color: #e74c3c; /* สี thumb (แถบเลื่อน) เป็นสีแดง */
+  background-color: var(--gold); /* สี thumb (แถบเลื่อน) เป็นสีทอง */
   border-radius: 3px;        /* มุมโค้ง */
   border: 1px solid transparent; /* ขอบบางๆ เพื่อความสวย */
 }
 
 /* ถ้าต้องการเปลี่ยนสีตอน hover */
 .post-list::-webkit-scrollbar-thumb:hover {
-  background-color: #c0392b;
+  background-color: var(--gold-light);
 }
