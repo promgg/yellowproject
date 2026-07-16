@@ -21,12 +21,15 @@ Config.Zones = {
     {
         name   = 'market_central',
         label  = 'ตลาดกลาง',
-        coords = vector3(1421.9254, 356.3162, 88.8898),
+        coords = vector3(1422.8948, 346.7303, 88.5960),
         radius = 3.0,
         item   = { enabled = false, item = '' },
         blip   = { enabled = true,  sprite = 819673798, scale = 0.6, label = 'ตลาดกลาง' }, -- blip_shop_market_stall
         textui = 'กด [E] เพื่อเปิดตลาด',
-        ped    = { enabled = true, model = 'casp_coachrobbery_micah_males_01', heading = 0.0 },
+        -- casp_coachrobbery_lenny_males_01 เดิม เป็นโมเดลเฉพาะคัตซีนภารกิจปล้นรถม้า (Lenny) ไม่ stream
+        -- เป็น ped ทั่วไปนอกภารกิจ ทำให้ LoadModel timeout ไม่มี NPC ขึ้น เปลี่ยนเป็นโมเดลที่ยืนยันแล้ว
+        -- ว่าใช้งานได้จริงในเซิร์ฟนี้ (ใช้ใน MJ-Economy ตลาด 3 จุดที่ผ่าน ECO-11 มาแล้ว)
+        ped    = { enabled = true, model = 'A_M_M_BiVWorker_01', heading = 332.4587 },
     },
     -- เพิ่ม zone อื่น ๆ ได้ที่นี่
 }

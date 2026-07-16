@@ -31,9 +31,17 @@ local function Notify(msg, ntype)
 end
 
 -- ── Ped model loader (timeout กันค้างถ้าโหลดโมเดลไม่สำเร็จ) ──────────────────
+-- เดิมไม่เช็ค IsModelValid ก่อน + RequestModel เรียกแค่ 1 arg ทำให้ไม่รู้เลยว่าโมเดล invalid
+-- หรือแค่โหลดช้า (เงียบ timeout ไปเฉยๆ) ปรับให้ตรงกับ pattern ที่ยืนยันแล้วว่าใช้ได้จริงใน
+-- bcc-stables/nx_shop: joaat + IsModelValid guard + RequestModel(hash, false) สอง arg
 local function LoadModel(model)
-    local modelHash = GetHashKey(model)
-    RequestModel(modelHash)
+    local modelHash = joaat(model)
+    if not IsModelValid(modelHash) then
+        print('[lp_marketplace] Invalid ped model: ' .. tostring(model))
+        return false
+    end
+
+    RequestModel(modelHash, false)
 
     local timeout = 5000
     local timer   = GetGameTimer()
@@ -47,24 +55,36 @@ local function LoadModel(model)
     return true
 end
 
--- ── Spawn ped ต่อ zone ที่ ped.enabled (ครั้งเดียวตอน resource start) ────────
-local function spawnZonePeds()
-    for _, zone in ipairs(Config.Zones) do
-        if zone.ped and zone.ped.enabled then
-            if LoadModel(zone.ped.model) then
-                local hash = GetHashKey(zone.ped.model)
-                local ped = CreatePed(hash, zone.coords.x, zone.coords.y, zone.coords.z - 1.0,
-                    zone.ped.heading or 0.0, false, false, false, false)
-                SetEntityAsMissionEntity(ped, true, true)
-                PlaceEntityOnGroundProperly(ped)
-                FreezeEntityPosition(ped, true)
-                SetEntityInvincible(ped, true)
-                SetPedCanBeTargetted(ped, false)
-                SetBlockingOfNonTemporaryEvents(ped, true)
-                SetModelAsNoLongerNeeded(hash)
-                zone.pedEntity = ped
-            end
-        end
+-- ── Spawn/despawn ped ต่อ zone แบบ on-demand ตามระยะผู้เล่น (ไม่ค้างไว้ทั้งแมพตั้งแต่
+-- resource start) ── เดิม spawn ครั้งเดียวตอน start ทั้ง top-level + onClientResourceStart
+-- ทำให้ ped ซ้อนกัน 2 ตัวทุกครั้งที่ resource start ปกติ (สองจุดนั้นยิงทั้งคู่จริง ไม่ใช่ fallback
+-- ที่ยิงแค่จุดเดียว) เปลี่ยนมา spawn ตอนเข้ารัศมี despawn ตอนออกรัศมีแทน กัน ped ซ้อน + ประหยัด
+-- resource ตอนไม่มีใครอยู่แถวนั้นด้วย
+local function spawnZonePed(zone)
+    if zone.pedEntity or not (zone.ped and zone.ped.enabled) then return end
+    if not LoadModel(zone.ped.model) then return end
+
+    local hash = joaat(zone.ped.model)
+    local ped = CreatePed(hash, zone.coords.x, zone.coords.y, zone.coords.z - 1.0,
+        zone.ped.heading or 0.0, false, false, false, false)
+    -- RDR2 ped ไม่ใส่ชุด/มองไม่เห็นถ้าไม่สั่งอันนี้ (ตัวเดียวกับบัคที่เจอใน bcc-stables/nx_shop) —
+    -- SetRandomOutfitVariation (0x283978A15512B2FE) ให้ ped สุ่มชุดจริงแทนที่จะเป็น mesh เปล่า
+    Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
+    SetEntityAsMissionEntity(ped, true, true)
+    PlaceEntityOnGroundProperly(ped)
+    FreezeEntityPosition(ped, true)
+    SetEntityInvincible(ped, true)
+    SetEntityCanBeDamaged(ped, false)
+    SetPedCanBeTargetted(ped, false)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetModelAsNoLongerNeeded(hash)
+    zone.pedEntity = ped
+end
+
+local function despawnZonePed(zone)
+    if zone.pedEntity then
+        DeleteEntity(zone.pedEntity)
+        zone.pedEntity = nil
     end
 end
 
@@ -97,10 +117,8 @@ if Config.OpenMethod == 'zone' or Config.OpenMethod == 'both' then
     AddEventHandler('onClientResourceStart', function(res)
         if res ~= GetCurrentResourceName() then return end
         createBlips()
-        spawnZonePeds()
     end)
     createBlips() -- เผื่อ resource นี้ start ไปแล้วตอนสคริปต์โหลด (onClientResourceStart ไม่ยิงย้อนหลัง)
-    spawnZonePeds()
 
     -- กดค้าง E เพื่อเปิดตลาด — TextUIHold จัดการ control poll + progress ring ของตัวเอง
     -- (เช็คไอเทมที่ต้องมี ก่อนเปิด UI จริงในตัว callback)
@@ -125,12 +143,14 @@ if Config.OpenMethod == 'zone' or Config.OpenMethod == 'both' then
             for _, zone in ipairs(Config.Zones) do
                 local dist = #(pos - zone.coords)
                 if dist < zone.radius + 50.0 then
+                    spawnZonePed(zone)
                     sleep = 500
                     if dist < zone.radius then
                         sleep     = 250
                         foundZone = zone
-                        break
                     end
+                else
+                    despawnZonePed(zone)
                 end
             end
 
@@ -148,6 +168,14 @@ if Config.OpenMethod == 'zone' or Config.OpenMethod == 'both' then
             end
 
             Wait(sleep)
+        end
+    end)
+
+    -- ลบ ped ที่ spawn ค้างไว้ตอน resource หยุด/restart กันเหลือ entity ลอยอยู่ในโลก
+    AddEventHandler('onResourceStop', function(res)
+        if res ~= GetCurrentResourceName() then return end
+        for _, zone in ipairs(Config.Zones) do
+            despawnZonePed(zone)
         end
     end)
 end

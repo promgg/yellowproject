@@ -42,6 +42,9 @@ files {
     'nui/js/app.js',
 }
 
-dependencies { 'lp_textui', 'pNotify' }
+-- vorp_core/vorp_inventory ไม่มีอยู่เดิม — cl_main.lua และ sv_bridge.lua เรียก
+-- exports.vorp_core:GetCore() ตอนโหลดสคริปต์ (ไม่ใช่ในนี้ event handler) ถ้า vorp_core ยังโหลดไม่เสร็จ
+-- จะพัง "No such export GetCore" ทั้งไฟล์ทันที รวมถึง spawnZonePeds() ที่ทำให้ NPC ไม่ spawn
+dependencies { 'vorp_core', 'vorp_inventory', 'lp_textui', 'pNotify' }
 
 lua54 'yes'

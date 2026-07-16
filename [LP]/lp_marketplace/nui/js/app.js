@@ -313,7 +313,7 @@ function onReceiveInventory(inventory) {
     grid.innerHTML = inventory.map((item, i) => `
     <div class="inv-item" id="inv-${i}" onclick="selectInvItem(${i})">
       <div class="inv-item-icon">${itemImg(item.name, 'inv-item-img')}</div>
-      <div class="inv-item-label">${esc(item.label)}</div>
+      <div class="inv-item-label" title="${esc(item.label)}">${esc(item.label)}</div>
       <div class="inv-item-count">x${item.count}</div>
     </div>`).join('');
 }
