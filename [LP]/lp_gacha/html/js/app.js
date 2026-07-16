@@ -24,9 +24,16 @@ function rarestOf(items) {
 }
 
 const PLACEHOLDER_IMG = 'assets/item_placeholder.png';
-// รูปไอเทม: server ส่ง image = item id, หน้าเว็บชี้ไป assets/<id>.png (ถ้าไม่มีรูป -> placeholder)
-function imgSrc(image) {
-  return image ? `assets/${image}.png` : PLACEHOLDER_IMG;
+// รูปไอเทมของรางวัลประเภท item ชี้ไปที่โฟลเดอร์รูปของ vorp_inventory ตรงๆ (path เดียวกับที่
+// กระเป๋าใช้จริง — nui:// ข้าม resource ได้ตราบใดที่ vorp_inventory export ไฟล์นี้ใน files{},
+// แบบเดียวกับที่ nx_shop ใช้ Config.ItemImagePath อยู่แล้ว) กันปัญหารูปไม่ตรง/ไม่มีรูปที่ lp_gacha
+// ต้องคอยก็อปไฟล์มาเก็บเองซ้ำซ้อนแล้วตกหล่น (เช่น bonus_gun5/bonus_gun10 ที่ไม่เคยมีรูปจริงใน
+// assets/ ของ lp_gacha) ม้า (type='horse') ไม่ใช่ item ในกระเป๋า เลยยังต้องใช้รูปโลคอลของ lp_gacha เอง
+const INVENTORY_IMG_BASE = 'nui://vorp_inventory/html/img/items/';
+function imgSrc(image, type) {
+  if (!image) return PLACEHOLDER_IMG;
+  if (type === 'horse') return `assets/${image}.png`;
+  return `${INVENTORY_IMG_BASE}${image}.png`;
 }
 
 function cardBackground(rarity) {
@@ -119,7 +126,7 @@ function cardHTML(item, cls, opts = {}) {
   const style = `border-color:${borderColor};border-width:${r.borderWidth};background-image:${cardBackground(item.rarity)};--glow-color:${glowColor}`;
   return `<div class="${cls}${winnerCls}${stackCls}" style="${style}">
       <div class="price">${qty}</div>
-      <div class="img"><img src="${imgSrc(item.image)}" alt="${item.name}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'"></div>
+      <div class="img"><img src="${imgSrc(item.image, item.type)}" alt="${item.name}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'"></div>
       <div class="label">${item.name}</div>
     </div>`;
 }

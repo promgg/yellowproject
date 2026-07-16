@@ -24,6 +24,7 @@ local function buildDisplay(pool)
                 key       = rw.item,
                 name      = rw.label,
                 image     = rw.item,
+                type      = rw.type, -- ให้ client รู้ว่าเป็น item (โหลดรูปจาก vorp_inventory) หรือ horse (รูปโลคอล)
                 rarity    = rw.rarity or 'common',
                 amount    = rw.amount,
                 chancePct = tier.chance * (rw.amount / sumW),
@@ -59,7 +60,11 @@ end
 local function grantReward(src, xPlayer, reward)
     local t = reward.type
     if t == 'item' then
-        exports.vorp_inventory:addItem(src, reward.item, reward.amount)
+        -- ignoreStackLimit=true: ของรางวัลกาชายัดเกิน stack limit ปกติได้ (โชว์ e.g. 100/10) —
+        -- ตั้งใจให้เป็นของพิเศษ/ของสะสม ไอเทมที่กดใช้ได้จะถูกบล็อกไม่ให้กดใช้ตอนเกิน limit
+        -- ต่างหาก (ดู vorp_inventory InventoryService.UseItem) ส่วนทางเก็บของปกติ (ขุด/งาน/
+        -- ร้านค้า) ไม่ผ่านช่องทางนี้ จะยังถูกบล็อกไม่ให้เกิน limit ตามเดิม
+        exports.vorp_inventory:addItem(src, reward.item, reward.amount, nil, nil, nil, nil, nil, true)
 
     elseif t == 'money' then
         xPlayer.addCurrency(0, reward.amount)
