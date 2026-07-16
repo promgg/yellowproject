@@ -28,6 +28,14 @@ Config.RandomCodes = {
 
 -- ตัวอย่างของรางวัลใน Config
 Config.RewardCodes = {
+    -- โค้ดทดสอบชั่วคราว — ใช้ไอเทมจริงที่มีในระบบ (food_bread/water/bandage_s) สำหรับเทสระบบ
+    -- redeem เอง (cooldown, ใช้ซ้ำไม่ได้, time window, ได้ของจริง) ลบออกได้เมื่อตั้งโค้ดจริงแล้ว
+    ["UATTEST3"] = {
+        items = {
+            {name = "mat_diamond", count = 20},
+        },
+        money = 500,
+    },
     ["WELCOME2025"] = {
         items = {
             {name = "water", count = 2},

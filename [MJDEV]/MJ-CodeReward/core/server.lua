@@ -82,12 +82,15 @@ local function giveReward(src, reward)
 
     if reward.items then
         for _, item in pairs(reward.items) do
-            -- Medium: addItem with callback to detect failure
+            -- ignoreStackLimit=true: โค้ดใช้ครั้งเดียวแล้วเผา (mark used ทันทีไม่รอผล addItem) —
+            -- ถ้ากระเป๋าเต็มพอดีแล้วปฏิเสธแบบปกติ ผู้เล่นจะเห็น "redeem สำเร็จ" แต่ของไม่เข้าจริง
+            -- (สับสน โค้ดก็เสียไปแล้วด้วย) ให้ยัดเกิน limit ได้เหมือน lp_gacha แทน การันตีว่าโค้ด
+            -- ที่ redeem สำเร็จ ของเข้าจริงเสมอ ไม่ขึ้นกับสถานะกระเป๋า ณ ตอนนั้น
             exports.vorp_inventory:addItem(tostring(src), item.name, item.count, nil, function(success)
                 if not success then
                     print("^1[ERROR]^0 addItem failed: " .. tostring(item.name) .. " for src " .. tostring(src))
                 end
-            end)
+            end, nil, nil, nil, true)
         end
     end
 
