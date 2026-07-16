@@ -21,6 +21,35 @@ exports('notification', function(source, config)
     })
 end)
 
+-- แจ้งเตือนเงินเข้า/ออก (ย้ายมาจาก MJ-Showitem ที่ปิดไปแล้ว รวม toast ไว้ที่เดียว) — vorp_core/
+-- old_api.lua ยิ่ง vorp:addMoney/removeMoney(player, typeCash, quantity) ทุกครั้งที่ยอดเงินเปลี่ยน
+-- typeCash: 0 = เงินสด, 1 = ทอง, 2 = rol — โชว์ label/รูปตามชนิด
+local CURRENCY = {
+    [0] = { image = 'money',   name = 'เงินสด' },
+    [1] = { image = 'goldbar', name = 'ทอง' },
+    [2] = { image = 'money',   name = 'ROL' },
+}
+
+local function moneyToast(player, typeCash, quantity, gained)
+    if not player or player == 0 then return end
+    local cur = CURRENCY[tonumber(typeCash) or 0] or CURRENCY[0]
+    TriggerClientEvent('lp_itemnotify:show', player, {
+        image    = cur.image,
+        name     = cur.name,
+        label    = gained and 'ADDED' or 'REMOVED',
+        qtyText  = (gained and '+ ' or '- ') .. tostring(quantity),
+        duration = 4000,
+    })
+end
+
+AddEventHandler('vorp:addMoney', function(player, typeCash, quantity)
+    moneyToast(player, typeCash, quantity, true)
+end)
+
+AddEventHandler('vorp:removeMoney', function(player, typeCash, quantity)
+    moneyToast(player, typeCash, quantity, false)
+end)
+
 -- ทดสอบในเกม (พิมพ์ในแชท ไม่ใช่ console เซิร์ฟเวอร์): /lp_testnotify [add|remove] [ชื่อไอเทม] [จำนวน]
 -- ตั้งชื่อไม่ให้ชนกับ /testitemnotify ของ MJ-Itemnotify เดิม (ยัง ensure ค้างอยู่ ไม่งั้นจะโดนทับกัน)
 RegisterCommand('lp_testnotify', function(source, args)
