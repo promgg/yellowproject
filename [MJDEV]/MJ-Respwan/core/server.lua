@@ -99,10 +99,29 @@ local function getClosestPlayer(source)
     return nil
 end
 
+-- กันกดใช้ยารัวๆ: server หัก item + ฟื้นเลือดทันทีก่อน client จะเล่น progressbar เสร็จ (progressbar
+-- ฝั่ง client บล็อกแค่ "แถบ" ซ้อน แต่ไม่บล็อกการ "หัก item + heal" ที่ทำ server-side ไปแล้ว) — spam
+-- คลิกเลยกินยาหมดสต็อกทั้งที่เห็นแถบเดียว บล็อกที่ต้นทาง (registerUsableItem) ด้วย cooldown ต่อคน
+-- เท่ากับ duration ของท่านั้น (heal 5000 / quick 4000 / revive ~10000) กันไม่ให้ใช้ซ้ำระหว่างท่ายังเล่นอยู่
+local healCooldown = {} -- [src] = GetGameTimer() ที่ใช้ยาได้อีกครั้ง
+
+AddEventHandler('playerDropped', function()
+    if source then healCooldown[source] = nil end
+end)
+
 CreateThread(function()
     for key, value in pairs(Config.Items) do
         Inv:registerUsableItem(key, function(data)
             local _source <const> = data.source
+
+            local now = GetGameTimer()
+            if healCooldown[_source] and now < healCooldown[_source] then
+                return -- ยังติด cooldown จากการใช้ครั้งก่อน — ไม่หัก item ไม่ heal ไม่เล่นท่าซ้ำ
+            end
+            local animDef = Config.Animations[value.category]
+            local cd = value.revive and 10000 or ((animDef and animDef.duration) or 5000)
+            healCooldown[_source] = now + cd
+
             Inv:closeInventory(_source)
 
             local user = Core.getUser(_source).getUsedCharacter
