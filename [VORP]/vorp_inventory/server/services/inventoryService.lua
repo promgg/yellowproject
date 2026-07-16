@@ -47,6 +47,15 @@ function InventoryService.UseItem(data)
 	local item = userInventory[itemId]
 	if not item or not UsableItemsFunctions[itemName] then return end
 
+	-- ของรางวัลพิเศษ (เช่น lp_gacha) ตั้งใจให้ยัดเกิน stack limit ได้ (ignoreStackLimit=true ตอน
+	-- addItem) แต่ต้องกดใช้ไม่ได้ตอนเกิน limit -- บล็อกตรงนี้จุดเดียว ครอบคลุมทั้ง inventory ปกติ
+	-- และ fastslot (fastslot.lua เรียก InventoryService.UseItem เส้นเดียวกันนี้)
+	local itemLimit <const> = item:getLimit()
+	if itemLimit ~= -1 and item:getCount() > itemLimit then
+		Core.NotifyRightTip(_source, ("ไอเทมเกินจำนวนที่ถืออยู่ (%d/%d) ใช้งานไม่ได้"):format(item:getCount(), itemLimit), 3500)
+		return
+	end
+
 	local arguments <const> = {
 		source = _source,
 		item = {

@@ -419,7 +419,7 @@ exports("getItemMatchingMetadata", InventoryAPI.getItemMatchingMetadata)
 ---@param cb fun(success: boolean)? async or sync callback
 ---Important: this is the legacy system/admin grant API and intentionally does not enforce
 ---player capacity. Gameplay resources must call canCarryItem before charging/removing inputs.
-function InventoryAPI.addItem(source, name, amount, metadata, cb, allow, degradation, percentage)
+function InventoryAPI.addItem(source, name, amount, metadata, cb, allow, degradation, percentage, ignoreStackLimit)
 	local _source = source
 
 	if not _source then
@@ -460,54 +460,68 @@ function InventoryAPI.addItem(source, name, amount, metadata, cb, allow, degrada
 		local existingMetadata = next(item:getMetadata()) ~= nil
 
 		if item:getMaxDegradation() == 0 then
+			-- addCount() returns false when count+amount > item limit and ignoreStackLimit is not
+			-- set, leaving the stack untouched. Must check the return value: previously this branch
+			-- unconditionally reported "success" and notified the player even when nothing was added
+			-- (silent item loss -- confirmed live: gacha tier-1 rewards vanished when stacks were
+			-- already at cap). Normal callers (mining, jobs, shops, ...) must stay hard-blocked once
+			-- an item is at its limit -- only an explicit ignoreStackLimit=true (e.g. lp_gacha jackpot
+			-- rewards, which are intentionally allowed to overflow past the display limit) bypasses it.
+
 			-- if metadata equals and metadata was passed then add count to same stack
 			if result and doesMetadataExist then
-				item:addCount(amount)
-				DBService.SetItemAmount(charIdentifier, item:getId(), item:getCount())
-				TriggerClientEvent("vorpCoreClient:addItem", _source, item)
-				exports['lp_itemnotify']:notification(_source, {
-					position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
-					image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
-					title ='คุณได้รับ Item', -- ข้อความแรก
-					description ='+ '.. amount, -- ข้อความสอง
-					type ='success',-- type มี 4 type   success, alert, warning, info
-					time = 4000, -- ใส่เวลา
-				})
-				return respond(cb, true)
+				if item:addCount(amount, ignoreStackLimit) then
+					DBService.SetItemAmount(charIdentifier, item:getId(), item:getCount())
+					TriggerClientEvent("vorpCoreClient:addItem", _source, item)
+					exports['lp_itemnotify']:notification(_source, {
+						position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
+						image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
+						title ='คุณได้รับ Item', -- ข้อความแรก
+						description ='+ '.. amount, -- ข้อความสอง
+						type ='success',-- type มี 4 type   success, alert, warning, info
+						time = 4000, -- ใส่เวลา
+					})
+					return respond(cb, true)
+				end
+				return respond(cb, false) -- stack full, item limit reached
 			end
 
 			-- if item does not contain metadata and metadata was not passed then add amount
 			if not doesMetadataExist and not existingMetadata then
 				-- item exists and does no t contain metdata or was passed as nil
-				item:addCount(amount)
-				DBService.SetItemAmount(charIdentifier, item:getId(), item:getCount())
-				TriggerClientEvent("vorpCoreClient:addItem", _source, item)
-				exports['lp_itemnotify']:notification(_source, {
-					position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
-					image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
-					title ='คุณได้รับ Item', -- ข้อความแรก
-					description ='+ '.. amount, -- ข้อความสอง
-					type ='success',-- type มี 4 type   success, alert, warning, info
-					time = 4000, -- ใส่เวลา
-				})
-				return respond(cb, true)
+				if item:addCount(amount, ignoreStackLimit) then
+					DBService.SetItemAmount(charIdentifier, item:getId(), item:getCount())
+					TriggerClientEvent("vorpCoreClient:addItem", _source, item)
+					exports['lp_itemnotify']:notification(_source, {
+						position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
+						image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
+						title ='คุณได้รับ Item', -- ข้อความแรก
+						description ='+ '.. amount, -- ข้อความสอง
+						type ='success',-- type มี 4 type   success, alert, warning, info
+						time = 4000, -- ใส่เวลา
+					})
+					return respond(cb, true)
+				end
+				return respond(cb, false) -- stack full, item limit reached
 			end
 
 			-- we need to get an item that does not have a metadata here other wise it will create a new one because the loop could return one with metadata that does not match
 			local itemNoMetadata = SvUtils.GetItemNoMetadata("default", identifier, name)
 			if itemNoMetadata then
-				itemNoMetadata:addCount(amount)
-				DBService.SetItemAmount(charIdentifier, itemNoMetadata:getId(), itemNoMetadata:getCount())
-				TriggerClientEvent("vorpCoreClient:addItem", _source, itemNoMetadata)
-				exports['lp_itemnotify']:notification(_source, {
-					position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
-					image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
-					title ='คุณได้รับ Item', -- ข้อความแรก
-					description ='+ '.. amount, -- ข้อความสอง
-					type ='success',-- type มี 4 type   success, alert, warning, info
-					time = 4000, -- ใส่เวลา
-				})
-				return respond(cb, true)
+				if itemNoMetadata:addCount(amount, ignoreStackLimit) then
+					DBService.SetItemAmount(charIdentifier, itemNoMetadata:getId(), itemNoMetadata:getCount())
+					TriggerClientEvent("vorpCoreClient:addItem", _source, itemNoMetadata)
+					exports['lp_itemnotify']:notification(_source, {
+						position = 'middleRight', -- เลือกตำแหน่ง topLeft, topCenter, topRight, middleLeft, middleCenter, middleRight, bottomLeft, bottomCenter, bottomRight
+						image = name, -- ชื่อไอเทม (string) — ของเดิมส่ง item (object ทั้งก้อน) มาผิด ทำให้ NUI โชว์ "[object Object]"
+						title ='คุณได้รับ Item', -- ข้อความแรก
+						description ='+ '.. amount, -- ข้อความสอง
+						type ='success',-- type มี 4 type   success, alert, warning, info
+						time = 4000, -- ใส่เวลา
+					})
+					return respond(cb, true)
+				end
+				return respond(cb, false) -- stack full, item limit reached
 			end
 		end
 	end
