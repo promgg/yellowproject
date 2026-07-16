@@ -84,7 +84,7 @@ local function updateProgress(id, current, who)
     if not ev or ev.mode ~= 'progress' then return false, 'not_active' end
     ev.current = tonumber(current) or ev.current
     syncState()
-    logTx(('progress event updated id=%s %d/%d by=%s'):format(id, ev.current, ev.total, who or 'export'))
+    -- logTx(('progress event updated id=%s %d/%d by=%s'):format(id, ev.current, ev.total, who or 'export'))
     return true
 end
 
