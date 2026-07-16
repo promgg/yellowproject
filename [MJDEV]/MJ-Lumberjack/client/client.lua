@@ -206,6 +206,12 @@ RegisterNetEvent("!MJ-Lumberjack:noaxe", function()
     exports.pNotify:SendNotification({ type = 'error', text = 'ขวานหักแล้ว!', timeout = 4000 })
 end)
 
+-- server บล็อกก่อนเริ่มตัด (มีของบางชนิดเต็ม) — reset state เงียบๆ ปลด freeze
+-- (notify "กระเป๋าเต็ม" มาจาก server ผ่าน pNotify แล้ว ไม่ต้องแจ้งซ้ำที่นี่)
+RegisterNetEvent("!MJ-Lumberjack:blocked", function()
+    stopChopping(true)
+end)
+
 RegisterNetEvent("!MJ-Lumberjack:itemAwarded", function(itemName)
     exports.lp_rewardpanel:Highlight(itemName)
 end)

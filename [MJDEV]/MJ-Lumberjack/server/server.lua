@@ -42,6 +42,18 @@ AddEventHandler('playerDropped', function()
     posCd[source]     = nil
 end)
 
+-- เช็คก่อนเริ่มตัด: เจ้าของกำหนดว่า "มีของชนิดใดชนิดหนึ่งที่ตัดไม้ดรอปได้เต็ม limit แล้ว = ตัดไม่ได้เลย"
+-- (เดิมเช็ค canCarry หลังเล่นท่าตัดจบ ~30 วิ แล้วค่อยแจ้ง "เต็ม" = เสียเวลาฟรี) — พฤติกรรมเดียวกับ MJ-Mining
+-- คืน false ถ้ามี "แม้แต่ชนิดเดียว" ใน Config.Items ที่พกเพิ่มไม่ได้
+local function canCarryAllRewards(src)
+    for _, v in ipairs(Config.Items) do
+        if not exports.vorp_inventory:canCarryItem(src, v.name, v.amount) then
+            return false -- ของชนิดนี้เต็มแล้ว -> บล็อกการตัดทั้งหมด
+        end
+    end
+    return true
+end
+
 RegisterServerEvent("!MJ-Lumberjack:axecheck", function(tree)
     local _source = source
     if not checkCooldown(_source, 'axecheck', 800) then return end -- กันสแปม axecheck ถี่
@@ -52,6 +64,13 @@ RegisterServerEvent("!MJ-Lumberjack:axecheck", function(tree)
     if not axe then
         TriggerClientEvent("!MJ-Lumberjack:noaxe", _source)
         notify(_source, 'error', 'คุณไม่มีขวาน', 5000)
+        return
+    end
+
+    -- มีของชนิดใดชนิดหนึ่งเต็ม -> บล็อกก่อนเริ่มท่าตัด (ไม่หักความทนขวาน ไม่เสียเวลา)
+    if not canCarryAllRewards(_source) then
+        TriggerClientEvent("!MJ-Lumberjack:blocked", _source)
+        notify(_source, 'warning', 'กระเป๋าเต็ม — มีของบางชนิดเต็มแล้ว ตัดต่อไม่ได้', 5000)
         return
     end
 
