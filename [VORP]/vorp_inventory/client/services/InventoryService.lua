@@ -161,6 +161,17 @@ end
 
 -- Load inventory weapons on client start
 function InventoryService.getLoadout(loadout)
+	-- server fires this the moment the weapon DB query resolves, with no idea
+	-- whether the client's ped has actually finished spawning yet — on a fast
+	-- DB response GiveWeaponToPed/SetCurrentPedWeapon could land on a ped that
+	-- isn't ready to receive them, leaving the draw animation stuck mid-transition
+	-- and the weapon parented to the wrong hand bone
+	local waited = 0
+	while not DoesEntityExist(PlayerPedId()) and waited < 5000 do
+		Wait(50)
+		waited = waited + 50
+	end
+
 	local primaryWeapons = {}
 	local secondaryWeapons = {}
 
@@ -209,8 +220,18 @@ function InventoryService.getLoadout(loadout)
 
 	-- Restore normal slots before off-hand slots so dual-wield weapons are placed
 	-- consistently. Components are reapplied after the weapon exists on the ped.
+	--
+	-- Uses weapon:equipwep() (WeaponClass.lua) — the SAME path the manual
+	-- "use weapon" NUI action takes — instead of Utils.useWeapon/oldUseWeapon.
+	-- Those call GiveWeaponToPed+SetCurrentPedWeapon identically for every
+	-- weapon type; equipwep() branches on isWeaponMelee/isWeaponThrowable and
+	-- routes those through GiveDelayedWeaponToPed instead. Melee weapons (the
+	-- starter knife included) given via the plain GiveWeaponToPed path never
+	-- registered as the ped's current weapon in RDR2 — the draw animation
+	-- looped forever and the weapon wheel found nothing equipped, only fixed
+	-- by manually re-equipping (which goes through equipwep()).
 	local function restoreWeapon(weapon)
-		Utils.useWeapon(weapon:getId())
+		weapon:equipwep()
 		weapon:loadComponents()
 
 		local weaponHash = joaat(weapon:getName())
@@ -223,10 +244,12 @@ function InventoryService.getLoadout(loadout)
 
 	for _, weapon in ipairs(primaryWeapons) do
 		restoreWeapon(weapon)
+		Wait(50) -- let the draw/equip animation settle before the next GiveWeaponToPed lands
 	end
 
 	for _, weapon in ipairs(secondaryWeapons) do
 		restoreWeapon(weapon)
+		Wait(50)
 	end
 end
 
