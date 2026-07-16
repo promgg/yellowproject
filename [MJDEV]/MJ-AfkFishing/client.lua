@@ -217,10 +217,22 @@ runFishingRound = function(mySession)
     end)
 end
 
+-- เช็คกับ server ก่อนเริ่ม: ถ้ามีปลาบางชนิดในโซนนี้เต็ม limit แล้ว บล็อกทันที (ไม่ต้องเริ่ม/รอจบรอบ)
+local function canStartFishing()
+    local zoneHashes = getZoneHashes(GetEntityCoords(PlayerPedId()))
+    local ok = VORPcore.Callback.TriggerAwait('MJ-AfkFishing:canStart', zoneHashes)
+    if not ok then
+        notify('warning', 'กระเป๋าเต็ม — มีปลาบางชนิดเต็มแล้ว ตกต่อไม่ได้', 4000)
+        return false
+    end
+    return true
+end
+
 local function startMini()
     if fishingActive then return end
     if not hasFishingRod() then notify('warning', 'ต้องมีเบ็ดตกปลาถึงจะตกปลาได้!', 3000); return end
     if getBaitCount() <= 0 then notify('warning', 'ไม่มีเหยื่อ!', 3000); return end
+    if not canStartFishing() then return end
     fishingActive = true
     refreshAvailableItems()
     startAnimation()
@@ -232,6 +244,7 @@ local function startAfk()
     if fishingActive then return end
     if not hasFishingRod() then notify('warning', 'ต้องมีเบ็ดตกปลาถึงจะตกปลาได้!', 3000); return end
     if getBaitCount() <= 0 then notify('warning', 'ไม่มีเหยื่อ!', 3000); return end
+    if not canStartFishing() then return end
     fishingActive = true
     isAfk         = true
     refreshAvailableItems()
