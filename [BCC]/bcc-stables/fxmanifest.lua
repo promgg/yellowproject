@@ -5,6 +5,10 @@ game 'rdr3'
 lua54 'yes'
 author 'BCC Team'
 
+dependencies {
+    'feather-menu', -- client/main.lua เรียก exports['feather-menu'].initiate() ตอนโหลดไฟล์ทันที ต้องรับประกันว่า feather-menu ขึ้นก่อนเสมอ
+}
+
 shared_scripts {
     'config/*.lua',
     'locale.lua',
