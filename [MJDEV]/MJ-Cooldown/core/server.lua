@@ -8,7 +8,9 @@ end)
 
 AddEventHandler("vorp:SelectedCharacter", function(source)
     local _source = source
-    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local xUser = VORPcore.getUser(_source)
+    local Character = xUser and xUser.getUsedCharacter
+    if not (Character and Character.identifier) then return end
     if DEAD[Character.identifier] then
         TriggerClientEvent(script .. "GetData", _source, true)
     else
@@ -19,7 +21,9 @@ end)
 RegisterNetEvent(script .. "SaveData")
 AddEventHandler(script .. "SaveData", function(isDead)
     local _source = source
-    local Character = VORPcore.getUser(_source).getUsedCharacter
+    local xUser = VORPcore.getUser(_source)
+    local Character = xUser and xUser.getUsedCharacter
+    if not (Character and Character.identifier) then return end
     if DEAD[Character.identifier] ~= nil then
         DEAD[Character.identifier] = 0
     end
