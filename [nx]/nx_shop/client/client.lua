@@ -1,15 +1,14 @@
 local Core = exports.vorp_core:GetCore()
-local PromptGroup = GetRandomIntInRange(0, 0xffffff)
-local OpenPrompt = nil
 local NuiOpen = false
 local CurrentStore = nil
+local activeHoldStore = nil -- storeId currently showing the lp_textui hold-prompt, or nil
 
 local function notify(text, duration)
-    if Core and Core.NotifyRightTip then
-        Core.NotifyRightTip(text, duration or 3000)
-    elseif Core and Core.NotifyObjective then
-        Core.NotifyObjective(text, duration or 3000)
-    end
+    exports.pNotify:SendNotification({
+        type    = 'info',
+        text    = text,
+        timeout = duration or 3000,
+    })
 end
 
 local function setNui(state)
@@ -17,22 +16,6 @@ local function setNui(state)
     SetNuiFocus(state, state)
     DisplayRadar(not state)
     SendNUIMessage({ action = state and 'show' or 'hide' })
-end
-
-local function createPrompt()
-    OpenPrompt = UiPromptRegisterBegin()
-    UiPromptSetControlAction(OpenPrompt, Config.OpenKey)
-    UiPromptSetText(OpenPrompt, VarString(10, 'LITERAL_STRING', Config.Text.Prompt))
-    UiPromptSetEnabled(OpenPrompt, true)
-    UiPromptSetVisible(OpenPrompt, true)
-    UiPromptSetStandardMode(OpenPrompt, true)
-    UiPromptSetGroup(OpenPrompt, PromptGroup, 0)
-    UiPromptRegisterEnd(OpenPrompt)
-end
-
-local function showPrompt(label)
-    UiPromptSetActiveGroupThisFrame(PromptGroup, VarString(10, 'LITERAL_STRING', label), 0, 0, 0, 0)
-    return UiPromptHasStandardModeCompleted(OpenPrompt, 0)
 end
 
 local function distanceFrom(pos)
@@ -144,6 +127,34 @@ local function openShop(storeId)
     })
 end
 
+-- lp_textui hold-to-interact replaces the native UiPrompt — key comes from
+-- Config.OpenKey (now E), same "hold to confirm" behaviour, just rendered
+-- via the project's standard text-UI system instead of the native prompt.
+-- worldAnchor floats the prompt above the shop NPC's head, matching the
+-- style used elsewhere in the project (e.g. MJ-Mailboard).
+local function startHoldPrompt(storeId, store, label)
+    if activeHoldStore == storeId then
+        return
+    end
+    activeHoldStore = storeId
+
+    local anchorPos = (store.npc and store.npc.enabled and store.npc.position) or store.position
+    local worldAnchor = { coords = vector3(anchorPos.x, anchorPos.y, anchorPos.z + 1.0) }
+
+    exports.lp_textui:TextUIHold(('[E] %s'):format(label), 700, function()
+        activeHoldStore = nil
+        openShop(storeId)
+    end, Config.OpenKey, worldAnchor)
+end
+
+local function cancelHoldPrompt()
+    if not activeHoldStore then
+        return
+    end
+    activeHoldStore = nil
+    exports.lp_textui:CancelHold()
+end
+
 RegisterNUICallback('close', function(_, cb)
     CurrentStore = nil
     setNui(false)
@@ -176,7 +187,6 @@ end)
 
 CreateThread(function()
     repeat Wait(500) until LocalPlayer.state and LocalPlayer.state.IsInSession
-    createPrompt()
 
     for _, store in pairs(Config.Stores) do
         if store.enabled ~= false then
@@ -186,6 +196,8 @@ CreateThread(function()
 
     while true do
         local sleep = 1000
+
+        local inRangeStoreId = nil
 
         if not NuiOpen then
             local playerPed = PlayerPedId()
@@ -203,21 +215,18 @@ CreateThread(function()
 
                         if dist <= store.openDistance then
                             sleep = 0
-                            if isStoreClosed(store) then
-                                UiPromptSetEnabled(OpenPrompt, false)
-                            elseif isJobAllowed(store) then
-                                UiPromptSetEnabled(OpenPrompt, true)
-                                if showPrompt(store.promptName or Config.Text.Prompt) then
-                                    Wait(150)
-                                    openShop(storeId)
-                                end
-                            else
-                                UiPromptSetEnabled(OpenPrompt, false)
+                            if not isStoreClosed(store) and isJobAllowed(store) then
+                                inRangeStoreId = storeId
+                                startHoldPrompt(storeId, store, store.promptName or Config.Text.Prompt)
                             end
                         end
                     end
                 end
             end
+        end
+
+        if activeHoldStore and activeHoldStore ~= inRangeStoreId then
+            cancelHoldPrompt()
         end
 
         Wait(sleep)
@@ -231,6 +240,7 @@ AddEventHandler('onResourceStop', function(resource)
 
     SetNuiFocus(false, false)
     DisplayRadar(true)
+    cancelHoldPrompt()
 
     for _, store in pairs(Config.Stores) do
         removeNpc(store)

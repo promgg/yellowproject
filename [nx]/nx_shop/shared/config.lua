@@ -1,6 +1,6 @@
 Config = {}
 
-Config.OpenKey = 0x760A9C6F -- G
+Config.OpenKey = 0xCEFD9220 -- E
 Config.ItemImagePath = 'nui://vorp_inventory/html/img/items/'
 Config.BlackMoneyItem = 'black_money'
 Config.MaxCartQuantityPerItem = 100
@@ -176,7 +176,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านค้า Valentine', sprite = BlipSprite.general },
-        npc = { enabled = true, model = Npc.general, position = vector4(-324.1397, 804.4375, 116.8816, -90.3094), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.general, position = vector4(-324.2652, 804.0890, 117.9316, 285.8474), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
@@ -193,7 +193,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านค้า Rhodes', sprite = BlipSprite.general },
-        npc = { enabled = true, model = Npc.general, position = vector4(1330.2391, -1293.4142, 76.2563, 62.4696), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.general, position = vector4(1330.1707, -1293.5758, 77.0713, 63.0219), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
@@ -210,7 +210,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านค้า Annesburg', sprite = BlipSprite.general },
-        npc = { enabled = true, model = Npc.general, position = vector4(2930.8000, 1362.4426, 43.1829, 238.2687), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.general, position = vector4(2933.7898, 1367.3025, 45.2330, 250.5385), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
@@ -227,7 +227,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านค้า Emerald Ranch', sprite = BlipSprite.general },
-        npc = { enabled = true, model = Npc.general, position = vector4(1420.3792, 379.5956, 88.3204, 328.6034), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.general, position = vector4(1420.3076, 381.3323, 90.3808, 163.9103), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
@@ -262,7 +262,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านปืน Valentine', sprite = BlipSprite.gun },
-        npc = { enabled = true, model = Npc.gun, position = vector4(-281.1246, 778.8676, 118.5040, 359.5377), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.gun, position = vector4(-280.2029, 778.8726, 119.5540, 357.1845), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = gunCategories,
@@ -279,7 +279,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านปืน Rhodes', sprite = BlipSprite.gun },
-        npc = { enabled = true, model = Npc.gun, position = vector4(1323.2031, -1323.2544, 78.8197, 344.6354), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.gun, position = vector4(1323.3407, -1323.4094, 77.9393, 338.6010), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = gunCategories,
@@ -296,7 +296,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านปืน Annesburg', sprite = BlipSprite.gun },
-        npc = { enabled = true, model = Npc.gun, position = vector4(2948.0452, 1318.7841, 45.5781, 71.7778), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.gun, position = vector4(2948.1646, 1318.6077, 44.8703, 70.6519), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = gunCategories,
@@ -331,7 +331,7 @@ Config.Stores = {
         openDistance = 5.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = true, name = 'ร้านยา Rhodes', sprite = BlipSprite.doctor },
-        npc = { enabled = true, model = Npc.doctor, position = vector4(1369.7628, -1310.8749, 76.9377, 142.9065), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.doctor, position = vector4(1369.0542, -1310.7334, 77.9905, 139.1162), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = doctorCategories,

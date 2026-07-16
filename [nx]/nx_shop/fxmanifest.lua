@@ -33,5 +33,7 @@ files {
 
 dependencies {
     'vorp_core',
-    'vorp_inventory'
+    'vorp_inventory',
+    'lp_textui', -- client.lua ใช้ exports.lp_textui:TextUIHold/CancelHold แทน native UiPrompt
+    'pNotify',   -- client.lua ใช้ exports.pNotify:SendNotification แทน Core.NotifyRightTip
 }
