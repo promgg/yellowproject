@@ -103,6 +103,15 @@ AddEventHandler("vorp:SelectedCharacter", function()
     end)
 end)
 
+-- inventory โหลดเสร็จจริง (server ส่งของครบแล้ว) -> ขอ fastslot sync อีกรอบ
+-- เดิมพึ่งแค่ SetTimeout(2000) หลัง SelectedCharacter ซึ่ง race กับตอน inventory ยังโหลดไม่เสร็จ
+-- (DB หนัก/ของเยอะ โหลดช้ากว่า 2 วิ) ทำให้ตอน reconnect buildSyncPayload ฝั่ง server หาไอเทมไม่เจอ
+-- fastslot เลยโชว์ count 0 + ชื่อ internal จนกว่าผู้เล่นจะ refresh เอง (ใช้/ลากของ) — ยิง sync ตรงจุดที่
+-- inventory พร้อมจริงแทน กัน race ถาวร
+AddEventHandler("vorpinventory:loaded", function()
+    TriggerServerEvent("vorp_inventory:fastslot:request")
+end)
+
 -- รองรับ restart vorp_inventory ขณะผู้เล่นออนไลน์ โดยไม่ต้องเลือกตัวละครใหม่
 AddEventHandler("onClientResourceStart", function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
