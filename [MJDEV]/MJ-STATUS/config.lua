@@ -199,6 +199,41 @@ Config.FoodItems = {
         stamina = 1000
     },
 
+    -- ===== ไอเทมเริ่มต้นผู้เล่นใหม่ (startItems ใน vorp_inventory) =====
+    -- ยังไม่เคยลงทะเบียนใน MJ-STATUS มาก่อน — ค่าประเมินจาก desc ใน DB เทียบ tier เบากว่า food_taco
+    -- (tier เบาสุดเดิม 40%/10%/10% -> 2500/500/-500) เพราะ % ใน desc ต่ำกว่าทุก tier ที่มีอยู่
+    -- แนะนำให้เจ้าของระบบ tune ตัวเลขจริงอีกทีตามความรู้สึกเกม ไม่ใช่ค่าที่ผ่านการเทสสมดุลมาก่อน
+    ["food_sandwich"] = { -- แซนวิช - เพิ่มอิ่ม 15% | นํ้า 8%
+        prop_name = 'p_bread03x',
+        Animation = "eat",
+        Effect = "",
+        EffectDuration = "",
+        hunger = 2000,
+        thirst = 800,
+        stress = 0,
+        stamina = 10
+    },
+    ["food_bread"] = { -- ขนมปัง - เพิ่มอิ่ม 10% | นํ้า 5%
+        prop_name = 'p_bread03x',
+        Animation = "eat",
+        Effect = "",
+        EffectDuration = "",
+        hunger = 1500,
+        thirst = 500,
+        stress = 0,
+        stamina = 10
+    },
+    ["food_coffee"] = { -- กาแฟ - เพิ่มนํ้า 10% | ลดเครียด 20%
+        prop_name = 'p_mugcoffee01x',
+        Animation = "drink",
+        Effect = "",
+        EffectDuration = "",
+        hunger = 0,
+        thirst = 500,
+        stress = -1000,
+        stamina = 10
+    },
+
     -- ===== เมนูโต๊ะทำอาหาร Valentine / Rhodes / Annesburg =====
     -- ค่าเทียบสัดส่วนจาก % ใน desc ของแต่ละไอเทม (เพิ่มข้าว/เพิ่มน้ำ/ลดเครียด) โดยอิงสเกลเดียวกับ bread/water/burger/coffeebeans ด้านบน
     ["food_sugarcane_juice"] = { -- น้ำอ้อย (Valentine) - เพิ่มน้ำ70% ลดเครียด20%
