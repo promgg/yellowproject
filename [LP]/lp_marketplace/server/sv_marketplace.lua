@@ -234,7 +234,6 @@ DoBuyInner = function(src, listingId, buyQty)
     end
 
     local tax = math.max(Config.TaxMin, math.floor(totalPrice * Config.TaxRate / 100))
-    local net = totalPrice - tax
 
     if buyQty == listing.quantity then
         -- ── ซื้อทั้งหมด: atomic mark sold (guard ด้วย quantity เดิมกัน race กับ partial buy) ──
@@ -257,16 +256,14 @@ DoBuyInner = function(src, listingId, buyQty)
             return
         end
 
-        -- จ่ายเงินผู้ขายทันที (หักภาษีแล้ว) — เฉพาะตอนผู้ขาย online
-        -- (ผู้ขาย offline ระหว่าง partial-buy: เงินจะไม่ถูกจ่ายจุดนี้ — เป็นข้อจำกัดเดิมจากต้นฉบับ
-        --  full-buy ไม่มีปัญหานี้เพราะจ่ายผ่านแท็บ ITEM ทีหลัง ซึ่งอ่าน DB ตรงไม่ต้อง online)
-        local sellerSrc = FindSourceByCharIdentifier(listing.seller_id)
-        if sellerSrc then
-            local sellerChar = GetCharacter(sellerSrc)
-            if sellerChar then
-                sellerChar.addCurrency(CurrencyType(listing.currency), net)
-            end
-        end
+        -- เงินผู้ขายต้องกด claim ผ่านแท็บ ITEM เสมอ ไม่ว่าจะ online ตอนซื้อหรือไม่ (ดีไซน์ตั้งใจ
+        -- ให้เหมือน full-buy ทุกกรณี ไม่ใช่จ่ายทันทีตอน online) — INSERT แถวใหม่แยกจาก listing
+        -- เดิมเสมอ เพราะ listing เดิมยัง status='active' ขายต่อได้ (ไม่ใช่ปิดเหมือน full-buy)
+        MySQL.insert.await(
+            'INSERT INTO lp_marketplace (seller_id,seller_name,buyer_id,buyer_name,item_name,item_label,category,quantity,price,currency,status,sold_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())',
+            { listing.seller_id, listing.seller_name, Character.charIdentifier, GetPlayerName(src),
+              listing.item_name, listing.item_label, GetCategoryForItem(listing.item_name),
+              buyQty, listing.price, listing.currency, 'sold' })
     end
 
     -- หักเงินผู้ซื้อ + ให้ของ
