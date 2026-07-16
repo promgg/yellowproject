@@ -42,7 +42,7 @@ files {
 }
 
 dependencies {
-    'lp_textui',
-    'lp_progbar',
-    'lp_minigame',
+    'lp_textui',   -- core/client.lua ใช้ exports.lp_textui:TextUIHold/CancelHold/TextUI/HideUI แทน MJ-Textui (ปิดใช้งานแล้ว) และ native prompt
+    'lp_progbar',  -- core/client.lua ใช้ exports.lp_progbar:Progress/CancelProgress สำหรับ phase 2 (แถบเปิดกล่อง)
+    'lp_minigame', -- core/client.lua ใช้ exports.lp_minigame:Lockpick สำหรับ minigame ก่อนเปิดกล่อง
 }

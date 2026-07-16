@@ -512,16 +512,15 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- MJ-Textui ถูกปิดใช้งานทั้งโปรเจกต์แล้ว (name-locked) — สอง helper นี้เดิมเรียกผ่าน
+-- exports['MJ-Textui'] ตรงๆ ซึ่ง resource ไม่มีอยู่จริงอีกต่อไป เปลี่ยนมาใช้ lp_textui แทน
+-- (มาตรฐานเดียวกับ hold-to-loot ด้านล่างที่ใช้ lp_textui:TextUIHold อยู่แล้ว)
 local function hideTextUI()
-    if exports and exports['MJ-Textui'] then
-        exports['MJ-Textui']:HideTextUI()
-    end
+    exports.lp_textui:HideUI()
 end
 
 local function showTextUI(msg)
-    if exports and exports['MJ-Textui'] then
-        exports['MJ-Textui']:ShowTextUI(msg)
-    end
+    exports.lp_textui:TextUI(msg)
 end
 
 local function clearLocalEntities()
