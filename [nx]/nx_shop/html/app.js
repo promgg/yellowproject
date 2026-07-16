@@ -50,6 +50,8 @@ const els = {
     blackTotal: document.getElementById('blackTotal'),
     useBank: document.getElementById('useBank'),
     bankLabel: document.getElementById('bankLabel'),
+    bankRow: document.getElementById('bankRow'),
+    blackMoneyRow: document.getElementById('blackMoneyRow'),
     payBtn: document.getElementById('payBtn'),
     cancelBtn: document.getElementById('cancelBtn')
 };
@@ -201,7 +203,16 @@ function renderTotals() {
     els.cashTotal.textContent = formatMoney(total.charge);
     els.blackTotal.textContent = formatMoney(total.black);
     els.bankLabel.textContent = `PAY WITH BANK + VAT ${total.vatPercent}%(${formatMoney(total.vat)})`;
-    els.useBank.disabled = !(state.store?.payment?.allowBank);
+
+    // ร้านนี้ไม่รับจ่ายผ่านธนาคาร -> ซ่อนแถวไปเลย ไม่ใช่แค่ disable (จะได้ไม่มีปุ่มค้างให้กด/สับสน)
+    const bankAllowed = !!(state.store?.payment?.allowBank);
+    els.useBank.disabled = !bankAllowed;
+    els.bankRow.style.display = bankAllowed ? '' : 'none';
+    if (!bankAllowed) els.useBank.checked = false;
+
+    // black money เป็นระบบทั่วไปจาก template แต่โปรเจกต์นี้ไม่มีไอเทมที่ใช้ currency='black' เลย ->
+    // ซ่อนแถวเมื่อตะกร้าไม่มีของประเภทนี้ (ยังคง dynamic เผื่ออนาคตมีไอเทมของเถื่อนเพิ่ม)
+    els.blackMoneyRow.style.display = total.black > 0 ? '' : 'none';
 }
 
 function render() {

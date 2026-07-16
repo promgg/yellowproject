@@ -306,6 +306,10 @@ RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
         return
     end
 
+    -- useBank มาจาก client ตรงๆ (RegisterServerEvent param) — ห้ามเชื่อ ต้องเช็คกับ config ร้านเอง
+    -- ก่อน (ไม่งั้นแก้ payload จาก devtools แล้วจ่ายผ่านธนาคารได้ทั้งที่ allowBank=false ทุกร้าน)
+    useBank = useBank and (store.payment and store.payment.allowBank) == true
+
     local vatPercent = tonumber(store.payment and store.payment.vatPercent) or 0
     local vat = useBank and roundMoney(order.cashTotal * (vatPercent / 100)) or 0
     local chargeCash = roundMoney(order.cashTotal + vat)
