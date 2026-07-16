@@ -105,8 +105,12 @@ Config = {
 
 	-- FIRST JOIN
 	startItems                 = {
-		consumable_raspberrywater = 2, -- ITEMS SAME NAME AS IN DATABASE
-		ammorevolvernormal = 1   -- AMMO SAME NAME AS IN THE DATABASE
+		food_sandwich = 10, -- แซนวิช
+		food_bread    = 10, -- ขนมปัง
+		water         = 10, -- น้ำดื่ม
+		food_coffee   = 10, -- กาแฟ
+		bandage_s     = 5,  -- ผ้าพันแผลเล็ก
+		bandage_xl    = 5,  -- ผ้าพันแผลใหญ่
 	},
 
 	startWeapons               = {
