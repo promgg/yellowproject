@@ -1,13 +1,33 @@
 local VORPcore = exports.vorp_core:GetCore()
 
+-- vorp_inventory ไม่มี re-entrancy guard ในเส้น UseItem (registerUsableItem callback ยิงทันทีทุกคลิก)
+-- + callback นี้มี Wait(1000) คั่นระหว่างเช็คกับ sub/add — กดไอเทม BuyItem รัวๆ callback ยิงซ้อนกัน
+-- ทั้งคู่ผ่าน canCarry, wait, แล้ว addItem BackpackItem = ได้กระเป๋าซ้ำจากไอเทมซื้อใบเดียว (ยืนยันเจอจริง)
+-- กันด้วย busy flag ต่อคน ครอบช่วง Wait จนจบธุรกรรม
+local activeBuy = {} -- [src] = true ระหว่างกำลังแปลง BuyItem -> BackpackItem
+
+AddEventHandler('playerDropped', function()
+    if source then activeBuy[source] = nil end
+end)
+
 -- Loop for registering usable items
 for _, backpack in ipairs(Config.Backpacks) do
     exports.vorp_inventory:registerUsableItem(backpack.BuyItem, function(data)
         local src = data.source
 
+        if activeBuy[src] then return end -- กำลังแปลงใบก่อนอยู่ กันกดซ้ำ -> ได้กระเป๋าซ้ำ
+
         -- เช็คว่าผู้เล่นสามารถถือ Backpack ได้ไหม
         local CanCarry = exports.vorp_inventory:canCarryItem(src, backpack.BackpackItem, 1)
         if CanCarry then
+            activeBuy[src] = true
+
+            -- re-check ว่ายังมี BuyItem จริงก่อนแปลง (กันเคสใบถูกหักไปแล้วจาก callback ที่ยิงก่อนหน้า)
+            if not exports.vorp_inventory:getItem(src, backpack.BuyItem) then
+                activeBuy[src] = nil
+                return
+            end
+
             local BackpackID = GetUniqueID() -- สร้าง Backpack ID ใหม่
             Wait(1000)
             -- บันทึกกระเป๋าใหม่ลง SQL
@@ -18,10 +38,12 @@ for _, backpack in ipairs(Config.Backpacks) do
             exports.vorp_inventory:subItem(src, backpack.BuyItem, 1, {})
 
             -- เพิ่มไอเทม BackpackItem ใหม่ให้ผู้เล่น
-            exports.vorp_inventory:addItem(src, backpack.BackpackItem, 1, { 
-                description = _U('BackPackID') .. BackpackID, 
-                backpackid = BackpackID 
+            exports.vorp_inventory:addItem(src, backpack.BackpackItem, 1, {
+                description = _U('BackPackID') .. BackpackID,
+                backpackid = BackpackID
             })
+
+            activeBuy[src] = nil
         end
     end)
 end
