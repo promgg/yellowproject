@@ -285,10 +285,24 @@ function onReceiveItemClaims(claims) {
 }
 
 // ─── Inventory Popup ──────────────────────────────────────────────────────────
+// หมวดหมู่อ้างอิงจาก vorp_inventory/config/groups.lua (item.group ตัวเลขจริงในกระเป๋า) ไม่ใช่
+// หมวดแยกต่างหากที่เดาขึ้นเอง — group=1 ไม่มีหมวดเฉพาะใน groups.lua (fallback ทั่วไปเวลาไอเทม
+// ไม่ได้ตั้ง group) เลยจัดเป็น "ทั่วไป" ในนี้, group=5 (อาวุธ) ไม่โผล่ในลิสต์นี้อยู่แล้วเพราะ
+// getUserInventoryItems ฝั่ง server ส่งเฉพาะ item ปกติ ไม่รวมอาวุธ
+const INV_GROUP_LABELS = {
+    1: 'ทั่วไป', 2: 'ยา/การรักษา', 3: 'อาหาร', 4: 'เครื่องมือ/วัสดุ',
+    6: 'กระสุน', 7: 'เอกสาร', 8: 'ของจากสัตว์', 9: 'ของมีค่า',
+    10: 'อุปกรณ์ม้า', 11: 'สมุนไพร/แลกเปลี่ยน',
+};
+
 function openInventory() {
     document.getElementById('qtyValue').value = '1';
-    state.selectedQty  = 1;
-    state._invSelected = null;
+    state.selectedQty   = 1;
+    state._invSelected  = null;
+    state._invSearch    = '';
+    state._invCategory  = 'all';
+    document.getElementById('invSearchInput').value = '';
+    document.getElementById('invCatChips').innerHTML = '';
     document.getElementById('invGrid').innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">กำลังโหลด...</div>';
     document.getElementById('inventoryOverlay').style.display = 'flex';
     NUI.getInventory();
@@ -301,17 +315,69 @@ function closeInventory() {
 }
 
 function onReceiveInventory(inventory) {
-    state._invItems = inventory;
-    state._invSelected = null;
+    state._invItems     = inventory;
+    state._invSelected  = null;
+    state._invSearch    = '';
+    state._invCategory  = 'all';
+    buildInvCatChips();
+    renderInvGrid();
+}
 
+function buildInvCatChips() {
+    const el = document.getElementById('invCatChips');
+    el.innerHTML = '';
+
+    // โชว์เฉพาะหมวดที่มีของอยู่จริงในกระเป๋าตอนนี้ ไม่ยัดหมวดว่างเปล่าให้เลือก
+    const groupsPresent = new Set((state._invItems || []).map(it => it.group));
+    const chips = [{ id: 'all', label: 'ทั้งหมด' }];
+    for (const g of Object.keys(INV_GROUP_LABELS).map(Number).sort((a, b) => a - b)) {
+        if (groupsPresent.has(g)) chips.push({ id: g, label: INV_GROUP_LABELS[g] });
+    }
+
+    chips.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'inv-cat-chip' + (state._invCategory === c.id ? ' active' : '');
+        btn.textContent = c.label;
+        btn.onclick = () => {
+            state._invCategory = c.id;
+            document.querySelectorAll('.inv-cat-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderInvGrid();
+        };
+        el.appendChild(btn);
+    });
+}
+
+function onInvSearch(val) {
+    state._invSearch = (val || '').trim().toLowerCase();
+    renderInvGrid();
+}
+
+function renderInvGrid() {
     const grid = document.getElementById('invGrid');
-    if (!inventory.length) {
+    const items = state._invItems || [];
+    if (!items.length) {
         grid.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center;grid-column:1/-1">ไม่มีไอเทมในคลัง</div>';
         return;
     }
 
-    grid.innerHTML = inventory.map((item, i) => `
-    <div class="inv-item" id="inv-${i}" onclick="selectInvItem(${i})">
+    // เก็บ index เดิมไว้เสมอ (ไม่ใช่ index ของผลลัพธ์หลังกรอง) เพราะ selectInvItem/confirmInventorySelect
+    // อ้างอิง state._invItems[i] ตรงๆ ด้วย index ดั้งเดิม
+    const visible = items
+        .map((item, i) => ({ item, i }))
+        .filter(({ item }) => {
+            const matchesCategory = state._invCategory === 'all' || item.group === state._invCategory;
+            const matchesSearch   = !state._invSearch || (item.label || '').toLowerCase().includes(state._invSearch);
+            return matchesCategory && matchesSearch;
+        });
+
+    if (!visible.length) {
+        grid.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center;grid-column:1/-1">ไม่พบไอเทมที่ค้นหา</div>';
+        return;
+    }
+
+    grid.innerHTML = visible.map(({ item, i }) => `
+    <div class="inv-item${state._invSelected === i ? ' selected' : ''}" id="inv-${i}" onclick="selectInvItem(${i})">
       <div class="inv-item-icon">${itemImg(item.name, 'inv-item-img')}</div>
       <div class="inv-item-label" title="${esc(item.label)}">${esc(item.label)}</div>
       <div class="inv-item-count">x${item.count}</div>

@@ -402,7 +402,7 @@ AddEventHandler('lp_marketplace:getInventory', function()
         local qty = item.count or 0
         if qty > 0 then
             inventory[#inventory+1] = { name = item.name, label = item.label, count = qty,
-                                        category = GetCategoryForItem(item.name) }
+                                        category = GetCategoryForItem(item.name), group = item.group }
         end
     end
     TriggerClientEvent('lp_marketplace:receiveInventory', src, inventory)

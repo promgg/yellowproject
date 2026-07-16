@@ -164,6 +164,13 @@
       <span><i class="fa-solid fa-sack-dollar"></i> คลังสินค้า</span>
       <button onclick="closeInventory()"><i class="fa-solid fa-xmark"></i></button>
     </div>
+    <div class="inv-toolbar">
+      <div class="search-wrap inv-search-wrap">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input class="search-input inv-search-input" id="invSearchInput" placeholder="ค้นหาไอเทม..." oninput="onInvSearch(this.value)">
+      </div>
+      <div class="inv-cat-chips" id="invCatChips"></div>
+    </div>
     <div class="inv-grid" id="invGrid"></div>
     <div class="inv-footer">
       <div class="qty-row">
