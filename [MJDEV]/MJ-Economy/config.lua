@@ -127,7 +127,7 @@ Config.Locations = {
             Scale = 0.25,
             Label = 'ตลาด Annesburg'
         },
-        Coords = vector4(2932.4133, 1301.7303, 44.4802, 245.1862),
+        Coords = vector4(2934.3752, 1301.2820, 44.5335, 71.9521),
         NPCModel = 'A_M_M_BiVWorker_01',
         NPCHeading = 245.1862,
         NPCText = 'ตลาด Annesburg',
