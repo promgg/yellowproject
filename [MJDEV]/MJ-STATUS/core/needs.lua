@@ -89,14 +89,8 @@ CreateThread(function()
             --  เช็ค & แจ้งเตือนความหิว
             -- print((Config.MaxHunger * 0.02))
             if PlayerStatus.Hunger <= (Config.MaxHunger * 0.02) and not notifstarve then
-                exports['MJ-Showitem']:Notification({
-                    position = 'middleRight',
-                    image = '',
-                    title = 'Food',
-                    description = '⚠ คุณกำลังหิวมาก! รีบหาอะไรกินด่วน!',
-                    type = 'alert',
-                    time = 5000
-                })
+                -- ย้ายจาก MJ-Showitem (ปิดไปแล้ว) มาใช้ pNotify ระบบแจ้งเตือน text มาตรฐานของโปรเจกต์
+                exports.pNotify:SendNotification({ type = 'error', text = '⚠ คุณกำลังหิวมาก! รีบหาอะไรกินด่วน!', timeout = 5000 })
                 notifstarve = true
             else
                 notifstarve = false
@@ -104,14 +98,7 @@ CreateThread(function()
 
             --  เช็ค & แจ้งเตือนความกระหายน้ำ
             if PlayerStatus.Thirst <= (Config.MaxThirst * 0.02) and not notifthirst then
-                exports['MJ-Showitem']:Notification({
-                    position = 'middleRight',
-                    image = '',
-                    title = 'Water',
-                    description = '⚠ คุณกระหายน้ำมาก! รีบดื่มน้ำด่วน!',
-                    type = 'alert',
-                    time = 5000
-                })
+                exports.pNotify:SendNotification({ type = 'error', text = '⚠ คุณกระหายน้ำมาก! รีบดื่มน้ำด่วน!', timeout = 5000 })
                 notifthirst = true
             else
                 notifthirst = false
@@ -155,28 +142,14 @@ CreateThread(function()
 
             -- ตรวจสอบว่าเครียดเกิน 90 หรือไม่
             if PlayerStatus.Stress >= (Config.MaxStress * 0.02) and not isdead then
-                exports['MJ-Showitem']:Notification({
-                    position = 'middleRight',
-                    image = '',
-                    title = 'Stress',
-                    description = 'คุณรู้สึกเครียดมากเกินไป!!',
-                    type = 'alert',
-                    time = 5000
-                })
+                exports.pNotify:SendNotification({ type = 'error', text = 'คุณรู้สึกเครียดมากเกินไป!!', timeout = 5000 })
                 isdead = true  -- ตั้งค่า dead เป็น true เมื่อเครียดมากเกินไป
             end
 
             -- ตรวจสอบว่าเครียดถึง 100 หรือไม่
             if PlayerStatus.Stress >= (Config.MaxStress * 0.02) then
                 if not notifstress then
-                    exports['MJ-Showitem']:Notification({
-                        position = 'middleRight',
-                        image = '',
-                        title = 'Stress',
-                        description = 'คุณเสียชีวิตจากความเครียด!!!',
-                        type = 'alert',
-                        time = 5000
-                    })
+                    exports.pNotify:SendNotification({ type = 'error', text = 'คุณเสียชีวิตจากความเครียด!!!', timeout = 5000 })
                     notifstress = true
                     local newHealth = GetEntityHealth(playerPed) - 20
                     if newHealth < 1 then
