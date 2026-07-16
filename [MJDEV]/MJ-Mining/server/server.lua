@@ -33,6 +33,21 @@ AddEventHandler('playerDropped', function()
     rockCd[source]    = nil
 end)
 
+-- เช็คก่อนเริ่มขุด: เจ้าของกำหนดว่า "มีแร่ชนิดใดชนิดหนึ่งที่โซนนี้ดรอปได้เต็ม limit แล้ว = ขุดไม่ได้เลย"
+-- (ไม่ใช่แค่ตอนเต็มหมดทุกชนิด) เดิมเช็ค canCarry หลังเล่นท่าขุดจบ (~30 วิ) แล้วค่อยแจ้ง "เต็ม" = เสียเวลาฟรี
+-- ย้ายมากันตั้งแต่ต้น คืน false ถ้ามี "แม้แต่ชนิดเดียว" ที่พกเพิ่มไม่ได้
+local function canCarryAllRewards(src)
+    local town    = serverTownForPlayer(src)
+    local rewards = town and Config.MiningRewards[town]
+    if not rewards then return true end -- ไม่รู้ pool (ไม่ได้อยู่ในโซน) ปล่อยให้ logic เดิมจัดการ
+    for _, v in ipairs(rewards) do
+        if not exports.vorp_inventory:canCarryItem(src, v.name, v.amount) then
+            return false -- แร่ชนิดนี้เต็มแล้ว -> บล็อกการขุดทั้งหมด
+        end
+    end
+    return true
+end
+
 RegisterServerEvent("mining:axecheck")
 AddEventHandler("mining:axecheck", function()
     local _source = source
@@ -42,6 +57,13 @@ AddEventHandler("mining:axecheck", function()
     if not axe then
         TriggerClientEvent("mining:noaxe", _source)
         notify(_source, 'error', 'You need a pickaxe.', 5000)
+        return
+    end
+
+    -- มีแร่ชนิดใดชนิดหนึ่งเต็ม -> บล็อกก่อนเริ่มท่าขุด (ไม่หักความทนจอบ ไม่เสียเวลา)
+    if not canCarryAllRewards(_source) then
+        TriggerClientEvent("mining:blocked", _source)
+        notify(_source, 'warning', 'กระเป๋าเต็ม — มีแร่บางชนิดเต็มแล้ว ขุดต่อไม่ได้', 5000)
         return
     end
 
