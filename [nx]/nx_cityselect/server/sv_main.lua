@@ -350,7 +350,8 @@ AddEventHandler("onResourceStart", function(resourceName)
             end
 
             TriggerClientEvent("nx_cityselect:Client:ApplyOutfit", source, {
-                outfit      = citySnapshot.outfit,
+                cityId      = citySnapshot.id,
+                shirtTag    = citySnapshot.shirtTag,
                 outfitProps = citySnapshot.outfitProps,
                 cityName    = citySnapshot.name,
                 label       = citySnapshot.label,

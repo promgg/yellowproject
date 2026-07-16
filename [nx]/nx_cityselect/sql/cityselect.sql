@@ -33,7 +33,10 @@ INSERT IGNORE INTO `nx_city_slots` (`city_id`, `current_count`) VALUES
 
 -- Items - insert into VORP items table (adjust table name if different)
 -- item name must match Config.Cities[*].badgeItem in config.lua exactly (no mj_ prefix)
+-- type must be 'item_standard' — the normal-inventory UseItem client callback
+-- only routes item_standard/item_weapon to the server; 'item' silently does
+-- nothing except via fastslot (which skips the type check entirely)
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`, `desc`) VALUES
-    ('badge_valentine',  'บัตรประจำเมือง Valentine',  1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Valentine'),
-    ('badge_annesburg',  'บัตรประจำเมือง Annesburg',  1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Annesburg'),
-    ('badge_rhodes',     'บัตรประจำเมือง Rhodes',     1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Rhodes');
+    ('badge_valentine',  'บัตรประจำเมือง Valentine',  1, 0, 'item_standard', 1, 'บัตรประจำเมืองสำหรับชาว Valentine'),
+    ('badge_annesburg',  'บัตรประจำเมือง Annesburg',  1, 0, 'item_standard', 1, 'บัตรประจำเมืองสำหรับชาว Annesburg'),
+    ('badge_rhodes',     'บัตรประจำเมือง Rhodes',     1, 0, 'item_standard', 1, 'บัตรประจำเมืองสำหรับชาว Rhodes');

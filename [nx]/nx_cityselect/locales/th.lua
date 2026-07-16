@@ -25,6 +25,7 @@ Lang = {
     notify_invalid_heritage  = "เชื้อสายที่เลือกไม่ถูกต้อง",
     notify_heritage_selected = "คุณเลือกเป็น %s แล้ว",
     notify_outfit_changed    = "เสื้อผ้าของคุณถูกเปลี่ยนเป็นชุดของ %s",
+    notify_outfit_removed    = "ถอดเสื้อประจำเมืองแล้ว",
 
     -- Territory
     territory_enter     = "เข้าสู่เขต %s",

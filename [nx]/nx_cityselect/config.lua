@@ -15,8 +15,9 @@ Config.Debug             = false    -- set true to see zone debug polys
 --  badgeItem  : item name in DB for this city's badge
 --  zones      : polygon points {x,y} that define city territory
 --  minZ/maxZ  : Z-axis range for PolyZone
---  outfit     : list of {componentId, drawableId, textureId, paletteId}
---               Use -1 on any field to skip that component
+--  shirtTag   : RDR2 MetaPed shirt tag { drawable, albedo, normal, material, palette, tint0, tint1, tint2 }
+--               captured live via GetMetaPedData("Shirt", ped) — NOT a GTA5-style
+--               component/drawable/texture/palette index, RDR2 clothing uses asset hashes
 -- ─────────────────────────────────────────────────────────────
 Config.Cities = {
     {
@@ -35,17 +36,8 @@ Config.Cities = {
         },
         minZ   = 90.0,
         maxZ   = 160.0,
-        outfit = {
-            -- { componentId, drawableId, textureId, paletteId }
-            { 11, 5,  0, 0 },   -- upper body / shirt
-            { 4,  3,  0, 0 },   -- lower body / pants
-            { 6,  2,  0, 0 },   -- feet / boots
-            { 0,  0,  0, 0 },   -- head (hat handled via prop)
-        },
-        outfitProps = {
-            -- { propId, drawableId, textureId }
-            { 0, 8, 0 },    -- hat
-        },
+        shirtTag = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = 1064202495, tint0 = 0, tint1 = 0, tint2 = 0 },
+        outfitProps = {},
     },
     {
         id          = "rhodes",
@@ -63,15 +55,8 @@ Config.Cities = {
         },
         minZ   = 55.0,
         maxZ   = 110.0,
-        outfit = {
-            { 11, 20, 0, 0 },
-            { 4,  15, 0, 0 },
-            { 6,  8,  0, 0 },
-            { 0,  0,  0, 0 },
-        },
-        outfitProps = {
-            { 0, 12, 0 },
-        },
+        shirtTag = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 183, tint1 = 47, tint2 = 208 },
+        outfitProps = {},
     },
     {
         id          = "annesburg",
@@ -89,15 +74,8 @@ Config.Cities = {
         },
         minZ   = 20.0,
         maxZ   = 90.0,
-        outfit = {
-            { 11, 12, 0, 0 },
-            { 4,  8,  0, 0 },
-            { 6,  5,  0, 0 },
-            { 0,  0,  0, 0 },
-        },
-        outfitProps = {
-            { 0, 4, 0 },
-        },
+        shirtTag = { drawable = -631954077, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 139, tint1 = 18, tint2 = 15 },
+        outfitProps = {},
     },
 }
 

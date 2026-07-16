@@ -40,6 +40,7 @@ files {
 dependencies {
     'oxmysql',
     'vorp_core',
+    'vorp_character', -- cl_outfit.lua ใช้ exports.vorp_character:GetShirtTag/SetShirtTag
     'PolyZone',
     'pNotify',
 }
