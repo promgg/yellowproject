@@ -28,11 +28,12 @@ CREATE TABLE IF NOT EXISTS `nx_city_slots` (
 -- Seed initial slot rows (insert for each city_id defined in config.lua)
 INSERT IGNORE INTO `nx_city_slots` (`city_id`, `current_count`) VALUES
     ('valentine',   0),
-    ('blackwater',  0),
+    ('annesburg',   0),
     ('rhodes',      0);
 
 -- Items - insert into VORP items table (adjust table name if different)
+-- item name must match Config.Cities[*].badgeItem in config.lua exactly (no mj_ prefix)
 INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usable`, `desc`) VALUES
-    ('mj_badge_valentine',  'บัตรประจำเมือง Valentine',  1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Valentine'),
-    ('mj_badge_blackwater', 'บัตรประจำเมือง Blackwater', 1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Blackwater'),
-    ('mj_badge_rhodes',     'บัตรประจำเมือง Rhodes',     1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Rhodes');
+    ('badge_valentine',  'บัตรประจำเมือง Valentine',  1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Valentine'),
+    ('badge_annesburg',  'บัตรประจำเมือง Annesburg',  1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Annesburg'),
+    ('badge_rhodes',     'บัตรประจำเมือง Rhodes',     1, 0, 'item', 1, 'บัตรประจำเมืองสำหรับชาว Rhodes');
