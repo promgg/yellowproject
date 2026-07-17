@@ -50,13 +50,14 @@
 
     ------------------------------------------------------------------
     EXPORTS
-      TextUI(message, key, worldAnchor)   -- key/worldAnchor optional; key auto-extracted from "[key]" if omitted
-      HideUI()
+      TextUI(message, key, worldAnchor, ownerName)   -- ownerName optional; defaults to invoking resource
+      HideUI(ownerName)
       StartProgress(duration)
       StopProgress()
       ResetProgress()
-      TextUIHold(message, holdMs, callback, controlCode, worldAnchor)  -- controlCode optional, defaults to E
-      CancelHold()
+      TextUIHold(message, holdMs, callback, controlCode, worldAnchor, ownerName)
+      CancelHold(ownerName)
+      IsHoldActive(ownerName)
     ------------------------------------------------------------------
 ]]
 
@@ -64,9 +65,13 @@ local isShowing  = false
 local holdActive = false
 local holdGen    = 0
 local worldGen   = 0
+local currentOwner = nil
+local holdOwner = nil
 local isSuppressed = false
 local suppressOwners = {}
 local suppressGen = {}
+local setSitRestScenariosBlocked
+local blockNearbyAmbientPrompts
 
 -- โหมด world: คำนวณตำแหน่งจอทุกเฟรม (native เบา) แต่ยิง SendNUIMessage เฉพาะตอนค่าที่จอ
 -- เปลี่ยนจริงเท่านั้น — ตอนผู้เล่น/กล้องนิ่ง (เคสส่วนใหญ่ตอนยืนอ่าน/รอโต้ตอบ) พิกัดจอจะเท่าเดิม
@@ -98,21 +103,48 @@ local function worldPosThread(anchor)
     end)
 end
 
-local function TextUI(message, key, worldAnchor)
+local function resolveOwner(ownerName)
+    return tostring(ownerName or GetInvokingResource() or GetCurrentResourceName())
+end
+
+local function canAcquire(owner)
+    if currentOwner == owner then return true end
+    return currentOwner == nil and not isShowing and not holdActive
+end
+
+local function TextUI(message, key, worldAnchor, ownerName)
     if isSuppressed then return false end
 
+    local owner = resolveOwner(ownerName)
+    if not canAcquire(owner) then return false end
+
     isShowing = true
+    currentOwner = owner
     worldGen  = worldGen + 1 -- ปิด world thread เก่า (ถ้ามี) ก่อนเปิดของใหม่
     SendNUIMessage({ action = 'lp_textui:show', message = message or '', key = key, world = worldAnchor ~= nil })
     if worldAnchor then worldPosThread(worldAnchor) end
     return true
 end
 
-local function HideUI()
-    if not isShowing then return end
+local function HideUI(ownerName)
+    local owner = resolveOwner(ownerName)
+    if currentOwner ~= nil and currentOwner ~= owner then return false end
+    if currentOwner == nil and holdOwner ~= nil and holdOwner ~= owner then return false end
+    if not isShowing and not holdActive then return false end
+
+    if holdActive and (holdOwner == nil or holdOwner == owner) then
+        holdActive = false
+        holdOwner = nil
+        holdGen = holdGen + 1
+        setSitRestScenariosBlocked(false)
+        blockNearbyAmbientPrompts(false)
+    end
+
     isShowing = false
+    currentOwner = nil
     worldGen  = worldGen + 1 -- หยุด world thread ที่รันอยู่ (ถ้ามี)
     SendNUIMessage({ action = 'lp_textui:hide' })
+    return true
 end
 
 local function StartProgress(duration)
@@ -137,7 +169,7 @@ end
 -- ระหว่างกดค้าง (DisableControlAction เพียงอย่างเดียวกันไม่ได้ เพราะ engine
 -- สั่ง TASK_START_SCENARIO เองอีกชั้นหนึ่ง ไม่ได้เช็คผ่าน IsControlPressed)
 -- flag 472-475 อ้างอิงจาก CPED_CONFIG_FLAGS (femga/rdr3_discoveries)
-local function setSitRestScenariosBlocked(blocked)
+setSitRestScenariosBlocked = function(blocked)
     local ped = PlayerPedId()
     SetPedConfigFlag(ped, 472, blocked) -- PCF_DisableSittingScenarios
     SetPedConfigFlag(ped, 473, blocked) -- PCF_DisableAutoSittingScenarios
@@ -154,7 +186,7 @@ end
 -- เพราะบาง ped (เช่นม้าคนอื่นที่ไม่ใช่เจ้าของ) ปกติก็ตั้ง flag ป้องกันไว้อยู่แล้วโดย default
 local guardedPeds = {} -- [pedHandle] = { flag = 136|169, original = bool }
 
-local function blockNearbyAmbientPrompts(blocked)
+blockNearbyAmbientPrompts = function(blocked)
     if not blocked then
         for ped, data in pairs(guardedPeds) do
             if DoesEntityExist(ped) then
@@ -185,14 +217,17 @@ end
 
 -- ── Mode 2: hold-to-interact — polls controlCode itself, drives the ring,
 -- fires callback() only on a full, uninterrupted hold. Release early = reset.
-local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
+local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor, ownerName)
     if isSuppressed then return false end
 
+    local owner = resolveOwner(ownerName)
+    if not canAcquire(owner) then return false end
     controlCode = controlCode or 0x17BEC168 -- E
 
-    TextUI(message, nil, worldAnchor)
+    if not TextUI(message, nil, worldAnchor, owner) then return false end
     setHoldProgress(0)
     holdActive = true
+    holdOwner  = owner
     holdGen    = holdGen + 1
     local gen  = holdGen
     setSitRestScenariosBlocked(true)
@@ -217,7 +252,8 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
                 end
                 if elapsed >= holdMs then
                     holdActive = false
-                    HideUI()
+                    holdOwner = nil
+                    HideUI(owner)
                     setSitRestScenariosBlocked(false)
                     blockNearbyAmbientPrompts(false)
                     -- callback may be a cross-resource funcref that's since gone away
@@ -234,13 +270,21 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor)
     return true
 end
 
-local function CancelHold()
-    if not holdActive then return end
+local function CancelHold(ownerName)
+    local owner = resolveOwner(ownerName)
+    if not holdActive or (holdOwner ~= nil and holdOwner ~= owner) then return false end
     holdActive = false
+    holdOwner  = nil
     holdGen    = holdGen + 1
-    HideUI()
+    HideUI(owner)
     setSitRestScenariosBlocked(false)
     blockNearbyAmbientPrompts(false)
+    return true
+end
+
+local function IsHoldActive(ownerName)
+    local owner = resolveOwner(ownerName)
+    return holdActive == true and holdOwner == owner and currentOwner == owner and isShowing == true
 end
 
 -- Temporarily blocks every TextUI caller while a full-screen NUI is open.
@@ -254,8 +298,11 @@ local function SetSuppressed(state, releaseDelayMs, ownerName)
     if state == true then
         suppressOwners[owner] = true
         isSuppressed = true
-        CancelHold()
-        HideUI()
+        local activeOwner = holdOwner or currentOwner
+        if activeOwner then
+            CancelHold(activeOwner)
+            HideUI(activeOwner)
+        end
         return
     end
 
@@ -283,6 +330,14 @@ AddEventHandler('onResourceStop', function(res)
         isSuppressed = next(suppressOwners) ~= nil
     end
 
+    local activeOwner = holdOwner or currentOwner
+    if activeOwner == res or (activeOwner and activeOwner:sub(1, #res + 1) == res .. ':') then
+        if activeOwner then
+            CancelHold(activeOwner)
+            HideUI(activeOwner)
+        end
+    end
+
     if res ~= GetCurrentResourceName() then return end
     blockNearbyAmbientPrompts(false)
 end)
@@ -294,6 +349,7 @@ exports('StopProgress', StopProgress)
 exports('ResetProgress', ResetProgress)
 exports('TextUIHold', TextUIHold)
 exports('CancelHold', CancelHold)
+exports('IsHoldActive', IsHoldActive)
 exports('SetSuppressed', SetSuppressed)
 
 RegisterNetEvent('lp_textui:client:show', TextUI)

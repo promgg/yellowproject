@@ -272,6 +272,7 @@ local Loot = {
 -- Phase 1 grip state (lp_textui:TextUIHold) + phase 2 progress id (lp_progbar)
 local LootHoldActive = false
 local LootHoldAirdropId = nil
+local TEXTUI_OWNER = script_name .. ':airdrop'
 local LootProgId = nil
 
 -- Prevent spammy stacked notifications when a loot is repeatedly cancelled (e.g. DoT ticks)
@@ -516,11 +517,11 @@ end)
 -- exports['MJ-Textui'] ตรงๆ ซึ่ง resource ไม่มีอยู่จริงอีกต่อไป เปลี่ยนมาใช้ lp_textui แทน
 -- (มาตรฐานเดียวกับ hold-to-loot ด้านล่างที่ใช้ lp_textui:TextUIHold อยู่แล้ว)
 local function hideTextUI()
-    exports.lp_textui:HideUI()
+    exports.lp_textui:HideUI(TEXTUI_OWNER)
 end
 
 local function showTextUI(msg)
-    exports.lp_textui:TextUI(msg)
+    return exports.lp_textui:TextUI(msg, nil, nil, TEXTUI_OWNER)
 end
 
 local function clearLocalEntities()
@@ -562,7 +563,7 @@ local function resetLocalState()
     Loot.startHP = 0
 
     if LootHoldActive then
-        exports.lp_textui:CancelHold()
+        exports.lp_textui:CancelHold(TEXTUI_OWNER)
     end
     LootHoldActive = false
     LootHoldAirdropId = nil
@@ -692,7 +693,7 @@ local function startLootForAirdrop(v)
     -- Hide bottom hint + phase 1 grip UI while phase 2 (opening) runs
     nuiLootHint(false, v.id)
     if LootHoldActive then
-        exports.lp_textui:CancelHold()
+        exports.lp_textui:CancelHold(TEXTUI_OWNER)
     end
     LootHoldActive = false
     LootHoldAirdropId = nil
@@ -1039,6 +1040,11 @@ elseif dist <= Radius then
 
                 local isActiveLoot = (Loot.active and Loot.airdropId == v.id)
 
+                if LootHoldActive and not exports.lp_textui:IsHoldActive(TEXTUI_OWNER) then
+                    LootHoldActive = false
+                    LootHoldAirdropId = nil
+                end
+
                 -- If someone else is looting this airdrop, hide ALL "press G" UIs for everyone inside the ring
                 -- and instead show a busy state. (Requested UX)
                 local inRing = (dist <= Radius)
@@ -1078,7 +1084,7 @@ elseif dist <= Radius then
                         -- Phase 2 (opening): lp_progbar ใน startLootForAirdrop() แบบ nx_event 2 phase
                         if Loot.active and Loot.airdropId == v.id then
                             if LootHoldActive and LootHoldAirdropId == v.id then
-                                exports.lp_textui:CancelHold()
+                                exports.lp_textui:CancelHold(TEXTUI_OWNER)
                                 LootHoldActive = false
                                 LootHoldAirdropId = nil
                             end
@@ -1089,10 +1095,7 @@ elseif dist <= Radius then
                             end
                         elseif not LootHoldActive then
                             local k = keyLabelForControlHash(lootKey)
-                            LootHoldActive = true
-                            LootHoldAirdropId = v.id
-
-                            exports.lp_textui:TextUIHold(
+                            local acquired = exports.lp_textui:TextUIHold(
                                 ("[%s] ค้างเพื่อเก็บ Airdrop (%d/%d)"):format(k, players, maxPlayers),
                                 (Config and Config["LootGripHoldTime"]) or 800,
                                 function()
@@ -1105,8 +1108,11 @@ elseif dist <= Radius then
                                     end
                                 end,
                                 lootKey,
-                                { coords = v.SpawnCoords, offset = vector3(0.0, 0.0, 0.5) }
+                                { coords = v.SpawnCoords, offset = vector3(0.0, 0.0, 0.5) },
+                                TEXTUI_OWNER
                             )
+                            LootHoldActive = acquired == true
+                            LootHoldAirdropId = acquired == true and v.id or nil
                         end
                     end
                 else
@@ -1114,7 +1120,7 @@ elseif dist <= Radius then
                         hideLootPromptFor(v.id)
                     else
                         if LootHoldActive and LootHoldAirdropId == v.id then
-                            exports.lp_textui:CancelHold()
+                            exports.lp_textui:CancelHold(TEXTUI_OWNER)
                             LootHoldActive = false
                             LootHoldAirdropId = nil
                         end
@@ -1138,7 +1144,7 @@ elseif dist <= Radius then
                 else
                     nuiLootHint(false, v.id)
                     if LootHoldActive and LootHoldAirdropId == v.id then
-                        exports.lp_textui:CancelHold()
+                        exports.lp_textui:CancelHold(TEXTUI_OWNER)
                         LootHoldActive = false
                         LootHoldAirdropId = nil
                     end

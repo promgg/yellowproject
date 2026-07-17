@@ -653,11 +653,12 @@ function StartEvent()
     -- โต๊ะเดิมต่อไปจนกว่าจะออกนอกระยะของโต๊ะนั้นเองจริง (ผ่าน hysteresis) แล้วค่อยหาโต๊ะใกล้สุดตัวใหม่มาแทน
     local craftHintShown = {} -- [tableIndex] = true/false (มีจริงแค่ 1 key ที่ true ในคราวเดียว = activeTableK)
     local activeTableK = nil
+    local CRAFT_TEXTUI_OWNER = 'nx_crafting:table'
 
     local function cancelCraftHint(k)
         if craftHintShown[k] then
             craftHintShown[k] = false
-            exports.lp_textui:CancelHold()
+            exports.lp_textui:CancelHold(CRAFT_TEXTUI_OWNER)
         end
     end
 
@@ -699,6 +700,11 @@ function StartEvent()
                         #debugInRangeNow, tostring(activeTableK), table.concat(debugInRangeNow, ' | ')))
                 end
 
+                if activeTableK and not exports.lp_textui:IsHoldActive(CRAFT_TEXTUI_OWNER) then
+                    craftHintShown[activeTableK] = false
+                    activeTableK = nil
+                end
+
                 local activeStillInRange = false
                 if activeTableK then
                     local activeV = Config["Craft_Table"][activeTableK]
@@ -732,13 +738,11 @@ function StartEvent()
                         end
 
                         if statusjob then
-                            activeTableK = nearestK
-                            craftHintShown[nearestK] = true
                             if Config.Debug then
                                 print(('[nx_crafting][debug] TextUIHold -> %s (k=%s) dist=%.2f maxDist=%.2f'):format(
                                     nearestV.Table_Name or '?', tostring(nearestK), nearestDist, nearestV.Max_Distance or 0))
                             end
-                            exports.lp_textui:TextUIHold(
+                            local acquired = exports.lp_textui:TextUIHold(
                                 ('[E] %s'):format(nearestV.Table_Name or 'เปิดโต๊ะคราฟ'),
                                 900,
                                 function()
@@ -747,8 +751,13 @@ function StartEvent()
                                     TriggerEvent("nx_crafting:client:openMenuCraft", nearestV.Category, nearestV.Position, nearestV.Table_Name)
                                 end,
                                 Keys.E,
-                                { coords = nearestV.Position, offset = vector3(0.0, 0.0, 0.4) }
+                                { coords = nearestV.Position, offset = vector3(0.0, 0.0, 0.4) },
+                                CRAFT_TEXTUI_OWNER
                             )
+                            if acquired == true then
+                                activeTableK = nearestK
+                                craftHintShown[nearestK] = true
+                            end
                         else
                             ShowHelpNotification('<font face="' .. Config["Font"] ..
                                                      '">~r~ไม่สามามารถเปิดหน้าโต๊ะคราฟได้~s~</font>')
@@ -1305,7 +1314,7 @@ function StartEvent()
 
     AddEventHandler("onResourceStop", function(resource)
         if resource == GetCurrentResourceName() then
-            exports.lp_textui:CancelHold()
+            exports.lp_textui:CancelHold(CRAFT_TEXTUI_OWNER)
             for k, v in pairs(ListObject) do
                 DeleteObject(v)
                 DeleteEntity(v)

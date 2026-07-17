@@ -14,6 +14,8 @@ local zoneSpawnPos  = nil -- vector3 จุดศูนย์กลาง safe z
 local zoneOpened    = false
 local spawnedNpcs   = {}
 local spawnedBlips  = {}
+local SAFEZONE_TEXTUI_OWNER = 'lp_airdropteam:safezone'
+local JOIN_TEXTUI_OWNER = 'lp_airdropteam:join'
 
 local function Notify(msg, msgType)
     exports.pNotify:SendNotification({ text = msg, type = msgType or 'info', timeout = 5000 })
@@ -147,17 +149,17 @@ end)
 local function StartSafeZoneCountdown(remainingMs)
     CreateThread(function()
         local endAt = GetGameTimer() + remainingMs
-        exports.lp_textui:TextUI(('Safe zone ปิดใน %ds'):format(math.ceil(remainingMs / 1000)))
+        exports.lp_textui:TextUI(('Safe zone ปิดใน %ds'):format(math.ceil(remainingMs / 1000)), nil, nil, SAFEZONE_TEXTUI_OWNER)
         exports.lp_textui:StartProgress(remainingMs)
 
         while joinedTeamId and not zoneOpened and GetGameTimer() < endAt do
             local left = math.ceil((endAt - GetGameTimer()) / 1000)
-            exports.lp_textui:TextUI(('Safe zone ปิดใน %ds'):format(math.max(left, 0)))
+            exports.lp_textui:TextUI(('Safe zone ปิดใน %ds'):format(math.max(left, 0)), nil, nil, SAFEZONE_TEXTUI_OWNER)
             Wait(1000)
         end
 
         if joinedTeamId then
-            exports.lp_textui:HideUI()
+            exports.lp_textui:HideUI(SAFEZONE_TEXTUI_OWNER)
         end
     end)
 end
@@ -196,9 +198,13 @@ CreateThread(function()
     while true do
         Wait(500)
 
+        if heldId and not exports.lp_textui:IsHoldActive(JOIN_TEXTUI_OWNER) then
+            heldId = nil
+        end
+
         if joinedTeamId then
             if heldId then
-                exports.lp_textui:CancelHold()
+                exports.lp_textui:CancelHold(JOIN_TEXTUI_OWNER)
                 heldId = nil
             end
             goto continue
@@ -217,9 +223,8 @@ CreateThread(function()
         end
 
         if nearest and heldId ~= nearest.id then
-            if heldId then exports.lp_textui:CancelHold() end
-            heldId = nearest.id
-            exports.lp_textui:TextUIHold(
+            if heldId then exports.lp_textui:CancelHold(JOIN_TEXTUI_OWNER) end
+            local acquired = exports.lp_textui:TextUIHold(
                 "[E] ค้างเพื่อเข้าร่วม " .. nearest.label,
                 Config.Team.npc.holdTime,
                 function()
@@ -227,10 +232,12 @@ CreateThread(function()
                     JoinTeam(nearest)
                 end,
                 nil,
-                { coords = vector3(nearest.joinCoords.x, nearest.joinCoords.y, nearest.joinCoords.z), offset = vector3(0.0, 0.0, 1.0) }
+                { coords = vector3(nearest.joinCoords.x, nearest.joinCoords.y, nearest.joinCoords.z), offset = vector3(0.0, 0.0, 1.0) },
+                JOIN_TEXTUI_OWNER
             )
+            heldId = acquired == true and nearest.id or nil
         elseif not nearest and heldId then
-            exports.lp_textui:CancelHold()
+            exports.lp_textui:CancelHold(JOIN_TEXTUI_OWNER)
             heldId = nil
         end
 
@@ -248,7 +255,7 @@ AddEventHandler('lp_airdropteam:CL:ReviveAt', function(coords, eliminated)
         joinedTeamId = nil
         zoneSpawnPos = nil
         zoneOpened   = false
-        exports.lp_textui:HideUI()
+        exports.lp_textui:HideUI(SAFEZONE_TEXTUI_OWNER)
         Notify('คุณถูกเด้งออกจากรอบแล้ว', 'error')
     end
 end)
@@ -259,7 +266,7 @@ AddEventHandler('lp_airdropteam:CL:ZoneOpened', function()
     zoneOpened = true
     if joinedTeamId then
         SetEntityInvincible(PlayerPedId(), false)
-        exports.lp_textui:HideUI()
+        exports.lp_textui:HideUI(SAFEZONE_TEXTUI_OWNER)
         Notify('Safe zone หมดเวลาแล้ว ระวังตัว!', 'error')
     end
 end)

@@ -4,7 +4,7 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 
 name        'lp_textui'
 author      'original implementation for VORPCore'
-version     '1.0.0'
+version     '1.1.0'
 description 'Key-prompt text UI with arc progress ring — client-only utility (export/event API)'
 
 ui_page 'nui/index.html'
@@ -27,6 +27,7 @@ exports {
     'ResetProgress',
     'TextUIHold',
     'CancelHold',
+    'IsHoldActive',
     'SetSuppressed'
 }
 
