@@ -1,12 +1,13 @@
 -- lp_railrobber / config.lua  (shared)
--- Moving-train robbery, 5-phase heist owned exclusively by the intel buyer (no
--- party/group system exists anywhere in this codebase, confirmed — the buyer
--- is the sole authority/beneficiary throughout):
+-- Moving-train robbery, 5-phase heist whose mission entities are owned by the intel buyer;
+-- every nearby player can plant the bomb and lockpick an available cargo car (no
+-- party/group system exists anywhere in this codebase; the buyer remains the
+-- mission-entity owner while nearby players share interaction/rewards):
 --   1. buy intel ($1000, buyer-only blip)
 --   2. ground ambush at the point (5 NPCs, kill-agnostic — anyone nearby can help)
 --   3. train arrives, board, clear 10 NPCs scattered across carriages, plant a
 --      bomb at the locomotive (full lp_robbery bank-heist bomb logic reused)
---   4. all 10 cars (idx 2-11) lockpickable, item-gated, buyer-only
+--   4. all 10 cars (idx 2-11) lockpickable by nearby players, item-gated
 --   5. all cars picked -> complete, train deleted
 --
 -- Server is the SINGLE authority for every state transition. This file is data
@@ -118,7 +119,7 @@ Config.Explosion = {
 }
 
 -- ── Phase 4: 10-car lockpicking (replaces the single random-car breach) ──────
--- Every car in Config.LootCarriageRange is pickable. Buyer-only. Gated by
+-- Every car in Config.LootCarriageRange is pickable by any nearby player. Gated by
 -- exports.lp_minigame:Lockpick() AND a real inventory item, consumed on EVERY
 -- attempt regardless of outcome (unlike lp_robbery's zero-cost lockpick fail).
 Config.CarLockpick     = { pins = 3, difficulty = 4 }
@@ -162,8 +163,8 @@ Config.States = {
     AMBUSH          = 'AMBUSH',            -- buyer reached the ambush point; ground NPC batch spawned/fighting
     TRAIN_EN_ROUTE  = 'TRAIN_EN_ROUTE',    -- ambush cleared; train spawned + approaching
     PVE             = 'PVE',               -- train boarded; single 10-NPC carriage batch being cleared
-    PLANT           = 'PLANT',             -- carriage NPCs dead; buyer may plant the bomb at the locomotive
-    LOOTING         = 'LOOTING',           -- train stopped; all 10 cars pickable (buyer-only, item-gated)
+    PLANT           = 'PLANT',             -- carriage NPCs dead; any nearby player may plant at the locomotive
+    LOOTING         = 'LOOTING',           -- train stopped; all 10 cars pickable by nearby players (item-gated)
     COMPLETE        = 'COMPLETE',
     FAILED          = 'FAILED',
     CLEANUP         = 'CLEANUP',

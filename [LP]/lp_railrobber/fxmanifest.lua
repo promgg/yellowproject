@@ -4,9 +4,9 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 lua54 'yes'
 
 name 'lp_railrobber'
-description 'Moving-train robbery: buy intel -> ground ambush -> board + clear train -> plant bomb -> lockpick 10 cars. Server-authoritative, buyer-owned heist.'
+description 'Moving-train robbery: buyer-owned mission train with shared bomb planting and cargo lockpicking.'
 author 'lp_'
-version '0.1.0'
+version '0.2.0'
 
 shared_script 'config.lua'
 server_script 'server/main.lua'

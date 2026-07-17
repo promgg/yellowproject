@@ -541,6 +541,7 @@ local function startPlant()
         }, function(cancelled)
             if cancelled then
                 Notify('ยกเลิก', 'error', 3000)
+                TriggerServerEvent('lp_railrobber:sv:cancelPlant')
                 isBusy = false
                 return
             end
@@ -567,7 +568,7 @@ RegisterNetEvent('lp_railrobber:cl:syncExplosion', function(pos)
 end)
 
 -- proximity poll for the plant prompt — locomotive is always carriage index 0,
--- buyer-only (mirrors the server gate; UX only, server remains authoritative)
+-- every nearby player may plant; the server serializes the single active planter
 local plantShown = false
 local sawPlantState = false  -- debug: did the client ever observe state==PLANT at all
 local lastPlantDbg = 0       -- debug: throttle the distance print
@@ -585,7 +586,7 @@ CreateThread(function()
             sawPlantState = false
         end
 
-        if gs and gs.state == Config.States.PLANT and gs.buyerSrc == GetPlayerServerId(PlayerId()) and not isBusy then
+        if gs and gs.state == Config.States.PLANT and not gs.plantingSrc and not isBusy then
             local train = myTrain
             if train == 0 then
                 if gs.trainNet and NetworkDoesNetworkIdExist(gs.trainNet) then
@@ -626,10 +627,8 @@ CreateThread(function()
     end
 end)
 
--- ── looting: all 10 cars pickable (buyer-only, item + lockpick-gated) ────────
-local lootingActive = false
+-- ── looting: all nearby players may pick any available car ───────────────────
 RegisterNetEvent('lp_railrobber:cl:beginLooting', function()
-    lootingActive = true
     Notify('เคลียร์ยามแล้ว! เข้าไปงัดตู้สินค้า (E)', 'info', 6000)
 end)
 
@@ -696,6 +695,7 @@ local function startCarPick(carIndex)
             isBusy = false
             if cancelled then
                 Notify('ยกเลิก', 'error', 3000)
+                TriggerServerEvent('lp_railrobber:sv:cancelCarLoot', carIndex)
                 return
             end
             -- รางวัลจริงเกิดตรงนี้ (ฝั่งเซิร์ฟเวอร์) — เล่น progbar จบไม่ถูกยกเลิกเท่านั้นถึงได้
@@ -709,8 +709,7 @@ CreateThread(function()
     while true do
         local wait = 600
         local gs = GlobalState.lp_railrobber
-        if gs and gs.state == Config.States.LOOTING and lootingActive
-            and gs.buyerSrc == GetPlayerServerId(PlayerId()) and not isBusy then
+        if gs and gs.state == Config.States.LOOTING and not isBusy then
             local train = resolveTrain()
             if train ~= 0 then
                 wait = 250
@@ -769,7 +768,6 @@ local function teardown()
     if ambushBlip and DoesBlipExist(ambushBlip) then RemoveBlip(ambushBlip); ambushBlip = nil end
     if observerBlip and DoesBlipExist(observerBlip) then RemoveBlip(observerBlip); observerBlip = nil end
     myAmbush = nil
-    lootingActive = false
     isBusy = false
     if plantShown then exports.lp_textui:CancelHold(); plantShown = false end
     if breachShown then exports.lp_textui:CancelHold(); breachShown = false end

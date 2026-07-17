@@ -1,5 +1,6 @@
 -- lp_railrobber / server/main.lua
--- SINGLE authority for the whole heist, owned exclusively by the intel buyer
+-- SINGLE authority for the whole heist. The intel buyer owns mission entity
+-- spawning, while every nearby player may plant the bomb and loot a free car.
 -- (no party/group system exists anywhere in this codebase — confirmed via a
 -- dedicated research pass on vorp_core + nx_cityselect). Clients only REQUEST
 -- (buy intel, "I entered the ambush zone", "ambush cleared", "carriage cleared",
@@ -8,7 +9,7 @@
 -- Kill-credit for NPC batches is NOT gated (any nearby player can help fight),
 -- but only the buyer's client is trusted to REPORT a batch cleared — same trust
 -- model the old wave system already used. Reward-granting events (plant confirm,
--- car lockpick) are hard-gated to src == heist.buyerSrc.
+-- plant/loot rewards are distance, state, item, token, and per-target lock gated.
 -- Shared read-only state is mirrored into GlobalState.lp_railrobber for all
 -- clients / late joiners.
 
@@ -23,7 +24,8 @@ local heist = nil
         state, trainNet, ownerSrc,
         reservedAt, trainSpawnedAt,
         carriageAssignments,       -- array of carriage indices, one per carriage NPC
-        breached = { [carIndex] = true }, breachDone, perimeterSpawned,
+        breached = { [carIndex] = true }, carLocks = { [carIndex] = src }, breachDone, perimeterSpawned,
+        plantingSrc,
 } ]]
 local lastHeistEndedAt = 0 -- os.time() of last COMPLETE/FAILED — feeds the cooldown
 local cooldowns = {}       -- [src] = { [event] = nextAllowedMs }
@@ -160,9 +162,10 @@ local function syncState()
         state         = heist.state,
         ambushId      = heist.ambush and heist.ambush.id or nil,
         trainNet      = heist.trainNet,
-        buyerSrc      = heist.buyerSrc, -- lets clients locally suppress the loot/plant prompt for non-buyers (UX only)
+        buyerSrc      = heist.buyerSrc, -- mission train/entity owner; interaction is shared
         carsDone      = heist.breachDone,
         breached      = heist.breached,       -- { [carIndex] = true }
+        plantingSrc   = heist.plantingSrc,
         perimeterSpawned = heist.perimeterSpawned,
     }
 end
@@ -173,10 +176,8 @@ local function endHeist(reason, newState)
     -- broadcast teardown: the owner deletes the train + peds, everyone else just
     -- clears their observer blip / prompts (their myTrain is 0, so it's a no-op there)
     TriggerClientEvent('lp_railrobber:cl:teardown', -1)
-    if heist.buyerSrc then
-        pending[heist.buyerSrc] = nil
-        lockpickPending[heist.buyerSrc] = nil
-    end
+    pending = {}
+    lockpickPending = {}
     heist = nil
     lastHeistEndedAt = os.time()
     syncState()
@@ -320,25 +321,49 @@ RegisterNetEvent('lp_railrobber:sv:requestPlant', function()
     if ratelimited(src, 'requestPlant', 1000) then return end
     if not heist or heist.state ~= S.PLANT then
         dbg(('requestPlant REJECTED src=%s reason=wrong_state state=%s'):format(src, heist and tostring(heist.state) or 'no_heist'))
-        notify(src, 'ยังวางระเบิดไม่ได้', 'error'); return
+        notify(src, 'ยังวางระเบิดไม่ได้', 'error')
+        TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, false)
+        return
     end
-    if src ~= heist.buyerSrc then logSus(src, 'requestPlant', 'not_buyer'); return end
+
+    local activePlanter = heist.plantingSrc
+    if activePlanter then
+        local activePending = pending[activePlanter]
+        if activePending and os.time() <= activePending.expires then
+            notify(src, 'มีผู้เล่นกำลังวางระเบิดอยู่', 'error')
+            TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, false)
+            return
+        end
+        pending[activePlanter] = nil
+        heist.plantingSrc = nil
+        syncState()
+    end
 
     local center = liveTrainCoords()
-    if not center then notify(src, 'เกิดข้อผิดพลาด', 'error'); return end
+    if not center then
+        notify(src, 'เกิดข้อผิดพลาด', 'error')
+        TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, false)
+        return
+    end
     local pc = playerCoords(src)
     if not pc or #(pc - center) > Config.BreachServerRadius then
-        logSus(src, 'requestPlant', 'too_far'); return
+        logSus(src, 'requestPlant', 'too_far')
+        TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, false)
+        return
     end
 
     local itemCount = exports.vorp_inventory:getItemCount(src, nil, Config.BombItem)
     if not itemCount or itemCount < 1 then
-        notify(src, 'คุณต้องมีระเบิดลูกเล็ก', 'error'); return
+        notify(src, 'คุณต้องมีระเบิดลูกเล็ก', 'error')
+        TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, false)
+        return
     end
     -- consumed on request regardless of the later fuse outcome — matches lp_robbery exactly
     exports.vorp_inventory:subItem(src, Config.BombItem, 1)
 
     pending[src] = { plantAt = os.time(), expires = os.time() + Config.PendingTTL }
+    heist.plantingSrc = src
+    syncState()
     logTx(('plant requested src=%s'):format(src))
     TriggerClientEvent('lp_railrobber:cl:plantRequestResult', src, true)
 end)
@@ -351,13 +376,17 @@ RegisterNetEvent('lp_railrobber:sv:confirmPlantBlow', function()
     local p = pending[src]
     pending[src] = nil
 
-    if not heist or heist.state ~= S.PLANT or src ~= heist.buyerSrc then return end
+    if not heist or heist.state ~= S.PLANT or heist.plantingSrc ~= src then return end
     if not p or os.time() > p.expires then
+        heist.plantingSrc = nil
+        syncState()
         notify(src, 'คำขอหมดอายุ กรุณาลองใหม่', 'error')
         logSus(src, 'confirmPlantBlow', 'invalid_pending'); return
     end
     -- server-enforced fuse: blocks an instant-confirm cheat that skips the 15s wait
     if (os.time() - p.plantAt) < (Config.BombFuseTime - 1) then
+        heist.plantingSrc = nil
+        syncState()
         notify(src, 'ยังไม่ถึงเวลาระเบิด', 'error')
         logSus(src, 'confirmPlantBlow', ('fuse_too_early elapsed=%d'):format(os.time() - p.plantAt)); return
     end
@@ -365,7 +394,9 @@ RegisterNetEvent('lp_railrobber:sv:confirmPlantBlow', function()
     local center = liveTrainCoords()
 
     heist.state = S.LOOTING
+    heist.plantingSrc = nil
     heist.breached = {}
+    heist.carLocks = {}
     heist.breachDone = 0
     heist.perimeterSpawned = 0
     syncState()
@@ -374,10 +405,19 @@ RegisterNetEvent('lp_railrobber:sv:confirmPlantBlow', function()
     -- rare, one-off event: -1 broadcast is acceptable here so everyone nearby sees/hears it
     TriggerClientEvent('lp_railrobber:cl:syncExplosion', -1, center and { x = center.x, y = center.y, z = center.z } or nil)
     TriggerClientEvent('lp_railrobber:cl:stopTrain', heist.ownerSrc)
-    TriggerClientEvent('lp_railrobber:cl:beginLooting', -1) -- everyone sees the prompt; buyer-gate enforced server-side below
+    TriggerClientEvent('lp_railrobber:cl:beginLooting', -1)
 end)
 
--- ── pick a lockpicked car (buyer-only) — item consumed HERE, on the attempt
+RegisterNetEvent('lp_railrobber:sv:cancelPlant', function()
+    local src = source
+    pending[src] = nil
+    if heist and heist.state == S.PLANT and heist.plantingSrc == src then
+        heist.plantingSrc = nil
+        syncState()
+    end
+end)
+
+-- ── pick a cargo car (shared, one active player per car) — item consumed HERE
 -- itself, regardless of outcome. The REWARD is NOT granted here even on a
 -- successful pick — it's deferred to sv:confirmCarLoot below, which only fires
 -- once the client's lp_progbar actually finishes (not cancelled). This mirrors
@@ -389,14 +429,31 @@ RegisterNetEvent('lp_railrobber:sv:lockpickAttempt', function(carIndex, success)
     local src = source
     if ratelimited(src, 'lockpickAttempt', 400) then return end
     if not heist or heist.state ~= S.LOOTING then return end
-    if src ~= heist.buyerSrc then logSus(src, 'lockpickAttempt', 'not_buyer'); return end
     carIndex = tonumber(carIndex)
     if not carIndex or carIndex < Config.LootCarriageRange[1] or carIndex > Config.LootCarriageRange[2] then return end
     if heist.breached[carIndex] then return end -- already done
 
+    heist.carLocks = heist.carLocks or {}
+    local lockedBy = heist.carLocks[carIndex]
+    if lockedBy then
+        local active = lockpickPending[lockedBy]
+        if not active or active.carIndex ~= carIndex or os.time() > active.expires then
+            lockpickPending[lockedBy] = nil
+            heist.carLocks[carIndex] = nil
+            lockedBy = nil
+        end
+    end
+    if lockedBy and lockedBy ~= src then
+        notify(src, ('ตู้ %d มีผู้เล่นกำลังงัดอยู่'):format(carIndex), 'error', 3000)
+        return
+    end
+
     local p = lockpickPending[src]
     if p and os.time() <= p.expires then
         logSus(src, 'lockpickAttempt', 'already_pending'); return -- must confirm/expire the current one first
+    elseif p then
+        if heist.carLocks[p.carIndex] == src then heist.carLocks[p.carIndex] = nil end
+        lockpickPending[src] = nil
     end
 
     local center = liveTrainCoords()
@@ -422,6 +479,7 @@ RegisterNetEvent('lp_railrobber:sv:lockpickAttempt', function(carIndex, success)
     end
 
     lockpickPending[src] = { carIndex = carIndex, expires = os.time() + Config.PendingTTL }
+    heist.carLocks[carIndex] = src
     logTx(('lockpick succeeded car=%d src=%s -- awaiting progbar confirm'):format(carIndex, src))
     TriggerClientEvent('lp_railrobber:cl:lockpickAttemptResult', src, carIndex, true)
 end)
@@ -435,13 +493,29 @@ RegisterNetEvent('lp_railrobber:sv:confirmCarLoot', function(carIndex)
     local p = lockpickPending[src]
     lockpickPending[src] = nil
 
-    if not heist or heist.state ~= S.LOOTING or src ~= heist.buyerSrc then return end
+    if not heist or heist.state ~= S.LOOTING then return end
     carIndex = tonumber(carIndex)
     if not p or os.time() > p.expires or p.carIndex ~= carIndex then
+        if carIndex and heist.carLocks and heist.carLocks[carIndex] == src then
+            heist.carLocks[carIndex] = nil
+        end
         logSus(src, 'confirmCarLoot', 'invalid_pending'); return
     end
-    if not carIndex or heist.breached[carIndex] then return end
+    local center = liveTrainCoords()
+    local pc = playerCoords(src)
+    if not center or not pc or #(pc - center) > Config.BreachServerRadius then
+        if heist.carLocks and heist.carLocks[carIndex] == src then heist.carLocks[carIndex] = nil end
+        logSus(src, 'confirmCarLoot', 'too_far')
+        return
+    end
+    if not carIndex or heist.breached[carIndex] or not heist.carLocks or heist.carLocks[carIndex] ~= src then
+        if carIndex and heist.carLocks and heist.carLocks[carIndex] == src then
+            heist.carLocks[carIndex] = nil
+        end
+        return
+    end
 
+    heist.carLocks[carIndex] = nil
     heist.breached[carIndex] = true
     heist.breachDone = heist.breachDone + 1
     syncState()
@@ -462,6 +536,18 @@ RegisterNetEvent('lp_railrobber:sv:confirmCarLoot', function(carIndex)
     end
 end)
 
+RegisterNetEvent('lp_railrobber:sv:cancelCarLoot', function(carIndex)
+    local src = source
+    carIndex = tonumber(carIndex)
+    local p = lockpickPending[src]
+    if p and (not carIndex or p.carIndex == carIndex) then
+        lockpickPending[src] = nil
+        if heist and heist.carLocks and heist.carLocks[p.carIndex] == src then
+            heist.carLocks[p.carIndex] = nil
+        end
+    end
+end)
+
 -- ── admin / abort ───────────────────────────────────────────────────────────
 RegisterCommand('railrobber_abort', function(src)
     if src ~= 0 and not IsPlayerAceAllowed(src, 'lp_railrobber.admin') then return end
@@ -475,6 +561,17 @@ AddEventHandler('playerDropped', function()
     cooldowns[src] = nil
     pending[src] = nil
     lockpickPending[src] = nil
+    if heist then
+        if heist.plantingSrc == src then
+            heist.plantingSrc = nil
+            syncState()
+        end
+        if heist.carLocks then
+            for carIndex, lockedBy in pairs(heist.carLocks) do
+                if lockedBy == src then heist.carLocks[carIndex] = nil end
+            end
+        end
+    end
     if heist and heist.buyerSrc == src
         and (heist.state == S.RESERVED or heist.state == S.AMBUSH or heist.state == S.TRAIN_EN_ROUTE) then
         logTx('buyer dropped before PvE -> fail heist')
