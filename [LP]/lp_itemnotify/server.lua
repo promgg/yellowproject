@@ -58,6 +58,12 @@ RegisterCommand('lp_testnotify', function(source, args)
         return
     end
 
+    -- Development-only command: never let ordinary players create arbitrary
+    -- notification payloads in production.
+    if not IsPlayerAceAllowed(source, 'lp_itemnotify.test') then
+        return
+    end
+
     local kind = args[1] or 'add'
     local item = args[2] or 'bread'
     local qty  = tonumber(args[3]) or 1
