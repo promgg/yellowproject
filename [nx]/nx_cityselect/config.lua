@@ -7,7 +7,7 @@ Config.MaxPlayersPerCity = 20       -- max registered citizens per city per cycl
 Config.SpawnFreezeTime   = 3000     -- ms to wait after spawn before showing UI
 Config.OutfitFadeTime    = 500      -- ms for fade-to-black when changing outfit
 Config.Debug             = false    -- set true to see zone debug polys
-Config.ShowTerritoryHUD  = true     -- false = ปิดป้ายชื่อเมือง (จุดแดง + ชื่อเมือง) ที่โผล่ตอนเดินเข้า/ออกโซนเมือง
+Config.ShowTerritoryHUD  = false     -- false = ปิดป้ายชื่อเมือง (จุดแดง + ชื่อเมือง) ที่โผล่ตอนเดินเข้า/ออกโซนเมือง
 
 -- ─────────────────────────────────────────────────────────────
 --  CITIES
