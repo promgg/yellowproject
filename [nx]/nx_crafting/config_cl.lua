@@ -73,7 +73,7 @@ Config["Craft_Table"] = {
 		Blip_scale = 1.2,
 		Blip_color = 47,
 
-		Category = { 9,10,11,12,13,14,15,16,17,18 } -- อาวุธ Tier 1-10
+		Category = { 9 } -- เอาแค่ Tier 1 ก่อน (category 9 = "อาวุธ Tier 1" ใน config_sv.lua) Tier 2-10 (category 10-18) ยังไม่ลงโต๊ะ
 	},
 
 	-- พิกัดด้านล่างเป็นตำแหน่งคร่าวๆ ใกล้ตัวเมือง ยังไม่ได้วัดจุดจริงในเกม ต้องปรับพิกัดให้ตรงจุดก่อนขึ้นจริง
@@ -135,23 +135,26 @@ Config["Craft_Table"] = {
 	-- ทำให้ระยะเข้าซ้อนกัน — ดู debug log ใน [nx]/nx_crafting/client/client.lua) เป็นจุดเดียวที่เปิดได้
 	-- ทั้งสองหมวด ใช้พิกัดของ Wood Plank Table เดิม (ทั้งสองจุดเป็นค่าประมาณ ยังไม่เข้าเกมเช็คจริง —
 	-- ต้องปรับพิกัดให้ตรงจุดก่อนขึ้นจริงเหมือนเดิม)
-	{
-		Position = {x = 1417.0611, y = 280.6382, z = 89.5114, h = 111.2098},
-		Table_Name = "Wood Crafting",
-		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
-		Name = "~y~Wood Crafting",
-		Desc = "โต๊ะงานไม้",
+	--
+	-- ปิดไว้ก่อน: Position.x ไม่เคยถูกใส่ค่าจริง (มีแค่ "x = , h = ...") ทำให้ทั้งไฟล์ syntax error
+	-- Config เป็น nil ทั้งตัว (ดู SCRIPT ERROR ที่ client.lua:76/86) — ต้องใส่พิกัดจริงก่อนเปิดใช้
+	-- {
+	-- 	Position = {x = 0.0, y = 0.0, z = 0.0, h = 111.2098},
+	-- 	Table_Name = "Wood Crafting",
+	-- 	Max_Distance = 2.5,
+	-- 	Disable_Model = true,
+	-- 	Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+	-- 	Name = "~y~Wood Crafting",
+	-- 	Desc = "โต๊ะงานไม้",
 
-		Map_blip = true,
-		Blip_name = "WoodCraftingTable",
-		Blip_sprite = 12,
-		Blip_scale = 1.2,
-		Blip_color = 47,
+	-- 	Map_blip = true,
+	-- 	Blip_name = "WoodCraftingTable",
+	-- 	Blip_sprite = 12,
+	-- 	Blip_scale = 1.2,
+	-- 	Blip_color = 47,
 
-		Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
-	},
+	-- 	Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
+	-- },
 
 	{
 		Position = {x = -368.5274, y = 794.9661, z = 116.1981, h = 185.1594},

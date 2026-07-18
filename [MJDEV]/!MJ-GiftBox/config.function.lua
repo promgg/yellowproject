@@ -26,7 +26,7 @@ MJDEV = {
             text = '<strong class="green-text">คุณได้รับม้า !</strong>',
             type = "success",
             timeout = 3000,
-            layout = "bottomCenter",
+            layout = "topRight",
             queue = "global"
         })
     end

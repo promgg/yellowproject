@@ -644,7 +644,7 @@ function StartEvent()
 				text = 'จำนวนไม่ถูกต้อง',
 				type = "error",
 				timeout = 5000,
-				layout = "centerLeft",
+				layout = "topRight",
 				queue = "left"
 			})
 			craftting_process = false
@@ -688,7 +688,7 @@ function StartEvent()
 						text = 'ไม่พบอุปกรณ์ที่ต้องใช้',
 						type = "warning",
 						timeout = 5000,
-						layout = "centerLeft",
+						layout = "topRight",
 						queue = "left"
 					})
 					return false
@@ -707,7 +707,7 @@ function StartEvent()
 						text = 'วัสดุอุปกรณ์มีไม่เพียงพอ',
 						type = "warning",
 						timeout = 5000,
-						layout = "centerLeft",
+						layout = "topRight",
 						queue = "left"
 					})
 					return false
@@ -736,7 +736,7 @@ function StartEvent()
             text = reason,
             type = "warning",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end)
@@ -840,7 +840,7 @@ function StartEvent()
             text = msg,
             type = "warning",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end

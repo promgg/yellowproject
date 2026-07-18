@@ -178,14 +178,14 @@ RegisterNUICallback("sendCoords", function(data, cb)
             text = "ตั้ง waypoint ที่: " .. coords.x .. ", " .. coords.y,
             type = "success",
             timeout = 2000,
-            layout = 'bottomCenter'
+            layout = "topRight"
         })
     else
         TriggerEvent("pNotify:SendNotification", {
             text = "ได้รับจดหมายใหม่!",
             type = "success",
             timeout = 2000,
-            layout = 'bottomCenter'
+            layout = "topRight"
         })
     end
     cb({
@@ -237,7 +237,7 @@ AddEventHandler("mailbox:notify", function(message)
         text = message,
         type = "success",
         timeout = 2000,
-        layout = 'bottomCenter'
+        layout = "topRight"
     })
 end)
 

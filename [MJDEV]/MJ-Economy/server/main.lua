@@ -158,7 +158,7 @@ AddEventHandler('MJ-Economy:cfx:action', function(item, amount)
                 text = 'ไม่สามารถขายได้',
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
         end
@@ -167,7 +167,7 @@ AddEventHandler('MJ-Economy:cfx:action', function(item, amount)
             text = 'ไม่พบข้อมูลสินค้า',
             type = "error",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end

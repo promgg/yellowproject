@@ -93,7 +93,7 @@ Citizen.CreateThread(function()
                             text = 'คุณไม่ใช่หน่วยงานที่กำหนด',
                             type = "success",
                             timeout = 5000,
-                            layout = "centerLeft",
+                            layout = "topRight",
                             queue = "left"
                         })
                     end
@@ -146,7 +146,7 @@ RegisterNUICallback("joinduty", function(v, cb)
         text = 'คุณได้ทำการเข้าเวรแล้ว',
         type = "success",
         timeout = 3000,
-        layout = "centerLeft",
+        layout = "topRight",
         queue = "left"
     })
     cb('ok')
@@ -162,7 +162,7 @@ RegisterNUICallback("offduty", function(v, cb)
         text = 'คุณได้ทำการออกเวรแล้ว',
         type = "success",
         timeout = 3000,
-        layout = "centerLeft",
+        layout = "topRight",
         queue = "left"
     })
     cb('ok')

@@ -43,7 +43,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                     text = ('คุณได้รับ %d %s!'):format(reward.amount, reward.item),
                     type = "success",
                     timeout = 3000,
-                    layout = "bottomCenter",
+                    layout = "topRight",
                     queue = "global"
                 })
             elseif reward.type == 'money' then
@@ -52,7 +52,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                     text = ('คุณได้รับ $%d!'):format(reward.amount),
                     type = "success",
                     timeout = 3000,
-                    layout = "bottomCenter",
+                    layout = "topRight",
                     queue = "global"
                 })
             elseif reward.type == 'gold' then
@@ -61,7 +61,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                     text = ('คุณได้รับ $%d เงินแดง!'):format(reward.amount),
                     type = "success",
                     timeout = 3000,
-                    layout = "bottomCenter",
+                    layout = "topRight",
                     queue = "global"
                 })
             elseif reward.type == 'Horse' then
@@ -70,7 +70,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                     text = ('คุณได้รับ ม้า %s!'):format(reward.item),
                     type = "success",
                     timeout = 3000,
-                    layout = "bottomCenter",
+                    layout = "topRight",
                     queue = "global"
                 })
             elseif reward.type == 'weapon' then
@@ -80,7 +80,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                         text = ('คุณมี อาวุธ %s อยุ่แล้ว!'):format(reward.item),
                         type = "success",
                         timeout = 3000,
-                        layout = "bottomCenter",
+                        layout = "topRight",
                         queue = "global"
                     })
                     return 
@@ -90,7 +90,7 @@ AddEventHandler('giftbox:useBox', function(source, boxName)
                     text = ('คุณได้รับ อาวุธ %s!'):format(reward.item),
                     type = "success",
                     timeout = 3000,
-                    layout = "bottomCenter",
+                    layout = "topRight",
                     queue = "global"
                 })
             end

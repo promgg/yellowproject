@@ -85,7 +85,7 @@ Config['SendNotification'] = function(text, type)
         text = text,
         type = type,
         timeout = 3000,
-        layout = "centerRight"
+        layout = "topRight"
     })
 end
 
@@ -94,6 +94,6 @@ Config['SendNotification_Sv'] = function(src, text, type)
         text = text,
         type = type,
         timeout = 10000,
-        layout = "centerRight"
+        layout = "topRight"
     })
 end

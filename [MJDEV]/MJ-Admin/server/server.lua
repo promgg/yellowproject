@@ -20,7 +20,7 @@ RegisterCommand('tp', function(source, args, rawCommand)
             text = "คุณไม่มีสิทธิ์ใช้คำสั่งนี้!",
             type = "error",
             timeout = 3000,
-            layout = "centerLeft"
+            layout = "topRight"
         })
         return
     end
@@ -30,7 +30,7 @@ RegisterCommand('tp', function(source, args, rawCommand)
             text = "❌ ใช้งาน: /tp <x> <y> <z>",
             type = "error",
             timeout = 3000,
-            layout = "centerLeft"
+            layout = "topRight"
         })
         return
     end
@@ -47,14 +47,14 @@ RegisterCommand('tp', function(source, args, rawCommand)
             text = "✅ คุณถูกย้ายไปยังพิกัด (" .. posx .. ", " .. posy .. ", " .. posz .. ")",
             type = "success",
             timeout = 3000,
-            layout = "centerLeft"
+            layout = "topRight"
         })
     else
         TriggerClientEvent("pNotify:SendNotification", source, {
             text = "❌ พิกัดไม่ถูกต้อง! โปรดใส่ตัวเลขที่ถูกต้อง",
             type = "error",
             timeout = 3000,
-            layout = "centerLeft"
+            layout = "topRight"
         })
     end
 end)
@@ -110,7 +110,7 @@ AddEventHandler("admin:GiveWeapon", function(playerID, weapon, ammos)
             text = 'ให้อาวุธชื่อ ' .. weapon .. "กับไอดี " .. playerID .. " เรียบร้อย",
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         SetDistcord("MJDev-Admin ", "Admin"," ``` แอดมิน : " .. nameplayer .. "\n ให้อาวุธชื่อ " .. weapon .. " กับผู้เล่น " .. nameTarget .. "\n " .. ide .. " ```", 0000, '')
@@ -135,7 +135,7 @@ AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
             text = 'ให้ไอเทม ' .. selectedItem .. "กับไอดี " .. playerID .. " เรียบร้อย",
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         -- แจ้งแอดมินยืนยันความสำเร็จด้วย (เดิมแจ้งแค่เป้าหมาย แอดมินไม่เห็นผลลัพธ์อะไรเลยแม้สำเร็จ)
@@ -143,7 +143,7 @@ AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
             text = 'ให้ไอเทม ' .. selectedItem .. ' จำนวน ' .. amount .. ' กับ ' .. nameTarget .. ' เรียบร้อย',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         SetDistcord("MJDev-Admin ", "Admin", " ``` แอดมิน : " .. nameplayer .. "\n ให้ไอเทม " .. selectedItem .." จำนวน " .. amount .. " กับผู้เล่น " .. nameTarget .. "\n " .. ide .. " ```", 0000, '')
@@ -168,7 +168,7 @@ AddEventHandler("admin:AddItemAll", function(selectedItem, amount)
             text = 'ให้ไอเทม ' .. selectedItem .. " จำนวน " .. amount.." เรียบร้อย",
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         SetDistcord("MJDev-Admin ", "Admin",
@@ -197,7 +197,7 @@ AddEventHandler("admin:AddCash", function(playerID, amount)
             text = 'ผู้ดูแลได้เพิ่มเงินให้คุณจำนวน ' ..amount .. ' เหรียญ',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         SetDistcord("MJDev-Admin ", "Admin", " ``` แอดมิน : " .. nameplayer .. "\n ให้เงิน จำนวน " .. amount .. " กับผู้เล่น " .. nameTarget .. "\n " .. ide .. " ```", 0000, 'https://discord.com/api/webhooks/')
@@ -227,14 +227,14 @@ AddEventHandler("admin:AddBank", function(playerID, amount)
 			text = 'ผู้ดูแลได้เพิ่มทองให้คุณจำนวน ' .. amount .. ' EA',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
         TriggerClientEvent("pNotify:SendNotification", source, {
             text = 'ผู้ดูแลได้เพิ่มทองให้คุณจำนวน ' .. amount .. ' EA',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end
@@ -487,7 +487,7 @@ AddEventHandler("admin:TeleportAll", function(coords)
 			text = 'ผู้ดูแลได้ดึงคุณมาหาเขา!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -507,7 +507,7 @@ AddEventHandler("admin:Slay", function(target)
 			text = 'ผู้ดูแลได้ฆ่าคุณ!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -527,7 +527,7 @@ AddEventHandler("admin:SlayAll", function()
 			text = 'ผู้ดูแลได้ฆ่าคุณ!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -558,7 +558,7 @@ AddEventHandler("admin:Freeze", function(target)
 			text = 'ผู้ดูแลได้แช่แข็งคุณ!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -578,7 +578,7 @@ AddEventHandler("admin:FreezeAll", function()
 			text = 'ผู้ดูแลได้แช่แข็งคุณ!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -604,7 +604,7 @@ AddEventHandler("admin:setJob", function(target, newjob, newgrade, newJobLabel)
             text = 'อาชีพของ ' .. nameTarget .. ' ถูกเปลี่ยนเป็น ' .. newjob .. ' ระดับ ' .. newJobLabel,
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
         SetDistcord("MJDev-Admin ", "Admin",
@@ -629,7 +629,7 @@ AddEventHandler("admin:resetcol", function(target)
 			text = 'ผู้ดูแลได้ลบคลูดาวน์ให้คุณ',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -650,7 +650,7 @@ AddEventHandler("admin:revivenocooldown", function(target)
 			text = 'ผู้ดูแลได้ช่วยชีวิตคุณ',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -670,7 +670,7 @@ AddEventHandler("admin:revive", function(target)
 			text = 'ผู้ดูแลได้ช่วยชีวิตคุณ!',
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -709,7 +709,7 @@ AddEventHandler("admin:delcarall", function()
 		text = 'Admin ได้ทำการลบเกวียนผู้เล่นทั้งเซิร์ฟ!',
 		type = "success",
 		timeout = 5000,
-		layout = "centerLeft",
+		layout = "topRight",
 		queue = "left"
 	})
 end)
@@ -721,7 +721,7 @@ AddEventHandler("admin:reviveall", function()
 		text = 'ผู้ดูแลได้ชุบชีวิตคุณ!',
 		type = "success",
 		timeout = 5000,
-		layout = "centerLeft",
+		layout = "topRight",
 		queue = "left"
 	})
 end)
@@ -748,7 +748,7 @@ AddEventHandler('admin:stopfood', function(playerId)
 			text = "<b style='color:red'>แจ้งตือน </b> <b style='color:while'>: หลอดอาหารหยุดการทำงาน </strong>",
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     else
@@ -756,7 +756,7 @@ AddEventHandler('admin:stopfood', function(playerId)
 			text = "<b style='color:red'>แจ้งตือน </b> <b style='color:while'>: หลอดอาหารเริ่มการทำงาน </strong>",
 			type = "success",
 			timeout = 5000,
-			layout = "centerLeft",
+			layout = "topRight",
 			queue = "left"
 		})
     end
@@ -813,7 +813,7 @@ AddEventHandler('admin:healall', function(playerId)
             text = "<b style='color:red'>แจ้งตือน </b> <b style='color:while'>: ผู้ดูแลได้เพิ่มเลือดให้คุณ </strong>",
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     else
@@ -822,7 +822,7 @@ AddEventHandler('admin:healall', function(playerId)
             text = "<b style='color:red'>แจ้งตือน </b> <b style='color:while'>: ผู้ดูแลได้เพิ่มเลือดให้คุณ </strong>",
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end
@@ -845,7 +845,7 @@ AddEventHandler('admin:blockMic', function(target, time, reason)
                     " วินาทีแล้ว</strong>",
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
             xTarget.triggerEvent("pNotify:SendNotification", {
@@ -853,7 +853,7 @@ AddEventHandler('admin:blockMic', function(target, time, reason)
                     reason .. " เป็นเวลา" .. Sildurs.Math.Round(time) .. " วินาที</strong>",
                 type = "success",
                 timeout = 8000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
             xTarget.triggerEvent('admin:GetTimerBlock')
@@ -896,7 +896,7 @@ AddEventHandler('admin:enableMic', function(playerId)
                 text = '<strong class="green-text">การสื่อการ ของคุณใช้งานได้ปกติ</strong>',
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
             TriggerClientEvent('admin:ShowTextBlockMic', -1, 0, xPlayer.source)

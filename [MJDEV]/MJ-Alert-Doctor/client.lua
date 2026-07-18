@@ -218,7 +218,7 @@ function Call()
         text = 'ส่งข้อความหาหมอสำเร็จ โปรดรอ...',
         type = "success",
         timeout = 3000,
-        layout = "centerLeft",
+        layout = "topRight",
         queue = "left"
     })
 end

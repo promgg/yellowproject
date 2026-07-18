@@ -82,7 +82,7 @@ AddEventHandler(MJDev .. 'AdditemPayCheck', function()
                 text = 'คุณได้รับเงินสวัสดิการ ' .. rewardData.moneycount .. '$',
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
         end
@@ -98,7 +98,7 @@ AddEventHandler(MJDev .. 'AdditemPayCheck', function()
                             text = 'Item ชิ้นนี้ในกระเป๋าของคุณเต็ม',
                             type = "error",
                             timeout = 5000,
-                            layout = "centerLeft",
+                            layout = "topRight",
                             queue = "left"
                         })
                     end

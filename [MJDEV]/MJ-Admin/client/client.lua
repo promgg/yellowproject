@@ -1059,7 +1059,7 @@ function notification(i, x)
         text = i,
         type = "success",
         timeout = 5000,
-        layout = "centerLeft",
+        layout = "topRight",
         queue = "left"
     })
 end
@@ -1182,7 +1182,7 @@ function InfiAmmo()
                 text = 'โปรดถืออาวุธ!',
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
         else
@@ -1192,7 +1192,7 @@ function InfiAmmo()
                 text = 'เริ่มทำงานกระสุนไม่จำกัด!',
                 type = "success",
                 timeout = 5000,
-                layout = "centerLeft",
+                layout = "topRight",
                 queue = "left"
             })
         end
@@ -1203,7 +1203,7 @@ function InfiAmmo()
             text = 'ยกกระสุนไม่จำกัดแล้ว!',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end
@@ -1224,7 +1224,7 @@ function GODmode()
             text = 'เป็นอมตะแล้ว!',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         god = true
@@ -1242,7 +1242,7 @@ function GODmode()
             text = 'ยกเลิกเป็นอมตะแล้ว!',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
     end
@@ -1268,7 +1268,7 @@ function GoldenCores()
             text = 'เช็ตเลือดเหลืองแล้ว!',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         goldenCores = true
@@ -1285,7 +1285,7 @@ function GoldenCores()
             text = 'ยกเลิกเช็ตเลือดเหลืองแล้ว!',
             type = "success",
             timeout = 5000,
-            layout = "centerLeft",
+            layout = "topRight",
             queue = "left"
         })
         goldenCores = false
