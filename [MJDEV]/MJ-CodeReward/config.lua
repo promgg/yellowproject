@@ -30,11 +30,11 @@ Config.RandomCodes = {
 Config.RewardCodes = {
     -- โค้ดทดสอบชั่วคราว — ใช้ไอเทมจริงที่มีในระบบ (food_bread/water/bandage_s) สำหรับเทสระบบ
     -- redeem เอง (cooldown, ใช้ซ้ำไม่ได้, time window, ได้ของจริง) ลบออกได้เมื่อตั้งโค้ดจริงแล้ว
-    ["UATTEST3"] = {
+    ["UATTEST5"] = {
         items = {
-            {name = "mat_diamond", count = 20},
+            {name = "mat_diamond", count = 60},
         },
-        money = 500,
+        money = 5000,
     },
     ["WELCOME2025"] = {
         items = {
