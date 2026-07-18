@@ -87,7 +87,12 @@ AddEventHandler('spooner:init', function()
 end)
 
 AddEventHandler('spooner:toggle', function()
-	if IsPlayerAceAllowed(source, 'spooner.view') then
+	-- [DEBUG] ชั่วคราว หาสาเหตุ /spooner ไม่ทำงาน — ลบทิ้งหลังแก้เสร็จ
+	local allowed = IsPlayerAceAllowed(source, 'spooner.view')
+	print(("^3[spooner:debug]^7 src=%s name=%s allowed(spooner.view)=%s identifiers=%s")
+		:format(source, GetPlayerName(source) or '?', tostring(allowed), json.encode(GetPlayerIdentifiers(source))))
+
+	if allowed then
 		TriggerClientEvent('spooner:toggle', source)
 	end
 end)
