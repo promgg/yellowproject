@@ -72,20 +72,25 @@ local function OnZoneEnter(city)
 
     TriggerEvent("nx_cityselect:Client:ZoneChanged", city.id, isOwn)
 
-    -- Push HUD territory label update to NUI
-    SendNUIMessage({
-        action     = "SET_TERRITORY",
-        zoneName   = city.label,
-        color      = city.color,
-        isOwnCity  = isOwn,
-    })
+    -- Push HUD territory label update to NUI (ปิดได้ด้วย Config.ShowTerritoryHUD — ZoneChanged event
+    -- ยังยิงตามปกติเสมอ ระบบอื่นที่ export/event นี้ (เช่น GetCurrentZone) ไม่กระทบ)
+    if Config.ShowTerritoryHUD then
+        SendNUIMessage({
+            action     = "SET_TERRITORY",
+            zoneName   = city.label,
+            color      = city.color,
+            isOwnCity  = isOwn,
+        })
+    end
 end
 
 local function OnZoneExit(city)
     if currentZone == city.id then
         currentZone = nil
         TriggerEvent("nx_cityselect:Client:ZoneChanged", nil, false)
-        SendNUIMessage({ action = "SET_TERRITORY", zoneName = nil })
+        if Config.ShowTerritoryHUD then
+            SendNUIMessage({ action = "SET_TERRITORY", zoneName = nil })
+        end
     end
 end
 
