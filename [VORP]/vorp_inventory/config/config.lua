@@ -195,9 +195,9 @@ Config = {
 		-- add here if more need to change rotation
 	},
 	
-    -- [ไม่ใช้แล้ว] DisableWeaponWheel + FastSlot (control hash ปุ่ม 1-7) เป็นของระบบ fastslot เดิม
-    -- ที่ผูกปุ่มฝั่ง Lua ตลอดเวลา ตอนนี้ปุ่ม 1-6 ถูกดักใน html/app.js เฉพาะตอนเปิดกระเป๋าแทน
-    -- (ดู FastSlotCount ด้านล่าง) — เก็บไว้เฉยๆ ไม่มีโค้ดไหนอ่านค่าพวกนี้แล้ว
+    -- FastSlot (control hash ปุ่ม 1-7) ยังใช้อยู่ — client/fastslot.lua อ่านค่าพวกนี้ไปเช็คปุ่ม
+    -- แต่ "เฉพาะตอนกระเป๋าเปิด" เท่านั้น (ตอนกระเป๋าปิดไม่แตะ control เลย ดู FastSlotCount ด้านล่าง)
+    -- [ไม่ใช้แล้ว] DisableWeaponWheel — เป็นของระบบ fastslot เดิมที่เข้ารหัส ไม่มีโค้ดไหนอ่านแล้ว
     DisableWeaponWheel = true,
 	FastSlot = {
 		[1] = {
@@ -233,10 +233,11 @@ Config = {
 	-- ===== Fast Slot / Hotbar (ระบบเปิดใหม่ แทน MJDevFastSlot.lua ที่เข้ารหัส) =====
 	-- จำนวนช่อง — NUI รองรับ 6 ช่อง (อย่าตั้งเกิน 6 นอกจากจะแก้ html/app.js ด้วย)
 	--
-	-- ปุ่ม 1-6 ทำงาน "เฉพาะตอนเปิดกระเป๋า" เท่านั้น — ตอนนั้น NUI ถือ keyboard focus อยู่แล้ว
-	-- JS ใน html/app.js จึงดักปุ่มเองแล้วยิง NUI callback UseFastSlot กลับมา ไม่ต้องผูกปุ่มฝั่ง Lua
-	-- ตอนกระเป๋าปิดเราไม่แตะ control ของเกมเลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกมเต็มที่
-	-- (จึงไม่มี FastSlotDefaultKeys / DisableWeaponWheelForFastSlot / FastSlotDisableControls แล้ว)
+	-- ปุ่ม 1-6 ทำงาน "เฉพาะตอนเปิดกระเป๋า" เท่านั้น รับปุ่ม 2 ทางคู่กันกันพลาด:
+	--   1) html/app.js ดัก keydown ตอน NUI ได้ keyboard focus แล้วยิง callback UseFastSlot
+	--   2) client/fastslot.lua poll control hash (Config.FastSlot ด้านบน) เผื่อ CEF ไม่ได้รับปุ่ม
+	-- server มี cooldown 500ms กรองให้เหลือครั้งเดียวถ้าทั้งสองทางยิงพร้อมกัน
+	-- ตอนกระเป๋าปิดไม่แตะ control ของเกมเลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกมเต็มที่
 	FastSlotCount = 6,
 	-- dropp items can have a diferent model added them here item name and object
 	spawnableProps             = {

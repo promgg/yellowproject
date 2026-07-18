@@ -145,8 +145,7 @@ for i = 1, MAX_SLOTS do
     dbg("ลงทะเบียนคำสั่งช่อง", i, "(cmd:", cmd .. ")")
 end
 
--- ปุ่ม 1-6 ที่ผู้เล่นกดตอนเปิดกระเป๋า — app.js เป็นคนดักและยิงมาที่นี่
--- (ไม่มี control-hash poll / DisableControlAction แล้ว: ตอนกระเป๋าปิด เกมจึงคุมปุ่ม 1-6 เองเต็มที่)
+-- ทางที่ 1: NUI keydown — app.js ดักปุ่มตอนหน้าเว็บได้รับ key แล้วยิงมาที่นี่
 function NUIUseFastSlot(data, cb)
     local slot = type(data) == "table" and tonumber(data.slot) or nil
     if slot and slot >= 1 and slot <= MAX_SLOTS then
@@ -156,3 +155,33 @@ function NUIUseFastSlot(data, cb)
     end
     if cb then cb("ok") end
 end
+
+-- ทางที่ 2: control poll ฝั่ง Lua — "รันเฉพาะตอนกระเป๋าเปิด" เท่านั้น
+--
+-- ทำไมต้องมี 2 ทาง: SetNuiFocus(true, true) ควรส่ง keydown ให้หน้าเว็บ แต่ในทางปฏิบัติ RedM/CEF
+-- ไม่ได้ส่งปุ่มเลขมาถึง app.js เสมอไป (เกมยังกินปุ่มไว้เอง) ทางนี้จึงเป็นตัวรับประกันว่ากดแล้วติด
+-- server มี cooldown 500ms ต่อคนอยู่แล้ว ถ้าทั้งสองทางยิงพร้อมกันจะถูกกรองเหลือครั้งเดียวเอง
+--
+-- InInventory เป็น global ของ NUIService (true ทั้งกระเป๋าหลักและตู้เก็บของ) — อ่านตอน runtime
+-- จึงไม่ต้องกังวลว่า services/ โหลดหลังไฟล์นี้ (ค่าเริ่มต้น nil -> เทียบ == true ได้ปลอดภัย)
+--
+-- DisableControlAction ทำเฉพาะตอนกระเป๋าเปิด: กันกดเลขแล้วเกมแอบสลับอาวุธอยู่หลังเมนู
+-- ตอนกระเป๋าปิด thread นี้ไม่แตะ control ใดๆ เลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกมเต็มที่
+CreateThread(function()
+    while true do
+        if InInventory == true and Config.FastSlot then
+            for i = 1, MAX_SLOTS do
+                local kc = Config.FastSlot[i]
+                if kc and kc.key then
+                    DisableControlAction(0, kc.key, true)
+                    if IsDisabledControlJustPressed(0, kc.key) or IsControlJustPressed(0, kc.key) then
+                        useFastSlot(i)
+                    end
+                end
+            end
+            Wait(0)
+        else
+            Wait(250) -- กระเป๋าปิด: ไม่ต้องเช็คถี่ ไม่กิน resmon
+        end
+    end
+end)
