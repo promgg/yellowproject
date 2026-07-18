@@ -64,7 +64,11 @@ AddEventHandler("admin:Promote", function(playerID, newgroup)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local xTarget = VORPcore.getUser(playerID).getUsedCharacter
     local NewPlayerGroup = newgroup
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     -- print(NewPlayerGroup)
     if playerGroup == 'admin' then
         xTarget.setGroup(NewPlayerGroup)
@@ -76,7 +80,11 @@ RegisterNetEvent("admin:OpenInv")
 AddEventHandler("admin:OpenInv", function(playerID)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local xTarget = VORPcore.getUser(playerID).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if playerGroup == 'admin' then
         Inventory.OpenInv(source, xTarget.charIdentifier)
     end
@@ -89,7 +97,11 @@ AddEventHandler("admin:GiveWeapon", function(playerID, weapon, ammos)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGiveWeapon then
         local ammo = { ["nothing"] = ammos }
         local components = { ["nothing"] = 0 }
@@ -112,11 +124,23 @@ AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGiveItem then
         exports.vorp_inventory:addItem(playerID, selectedItem, amount)
         TriggerClientEvent("pNotify:SendNotification", playerID, {
             text = 'ให้ไอเทม ' .. selectedItem .. "กับไอดี " .. playerID .. " เรียบร้อย",
+            type = "success",
+            timeout = 5000,
+            layout = "centerLeft",
+            queue = "left"
+        })
+        -- แจ้งแอดมินยืนยันความสำเร็จด้วย (เดิมแจ้งแค่เป้าหมาย แอดมินไม่เห็นผลลัพธ์อะไรเลยแม้สำเร็จ)
+        TriggerClientEvent("pNotify:SendNotification", source, {
+            text = 'ให้ไอเทม ' .. selectedItem .. ' จำนวน ' .. amount .. ' กับ ' .. nameTarget .. ' เรียบร้อย',
             type = "success",
             timeout = 5000,
             layout = "centerLeft",
@@ -130,7 +154,11 @@ RegisterNetEvent("admin:AddItemAll")
 AddEventHandler("admin:AddItemAll", function(selectedItem, amount)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     local ide = xPlayer.identifier
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGiveItem then
         for _, playerId in ipairs(GetPlayers()) do
@@ -157,7 +185,11 @@ AddEventHandler("admin:AddCash", function(playerID, amount)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanAddCash then
         local target = VORPcore.getUser(playerID).getUsedCharacter
         target.addCurrency(0, amount) -- Add money 1000 | 0 = money, 1 = gold, 2 = rol
@@ -179,7 +211,11 @@ AddEventHandler("admin:AddBank", function(playerID, amount)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanAddBank then
         local target = VORPcore.getUser(playerID).getUsedCharacter
         target.addCurrency(1, amount) -- Add money 1000 | 0 = money, 1 = gold, 2 = rol
@@ -211,7 +247,11 @@ AddEventHandler("admin:InfiAmmo", function(playerID)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].InfiAmmo then
         TriggerClientEvent("admin_:InfiAmmo", playerID)
         SetDistcord("MJDev-Admin ", "Admin", " ``` แอดมิน : " .. nameplayer ..
@@ -227,7 +267,11 @@ AddEventHandler("admin:godmode", function(playerID)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGodmode then
         TriggerClientEvent("admin:God", playerID)
         SetDistcord("MJDev-Admin ", "Admin",
@@ -243,7 +287,11 @@ RegisterNetEvent("admin:godmodeall")
 AddEventHandler("admin:godmodeall", function()
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGodmodeAll then
         TriggerClientEvent("admin:GodAll", -1)
         SetDistcord("MJDev-Admin ", "Admin", " ``` แอดมิน : " .. nameplayer ..
@@ -257,7 +305,11 @@ AddEventHandler("admin:Golden", function(playerID)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
 
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].Golden then
         if playerID == 'all' then
             TriggerClientEvent("admin_:Golden", -1)
@@ -287,7 +339,11 @@ AddEventHandler("admin:Kick", function(playerId, reason)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanKick then
         DropPlayer(playerId, reason)
         SetDistcord("MJDev-Admin ", "Admin",
@@ -340,7 +396,11 @@ RegisterNetEvent("admin:KickAll")
 AddEventHandler("admin:KickAll", function(reason)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanKick then
         local xPlayers = GetPlayers()
         for k, user in pairs(xPlayers) do
@@ -355,7 +415,11 @@ end)
 RegisterNetEvent("admin:Announcement")
 AddEventHandler("admin:Announcement", function(message)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanAnnounce then
         TriggerClientEvent("chat:addMessage", -1, {
             args = {"^1ผู้ดูแลระบบ ^7: ", message}
@@ -379,7 +443,11 @@ end)
 RegisterNetEvent("admin:Teleport")
 AddEventHandler("admin:Teleport", function(targetId, action)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     local temp_id = nil
     local playerCoords = nil
     local tr = nil
@@ -406,7 +474,11 @@ end)
 RegisterNetEvent("admin:TeleportAll")
 AddEventHandler("admin:TeleportAll", function(coords)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     local temp_id = nil
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanTeleportAll then
         local playerCoords = GetEntityCoords(GetPlayerPed(source))
@@ -424,7 +496,11 @@ end)
 RegisterNetEvent("admin:Slay")
 AddEventHandler("admin:Slay", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanSlay then
         TriggerClientEvent("admin:Slay", target)
 		TriggerClientEvent("pNotify:SendNotification", target, {
@@ -440,7 +516,11 @@ end)
 RegisterNetEvent("admin:SlayAll")
 AddEventHandler("admin:SlayAll", function()
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanSlayAll then
         TriggerClientEvent("admin:Slay", -1)
 		TriggerClientEvent("pNotify:SendNotification", -1, {
@@ -456,14 +536,22 @@ end)
 RegisterNetEvent("admin:loadskin")
 AddEventHandler("admin:loadskin", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     TriggerClientEvent("admin:loadskin", target)
 end)
 
 RegisterNetEvent("admin:Freeze")
 AddEventHandler("admin:Freeze", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanFreeze then
         TriggerClientEvent("admin:Freeze", target)
 		TriggerClientEvent("pNotify:SendNotification", target, {
@@ -479,7 +567,11 @@ end)
 RegisterNetEvent("admin:FreezeAll")
 AddEventHandler("admin:FreezeAll", function()
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanFreezeAll then
         TriggerClientEvent("admin:Freeze", -1)
 		TriggerClientEvent("pNotify:SendNotification", -1, {
@@ -499,7 +591,11 @@ AddEventHandler("admin:setJob", function(target, newjob, newgrade, newJobLabel)
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanSetJob then
         xTarget.setJob(newjob)
         xTarget.setJobGrade(newgrade)
@@ -522,7 +618,11 @@ end)
 RegisterNetEvent("admin:resetcol")
 AddEventHandler("admin:resetcol", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanRevive then
         TriggerClientEvent('MJ-Cooldown:Stopinjured', target)
 		TriggerClientEvent("pNotify:SendNotification", target, {
@@ -538,7 +638,11 @@ end)
 RegisterNetEvent("admin:revivenocooldown")
 AddEventHandler("admin:revivenocooldown", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanRevive then
         TriggerClientEvent('MJ-Cooldown:Stopinjured', target)
         TriggerClientEvent(Config["ambulance"]["server_revive"], target)
@@ -555,7 +659,11 @@ end)
 RegisterNetEvent("admin:revive")
 AddEventHandler("admin:revive", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local playerGroup = xPlayer.group
+    -- ใช้ admin.GetPlayerGroup() (normalize เป็นตัวพิมพ์เล็ก+ตัด whitespace) แทน xPlayer.group ดิบๆ
+    -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
+    -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
+    -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanRevive then
         TriggerClientEvent(Config["ambulance"]["server_revive"], target)
 		TriggerClientEvent("pNotify:SendNotification", target, {
