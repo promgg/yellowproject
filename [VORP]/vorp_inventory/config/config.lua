@@ -195,6 +195,9 @@ Config = {
 		-- add here if more need to change rotation
 	},
 	
+    -- [ไม่ใช้แล้ว] DisableWeaponWheel + FastSlot (control hash ปุ่ม 1-7) เป็นของระบบ fastslot เดิม
+    -- ที่ผูกปุ่มฝั่ง Lua ตลอดเวลา ตอนนี้ปุ่ม 1-6 ถูกดักใน html/app.js เฉพาะตอนเปิดกระเป๋าแทน
+    -- (ดู FastSlotCount ด้านล่าง) — เก็บไว้เฉยๆ ไม่มีโค้ดไหนอ่านค่าพวกนี้แล้ว
     DisableWeaponWheel = true,
 	FastSlot = {
 		[1] = {
@@ -229,17 +232,12 @@ Config = {
 
 	-- ===== Fast Slot / Hotbar (ระบบเปิดใหม่ แทน MJDevFastSlot.lua ที่เข้ารหัส) =====
 	-- จำนวนช่อง — NUI รองรับ 6 ช่อง (อย่าตั้งเกิน 6 นอกจากจะแก้ html/app.js ด้วย)
+	--
+	-- ปุ่ม 1-6 ทำงาน "เฉพาะตอนเปิดกระเป๋า" เท่านั้น — ตอนนั้น NUI ถือ keyboard focus อยู่แล้ว
+	-- JS ใน html/app.js จึงดักปุ่มเองแล้วยิง NUI callback UseFastSlot กลับมา ไม่ต้องผูกปุ่มฝั่ง Lua
+	-- ตอนกระเป๋าปิดเราไม่แตะ control ของเกมเลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกมเต็มที่
+	-- (จึงไม่มี FastSlotDefaultKeys / DisableWeaponWheelForFastSlot / FastSlotDisableControls แล้ว)
 	FastSlotCount = 6,
-	-- ปุ่มเริ่มต้นต่อช่อง (ผู้เล่น rebind เองได้ในเมนู Settings > Key Bindings ของ RedM ผ่าน RegisterKeyMapping)
-	-- ใช้ชื่อปุ่มมาตรฐาน FiveM/RedM (ไม่ใช่ control hash) เช่น '1'..'6', 'F1'..'F6'
-	FastSlotDefaultKeys = { '1', '2', '3', '4', '5', '6' },
-	-- ปิด weapon wheel ของ RDR3 ตอนใช้ hotbar (กันกดเลขแล้วชักอาวุธแทนการใช้ไอเทม)
-	-- ถ้ายังเจออาการชักปืน ให้เติม control hash ที่ต้องบล็อกลง FastSlotDisableControls (จูนในเกม)
-	DisableWeaponWheelForFastSlot = true,
-	FastSlotDisableControls = {
-		-- เติม control hash ที่ทำให้เกิดการชักอาวุธเมื่อกดเลข (ค้นหา/จูนในเกม Phase ทดสอบ)
-		-- ตัวอย่าง: 0x4CC0E2FE, -- INPUT_OPEN_WHEEL_MENU
-	},
 	-- dropp items can have a diferent model added them here item name and object
 	spawnableProps             = {
 		default_box = "p_cottonbox01x", -- default when object is not found will always spawn this object for weapon or items

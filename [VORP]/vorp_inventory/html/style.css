@@ -57,6 +57,40 @@ input {
     pointer-events: auto;
 }
 
+.inventory-close-tools {
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(-34px);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.inventory-close-tools button {
+    width: 30px;
+    height: 30px;
+    padding: 0 0 2px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: rgba(9, 8, 7, 0.9);
+    color: var(--text);
+    font-size: 23px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.inventory-close-tools button:hover,
+.inventory-close-tools button:focus-visible {
+    border-color: var(--gold-bright);
+    color: var(--gold-bright);
+    outline: none;
+}
+
 .fast-panel {
     width: 108px;
     height: 607px;

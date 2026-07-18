@@ -77,6 +77,7 @@ const categoryOrder = ["medical", "foods", "weapons", "ammo", "tools", "animals"
 
 function cacheElements() {
     els.root = document.getElementById("inventory-root");
+    els.inventoryClose = document.getElementById("inventory-close");
     els.fastSlots = document.getElementById("fast-slots");
     els.inventoryGridWrap = document.getElementById("inventory-grid-wrap");
     els.inventoryGrid = document.getElementById("inventory-grid");
@@ -654,6 +655,12 @@ function renderActions() {
         button.addEventListener("click", action.handler);
         els.actionStrip.appendChild(button);
     });
+}
+
+// A modal counts as open only when it exists and is not hidden. Tolerating a
+// missing element keeps a hotkey from dying on a page that lacks that modal.
+function isModalOpen(modal) {
+    return Boolean(modal) && !modal.classList.contains("is-hidden");
 }
 
 function postNui(callbackName, payload = {}) {
@@ -1640,7 +1647,24 @@ function bindEvents() {
             if (!els.quantityModal.classList.contains("is-hidden")) return closeQuantityModal();
             if (!els.confirmModal.classList.contains("is-hidden")) return closeConfirmModal();
             postNui("NUIFocusOff", {});
+            return;
         }
+
+        // Fast slots fire on 1-6 only while the inventory is open. The NUI holds
+        // keyboard focus then, so the game never sees these keys; once it closes,
+        // 1-6 go back to the game's own weapon selection untouched.
+        if (!state.visible) return;
+        if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+        if (isModalOpen(els.playerModal) || isModalOpen(els.quantityModal) || isModalOpen(els.confirmModal)) return;
+
+        const target = event.target;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+
+        const slot = Number(event.key);
+        if (!Number.isInteger(slot) || slot < 1 || slot > state.fastSlots.length) return;
+
+        event.preventDefault();
+        postNui("UseFastSlot", { slot });
     });
     els.inventorySearch.addEventListener("input", () => {
         state.searchText = els.inventorySearch.value;
@@ -1665,6 +1689,7 @@ function bindEvents() {
     els.confirmClose.addEventListener("click", closeConfirmModal);
     els.confirmCancel.addEventListener("click", closeConfirmModal);
     els.confirmAccept.addEventListener("click", acceptConfirmation);
+    els.inventoryClose.addEventListener("click", () => postNui("NUIFocusOff", {}));
     bindInventoryDropZone(els.secondaryGrid, "main-inventory", "move");
     bindMainInventoryDropZone(els.inventoryGrid);
 }

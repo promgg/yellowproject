@@ -1,6 +1,9 @@
 -- ============================================================================
 --  Fast Slot / Hotbar (open rewrite) — แทน client/MJDevFastSlot.lua ตัวเข้ารหัส
---  - อ่านปุ่มด้วย control hash ของ RDR3 และปิด action เลือกอาวุธเดิมของเกม
+--  - ปุ่ม 1-6 ทำงาน "เฉพาะตอนเปิดกระเป๋า" เท่านั้น: ตอนกระเป๋าเปิด NUI ถือ keyboard focus
+--    อยู่แล้ว JS ใน html/app.js จึงเป็นคนดักปุ่มเอง แล้วยิง NUI callback UseFastSlot กลับมา
+--    ตอนกระเป๋าปิด เราไม่แตะ control ของเกมเลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกม
+--    (เดิมใช้ control-hash poll + DisableControlAction ตลอดเวลา ทำให้เลือกอาวุธไม่ได้เลย)
 --  - กดปุ่ม -> ส่งแค่ "หมายเลขช่อง" ให้ server ตัดสิน (server-authoritative)
 --  - รับ sync จาก server มาแสดงผ่าน NUI (จำนวนสด)
 --  โหลดก่อน controllers/* เพื่อให้ global NUIAddItemToFastSlot/NUIRemoveItemFromFastSlot
@@ -134,8 +137,7 @@ local function useFastSlot(slot)
 end
 
 -- ลงทะเบียนคำสั่งสำหรับทดสอบ pipeline ตรงๆ ผ่านคอนโซล F8: vorpfastslot1
--- ไม่ใช้ RegisterKeyMapping เพราะ RedM runtime บางเวอร์ชันไม่มี global นี้และจะทำให้
--- ไฟล์หยุดโหลดก่อนถึง control-hash poll ด้านล่าง
+-- (ทางเดินจริงตอนเล่นคือ NUI callback UseFastSlot ด้านล่าง ไม่ผ่านคำสั่งพวกนี้)
 for i = 1, MAX_SLOTS do
     local cmd = ("vorpfastslot%d"):format(i)
     local slot = i
@@ -143,31 +145,14 @@ for i = 1, MAX_SLOTS do
     dbg("ลงทะเบียนคำสั่งช่อง", i, "(cmd:", cmd .. ")")
 end
 
--- (2) control-hash poll — hash ปุ่มเลขจาก Config.FastSlot ทำงานทันทีไม่ต้อง bind เอง
---     control type ของ context ปกติ (OnFoot/OnMount/InVehicle) คือ 0
---     DisableControlAction(0, ...): กัน native weapon-select ตอนกดเลข (แก้อาการชักอาวุธ)
-if Config.FastSlot then
-    CreateThread(function()
-        while true do
-            for i = 1, MAX_SLOTS do
-                local kc = Config.FastSlot[i]
-                if kc and kc.key then
-                    -- กัน native weapon-select ตอนกดเลข (แก้อาการชักอาวุธ)
-                    if Config.DisableWeaponWheelForFastSlot then
-                        DisableControlAction(0, kc.key, true)
-                    end
-                    -- เช็คทั้ง enabled+disabled just-pressed กันพลาดจังหวะ (แพทเทิร์นเดียวกับ MJ-Alert-Doctor)
-                    if IsControlJustPressed(0, kc.key) or IsDisabledControlJustPressed(0, kc.key) then
-                        useFastSlot(i)
-                    end
-                end
-            end
-            if Config.DisableWeaponWheelForFastSlot and Config.FastSlotDisableControls then
-                for _, control in ipairs(Config.FastSlotDisableControls) do
-                    DisableControlAction(0, control, true)
-                end
-            end
-            Wait(0)
-        end
-    end)
+-- ปุ่ม 1-6 ที่ผู้เล่นกดตอนเปิดกระเป๋า — app.js เป็นคนดักและยิงมาที่นี่
+-- (ไม่มี control-hash poll / DisableControlAction แล้ว: ตอนกระเป๋าปิด เกมจึงคุมปุ่ม 1-6 เองเต็มที่)
+function NUIUseFastSlot(data, cb)
+    local slot = type(data) == "table" and tonumber(data.slot) or nil
+    if slot and slot >= 1 and slot <= MAX_SLOTS then
+        useFastSlot(slot)
+    else
+        dbg("NUIUseFastSlot: ^1slot ไม่ถูกต้อง^7", json.encode(data or {}))
+    end
+    if cb then cb("ok") end
 end
