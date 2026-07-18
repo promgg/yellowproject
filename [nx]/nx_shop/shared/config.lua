@@ -205,7 +205,7 @@ Config.Stores = {
         title = 'ร้านค้า',
         subtitle = 'ANNESBURG GENERAL STORE',
         promptName = 'General Store',
-        position = vector3(2930.8000, 1362.4426, 45.1829),
+        position = vector3(2933.7898, 1367.3025, 45.2330),
         heading = 238.2687,
         openDistance = 3.0,
         hours = { enabled = false, open = 7, close = 22 },
