@@ -10,25 +10,45 @@
    ========================================================================= */
 
 const RES = (window.GetParentResourceName && GetParentResourceName()) || 'bcc-stables';
-function nui(name, payload) {
-  return fetch(`https://${RES}/${name}`, {
+async function nui(name, payload) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`https://${RES}/${name}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify(payload || {}),
-  }).catch(() => {});
+    signal: controller.signal,
+    });
+    const text = await response.text();
+    if (!text) return { ok: response.ok };
+    try { return JSON.parse(text); } catch (_) { return { ok: response.ok, value: text }; }
+  } catch (_) {
+    return { ok: false, reason: 'callback_failed' };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 // แจ้งเตือน = pNotify ฝั่งเกม (ผ่าน client callback stableNotify) แทน toast ใน NUI
 function notify(text, kind) { nui('stableNotify', { text: text, kind: kind || 'info' }); }
 
 /* ===================== state ===================== */
-let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 2, location: '', healPrice: 500, healCurrencyLabel: '$' };
+let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 0, location: '', healPrice: 500, healCurrencyLabel: '$', stableMeta: {}, activeHorseId: null };
 let myHorses = [];
 let selIdx = 0;
+let ownedStatusFilter = 'all';
+let ownedRefreshPromise = null;
+let ownedRefreshTimer = null;
 let mode = 'main';        // 'main' | 'shop' | 'tack'
 let shopSelKey = null;    // "<breedIdx>|<model>"
-let shopGender = 'male';  // เพศตอนซื้อม้า (เพิ่มจาก mockup — server รองรับอยู่แล้ว ไม่แตะ client/server lua)
+let shopGender = 'male';  // runtime contract ยังส่งค่าเดิม แต่ UI ไม่ให้เลือกเพศแล้ว
+let shopBreedIdx = null;
+let shopStep = 'breeds';  // 'breeds' | 'colors'
 let tackCat = null;
+let tackOptionIndex = 0;
 let tackPending = {};     // { <category>: hash } เลือกยังไม่บันทึก (คิดราคา)
+let tackInstalled = {};
+let actionBusy = false;
 
 /* 4 สถิติสายพันธุ์ (จาก config/horses.lua) — ไม่รวม health/stamina (แยกไปโชว์เป็นสภาพจริง) */
 const STATS = [
@@ -60,13 +80,28 @@ function wireTip(node, text) {
 
 /* ===================== helpers ===================== */
 function t(key, fb) { return (DATA.translations && DATA.translations[key]) || fb || key; }
+function esc(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
 function genderLabel(g) { return g === 'male' ? 'เพศผู้' : g === 'female' ? 'เพศเมีย' : 'ไม่ทราบเพศ'; }
 function currentHorse() { return myHorses[selIdx] || null; }
-// currencyType=1 (ทองอย่างเดียว) โชว์ทอง, นอกนั้นจ่ายเงินสดเสมอ
-function priceText(cash, gold) {
-  if (DATA.currencyType === 1) return `${gold} ทอง`;
-  return `$${cash}`;
+function sortOwnedHorses(horses) {
+  return (horses || []).map((horse, index) => ({ horse, index }))
+    .sort((a, b) => ((Number(b.horse.selected) === 1 ? 1 : 0) - (Number(a.horse.selected) === 1 ? 1 : 0)) || (a.index - b.index))
+    .map((entry) => entry.horse);
 }
+function ownedStatusKey(horse) {
+  if (Number(horse && horse.dead) === 1) return 'dead';
+  if (Number(horse && horse.writhe) === 1) return 'injured';
+  if (DATA.activeHorseId != null && Number(DATA.activeHorseId) === Number(horse && horse.id)) return 'active';
+  return 'stable';
+}
+function replaceOwnedHorses(horses, preferredHorseId) {
+  myHorses = sortOwnedHorses(Array.isArray(horses) ? horses.slice() : []);
+  let nextIndex = preferredHorseId == null ? -1 : myHorses.findIndex((h) => Number(h.id) === Number(preferredHorseId));
+  if (nextIndex < 0) nextIndex = myHorses.findIndex((h) => Number(h.selected) === 1);
+  selIdx = nextIndex < 0 ? 0 : nextIndex;
+}
+// เซิร์ฟเวอร์นี้ใช้เงินสดเท่านั้น จึงไม่แสดงสกุลทองใน UX
+function priceText(cash) { return `$${Number(cash || 0).toLocaleString('en-US')}`; }
 function statValue(statsObj, key) {
   if (statsObj && typeof statsObj[key] === 'number') return statsObj[key];
   return 4; // ไม่ได้กำหนดใน config → ค่าเริ่มต้น 4/10
@@ -85,26 +120,50 @@ function statGridMarkup(statsObj) {
 /* ===================== MAIN mode: owned horses ===================== */
 function renderOwnedList() {
   const list = el('owned-list');
+  renderOwnedStatusTabs();
   if (!myHorses.length) {
-    list.innerHTML = '<div class="card-empty">ยังไม่มีม้าในโรงม้า</div>';
+    list.innerHTML = '<div class="card-empty"><i class="fa-solid fa-horse-head"></i><strong>ยังไม่มีม้าในคอก</strong><span>เลือกม้าตัวแรกของคุณจากร้านม้า</span><button id="empty-go-shop" type="button">ไปที่ร้านม้า</button></div>';
+    el('empty-go-shop').addEventListener('click', () => setMode('shop'));
     return;
   }
-  list.innerHTML = myHorses.map((h, i) => `
+  const term = el('owned-search').value.trim().toLocaleLowerCase('th');
+  const visibleHorses = myHorses.map((h, i) => ({ h, i })).filter(({ h }) => {
+    if (ownedStatusFilter !== 'all' && ownedStatusKey(h) !== ownedStatusFilter) return false;
+    const haystack = `${h.name || ''} ${h.breedLabel || ''}`.toLocaleLowerCase('th');
+    return !term || haystack.includes(term);
+  });
+  if (!visibleHorses.length) {
+    list.innerHTML = '<div class="card-empty"><i class="fa-solid fa-filter-circle-xmark"></i><strong>ไม่พบม้าในรายการนี้</strong><span>ลองเลือกสถานะอื่นหรือล้างคำค้นหา</span></div>';
+    return;
+  }
+  list.innerHTML = visibleHorses.map(({ h, i }) => `
     <button class="horse-card${i === selIdx ? ' active' : ''}${h.dead ? ' dead' : ''}" type="button" data-index="${i}">
       <span class="horse-thumb"><i class="fa-solid fa-horse-head"></i></span>
       <span>
-        <strong>${h.name || '—'}</strong>
-        <small>${h.breedLabel || ''}</small>
+        <strong>${esc(h.name || '—')}</strong>
+        <small>${esc(h.breedLabel || '')}</small>
         <span class="card-meta"><span>ผูกพัน Lv.${h.bondLevel != null ? h.bondLevel : 1}</span><span>${h.slots != null ? h.slots : 0} ช่อง</span></span>
       </span>
+      <span class="horse-state">${esc(horseState(h).label)}</span>
       ${Number(h.selected) === 1 ? '<em class="selected-pin">ม้าหลัก</em>' : ''}
     </button>`).join('');
   list.querySelectorAll('[data-index]').forEach((b) => b.addEventListener('click', () => selectHorseIndex(Number(b.dataset.index))));
 }
+function renderOwnedStatusTabs() {
+  const counts = { all: myHorses.length, active: 0, stable: 0, injured: 0, dead: 0 };
+  myHorses.forEach((horse) => { counts[ownedStatusKey(horse)] += 1; });
+  Object.keys(counts).forEach((key) => {
+    const count = el(`owned-status-${key}-count`);
+    if (count) count.textContent = String(counts[key]);
+  });
+  document.querySelectorAll('[data-owned-status]').forEach((button) => {
+    const key = button.dataset.ownedStatus;
+    button.classList.toggle('active', key === ownedStatusFilter);
+    button.disabled = key !== 'all' && counts[key] === 0;
+  });
+}
 function renderMainPreview() {
   const h = currentHorse();
-  el('preview-index').textContent = myHorses.length ? String(selIdx + 1).padStart(2, '0') : '00';
-  el('preview-total').textContent = `/ ${String(myHorses.length).padStart(2, '0')}`;
 
   if (!h) {
     el('preview-breed').textContent = '';
@@ -131,21 +190,85 @@ function renderMainPreview() {
 
   el('owned-stats').innerHTML = statGridMarkup(h.stats);
   el('heal-label').textContent = `รักษาม้า · ${DATA.healCurrencyLabel}${DATA.healPrice}`;
-  setMainActionsEnabled(true);
+  applyHorseActions(h);
 }
 function setMainActionsEnabled(enabled) {
-  ['btn-summon', 'btn-cargo', 'btn-tack', 'btn-return', 'btn-setmain', 'btn-heal', 'btn-release'].forEach((id) => { el(id).disabled = !enabled; });
+  ['btn-summon', 'btn-cargo', 'btn-tack', 'btn-setmain', 'btn-heal', 'btn-release', 'btn-rename'].forEach((id) => { el(id).disabled = !enabled; });
+}
+function horseState(h) {
+  if (Number(h.dead) === 1) return { key: 'dead', label: 'เสียชีวิต' };
+  if (Number(h.writhe) === 1) return { key: 'injured', label: 'บาดเจ็บ' };
+  if (Number(DATA.activeHorseId) === Number(h.id)) return { key: 'active', label: 'ถูกเรียกอยู่' };
+  if (Number(h.selected) === 1) return { key: 'primary', label: 'ม้าหลัก · อยู่ในคอก' };
+  return { key: 'stable', label: 'อยู่ในคอก' };
+}
+function setPrimaryAction(title, subtitle, icon) {
+  const button = el('btn-summon');
+  button.querySelector('i:first-child').className = `fa-solid ${icon}`;
+  button.querySelector('strong').textContent = title;
+  button.querySelector('small').textContent = subtitle;
+}
+function applyHorseActions(h) {
+  const state = horseState(h);
+  const permanentDead = state.key === 'dead' && DATA.stableMeta.permanentDeath === true;
+  const anotherActive = DATA.activeHorseId != null && Number(DATA.activeHorseId) !== Number(h.id);
+  const needsHeal = Number(h.health) < 100 || Number(h.stamina) < 100 || state.key === 'injured' || (state.key === 'dead' && !permanentDead);
+  el('main-status-dot').textContent = state.label;
+  el('main-status-dot').classList.toggle('danger', state.key === 'dead' || state.key === 'injured');
+  setMainActionsEnabled(true);
+  el('btn-cargo').disabled = state.key === 'dead' || state.key === 'injured';
+  el('btn-tack').disabled = state.key === 'dead' || state.key === 'injured';
+  el('btn-setmain').disabled = Number(h.selected) === 1 || state.key === 'dead' || state.key === 'injured';
+  el('btn-setmain').querySelector('span').textContent = Number(h.selected) === 1 ? 'ม้าหลักปัจจุบัน' : 'ตั้งเป็นม้าหลัก';
+  el('btn-heal').disabled = !needsHeal || permanentDead;
+  el('btn-release').disabled = state.key === 'dead' || state.key === 'injured' || state.key === 'active';
+  if (state.key === 'active') {
+    setPrimaryAction('เก็บม้าเข้าคอก', 'บันทึกสถานะและส่งม้ากลับคอก', 'fa-arrow-right-to-bracket');
+    el('btn-summon').disabled = false;
+  } else {
+    setPrimaryAction('เรียกม้าตัวนี้', anotherActive ? 'ต้องเก็บม้าที่ถูกเรียกอยู่ก่อน' : 'เรียกม้าออกจากคอกมายังจุดปลอดภัย', 'fa-horse-head');
+    el('btn-summon').disabled = anotherActive || state.key === 'dead' || state.key === 'injured';
+  }
 }
 function renderOwnedCount() {
   el('tab-count-main').textContent = String(myHorses.length);
   el('owned-count').textContent = `${myHorses.length} ตัว`;
 }
-function previewCurrent() {
+async function refreshOwnedData(preferredHorseId, shouldPreview = true, forceFresh = false) {
+  if (ownedRefreshPromise) {
+    if (!forceFresh) return ownedRefreshPromise;
+    try { await ownedRefreshPromise; } catch (_) { /* start a fresh authoritative request below */ }
+  }
+  const request = (async () => {
+    const previousHorseId = currentHorse() && Number(currentHorse().id);
+    const result = await nui('refreshHorseData', {});
+    if (!result || result.ok !== true || !Array.isArray(result.myHorsesData)) return false;
+    DATA.stableMeta = result.stableMeta || DATA.stableMeta;
+    DATA.activeHorseId = result.activeHorseId == null ? null : Number(result.activeHorseId);
+    replaceOwnedHorses(result.myHorsesData, preferredHorseId);
+    renderOwnedCount();
+    if (mode === 'main') {
+      const currentHorseId = currentHorse() && Number(currentHorse().id);
+      if (shouldPreview || previousHorseId !== currentHorseId) await previewCurrent();
+      else { renderOwnedList(); renderMainPreview(); }
+    }
+    return true;
+  })();
+  ownedRefreshPromise = request;
+  try {
+    return await request;
+  } finally {
+    if (ownedRefreshPromise === request) ownedRefreshPromise = null;
+  }
+}
+async function previewCurrent() {
+  hideManage();
   renderOwnedList();
   renderMainPreview();
   const h = currentHorse();
-  if (!h) return;
-  nui('loadMyHorse', { HorseId: h.id, HorseComp: h.components || '{}', HorseModel: h.model, HorseGender: h.gender });
+  if (!h) return false;
+  const result = await nui('loadMyHorse', { HorseId: h.id, HorseComp: h.components || '{}', HorseModel: h.model, HorseGender: h.gender });
+  return result && result.ok !== false;
 }
 function selectHorseIndex(idx) {
   if (!myHorses.length) return;
@@ -172,19 +295,51 @@ function renderShopList() {
   const list = el('shop-list');
   const entries = shopEntries();
   el('tab-count-shop').textContent = String(entries.length);
-  if (!entries.length) { list.innerHTML = '<div class="card-empty">ไม่มีม้าให้ซื้อ</div>'; return; }
-  list.innerHTML = entries.map(({ bi, model, breed, cfg }) => {
-    const key = `${bi}|${model}`;
-    return `<button class="horse-card${shopSelKey === key ? ' active' : ''}" type="button" data-key="${key}" data-model="${model}">
-      <span class="horse-thumb"><i class="fa-solid fa-horse"></i></span>
-      <span>
-        <strong>${breed.breed}</strong>
-        <small>${cfg.color || ''}</small>
-        <span class="card-meta"><span>${cfg.invLimit != null ? cfg.invLimit + ' ช่อง' : ''}</span><span class="card-price">${priceText(cfg.cashPrice, cfg.goldPrice)}</span></span>
-      </span>
-    </button>`;
-  }).join('');
-  list.querySelectorAll('[data-key]').forEach((b) => b.addEventListener('click', () => openShopSlot(b.dataset.key, b.dataset.model)));
+  const term = el('shop-search').value.trim().toLocaleLowerCase('th');
+  const breeds = (DATA.shopData || []).map((breed, bi) => ({ breed, bi })).filter(({ breed }) => !term || String(breed.breed || '').toLocaleLowerCase('th').includes(term));
+  el('shop-step-back').hidden = true;
+  el('shop-search').parentElement.hidden = false;
+  el('shop-step-label').textContent = 'เลือกสายพันธุ์ แล้วเลื่อนเลือกสี';
+  el('shop-step-title').textContent = shopBreedIdx != null && DATA.shopData[shopBreedIdx] ? DATA.shopData[shopBreedIdx].breed : 'เลือกสายพันธุ์';
+  el('shop-step-count').textContent = `${breeds.length} รายการ`;
+  list.innerHTML = breeds.length ? breeds.map(({ breed, bi }) => {
+    const active = bi === shopBreedIdx;
+    const colors = Object.keys(breed.colors || {});
+    return `<button class="horse-card breed-card${active ? ' active' : ''}" type="button" data-breed-index="${bi}">
+      <span class="horse-thumb"><i class="fa-solid fa-horse-head"></i></span>
+      <span><strong>${esc(breed.breed || '—')}</strong><small>${active ? 'กำลังเลือกสีด้านล่าง' : 'กดเพื่อแสดงสีที่มี'}</small></span>
+      <span class="horse-state">${colors.length} สี</span>
+    </button>${active ? shopInlineCarousel(bi, breed) : ''}`;
+  }).join('') : '<div class="card-empty">ไม่พบสายพันธุ์ที่ค้นหา</div>';
+  list.querySelectorAll('[data-breed-index]').forEach((button) => button.addEventListener('click', () => {
+    shopBreedIdx = Number(button.dataset.breedIndex);
+    shopStep = 'colors';
+    const colors = Object.keys((DATA.shopData[shopBreedIdx] || {}).colors || {});
+    if (colors.length) openShopSlot(`${shopBreedIdx}|${colors[0]}`, colors[0]);
+    else { shopSelKey = null; renderShopList(); renderShopPreview(); }
+  }));
+  const prev = el('shop-color-prev'); const next = el('shop-color-next');
+  if (prev) prev.addEventListener('click', () => moveShopColor(-1));
+  if (next) next.addEventListener('click', () => moveShopColor(1));
+}
+function shopInlineCarousel(bi, breed) {
+  const colors = Object.keys(breed.colors || {});
+  const currentIndex = shopSelKey && shopSelKey.startsWith(`${bi}|`) ? Math.max(0, colors.indexOf(shopSelKey.split('|')[1])) : 0;
+  const cfg = colors.length ? breed.colors[colors[currentIndex]] : null;
+  const currentLabel = cfg ? `${cfg.color || 'ไม่มีสี'} [${currentIndex + 1}/${colors.length}]` : 'ไม่มีสี [0/0]';
+  return `<div class="inline-carousel shop-inline-carousel">
+    <button id="shop-color-prev" class="tack-arrow" type="button" aria-label="สีก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+    <div class="tack-current-card"><strong>${esc(currentLabel)}</strong></div>
+    <button id="shop-color-next" class="tack-arrow" type="button" aria-label="สีถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>`;
+}
+function moveShopColor(direction) {
+  if (shopBreedIdx == null) return;
+  const colors = Object.keys((DATA.shopData[shopBreedIdx] || {}).colors || {});
+  if (!colors.length) return;
+  const current = shopSelKey && shopSelKey.startsWith(`${shopBreedIdx}|`) ? colors.indexOf(shopSelKey.split('|')[1]) : 0;
+  const index = (current + direction + colors.length) % colors.length;
+  openShopSlot(`${shopBreedIdx}|${colors[index]}`, colors[index]);
 }
 function renderShopPreview() {
   const info = shopSelKey ? findShopColor(shopSelKey) : null;
@@ -192,7 +347,6 @@ function renderShopPreview() {
     el('preview-breed').textContent = '';
     el('preview-name').textContent = 'เลือกม้าจากรายการ';
     el('preview-subtitle').textContent = '';
-    el('preview-index').textContent = '00'; el('preview-total').textContent = '/ 00';
     el('shop-price').textContent = '—';
     el('shop-slots').textContent = '—';
     el('shop-color').textContent = '—';
@@ -202,22 +356,22 @@ function renderShopPreview() {
     return;
   }
   const { breed, cfg } = info;
-  const entries = shopEntries();
-  const idx = entries.findIndex((e) => `${e.bi}|${e.model}` === shopSelKey);
   el('preview-breed').textContent = (breed.breed || '').toUpperCase();
   el('preview-name').textContent = cfg.color || breed.breed;
   el('preview-subtitle').textContent = priceText(cfg.cashPrice, cfg.goldPrice);
-  el('preview-index').textContent = String(idx + 1).padStart(2, '0');
-  el('preview-total').textContent = `/ ${String(entries.length).padStart(2, '0')}`;
-
-  el('shop-price').textContent = priceText(cfg.cashPrice, cfg.goldPrice);
+  el('shop-price').textContent = priceText(cfg.cashPrice);
   el('shop-slots').textContent = cfg.invLimit != null ? `${cfg.invLimit} ช่อง` : '—';
   el('shop-color').textContent = cfg.color || '—';
   el('shop-stats').innerHTML = statGridMarkup(cfg.stats);
-  el('buy-label').textContent = DATA.currencyType === 1
-    ? `ซื้อด้วยทอง · ${cfg.goldPrice} ทอง`
-    : `ซื้อด้วยเงินสด · $${cfg.cashPrice}`;
-  el('btn-buy').disabled = false;
+  el('buy-label').textContent = priceText(cfg.cashPrice);
+  const meta = DATA.stableMeta || {};
+  const price = Number(cfg.cashPrice || 0);
+  const balance = Number(meta.money || 0);
+  const full = Number(meta.aliveCount || 0) >= Number(meta.maxHorses || Infinity);
+  const poor = balance < price;
+  el('btn-buy').disabled = full || poor || actionBusy;
+  el('buy-label').textContent = full ? `คอกเต็ม · ${meta.aliveCount}/${meta.maxHorses}` : poor ? 'เงินไม่เพียงพอ' : el('buy-label').textContent;
+  el('btn-buy').title = full ? 'คอกม้าเต็ม' : poor ? 'เงินไม่เพียงพอ' : '';
 }
 function openShopSlot(key, model) {
   shopSelKey = key;
@@ -225,22 +379,58 @@ function openShopSlot(key, model) {
   renderShopList();
   renderShopPreview();
 }
-function onBuy() {
+function showPurchaseConfirm() {
   if (!shopSelKey) { notify('เลือกม้าก่อน', 'warning'); return; }
   const info = findShopColor(shopSelKey);
   if (!info || !info.cfg) return;
-  const isCash = DATA.currencyType !== 1;
-  nui('BuyHorse', { ModelH: info.model, IsCash: isCash, gender: shopGender, captured: 0, cashPrice: info.cfg.cashPrice, goldPrice: info.cfg.goldPrice });
+  const meta = DATA.stableMeta || {};
+  const price = Number(info.cfg.cashPrice || 0);
+  const balance = Number(meta.money || 0);
+  el('pc-horse').textContent = `${info.breed.breed || ''} · ${info.cfg.color || ''}`;
+  el('pc-price').textContent = priceText(info.cfg.cashPrice);
+  el('pc-balance').textContent = `$${balance} → $${balance - price}`;
+  el('pc-slots').textContent = `${meta.aliveCount || 0}/${meta.maxHorses || '—'} → ${Number(meta.aliveCount || 0) + 1}/${meta.maxHorses || '—'}`;
+  el('purchase-confirm').classList.remove('hidden');
+}
+async function executeBuy() {
+  if (!shopSelKey) return;
+  const info = findShopColor(shopSelKey);
+  if (!info || !info.cfg) return;
+  if (actionBusy || el('btn-buy').disabled) return;
+  actionBusy = true; el('btn-buy').disabled = true;
+  const result = await nui('BuyHorse', { ModelH: info.model, IsCash: true, gender: shopGender, captured: 0, cashPrice: info.cfg.cashPrice, goldPrice: info.cfg.goldPrice });
+  actionBusy = false;
+  if (!result || result.ok === false) { notify('ซื้อไม่สำเร็จ กรุณาตรวจเงินและช่องคอก', 'error'); renderShopPreview(); }
 }
 
 /* ===================== TACK mode ===================== */
 function availableTackCats() { return TACK_CATS.filter((c) => Array.isArray(DATA.compData[c]) && DATA.compData[c].length); }
+function tackHashKey(hash) { return hash == null || hash === '' || Number(hash) === 0 ? '0' : String(hash); }
+function tackOptionLabel(cat, hash) {
+  if (tackHashKey(hash) === '0') return 'ไม่มีอุปกรณ์';
+  const index = (DATA.compData[cat] || []).findIndex((option) => tackHashKey(option.hash) === tackHashKey(hash));
+  return index >= 0 ? `แบบที่ ${index + 1}` : 'อุปกรณ์เดิม';
+}
+function tackDiffEntries() {
+  return Object.keys(tackPending).filter((cat) => tackHashKey(tackPending[cat]) !== tackHashKey(tackInstalled[cat])).map((cat) => {
+    const nextHash = tackPending[cat];
+    const previousHash = tackInstalled[cat];
+    const option = (DATA.compData[cat] || []).find((item) => tackHashKey(item.hash) === tackHashKey(nextHash));
+    return {
+      cat,
+      categoryLabel: t(cat, cat),
+      previousLabel: tackOptionLabel(cat, previousHash),
+      nextLabel: tackOptionLabel(cat, nextHash),
+      cashPrice: option ? Number(option.cashPrice || 0) : 0,
+      goldPrice: option ? Number(option.goldPrice || 0) : 0,
+    };
+  });
+}
 function computeTackTotal() {
   let cash = 0, gold = 0;
-  Object.keys(tackPending).forEach((cat) => {
-    const hash = tackPending[cat]; if (!hash) return;
-    const opt = (DATA.compData[cat] || []).find((o) => o.hash === hash);
-    if (opt) { cash += opt.cashPrice || 0; gold += opt.goldPrice || 0; }
+  tackDiffEntries().forEach((entry) => {
+    cash += entry.cashPrice;
+    gold += entry.goldPrice;
   });
   return { cash, gold };
 }
@@ -250,65 +440,117 @@ function renderTackCatList() {
   if (!cats.length) { list.innerHTML = '<div class="card-empty">ไม่มีอุปกรณ์ให้เลือก</div>'; return; }
   list.innerHTML = cats.map((cat) => {
     const count = (DATA.compData[cat] || []).length;
-    return `<button class="horse-card${tackCat === cat ? ' active' : ''}" type="button" data-cat="${cat}">
+    const active = tackCat === cat;
+    return `<button class="horse-card${active ? ' active' : ''}" type="button" data-cat="${cat}">
       <span class="horse-thumb"><i class="fa-solid fa-layer-group"></i></span>
-      <span><strong>${t(cat, cat)}</strong><small>${count} แบบ</small></span>
-    </button>`;
+      <span><strong>${esc(t(cat, cat))}</strong><small>${active ? 'กำลังเลือกแบบด้านล่าง' : `${count} แบบ`}</small></span>
+    </button>${active ? tackInlineCarousel(cat) : ''}`;
   }).join('');
-  list.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { tackCat = b.dataset.cat; renderTackCatList(); renderTackOptions(); }));
+  list.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { tackCat = b.dataset.cat; tackOptionIndex = 0; renderTackCatList(); renderTackOptions(); }));
+  const prev = el('tack-prev'); const next = el('tack-next');
+  if (prev) prev.addEventListener('click', () => moveTackOption(-1));
+  if (next) next.addEventListener('click', () => moveTackOption(1));
   el('tack-cat-active-label').textContent = tackCat ? t(tackCat, tackCat) : '';
+}
+function tackInlineCarousel(cat) {
+  const opts = DATA.compData[cat] || [];
+  const selectedHash = Object.prototype.hasOwnProperty.call(tackPending, cat) ? tackPending[cat] : tackInstalled[cat];
+  const entries = [{ id: -1, hash: '', label: 'ถอดออก', cashPrice: 0 }, ...opts.map((o, i) => ({ ...o, id: i, label: `แบบที่ ${i + 1}` }))];
+  const selected = entries.findIndex((entry) => (entry.id === -1 && Number(selectedHash) === 0) || (entry.id !== -1 && String(entry.hash) === String(selectedHash)));
+  const index = selected >= 0 ? selected : Math.max(0, Math.min(tackOptionIndex, entries.length - 1));
+  const current = entries[index];
+  tackOptionIndex = index;
+  const optionPosition = current.id === -1 ? 0 : current.id + 1;
+  const currentLabel = `${current.label} [${optionPosition}/${opts.length}]`;
+  return `<div class="inline-carousel tack-inline-carousel">
+    <button id="tack-prev" class="tack-arrow" type="button" aria-label="อุปกรณ์ก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+    <div class="tack-current-card"><strong>${esc(currentLabel)}</strong></div>
+    <button id="tack-next" class="tack-arrow" type="button" aria-label="อุปกรณ์ถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>`;
 }
 function renderTackOptions() {
   el('tack-cat-title').textContent = tackCat ? t(tackCat, tackCat) : 'เลือกหมวดด้านซ้าย';
-  const box = el('tack-options');
-  if (!tackCat) { box.innerHTML = ''; el('btn-tack-save').disabled = false; updateTackTotal(); return; }
+  const prev = el('tack-prev'); const next = el('tack-next');
+  if (!tackCat) {
+    updateTackSummary(); updateTackTotal(); return;
+  }
   const opts = DATA.compData[tackCat] || [];
-  const removeActive = tackPending[tackCat] === 0;
-  const rows = [`<button class="tack-option${removeActive ? ' active' : ''}" type="button" data-id="-1" data-hash="">
-      <i class="fa-solid fa-xmark"></i><span class="to-label">ถอดออก</span><span class="to-price"></span>
-    </button>`];
-  opts.forEach((o, i) => {
-    const active = tackPending[tackCat] === o.hash;
-    rows.push(`<button class="tack-option${active ? ' active' : ''}" type="button" data-id="${i}" data-hash="${o.hash}">
-      <i class="fa-solid fa-check"></i><span class="to-label">แบบที่ ${i + 1}</span><span class="to-price">${priceText(o.cashPrice, o.goldPrice)}</span>
-    </button>`);
-  });
-  box.innerHTML = rows.join('');
-  box.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => onTackPick(b.dataset.id, b.dataset.hash)));
+  const entries = [{ id: -1, hash: '', label: 'ถอดออก', cashPrice: 0 }, ...opts.map((o, i) => ({ ...o, id: i, label: `แบบที่ ${i + 1}` }))];
+  const selectedHash = Object.prototype.hasOwnProperty.call(tackPending, tackCat) ? tackPending[tackCat] : tackInstalled[tackCat];
+  const selectedIndex = entries.findIndex((entry) => (entry.id === -1 && Number(selectedHash) === 0) || (entry.id !== -1 && String(entry.hash) === String(selectedHash)));
+  if (selectedIndex >= 0 && !Object.prototype.hasOwnProperty.call(tackPending, tackCat)) tackOptionIndex = selectedIndex;
+  tackOptionIndex = Math.max(0, Math.min(tackOptionIndex, entries.length - 1));
+  updateTackSummary();
   updateTackTotal();
 }
+function updateTackSummary() {
+  const diffs = tackDiffEntries();
+  el('tack-diff-list').innerHTML = diffs.length ? diffs.map((entry) => `
+    <div class="tack-diff-row">
+      <strong>${esc(entry.categoryLabel)}</strong>
+      <b>${entry.cashPrice ? priceText(entry.cashPrice) : 'ฟรี'}</b>
+      <span>${esc(entry.previousLabel)} → ${esc(entry.nextLabel)}</span>
+    </div>`).join('') : '<span class="tack-diff-empty">ยังไม่มีการเปลี่ยนแปลง</span>';
+}
 function updateTackTotal() {
+  const hasDiff = tackDiffEntries().length > 0;
   const total = computeTackTotal();
-  el('tack-total-price').textContent = priceText(total.cash, total.gold);
+  el('tack-total-price').textContent = priceText(total.cash);
+  el('btn-tack-save').disabled = actionBusy || !hasDiff;
 }
 function onTackPick(id, hash) {
   if (!tackCat) return;
+  tackOptionIndex = id === '-1' ? 0 : Number(id) + 1;
   nui(tackCat, { id: id, hash: hash });
-  tackPending[tackCat] = (id === '-1') ? 0 : hash;
+  const nextHash = (id === '-1') ? 0 : hash;
+  if (tackHashKey(nextHash) === tackHashKey(tackInstalled[tackCat])) delete tackPending[tackCat];
+  else tackPending[tackCat] = nextHash;
+  renderTackCatList();
   renderTackOptions();
 }
-function onTackSave() {
+function moveTackOption(direction) {
+  if (!tackCat) return;
+  const opts = DATA.compData[tackCat] || [];
+  const total = opts.length + 1;
+  tackOptionIndex = (tackOptionIndex + direction + total) % total;
+  const current = tackOptionIndex === 0 ? { id: '-1', hash: '' } : { id: String(tackOptionIndex - 1), hash: opts[tackOptionIndex - 1].hash };
+  onTackPick(current.id, current.hash);
+}
+async function onTackSave() {
   const total = computeTackTotal();
-  nui('CloseStable', { MenuAction: 'save', cashPrice: total.cash, goldPrice: total.gold, currencyType: DATA.currencyType === 1 ? 1 : 0 });
-  root.classList.add('hidden');
+  if (actionBusy) return;
+  actionBusy = true; el('btn-tack-save').disabled = true;
+  const result = await nui('CloseStable', { MenuAction: 'save', cashPrice: total.cash, goldPrice: total.gold, currencyType: 0 });
+  actionBusy = false;
+  if (result && result.ok) root.classList.add('hidden');
+  else { el('btn-tack-save').disabled = false; notify('บันทึกอุปกรณ์ไม่สำเร็จ', 'error'); }
 }
 
 /* ===================== mode switching ===================== */
 function setMode(m) {
   mode = m;
   hideRelease();
+  el('purchase-confirm').classList.add('hidden');
   root.dataset.mode = m;
   document.querySelectorAll('[data-mode-target]').forEach((b) => b.classList.toggle('active', b.dataset.modeTarget === m));
 
   if (m === 'main') {
     previewCurrent();
   } else if (m === 'shop') {
-    shopSelKey = null;
+    const firstHorse = shopEntries()[0];
+    shopSelKey = firstHorse ? `${firstHorse.bi}|${firstHorse.model}` : null;
+    shopBreedIdx = firstHorse ? firstHorse.bi : null;
+    shopStep = firstHorse ? 'colors' : 'breeds';
+    if (firstHorse) nui('loadHorse', { horseModel: firstHorse.model });
     renderShopList();
     renderShopPreview();
   } else if (m === 'tack') {
+    const horse = currentHorse();
+    tackPending = {};
+    try { tackInstalled = JSON.parse(horse && horse.components || '{}') || {}; } catch (_) { tackInstalled = {}; }
     const cats = availableTackCats();
     tackCat = cats[0] || null;
+    tackOptionIndex = 0;
     renderTackCatList();
     renderTackOptions();
   }
@@ -323,40 +565,100 @@ function askRelease() {
   el('release-confirm').classList.remove('hidden');
 }
 function hideRelease() { el('release-confirm').classList.add('hidden'); }
-function doRelease() {
+function hideManage() { hideRelease(); }
+async function doRelease() {
   const h = currentHorse();
   hideRelease();
+  hideManage();
   if (!h) return;
-  nui('sellHorse', { horseId: h.id, captured: h.captured });
-  myHorses.splice(selIdx, 1);
-  if (selIdx >= myHorses.length) selIdx = Math.max(0, myHorses.length - 1);
+  if (actionBusy) return;
+  const nextSellable = myHorses.find((horse) => Number(horse.id) !== Number(h.id)
+    && Number(horse.dead) !== 1 && Number(horse.writhe) !== 1
+    && Number(DATA.activeHorseId) !== Number(horse.id));
+  const nextRemaining = myHorses.find((horse) => Number(horse.id) !== Number(h.id));
+  const nextHorseId = (nextSellable || nextRemaining || {}).id;
+  actionBusy = true;
+  el('rc-yes').disabled = true; el('rc-no').disabled = true;
+  const result = await nui('sellHorse', { horseId: h.id, captured: h.captured });
+  actionBusy = false;
+  el('rc-yes').disabled = false; el('rc-no').disabled = false;
+  if (!result || result.ok !== true) {
+    const reason = result && result.reason;
+    const messages = {
+      cargo_not_empty: 'กรุณานำสิ่งของและอาวุธออกจากกระเป๋าม้าก่อนขาย',
+      dead: 'ไม่สามารถขายม้าที่เสียชีวิตได้',
+      injured: 'ต้องรักษาม้าที่บาดเจ็บก่อนขาย',
+      active: 'ต้องเก็บม้าเข้าคอกก่อนขาย',
+      stable_distance: 'คุณอยู่ไกลจากโรงม้าเกินไป',
+      job: 'อาชีพของคุณไม่มีสิทธิ์ทำรายการที่โรงม้านี้',
+      ownership: 'ไม่พบม้าตัวนี้ในคอกของคุณ กรุณารอข้อมูลอัปเดต',
+      model_config: 'ม้าตัวนี้ไม่มีข้อมูลราคาในร้าน กรุณาแจ้งผู้ดูแลระบบ',
+      processing: 'ระบบกำลังประมวลผลรายการก่อนหน้า กรุณารอสักครู่',
+      delete_failed: 'เซิร์ฟเวอร์ไม่สามารถลบข้อมูลม้าได้ กรุณาลองใหม่',
+      invalid_horse: 'ข้อมูลม้าที่เลือกไม่ถูกต้อง',
+      callback_failed: 'เซิร์ฟเวอร์ไม่ตอบกลับ กรุณาลองใหม่',
+    };
+    notify(messages[reason] || 'ขายม้าไม่สำเร็จ กรุณาลองใหม่', 'error');
+    if (reason === 'ownership' || reason === 'dead') await refreshOwnedData(h.id, true, true);
+    return;
+  }
+  replaceOwnedHorses(myHorses.filter((horse) => Number(horse.id) !== Number(h.id)), nextHorseId);
   renderOwnedCount();
-  if (myHorses.length) previewCurrent(); else { renderOwnedList(); renderMainPreview(); }
+  renderOwnedList();
+  renderMainPreview();
+  await refreshOwnedData(nextHorseId == null ? null : nextHorseId, true, true);
   notify('ปล่อยม้าแล้ว', 'success');
 }
 
 /* ===================== open / close ===================== */
 function openUI(p) {
+  el('stable-state').classList.add('hidden');
   DATA.shopData = Array.isArray(p.shopData) ? p.shopData : [];
   DATA.compData = p.compData || {};
   DATA.translations = p.translations || {};
-  DATA.currencyType = (typeof p.currencyType === 'number') ? p.currencyType : 2;
+  DATA.currencyType = (typeof p.currencyType === 'number') ? p.currencyType : 0;
   DATA.location = p.location || '';
   if (typeof p.healPrice === 'number') DATA.healPrice = p.healPrice;
   if (p.healCurrencyLabel) DATA.healCurrencyLabel = p.healCurrencyLabel;
-  myHorses = Array.isArray(p.myHorsesData) ? p.myHorsesData.slice() : [];
-  selIdx = myHorses.findIndex((h) => Number(h.selected) === 1);
-  if (selIdx < 0) selIdx = 0;
+  DATA.stableMeta = p.stableMeta || {};
+  DATA.activeHorseId = p.activeHorseId == null ? null : Number(p.activeHorseId);
+  ownedStatusFilter = 'all';
+  replaceOwnedHorses(p.myHorsesData, null);
   tackPending = {};
+  tackInstalled = {};
   shopGender = 'male';
-  el('shop-gender').querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.gender === 'male'));
   el('stable-location').textContent = DATA.location || '';
   renderOwnedCount();
   el('tab-count-shop').textContent = String(shopEntries().length);
   setMode('main');
   root.classList.remove('hidden');
+  startOwnedRefreshTimer();
+}
+
+function stopOwnedRefreshTimer() {
+  clearInterval(ownedRefreshTimer);
+  ownedRefreshTimer = null;
+}
+function startOwnedRefreshTimer() {
+  stopOwnedRefreshTimer();
+  ownedRefreshTimer = setInterval(() => {
+    if (root.classList.contains('hidden') || mode !== 'main' || actionBusy) return;
+    const selected = currentHorse();
+    refreshOwnedData(selected && selected.id, false, false);
+  }, 5000);
+}
+function showStableState(kind, detail) {
+  root.classList.remove('hidden');
+  const failed = kind === 'error';
+  el('stable-state').classList.remove('hidden');
+  el('stable-state-icon').className = failed ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-spinner fa-spin';
+  el('stable-state-title').textContent = failed ? 'โหลดข้อมูลไม่สำเร็จ' : 'กำลังโหลดข้อมูลคอกม้า';
+  el('stable-state-detail').textContent = detail || (failed ? 'การเชื่อมต่อกับเซิร์ฟเวอร์ล้มเหลว' : 'กรุณารอสักครู่');
+  el('btn-retry').classList.toggle('hidden', !failed);
 }
 function closeUI() {
+  stopOwnedRefreshTimer();
+  stopRotate();
   root.classList.add('hidden');
   hideTip();
   nui('CloseStable', { MenuAction: 'cancel' });
@@ -364,32 +666,76 @@ function closeUI() {
 
 /* ===================== events ===================== */
 el('btn-close').addEventListener('click', backOrClose);
-el('preview-prev').addEventListener('click', () => selectHorseIndex(selIdx - 1));
-el('preview-next').addEventListener('click', () => selectHorseIndex(selIdx + 1));
+el('btn-retry').addEventListener('click', async () => { showStableState('loading'); await nui('retryStable', {}); });
+el('btn-state-close').addEventListener('click', closeUI);
 document.querySelectorAll('[data-mode-target]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.modeTarget)));
-
-el('btn-summon').addEventListener('click', () => { nui('summonHorse', {}); notify('กำลังเรียกม้า...'); });
-el('btn-return').addEventListener('click', () => { nui('returnHorse', {}); notify('ส่งม้ากลับโรงม้าแล้ว'); });
-el('btn-cargo').addEventListener('click', () => { const h = currentHorse(); if (h) nui('openCargo', { horseId: h.id }); });
-el('btn-tack').addEventListener('click', () => setMode('tack'));
-el('btn-heal').addEventListener('click', () => { const h = currentHorse(); if (h) nui('healHorse', { horseId: h.id }); });
-el('btn-setmain').addEventListener('click', () => {
-  const h = currentHorse(); if (!h) return;
-  nui('selectHorse', { horseId: h.id });
-  myHorses.forEach((x) => (x.selected = 0)); h.selected = 1;
+document.querySelectorAll('[data-owned-status]').forEach((button) => button.addEventListener('click', () => {
+  ownedStatusFilter = button.dataset.ownedStatus;
+  const currentMatches = ownedStatusFilter === 'all' || ownedStatusKey(currentHorse()) === ownedStatusFilter;
+  if (!currentMatches) {
+    const firstMatch = myHorses.findIndex((horse) => ownedStatusKey(horse) === ownedStatusFilter);
+    if (firstMatch >= 0) { selIdx = firstMatch; previewCurrent(); return; }
+  }
   renderOwnedList();
+}));
+el('shop-step-back').addEventListener('click', () => { shopStep = 'breeds'; shopSelKey = null; renderShopList(); renderShopPreview(); });
+
+el('btn-summon').addEventListener('click', async () => {
+  const h = currentHorse(); if (!h || actionBusy) return;
+  actionBusy = true; el('btn-summon').disabled = true;
+  const returning = horseState(h).key === 'active';
+  const result = await nui(returning ? 'returnHorse' : 'summonHorse', { horseId: h.id });
+  actionBusy = false;
+  if (result && result.ok) {
+    if (!returning) notify('เรียกม้าแล้ว', 'success');
+    if (returning) await refreshOwnedData(h.id, true, true);
+  }
+  else {
+    notify(result && result.reason === 'unsafe_spawn' ? 'จุดเรียกม้าไม่ปลอดภัย กรุณาขยับแล้วลองใหม่' : 'ทำรายการไม่สำเร็จ สถานะม้าอาจเปลี่ยนไปแล้ว', 'error');
+    await refreshOwnedData(h.id);
+  }
+});
+el('btn-cargo').addEventListener('click', async () => {
+  const h = currentHorse();
+  if (!h || actionBusy) return;
+  actionBusy = true;
+  el('btn-cargo').disabled = true;
+  const result = await nui('openCargo', { horseId: h.id });
+  actionBusy = false;
+  applyHorseActions(h);
+  if (!result || result.ok !== true) {
+    const messages = {
+      saddlebags: 'ม้าตัวนี้ยังไม่ได้ติดตั้งกระเป๋าอาน',
+      unavailable: 'ไม่สามารถใช้กระเป๋าของม้าที่เสียชีวิตได้',
+      stable_distance: 'คุณอยู่ไกลจากโรงม้าเกินไป',
+      ownership: 'คุณไม่ใช่เจ้าของม้าตัวนี้',
+      processing: 'ระบบกำลังประมวลผล กรุณารอสักครู่',
+      inventory: 'ไม่สามารถโหลดข้อมูลกระเป๋าม้าได้',
+    };
+    notify(messages[result && result.reason] || 'ไม่สามารถเปิดกระเป๋าม้าได้', 'error');
+  }
+});
+el('btn-tack').addEventListener('click', () => setMode('tack'));
+el('btn-rename').addEventListener('click', async () => {
+  const h = currentHorse(); if (!h || actionBusy) return;
+  actionBusy = true; await nui('RenameHorse', { horseId: h.id }); actionBusy = false;
+});
+el('btn-heal').addEventListener('click', async () => { const h = currentHorse(); if (!h || actionBusy) return; actionBusy = true; const result = await nui('healHorse', { horseId: h.id }); actionBusy = false; if (!result || !result.ok) notify('รักษาไม่สำเร็จ กรุณาตรวจเงินหรือสถานะม้า', 'error'); else await refreshOwnedData(h.id); });
+el('btn-setmain').addEventListener('click', async () => {
+  const h = currentHorse(); if (!h) return;
+  if (actionBusy) return; actionBusy = true;
+  const result = await nui('selectHorse', { horseId: h.id }); actionBusy = false;
+  if (!result || !result.ok) { notify('ตั้งม้าหลักไม่สำเร็จ', 'error'); return; }
+  await refreshOwnedData(h.id);
   notify('ตั้งเป็นม้าตัวหลักแล้ว', 'success');
 });
 el('btn-release').addEventListener('click', askRelease);
 el('rc-yes').addEventListener('click', doRelease);
 el('rc-no').addEventListener('click', hideRelease);
 
-el('btn-buy').addEventListener('click', onBuy);
-el('shop-gender').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-  shopGender = b.dataset.gender;
-  el('shop-gender').querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
-}));
-
+el('btn-buy').addEventListener('click', showPurchaseConfirm);
+el('pc-yes').addEventListener('click', () => { el('purchase-confirm').classList.add('hidden'); executeBuy(); });
+el('pc-no').addEventListener('click', () => el('purchase-confirm').classList.add('hidden'));
 el('btn-tack-save').addEventListener('click', onTackSave);
 
 // กดค้างหมุนต่อเนื่อง — ยิง rotate ซ้ำทุก 90ms ระหว่างกด (client หมุน ~6°/ครั้ง → ~66°/วิ)
@@ -402,7 +748,7 @@ document.querySelectorAll('.rot-btn').forEach((b) => {
   b.addEventListener('mouseleave', stopRotate);
 });
 
-// คีย์ลัด: A/D เปลี่ยนม้า (main mode), Q/E กดค้างหมุนม้า, ESC ย้อนกลับ/ปิด — ปิดขณะพิมพ์ในช่องค้นหา
+// คีย์ลัด: Q/E กดค้างหมุนม้า, ESC ย้อนกลับ/ปิด — ปิดขณะพิมพ์ในช่องค้นหา
 let qDown = false, eDown = false;
 document.addEventListener('keydown', (e) => {
   const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -410,10 +756,6 @@ document.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (k === 'escape') { if (typing) document.activeElement.blur(); else backOrClose(); return; }
   if (typing) return;
-  if (mode === 'main') {
-    if (k === 'a') selectHorseIndex(selIdx - 1);
-    if (k === 'd') selectHorseIndex(selIdx + 1);
-  }
   if (k === 'q' && !qDown) { qDown = true; startRotate('left'); }
   if (k === 'e' && !eDown) { eDown = true; startRotate('right'); }
 });
@@ -424,26 +766,23 @@ document.addEventListener('keyup', (e) => {
 });
 
 // ค้นหา (client-side filter, ไม่กระทบข้อมูลจริง)
-el('owned-search').addEventListener('input', () => {
-  const term = el('owned-search').value.trim().toLocaleLowerCase('th');
-  el('owned-list').querySelectorAll('.horse-card[data-index]').forEach((card) => {
-    const idx = Number(card.dataset.index);
-    const h = myHorses[idx];
-    const hay = `${h && h.name || ''} ${h && h.breedLabel || ''}`.toLocaleLowerCase('th');
-    card.hidden = term && !hay.includes(term);
-  });
-});
+el('owned-search').addEventListener('input', renderOwnedList);
 el('shop-search').addEventListener('input', () => {
-  const term = el('shop-search').value.trim().toLocaleLowerCase('th');
-  el('shop-list').querySelectorAll('.horse-card[data-key]').forEach((card) => {
-    card.hidden = term && !card.textContent.toLocaleLowerCase('th').includes(term);
-  });
+  renderShopList();
 });
 
 window.addEventListener('message', (ev) => {
   const d = ev.data || {};
   if (d.action === 'show') openUI(d);
-  else if (d.action === 'hide') { root.classList.add('hidden'); hideTip(); }
+  else if (d.action === 'pause') { stopOwnedRefreshTimer(); stopRotate(); root.classList.add('hidden'); hideTip(); }
+  else if (d.action === 'resume') {
+    root.classList.remove('hidden');
+    startOwnedRefreshTimer();
+    refreshOwnedData(currentHorse() && currentHorse().id, false);
+  }
+  else if (d.action === 'hide') { stopOwnedRefreshTimer(); stopRotate(); root.classList.add('hidden'); hideTip(); }
+  else if (d.action === 'loading') showStableState('loading');
+  else if (d.action === 'error') showStableState('error', d.message);
   else if (d.action === 'healed') {
     // server รักษาม้าสำเร็จ → อัปเดต HP/สเตมิน่าของม้าตัวนั้นในรายการเป็นเต็ม แล้ว re-render
     const h = myHorses.find((x) => Number(x.id) === Number(d.horseId));
@@ -455,7 +794,7 @@ window.addEventListener('message', (ev) => {
 /* DEV mock */
 if (window.location.protocol !== 'nui:' && window.location.protocol !== 'https:') {
   openUI({
-    location: 'Valentine Stable', currencyType: 2, healPrice: 500,
+    location: 'Valentine Stable', currencyType: 0, healPrice: 500,
     shopData: [{ breed: 'Morgan', colors: {
       'a_c_horse_morgan_bay': { color: 'Bay', cashPrice: 130, goldPrice: 6, invLimit: 30 },
       'a_c_horse_morgan_palomino': { color: 'Palomino', cashPrice: 150, goldPrice: 7, invLimit: 30, stats: { speed: 7, acceleration: 6, agility: 8, courage: 5 } },

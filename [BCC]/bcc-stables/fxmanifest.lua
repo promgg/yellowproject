@@ -7,6 +7,8 @@ author 'BCC Team'
 
 dependencies {
     'feather-menu', -- client/main.lua เรียก exports['feather-menu'].initiate() ตอนโหลดไฟล์ทันที ต้องรับประกันว่า feather-menu ขึ้นก่อนเสมอ
+    'vorp_inputs', -- ใช้หน้าต่างยืนยันรับข้อเสนอโอนม้า
+    'vorp_inventory', -- กระเป๋าม้าและ client export สำหรับปิด/คืน focus
 }
 
 shared_scripts {
@@ -33,11 +35,14 @@ ui_page {
 
 files {
     "ui/index.html",
-    "ui/js/*.*",
-    "ui/css/*.*",
-    "ui/fonts/*.*",
+    "ui/js/app.js",
+    "ui/css/style.css",
+    "ui/css/fa-base.min.css",
+    "ui/css/fa-solid.min.css",
+    "ui/fonts/robotoslab.94aab39f.ttf",
+    "ui/fonts/crock.7de582c0.ttf",
+    "ui/fonts/HapnaSlabSerif-Medium.3007bffd.ttf",
     "ui/webfonts/*.*", -- Font Awesome solid webfont (ไอคอนปุ่ม/สถิติ NUI ใหม่)
-    "ui/img/*.*"
 }
 
 version '1.7.5'

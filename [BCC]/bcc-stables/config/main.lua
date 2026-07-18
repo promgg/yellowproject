@@ -19,7 +19,7 @@ Config.discord = {
 -- 0 = Cash Only
 -- 1 = Gold Only
 -- 2 = Both
-Config.currencyType = 2 -- Default: 2
+Config.currencyType = 0 -- Cash only (gold is intentionally disabled in the stable UI and server callbacks)
 -----------------------------------------------------
 
 Config.keys = {
@@ -67,6 +67,8 @@ Config.reviver = 'consumable_horse_reviver' -- คงไว้เผื่อโ
 -- แปรงขัดม้าแบบใช้ครั้งเดียว (consumable) จากร้าน/รางวัล — ไม่มีระบบ durability ต่างจาก Config.horsebrush
 -- (ตัวหลักที่เป็นเครื่องมือใช้ซ้ำได้) — ให้เอฟเฟกต์แปรงเหมือนกันแต่หัก 1 ชิ้นต่อการใช้
 Config.simpleBrushItems = { 'hr_brush' }
+Config.maxHorseCoreGainPerSave = 25 -- each valid feed/brush saves immediately, preserving this anti-spoof delta cap
+Config.legacyHorseBasePrice = 100 -- fallback only for owned models removed from the current shop catalogue
 -----------------------------------------------------
 
 -- ===== NUI โรงม้าใหม่ (bcc-stables:PaidHeal + หน้าจัดการม้า) =====
@@ -135,8 +137,9 @@ Config.death             = {
 -----------------------------------------------------
 
 -- Horse Inventory
-Config.useSaddlebags = true   -- Default: true / Require Saddlebags for Inventory
+Config.useSaddlebags = false   -- Default: true / Require Saddlebags for Inventory
 Config.shareInventory = false -- Default: false / Share with All Players / Allows Looting Player Horses
+Config.defaultHorseInventoryLimit = 60 -- Fallback for legacy/custom horse models no longer listed in config/horses.lua
 Config.allowWeapons = true    -- Default: true / Allow Weapons
 Config.whitelistWeapons = false -- Default: false / Set to true to Enable White List for Weapons
 Config.weaponsLimitWhiteList = {

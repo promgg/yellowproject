@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BCC Stables — Responsive UX Mockup</title>
+  <link href="css/fa-base.min.css" rel="stylesheet">
+  <link href="css/fa-solid.min.css" rel="stylesheet">
+  <link href="css/mockup.css" rel="stylesheet">
+</head>
+<body>
+  <main id="stable-ui" data-page="owned">
+    <div class="scene-art" aria-hidden="true">
+      <i class="beam beam-a"></i><i class="beam beam-b"></i>
+      <i class="lantern lantern-a"></i><i class="lantern lantern-b"></i>
+      <i class="stable-door"></i>
+    </div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <section class="interface-frame" aria-label="หน้าจัดการคอกม้า">
+      <header class="topbar">
+        <button class="icon-button back-button" type="button"><i class="fa-solid fa-arrow-left"></i><span>ย้อนกลับ</span></button>
+        <div class="stable-brand"><span></span><div><small>NEW HANOVER</small><strong>VALENTINE STABLES</strong></div><span></span></div>
+        <div class="wallet">
+          <div><small>เงินสด</small><strong>$4,280</strong></div>
+          <button class="icon-button close-button" type="button" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </header>
+
+      <section class="horse-stage" aria-label="ม้าตัวที่เลือก">
+        <div class="horse-identity">
+          <small id="horse-breed">MISSOURI FOX TROTTER</small>
+          <h1 id="horse-name">ซิลเวอร์</h1>
+          <p id="horse-meta">Silver Dapple Pinto · เพศผู้ · ความผูกพัน Lv. 4</p>
+        </div>
+        <div class="horse-preview" aria-hidden="true">
+          <div class="preview-ring"></div><i class="fa-solid fa-horse"></i>
+          <small><i></i> พื้นที่แสดงม้า 3D จากเกม</small>
+        </div>
+      </section>
+
+      <aside class="horse-info panel" aria-label="ข้อมูลม้า">
+        <div class="profile-kicker"><span></span> HORSE PROFILE</div>
+        <div class="profile-head">
+          <div><h2>ข้อมูลม้า</h2><small>สถานะและรายละเอียด</small></div>
+          <b id="profile-status"><i></i> ม้าหลัก · อยู่ในคอก</b>
+        </div>
+        <div class="profile-quick">
+          <div><small>ความผูกพัน</small><strong id="profile-bond">ระดับ 4</strong></div>
+          <div><small>กระเป๋า</small><strong id="profile-cargo">30 / 40 ช่อง</strong></div>
+        </div>
+        <div class="dynamic-stats">
+          <div><i class="fa-solid fa-heart"></i><span>พลังชีวิต</span><b id="health-value">92%</b><em><i id="health-bar" style="width:92%"></i></em></div>
+          <div><i class="fa-solid fa-bolt"></i><span>พละกำลัง</span><b id="stamina-value">78%</b><em><i id="stamina-bar" style="width:78%"></i></em></div>
+        </div>
+        <div id="base-stats" class="base-stats"></div>
+      </aside>
+
+      <aside class="shop-info panel" aria-label="ข้อมูลการซื้อ">
+        <div class="profile-kicker"><span></span> HORSE STATISTICS</div>
+        <div class="profile-head"><div><h2>ข้อมูลสายพันธุ์</h2><small>ค่าสถานะพื้นฐาน</small></div></div>
+        <div id="shop-base-stats" class="base-stats shop-base-stats"></div>
+        <div class="purchase-divider"><span></span><small>สรุปการซื้อ</small><span></span></div>
+        <dl class="purchase-summary">
+          <div><dt>สายพันธุ์</dt><dd id="summary-breed">Missouri Fox Trotter</dd></div>
+          <div><dt>สี</dt><dd id="summary-coat">Silver Dapple Pinto</dd></div>
+          <div><dt>ราคา</dt><dd id="shop-price">$950</dd></div>
+          <div><dt>เงินคงเหลือ</dt><dd id="shop-balance">$3,330</dd></div>
+          <div><dt>ช่องคอก</dt><dd>3 / 5 → 4 / 5</dd></div>
+        </dl>
+        <p class="availability"><i class="fa-solid fa-circle-check"></i> พร้อมซื้อและมีช่องคอกเพียงพอ</p>
+        <div class="panel-action-block shop-panel-action">
+          <span><small>ราคาสุทธิ</small><strong id="purchase-total-price">$950</strong></span>
+          <button class="gold-button" id="buy-selected-horse" type="button">ซื้อม้าตัวนี้ <i class="fa-solid fa-cart-shopping"></i></button>
+        </div>
+      </aside>
+
+      <section class="roster-browser subview-panel" aria-label="รายชื่อม้าในคอก">
+        <header class="subview-head">
+          <div><small>MY HORSES</small><h2>เลือกม้าในคอก</h2><p>เลือกม้าเพื่อดูรายละเอียดและกำหนดการใช้งาน</p></div>
+          <span class="capacity-badge"><i class="fa-solid fa-warehouse"></i> คอก 3 / 5</span>
+        </header>
+        <div class="filter-row" role="group" aria-label="กรองสถานะม้า">
+          <button class="filter-chip active" data-roster-filter="all" type="button">ทั้งหมด <b>3</b></button>
+          <button class="filter-chip" data-roster-filter="ready" type="button">พร้อมใช้งาน <b>2</b></button>
+          <button class="filter-chip" data-roster-filter="danger" type="button">ต้องดูแล <b>1</b></button>
+        </div>
+        <div id="roster-list" class="roster-list"></div>
+        <p class="roster-help"><i class="fa-solid fa-circle-info"></i> ม้าที่บาดเจ็บจะเลือกดูได้ แต่ไม่สามารถเรียกใช้งานจนกว่าจะรักษา</p>
+      </section>
+
+      <section class="shop-browser subview-panel" aria-label="เลือกสายพันธุ์และสีม้า">
+        <header class="subview-head">
+          <div><small>HORSE CATALOG</small><h2>เลือกม้าจากร้าน</h2><p>เลือกสายพันธุ์ก่อน แล้วเลือกสีที่ต้องการ</p></div>
+          <span class="capacity-badge"><i class="fa-solid fa-horse"></i> 26 พันธุ์</span>
+        </header>
+        <label class="catalog-search"><i class="fa-solid fa-magnifying-glass"></i><input id="breed-search" type="search" placeholder="ค้นหาสายพันธุ์..." autocomplete="off"></label>
+        <div class="catalog-route">
+          <button id="catalog-back" type="button" aria-label="กลับไปเลือกสายพันธุ์"><i class="fa-solid fa-arrow-left"></i></button>
+          <span><small id="catalog-step">ขั้นตอน 1 จาก 2</small><strong id="catalog-title">เลือกสายพันธุ์</strong></span>
+          <b id="color-count">26 รายการ</b>
+        </div>
+        <div id="breed-list" class="breed-list catalog-list"></div>
+        <div id="color-list" class="color-list catalog-list"></div>
+        <p class="roster-help"><i class="fa-solid fa-circle-info"></i> ราคาและตัวอย่างม้าจะเปลี่ยนทันทีเมื่อเลือกสี โดยยังไม่หักเงิน</p>
+      </section>
+
+      <section class="tack-browser subview-panel" aria-label="เลือกอุปกรณ์แต่งม้า">
+        <header class="subview-head">
+          <div><small>HORSE CUSTOMIZATION</small><h2>แต่งอานและอุปกรณ์</h2><p>เลือกหมวด แล้วทดลองอุปกรณ์บนม้าก่อนบันทึก</p></div>
+        </header>
+        <nav class="tack-categories" aria-label="หมวดอุปกรณ์">
+          <button class="active" data-tack-category="saddle" type="button"><i class="fa-solid fa-shield-halved"></i><span>อาน</span></button>
+          <button data-tack-category="bag" type="button"><i class="fa-solid fa-briefcase"></i><span>กระเป๋า</span></button>
+          <button data-tack-category="blanket" type="button"><i class="fa-solid fa-layer-group"></i><span>ผ้ารอง</span></button>
+          <button data-tack-category="stirrup" type="button"><i class="fa-solid fa-link"></i><span>โกลน</span></button>
+        </nav>
+        <div id="tack-item-list" class="tack-item-list"></div>
+      </section>
+
+      <aside class="tack-info panel" aria-label="สรุปการแต่งม้า">
+        <div class="profile-kicker"><span></span> EQUIPMENT PREVIEW</div>
+        <div class="profile-head"><div><h2>อุปกรณ์ที่เลือก</h2><small>ยังไม่บันทึก</small></div></div>
+        <div class="equipped-list">
+          <div><i class="fa-solid fa-shield-halved"></i><span><small>อาน</small><strong id="equipped-saddle">Gerden Trail Saddle</strong></span><b id="equipped-saddle-price">$180</b></div>
+          <div><i class="fa-solid fa-briefcase"></i><span><small>กระเป๋า</small><strong id="equipped-bag">Collector Saddle Bag</strong></span><b id="equipped-bag-price">$95</b></div>
+          <div><i class="fa-solid fa-layer-group"></i><span><small>ผ้ารอง</small><strong id="equipped-blanket">Wool Blanket</strong></span><b id="equipped-blanket-price">$35</b></div>
+          <div><i class="fa-solid fa-link"></i><span><small>โกลน</small><strong id="equipped-stirrup">Safety Stirrup</strong></span><b id="equipped-stirrup-price">$60</b></div>
+        </div>
+        <div class="tack-benefit"><small>ผลลัพธ์โดยประมาณ</small><p><span>พละกำลัง</span><b>+8%</b></p><p><span>การฟื้นฟู</span><b>+6%</b></p><p><span>ช่องกระเป๋า</span><b>+10</b></p></div>
+        <p class="preview-note"><i class="fa-solid fa-eye"></i> การเลือกจะเปลี่ยน preview ทันที แต่ยังไม่หักเงินจนกว่าจะบันทึก</p>
+        <div class="panel-action-block tack-panel-action">
+          <span><small>มีการเปลี่ยนแปลงที่ยังไม่บันทึก</small><strong>ยอดรวม <b id="tack-total">$370</b></strong></span>
+          <div><button class="secondary-button" data-close-view type="button">ยกเลิก</button><button class="gold-button" id="save-tack" type="button">บันทึก <i class="fa-solid fa-floppy-disk"></i></button></div>
+        </div>
+      </aside>
+
+      <footer class="bottom-dock">
+        <nav class="page-tabs" aria-label="เลือกหน้าคอกม้า">
+          <button class="page-tab active" data-page-target="owned" type="button"><i class="fa-solid fa-horse-head"></i><span><small>MY STABLE</small>คอกม้าของฉัน</span></button>
+          <button class="page-tab" data-page-target="shop" type="button"><i class="fa-solid fa-store"></i><span><small>HORSE SHOP</small>ร้านม้า</span></button>
+        </nav>
+
+        <div class="action-rail owned-only" aria-label="คำสั่งจัดการม้า">
+          <button class="action-card primary-card" data-action="primary" type="button"><i class="fa-solid fa-horse-head"></i><strong id="primary-label">เรียกม้าตัวนี้</strong><small id="primary-help">ออกจากคอกม้า</small></button>
+          <button class="action-card" data-action="cargo" type="button"><i class="fa-solid fa-briefcase"></i><strong>กระเป๋าม้า</strong><small>เก็บและนำสิ่งของออก</small></button>
+          <button class="action-card" data-action="care" type="button"><i class="fa-solid fa-heart-pulse"></i><strong>ดูแลม้า</strong><small>รักษาและฟื้นฟู</small></button>
+          <button class="action-card" data-action="tack" type="button"><i class="fa-solid fa-shield-halved"></i><strong>แต่งอาน</strong><small>อุปกรณ์และของตกแต่ง</small></button>
+          <button class="action-card" data-action="main" type="button"><i class="fa-solid fa-star"></i><strong>ตั้งเป็นม้าหลัก</strong><small>ใช้เป็นม้าประจำตัว</small></button>
+          <button class="action-card" data-action="manage" type="button"><i class="fa-solid fa-ellipsis"></i><strong>จัดการ</strong><small>ชื่อ · ขาย · รายละเอียด</small></button>
+        </div>
+
+        <div class="key-hints"><span><kbd>ESC</kbd> ปิด</span><span><kbd>1</kbd><kbd>2</kbd> เปลี่ยนหน้า</span></div>
+      </footer>
+    </section>
+  </main>
+  <script src="js/mockup-catalog.js"></script>
+  <script src="js/mockup.js"></script>
+</body>
+</html>

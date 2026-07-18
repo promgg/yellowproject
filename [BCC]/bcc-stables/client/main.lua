@@ -23,7 +23,9 @@ local SaddlesUsing, SaddleclothsUsing, StirrupsUsing, HorseshoesUsing = nil, nil
 local BagsUsing, ManesUsing, TailsUsing, SaddleHornsUsing, BridlesUsing = nil, nil, nil, nil, nil
 
 -- Horse Training
-local LastLoc, TamedModel = nil, nil
+local LastLoc, TamedModel, TameToken = nil, nil, nil
+local HorseGeneration = 0
+local PreviewGeneration = 0
 local IsTrainer, IsNaming, MaxBonding, HorseBreed = false, false, false, false
 
 -- Misc.
@@ -33,6 +35,7 @@ local ShopEntity, MyEntity = 0, 0
 local StableName, Site
 local MyEntityID, MyHorseId
 local InMenu, HasJob, UsingLantern, PromptsStarted, IsFleeing = false, false, false, false, false
+local StableCargoOpen = false
 local Drinking, Spawning, Sending, Cam, InWrithe, Activated = false, false, false, false, false, false
 local DevModeActive = Config.devMode
 
@@ -86,7 +89,7 @@ local function ManageStableBlip(site, closed)
     if Config.BlipColors[color] then
         Citizen.InvokeNative(0x662D364ABF16DE2F, siteCfg.Blip, joaat(Config.BlipColors[color])) -- BlipAddModifier
     else
-        print('Error: Blip color not defined for color: ' .. tostring(color))
+        DebugPrint('Blip color not defined for color: ' .. tostring(color))
     end
 end
 
@@ -230,6 +233,69 @@ function BondLevelFromXp(xp)
     return math.floor((tonumber(xp) or 0) / per) + 1
 end
 
+local function EnrichHorseData(horseData)
+    for _, h in ipairs(horseData or {}) do
+        local meta = ResolveHorseMeta(h.model)
+        if meta then
+            h.breedLabel = meta.breed
+            h.colorLabel = meta.color
+            h.slots = meta.slots
+            h.stats = meta.stats
+        else
+            -- Keep legacy/custom horses usable when their model is no longer in the shop catalogue.
+            h.slots = tonumber(Config.defaultHorseInventoryLimit) or 60
+        end
+        h.bondLevel = BondLevelFromXp(h.xp)
+    end
+    return horseData
+end
+
+-- Keep the runtime active-horse pointer consistent with the authoritative
+-- stable rows before exposing it to NUI. A dead/deleted horse entity must not
+-- block summoning another owned horse from the stable.
+local function ReconcileActiveHorseForStable(horseData)
+    if not MyHorseId then return end
+
+    local activeRow
+    for _, horse in ipairs(horseData or {}) do
+        if tonumber(horse.id) == tonumber(MyHorseId) then
+            activeRow = horse
+            break
+        end
+    end
+
+    local entityExists = MyHorse ~= 0 and DoesEntityExist(MyHorse)
+    if activeRow and tonumber(activeRow.dead) ~= 1 and tonumber(activeRow.writhe) ~= 1 and entityExists then return end
+
+    if entityExists then
+        SetEntityAsMissionEntity(MyHorse, true, true)
+        DeleteEntity(MyHorse)
+    end
+    Sending = false
+    HorseGeneration = HorseGeneration + 1
+    MyHorse = 0
+    MyHorseId = nil
+    InWrithe = false
+end
+
+local function SendStableData(horseData, stableMeta)
+    ReconcileActiveHorseForStable(horseData)
+    EnrichHorseData(horseData)
+    SendNUIMessage({
+        action = 'show',
+        shopData = JobMatchedHorses,
+        compData = HorseComp,
+        translations = Translations,
+        location = StableName,
+        currencyType = Config.currencyType,
+        myHorsesData = horseData,
+        healPrice = (Config.healPrice or 500),
+        healCurrencyLabel = ((Config.healCurrency or Config.currencyType) == 1) and '' or '$',
+        stableMeta = stableMeta or {},
+        activeHorseId = MyHorseId,
+    })
+end
+
 function OpenStable(site)
     CheckPlayerJob(false, site)
     DisplayRadar(false)
@@ -237,35 +303,16 @@ function OpenStable(site)
     Site = site
     StableName = Stables[Site].shop.name
     CreateCamera()
+    SendNUIMessage({ action = 'loading' })
+    SetNuiFocus(true, true)
 
     local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
+    local stableMeta = Core.Callback.TriggerAwait('bcc-stables:GetPlayerStableMeta') or {}
     if horseData then
-        -- แนบ meta ให้แต่ละตัว (ไม่แตะข้อมูล DB เดิม แค่เพิ่ม field ให้ NUI ใช้)
-        for _, h in ipairs(horseData) do
-            local meta = ResolveHorseMeta(h.model)
-            if meta then
-                h.breedLabel = meta.breed
-                h.colorLabel = meta.color
-                h.slots = meta.slots
-                h.stats = meta.stats
-            end
-            h.bondLevel = BondLevelFromXp(h.xp)
-        end
-
-        SendNUIMessage({
-            action = 'show',
-            shopData = JobMatchedHorses,
-            compData = HorseComp,
-            translations = Translations,
-            location = StableName,
-            currencyType = Config.currencyType,
-            myHorsesData = horseData,
-            healPrice = (Config.healPrice or 500),
-            healCurrencyLabel = ((Config.healCurrency or Config.currencyType) == 1) and '' or '$',
-        })
+        SendStableData(horseData, stableMeta)
         SetNuiFocus(true, true)
     else
-        print('No horse data received!')
+        SendNUIMessage({ action = 'error', message = 'ไม่สามารถดึงข้อมูลม้าจากเซิร์ฟเวอร์ได้' })
     end
 end
 
@@ -287,7 +334,7 @@ local function CheckEntityExists(entity)
 
     while not DoesEntityExist(entity) do
         if GetGameTimer() - startTime > timeout then
-            print('Failed to create entity:', entity)
+            DebugPrint('Failed to create entity: ' .. tostring(entity))
             return false
         end
         Wait(10)
@@ -297,21 +344,31 @@ end
 
 -- View Horses for Purchase
 RegisterNUICallback('loadHorse', function(data, cb)
-    cb('ok')
+    PreviewGeneration = PreviewGeneration + 1
+    local requestGeneration = PreviewGeneration
     ClearShopHorse()
 
     local modelName = data.horseModel
     local model = joaat(modelName)
-    LoadModel(model, modelName)
+    if not LoadModel(model, modelName) then
+        return cb({ ok = false, reason = 'model' })
+    end
+    if requestGeneration ~= PreviewGeneration then
+        SetModelAsNoLongerNeeded(model)
+        return cb({ ok = false, reason = 'stale' })
+    end
 
     local siteCfg = Stables[Site]
     local coords = siteCfg.horse.coords
     ShopEntity = CreatePed(model, coords.x, coords.y, coords.z - 1.0, siteCfg.horse.heading, false, false, false, false)
 
     local entityExists = CheckEntityExists(ShopEntity)
-    if not entityExists then
-        return
+    if not entityExists or requestGeneration ~= PreviewGeneration then
+        if ShopEntity ~= 0 then DeleteEntity(ShopEntity) end
+        ShopEntity = 0
+        return cb({ ok = false, reason = entityExists and 'stale' or 'entity' })
     end
+    SetModelAsNoLongerNeeded(model)
 
     Citizen.InvokeNative(0x283978A15512B2FE, ShopEntity, true) -- SetRandomOutfitVariation
     Citizen.InvokeNative(0x58A850EAEE20FAA3, ShopEntity) -- PlaceObjectOnGroundProperly
@@ -326,25 +383,29 @@ RegisterNUICallback('loadHorse', function(data, cb)
     SetPedConfigFlag(ShopEntity, 113, true) -- DisableShockingEvents
     Wait(300)
     Citizen.InvokeNative(0x6585D955A68452A5, ShopEntity) -- ClearPedEnvDirt
+    cb({ ok = true })
 end)
 
 RegisterNUICallback('BuyHorse', function(data, cb)
-    cb('ok')
     CheckPlayerJob(true, nil)
 
     if Stables[Site].trainerBuy and not IsTrainer then
         Core.NotifyRightTip(_U('trainerBuyHorse'), 4000)
+        cb({ ok = false, reason = 'trainer_only' })
         StableMenu()
         return
     end
 
     data.isTrainer = IsTrainer
     data.origin = 'buyHorse'
+    data.site = Site
 
     local canBuy = Core.Callback.TriggerAwait('bcc-stables:BuyHorse', data)
     if canBuy then
+        cb({ ok = true })
         SetHorseName(data)
     else
+        cb({ ok = false, reason = 'unavailable' })
         StableMenu()
     end
 end)
@@ -379,6 +440,7 @@ function SetHorseName(data)
                 return
             elseif data.origin == 'buyHorse' then
                 data.captured = 0
+                data.site = Site
                 local horseSaved = Core.Callback.TriggerAwait('bcc-stables:SaveNewHorse', data)
                 if horseSaved then
                     StableMenu()
@@ -389,13 +451,15 @@ function SetHorseName(data)
                 data.captured = 1
                 local playerPed = PlayerPedId()
                 Citizen.InvokeNative(0x48E92D3DDE23C23A, playerPed, 0, 0, 0, 0, data.mount) -- TaskDismountAnimal
-                while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) do -- IsPedOnFoot
+                local dismountDeadline = GetGameTimer() + 5000
+                while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) and GetGameTimer() < dismountDeadline do -- IsPedOnFoot
                     Wait(10)
                 end
                 local horseSaved = Core.Callback.TriggerAwait('bcc-stables:SaveTamedHorse', data)
                 if horseSaved then
                     DeleteEntity(data.mount)
                     HorseBreed = false
+                    TameToken = nil
                 end
                 IsNaming = false
                 return
@@ -408,16 +472,9 @@ function SetHorseName(data)
 
     if data.origin ~= 'tameHorse' then
         local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
+        local stableMeta = Core.Callback.TriggerAwait('bcc-stables:GetPlayerStableMeta') or {}
         if horseData then
-            SendNUIMessage({
-                action = 'show',
-                shopData = JobMatchedHorses,
-                compData = HorseComp,
-                translations = Translations,
-                location = StableName,
-                currencyType = Config.currencyType,
-                myHorsesData = horseData
-            })
+            SendStableData(horseData, stableMeta)
             SetNuiFocus(true, true)
         end
     end
@@ -432,23 +489,36 @@ end)
 
 -- View Owned Horse in Stable Menu
 RegisterNUICallback('loadMyHorse', function(data, cb)
-    cb('ok')
+    PreviewGeneration = PreviewGeneration + 1
+    local requestGeneration = PreviewGeneration
     ClearShopHorse()
     MyEntityID = data.HorseId
-    local components = json.decode(data.HorseComp)
+    local ok, components = pcall(json.decode, data.HorseComp or '{}')
+    if not ok or type(components) ~= 'table' then components = {} end
 
     local modelName = data.HorseModel
     local model = joaat(modelName)
-    LoadModel(model, modelName)
+    if not LoadModel(model, modelName) then
+        MyEntityID = nil
+        return cb({ ok = false, reason = 'model' })
+    end
+    if requestGeneration ~= PreviewGeneration then
+        SetModelAsNoLongerNeeded(model)
+        return cb({ ok = false, reason = 'stale' })
+    end
 
     local siteCfg = Stables[Site]
     local coords = siteCfg.horse.coords
     MyEntity = CreatePed(model, coords.x, coords.y, coords.z - 1.0, siteCfg.horse.heading, false, false, false, false)
 
     local entityExists = CheckEntityExists(MyEntity)
-    if not entityExists then
-        return
+    if not entityExists or requestGeneration ~= PreviewGeneration then
+        if MyEntity ~= 0 then DeleteEntity(MyEntity) end
+        MyEntity = 0
+        MyEntityID = nil
+        return cb({ ok = false, reason = entityExists and 'stale' or 'entity' })
     end
+    SetModelAsNoLongerNeeded(model)
 
     Citizen.InvokeNative(0x283978A15512B2FE, MyEntity, true) -- SetRandomOutfitVariation
     Citizen.InvokeNative(0x58A850EAEE20FAA3, MyEntity) -- PlaceObjectOnGroundProperly
@@ -470,22 +540,24 @@ RegisterNUICallback('loadMyHorse', function(data, cb)
     Citizen.InvokeNative(0x6585D955A68452A5, MyEntity) -- ClearPedEnvDirt
 
     if components and components ~= '[]' then
-        for _, component in ipairs(components) do
+        for _, component in pairs(components) do
             SetComponent(MyEntity, component)
         end
     end
+    cb({ ok = true, horseId = MyEntityID })
 end)
 
 RegisterNUICallback('selectHorse', function(data, cb)
-    cb('ok')
-    TriggerServerEvent('bcc-stables:SelectHorse', data)
+    local selected = Core.Callback.TriggerAwait('bcc-stables:SetSelectedHorse', data and data.horseId)
+    if not selected then Core.NotifyRightTip('ไม่สามารถตั้งม้าตัวนี้เป็นม้าหลักได้', 4000) end
+    cb({ ok = selected == true })
 end)
 
 function GetSelectedHorse()
     local data = Core.Callback.TriggerAwait('bcc-stables:GetHorseData')
 
     if data == false then
-        return print('No selected-horse data returned!')
+        return DebugPrint('No selected-horse data returned')
     end
 
     SpawnHorse(data)
@@ -509,50 +581,116 @@ function TeardownStable()
 end
 
 RegisterNUICallback('CloseStable', function(data, cb)
-    cb('ok')
-
-    TeardownStable()
-
     if data.MenuAction == 'save' then
+        data.horseId = MyEntityID
+        data.components = SaveComps()
+        data.site = Site
         local result = Core.Callback.TriggerAwait('bcc-stables:BuyTack', data)
-        if result then
-            SaveComps()
+        if not result or result.ok ~= true then
+            Core.NotifyRightTip('ไม่สามารถบันทึกอุปกรณ์ม้าได้', 4000)
+            return cb(result or { ok = false, reason = 'failed' })
         end
+        cb(result)
+        TeardownStable()
+        return
     end
+    cb({ ok = true })
+    TeardownStable()
 end)
 
 -- ===== callback ใหม่สำหรับ action bar ของ NUI ใหม่ (ต่อกับฟังก์ชัน/อีเวนต์เดิม ไม่แตะ logic server) =====
 -- เรียกม้า: ปิดเมนูก่อน (คืนกล้อง/โฟกัส) แล้ว spawn ม้าตัวหลักออกมาในโลก
-RegisterNUICallback('summonHorse', function(_, cb)
-    cb('ok')
+RegisterNUICallback('summonHorse', function(data, cb)
+    local horseId = data and tonumber(data.horseId)
+    if not horseId then return cb({ ok = false, reason = 'invalid_horse' }) end
+    if MyHorse ~= 0 and DoesEntityExist(MyHorse) then
+        return cb({ ok = false, reason = MyHorseId == horseId and 'already_active' or 'another_active' })
+    end
+    local horse = Core.Callback.TriggerAwait('bcc-stables:SummonHorse', horseId)
+    if not horse then return cb({ ok = false, reason = 'unavailable' }) end
+    local spawned = SpawnHorse(horse)
+    if spawned ~= true then
+        return cb({ ok = false, reason = 'unsafe_spawn' })
+    end
+    local selected = Core.Callback.TriggerAwait('bcc-stables:SetSelectedHorse', horseId)
+    if selected ~= true then
+        Sending = false
+        HorseGeneration = HorseGeneration + 1
+        if MyHorse ~= 0 and DoesEntityExist(MyHorse) then DeleteEntity(MyHorse) end
+        MyHorse, MyHorseId = 0, nil
+        return cb({ ok = false, reason = 'state_changed' })
+    end
+    cb({ ok = true })
     TeardownStable()
-    GetSelectedHorse()
 end)
 
 -- ส่งม้ากลับโรงม้า: ปิดเมนูก่อน แล้วเก็บม้าที่อยู่ในโลก (ReturnHorse จัดการ save + ลบ ped)
-RegisterNUICallback('returnHorse', function(_, cb)
-    cb('ok')
-    TeardownStable()
-    ReturnHorse()
+RegisterNUICallback('returnHorse', function(data, cb)
+    local horseId = data and tonumber(data.horseId)
+    if MyHorse == 0 or not DoesEntityExist(MyHorse) then
+        return cb({ ok = false, reason = 'not_active' })
+    end
+    if horseId and tonumber(MyHorseId) ~= horseId then
+        return cb({ ok = false, reason = 'different_active' })
+    end
+    -- Returning an active horse is an in-menu state change. Keep the stable
+    -- camera, NUI focus and menu open; the UI refreshes the roster afterward.
+    cb({ ok = ReturnHorse() == true })
 end)
 
 -- เปิดกระเป๋าอานม้าของม้าที่กำลังพรีวิว — ยิง API เปิดกระเป๋าม้าตรงๆ (ข้ามเช็ค saddlebag component
 -- ของ OpenInventory) เพราะกระเป๋าผูกกับ id ม้าตัวนั้นเสมอ (vorp_inventory: 'horse_<id>')
 RegisterNUICallback('openCargo', function(data, cb)
-    cb('ok')
     local horseId = (data and data.horseId) or MyEntityID
     if horseId then
-        TriggerServerEvent('bcc-stables:OpenInventory', horseId)
+        StableCargoOpen = true
+        SendNUIMessage({ action = 'pause' })
+        SetNuiFocus(false, false)
+        local result = Core.Callback.TriggerAwait('bcc-stables:OpenInventoryChecked', horseId, {
+            stable = true,
+            site = Site
+        })
+        if not result or result.ok ~= true then
+            StableCargoOpen = false
+            SendNUIMessage({ action = 'resume' })
+            SetNuiFocus(true, true)
+        end
+        return cb(result or { ok = false, reason = 'failed' })
     end
+    cb({ ok = false, reason = 'invalid_horse' })
+end)
+
+-- vorp_inventory releases the global NUI focus when it closes. Restore the stable menu
+-- that was paused underneath the horse cargo instead of leaving a visible, unclickable UI.
+local function restoreStableAfterCargo()
+    if not StableCargoOpen then return end
+    StableCargoOpen = false
+    if InMenu then
+        SendNUIMessage({ action = 'resume' })
+        DisplayRadar(false)
+        SetNuiFocus(true, true)
+    end
+end
+
+AddEventHandler('syn:closeinv', restoreStableAfterCargo)
+
+AddEventHandler('vorp_inventory:Client:OnInvStateChange', function(isOpen)
+    if not isOpen then restoreStableAfterCargo() end
 end)
 
 -- รักษาม้าแบบจ่ายเงิน (server ตัดสินราคา/หักเงิน/เติมเลือด ดู server/main.lua bcc-stables:PaidHeal)
 RegisterNUICallback('healHorse', function(data, cb)
-    cb('ok')
     local horseId = data and data.horseId
     if horseId then
-        TriggerServerEvent('bcc-stables:PaidHeal', horseId)
+        local result = Core.Callback.TriggerAwait('bcc-stables:PaidHealRequest', horseId, Site)
+        if result and result.ok then
+            SendNUIMessage({ action = 'healed', horseId = horseId })
+        else
+            Core.NotifyRightTip('ไม่สามารถรักษาม้าตัวนี้ได้', 4000)
+        end
+        return cb(result or { ok = false, reason = 'failed' })
     end
+    cb({ ok = false, reason = 'invalid_horse' })
 end)
 
 -- server รักษาม้าสำเร็จ → บอก NUI ให้อัปเดตแถบ HP/สเตมิน่าของม้าตัวนั้นเป็นเต็ม
@@ -570,34 +708,53 @@ RegisterNUICallback('stableNotify', function(data, cb)
     })
 end)
 
+RegisterNUICallback('retryStable', function(_, cb)
+    local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
+    local stableMeta = Core.Callback.TriggerAwait('bcc-stables:GetPlayerStableMeta') or {}
+    if not horseData then
+        SendNUIMessage({ action = 'error', message = 'เซิร์ฟเวอร์ไม่ตอบกลับ กรุณาลองใหม่' })
+        return cb({ ok = false })
+    end
+    SendStableData(horseData, stableMeta)
+    cb({ ok = true })
+end)
+
+-- Refresh the owned-horse roster in place after an action. Unlike retryStable,
+-- this callback does not reopen/reset the NUI route or rebuild the camera.
+RegisterNUICallback('refreshHorseData', function(_, cb)
+    local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
+    local stableMeta = Core.Callback.TriggerAwait('bcc-stables:GetPlayerStableMeta') or {}
+    if not horseData then
+        return cb({ ok = false, reason = 'callback_failed' })
+    end
+
+    ReconcileActiveHorseForStable(horseData)
+    EnrichHorseData(horseData)
+    cb({
+        ok = true,
+        myHorsesData = horseData,
+        stableMeta = stableMeta,
+        activeHorseId = MyHorseId,
+    })
+end)
+
 -- Save Horse Tack to Database
 function SaveComps()
-    local compData = {
-        SaddlesUsing,
-        SaddleclothsUsing,
-        StirrupsUsing,
-        BagsUsing,
-        ManesUsing,
-        TailsUsing,
-        SaddleHornsUsing,
-        BedrollsUsing,
-        MasksUsing,
-        MustachesUsing,
-        HolstersUsing,
-        BridlesUsing,
-        HorseshoesUsing
+    return {
+        Saddles = SaddlesUsing,
+        Saddlecloths = SaddleclothsUsing,
+        Stirrups = StirrupsUsing,
+        SaddleBags = BagsUsing,
+        Manes = ManesUsing,
+        Tails = TailsUsing,
+        SaddleHorns = SaddleHornsUsing,
+        Bedrolls = BedrollsUsing,
+        Masks = MasksUsing,
+        Mustaches = MustachesUsing,
+        Holsters = HolstersUsing,
+        Bridles = BridlesUsing,
+        Horseshoes = HorseshoesUsing
     }
-
-    local compDataEncoded = json.encode(compData)
-
-    if compDataEncoded and compDataEncoded ~= '[]' then
-        local result = Core.Callback.TriggerAwait('bcc-stables:UpdateComponents', compDataEncoded, MyEntityID)
-        if result then
-            for _, component in ipairs(compData) do
-                SetComponent(MyEntity, component)
-            end
-        end
-    end
 end
 
 -- Reopen Menu After Sell or Failed Purchase
@@ -605,16 +762,9 @@ function StableMenu()
     ClearShopHorse()
 
     local horseData = Core.Callback.TriggerAwait('bcc-stables:GetMyHorses')
-        if horseData then
-            SendNUIMessage({
-            action = 'show',
-            shopData = JobMatchedHorses,
-            compData = HorseComp,
-            translations = Translations,
-            location = StableName,
-            currencyType = Config.currencyType,
-            myHorsesData = horseData
-        })
+    local stableMeta = Core.Callback.TriggerAwait('bcc-stables:GetPlayerStableMeta') or {}
+    if horseData then
+        SendStableData(horseData, stableMeta)
         SetNuiFocus(true, true)
     end
 end
@@ -626,18 +776,27 @@ function SpawnHorse(data)
     Spawning = true
 
     if MyHorse ~= 0 then
+        Sending = false
+        HorseGeneration = HorseGeneration + 1
         DeleteEntity(MyHorse)
         MyHorse = 0
+        MyHorseId = nil
     end
 
-    MyHorseId = data.id
+    local pendingHorseId = tonumber(data.id)
+    if not pendingHorseId then Spawning = false return false end
     HorseName = data.name
     local xp = data.xp
-    local components = json.decode(data.components)
+    local decoded, components = pcall(json.decode, data.components or '{}')
+    if not decoded or type(components) ~= 'table' then components = {} end
 
     local horseModel = data.model
     MyModel = joaat(horseModel)
-    LoadModel(MyModel, horseModel)
+    if not LoadModel(MyModel, horseModel) then
+        Spawning = false
+        Core.NotifyRightTip('โหลดโมเดลม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
+        return false
+    end
 
     for _, horseCfg in pairs(Horses) do
         for model, modelCfg in pairs(horseCfg.colors) do
@@ -674,16 +833,23 @@ function SpawnHorse(data)
     end
 
     if not spawnPosition then
-        return print('No spawn position found!')
+        Spawning = false
+        Core.NotifyRightTip('ไม่พบจุดเรียกม้าที่ปลอดภัย กรุณาขยับตำแหน่งแล้วลองใหม่', 4000)
+        return false
     end
 
     MyHorse = CreatePed(MyModel, spawnPosition.x, spawnPosition.y, spawnPosition.z, GetEntityHeading(playerPed), true, false, false, false)
     local entityExists = CheckEntityExists(MyHorse)
     if not entityExists then
-        return
+        Spawning = false
+        MyHorse = 0
+        Core.NotifyRightTip('ไม่สามารถสร้างม้าได้ กรุณาลองใหม่', 4000)
+        return false
     end
 
     SetModelAsNoLongerNeeded(MyModel)
+    HorseGeneration = HorseGeneration + 1
+    MyHorseId = pendingHorseId
 
     LocalPlayer.state.HorseData = {
         MyHorse = NetworkGetNetworkIdFromEntity(MyHorse)
@@ -708,16 +874,10 @@ function SpawnHorse(data)
     end
 
     -- Set Horse Health and Stamina
-    local health = data.health or 100
-    if health == 0 then
-        health = 100
-    end
+    local health = data.health == nil and 100 or data.health
     Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 0, health)  -- SetAttributeCoreValue
 
-    local stamina = data.stamina or 100
-    if stamina == 0 then
-        stamina = 100
-    end
+    local stamina = data.stamina == nil and 100 or data.stamina
     Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 1, stamina) -- SetAttributeCoreValue
 
     -- Bonding
@@ -757,9 +917,7 @@ function SpawnHorse(data)
 
     TriggerServerEvent('bcc-stables:RegisterInventory', MyHorseId, horseModel)
 
-    if Config.shareInventory then
-        Entity(MyHorse).state:set('myHorseId', MyHorseId, true)
-    end
+    Entity(MyHorse).state:set('myHorseId', MyHorseId, true)
 
     if Config.horseTag then
         TriggerEvent('bcc-stables:HorseTag')
@@ -775,7 +933,7 @@ function SpawnHorse(data)
     end
 
     if components and components ~= '[]' then
-        for _, component in ipairs(components) do
+        for _, component in pairs(components) do
             SetComponent(MyHorse, component)
         end
     end
@@ -788,11 +946,12 @@ function SpawnHorse(data)
 
     if data.writhe == 1 then
         TriggerEvent('bcc-stables:ManageHorseDeath')
-        return
+        return false
     end
 
     Sending = true
-    SendHorse()
+    CreateThread(SendHorse)
+    return true
 end
 
 -- Loot Players Horse Inventory
@@ -826,11 +985,12 @@ end)
 
 -- Set Horse Name and Health Bar Above Horse
 AddEventHandler('bcc-stables:HorseTag', function()
+    local generation, horse, horseId = HorseGeneration, MyHorse, MyHorseId
     local tagDistance = Config.tagDistance
     local gamerTagId = Citizen.InvokeNative(0xE961BF23EAB76B12, MyHorse, HorseName) -- CreateMpGamerTagOnEntity
     Citizen.InvokeNative(0x5F57522BC1EB9D9D, gamerTagId, `PLAYER_HORSE`) -- SetMpGamerTagTopIcon
 
-    while MyHorse ~= 0 do
+    while MyHorse == horse and MyHorseId == horseId and generation == HorseGeneration and DoesEntityExist(horse) do
         Wait(1000)
 
         local dist = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(MyHorse))
@@ -854,6 +1014,7 @@ local function HandleHorseAction(key, action)
 end
 
 AddEventHandler('bcc-stables:HorsePrompts', function()
+    local generation, horse, horseId = HorseGeneration, MyHorse, MyHorseId
     local player = PlayerId()
     local fleeEnabled = Config.fleeEnabled
     local distanceCheckEnabled = Config.horseDistance.enabled
@@ -863,15 +1024,18 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
     local sleepKey = Config.keys.sleep
     local wallowKey = Config.keys.wallow
 
-    while MyHorse ~= 0 do
+    while MyHorse == horse and MyHorseId == horseId and generation == HorseGeneration and DoesEntityExist(horse) do
         local playerPed = PlayerPedId()
         local sleep = 1000
         local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(MyHorse))
 
         if distanceCheckEnabled and distance > horseRadius then
             SaveHorseStats(InWrithe)
+            Sending = false
+            HorseGeneration = HorseGeneration + 1
             DeleteEntity(MyHorse)
             MyHorse = 0
+            MyHorseId = nil
             goto END
         end
 
@@ -883,7 +1047,11 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
         sleep = 0
 
         if Citizen.InvokeNative(0x91AEF906BCA88877, 0, `INPUT_OPEN_SATCHEL_HORSE_MENU`) then -- IsDisabledControlJustPressed
-            OpenInventory(MyHorse, MyHorseId, false)
+            if LocalPlayer.state.IsInvActive then
+                exports.vorp_inventory:closeInventory()
+            else
+                OpenInventory(MyHorse, MyHorseId, false)
+            end
         end
 
         if InWrithe and Citizen.InvokeNative(0x91AEF906BCA88877, 0, `INPUT_REVIVE`) then  -- IsDisabledControlJustPressed
@@ -933,6 +1101,11 @@ function HorseDrinking()
     local stamina = Citizen.InvokeNative(0x36731AC041289BB1, MyHorse, 1, Citizen.ResultAsInteger()) -- GetAttributeCoreValue
 
     if health < 100 or stamina < 100 then
+        local authorized = Core.Callback.TriggerAwait('bcc-stables:AuthorizeCoreGain', MyHorseId, 'drink')
+        if authorized ~= true then
+            Drinking = false
+            return
+        end
         local healthBoost = Config.boost.drinkHealth
         local staminaBoost = Config.boost.drinkStamina
 
@@ -945,6 +1118,7 @@ function HorseDrinking()
             local newStamina = math.min(stamina + staminaBoost, 100)
             Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 1, newStamina) -- SetAttributeCoreValue
         end
+        SaveHorseStats(false, true)
 
         if Config.horseXpPerDrink > 0 and not MaxBonding then
             if not Config.trainerOnly or (Config.trainerOnly and IsTrainer) then
@@ -1001,7 +1175,7 @@ function LoadAnim(dict)
 
     while not HasAnimDictLoaded(dict) do
         if GetGameTimer() - startTime > timeout then
-            print("Failed to load animation dictionary " .. dict)
+            DebugPrint('Failed to load animation dictionary ' .. dict)
             return false
         end
         Wait(10)
@@ -1050,6 +1224,18 @@ CreateThread(function()
                             local tamedPedId = eventDataStruct:GetInt32(8)
                             local tamedNetId = NetworkGetNetworkIdFromEntity(tamedPedId)
                             Entity(tamedPedId).state:set('netId', tamedNetId, true)
+                            local modelHash = GetEntityModel(tamedPedId)
+                            local modelName
+                            for _, horseCfg in pairs(Horses) do
+                                for candidate in pairs(horseCfg.colors) do
+                                    if joaat(candidate) == modelHash then modelName = candidate break end
+                                end
+                                if modelName then break end
+                            end
+                            if modelName then
+                                local authorization = Core.Callback.TriggerAwait('bcc-stables:AuthorizeTamedHorse', modelName, tamedNetId)
+                                if authorization and authorization.ok then TameToken = authorization.token end
+                            end
                         end
                     end
 
@@ -1073,10 +1259,14 @@ CreateThread(function()
                             if writheEnabled then
                                 TriggerEvent('bcc-stables:ManageHorseDeath')
                             else
+                                TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, 'dead')
                                 Wait(5000)
                                 SaveHorseStats(true)
                                 DeleteEntity(MyHorse)
+                                Sending = false
+                                HorseGeneration = HorseGeneration + 1
                                 MyHorse = 0
+                                MyHorseId = nil
                             end
                         end
                     end
@@ -1098,22 +1288,20 @@ AddEventHandler('bcc-stables:ManageHorseDeath', function()
 
         Core.NotifyRightTip(_U('horseWrithe'), 4000)
 
-        if Config.death.persistentWrithe then
-            TriggerServerEvent('bcc-stables:SetHorseWrithe', MyHorseId)
-        end
+        TriggerServerEvent('bcc-stables:SetHorseWrithe', MyHorseId)
 
         SaveHorseStats(true)
     else
-        local action = (Config.death.permanent and 'dead') or (Config.death.deselect and 'deselect') or nil
-        if action then
-            Core.NotifyRightTip(_U('horseDied'), 4000)
-        end
-        TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, action)
+        Core.NotifyRightTip(_U('horseDied'), 4000)
+        TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, 'dead')
 
         Wait(5000)
         SaveHorseStats(true)
         DeleteEntity(MyHorse)
+        Sending = false
+        HorseGeneration = HorseGeneration + 1
         MyHorse = 0
+        MyHorseId = nil
         InWrithe = false
     end
 end)
@@ -1129,12 +1317,15 @@ AddEventHandler('bcc-stables:WhistleHorse', function()
         local dist = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(MyHorse))
 
         if dist >= 100 then
+            Sending = false
+            HorseGeneration = HorseGeneration + 1
             DeleteEntity(MyHorse)
             MyHorse = 0
+            MyHorseId = nil
             GetSelectedHorse()
         else
             Sending = true
-            SendHorse()
+            CreateThread(SendHorse)
         end
     end
 end)
@@ -1172,17 +1363,22 @@ end
 -- Move horse to Player
 function SendHorse()
     local playerPed = PlayerPedId()
+    local horse, horseId, generation = MyHorse, MyHorseId, HorseGeneration
+    local deadline = GetGameTimer() + 30000
 
-    TaskGoToEntity(MyHorse, playerPed, -1, 10.2, 2.0, 0.0, 0)
+    if horse == 0 or not DoesEntityExist(horse) then Sending = false return end
+    TaskGoToEntity(horse, playerPed, -1, 10.2, 2.0, 0.0, 0)
 
-    while Sending do
-        Wait(0)
-        local dist = #(GetEntityCoords(playerPed) - GetEntityCoords(MyHorse))
+    while Sending and MyHorse == horse and MyHorseId == horseId and generation == HorseGeneration
+        and DoesEntityExist(horse) and GetGameTimer() < deadline do
+        Wait(100)
+        local dist = #(GetEntityCoords(playerPed) - GetEntityCoords(horse))
         if dist <= 10.0 then
-            ClearPedTasks(MyHorse)
+            ClearPedTasks(horse)
             Sending = false
         end
     end
+    if MyHorse == horse and generation == HorseGeneration then Sending = false end
 end
 
 -- Wild Horse Taming
@@ -1283,12 +1479,13 @@ CreateThread(function()
                         end
                     end
 
-                    TriggerServerEvent('bcc-stables:SellTamedHorse', GetEntityModel(mount))
+                    local sold = Core.Callback.TriggerAwait('bcc-stables:SellTamedHorseChecked', TamedModel, NetworkGetNetworkIdFromEntity(mount), TameToken)
 
-                    if mount ~= 0 then
+                    if sold and sold.ok and mount ~= 0 then
                         Citizen.InvokeNative(0x48E92D3DDE23C23A, playerPed, 0, 0, 0, 0, mount) -- TaskDismountAnimal
 
-                        while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) do -- IsPedOnFoot
+                        local dismountDeadline = GetGameTimer() + 5000
+                        while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) and GetGameTimer() < dismountDeadline do -- IsPedOnFoot
                             Wait(10)
                         end
 
@@ -1297,6 +1494,9 @@ CreateThread(function()
                         mount = 0
                         Wait(200)
                         HorseBreed = false
+                        TameToken = nil
+                    elseif not sold or not sold.ok then
+                        Core.NotifyRightTip('ไม่สามารถขายม้าตัวนี้ได้', 4000)
                     end
                 end
 
@@ -1316,11 +1516,13 @@ CreateThread(function()
                         origin = 'tameHorse',
                         IsCash = true,
                         gender = IsPedMale(mount) and 'male' or 'female',
-                        mount = mount
+                        mount = mount,
+                        mountNetId = NetworkGetNetworkIdFromEntity(mount),
+                        tameToken = TameToken
                     }
 
                     local canKeep = Core.Callback.TriggerAwait('bcc-stables:RegisterHorse', tameData)
-                    if canKeep then
+                    if canKeep and canKeep.ok then
                         SetHorseName(tameData)
                     else
                         HorseBreed = false
@@ -1334,11 +1536,12 @@ CreateThread(function()
 end)
 
 AddEventHandler('bcc-stables:HorseMonitor', function()
+    local generation, horse, horseId = HorseGeneration, MyHorse, MyHorseId
     local intervalValue = Config.saveInterval * 1000
     local interval = intervalValue
     local checkInterval = 1000
 
-    while MyHorse ~= 0 do
+    while MyHorse == horse and MyHorseId == horseId and generation == HorseGeneration and DoesEntityExist(horse) do
         Wait(checkInterval)
 
         interval = interval - checkInterval
@@ -1352,7 +1555,7 @@ end)
 
 
 AddEventHandler('bcc-stables:ReviveHorse', function()
-    local hasItem = Core.Callback.TriggerAwait('bcc-stables:HorseReviveItem')
+    local hasItem = Core.Callback.TriggerAwait('bcc-stables:HorseReviveItem', MyHorseId)
 
     if not hasItem then
         Core.NotifyRightTip(_U('noReviver'), 4000)
@@ -1361,7 +1564,7 @@ AddEventHandler('bcc-stables:ReviveHorse', function()
 
     if not IsEntityDead(MyHorse) then
         Citizen.InvokeNative(0x356088527D9EBAAD, PlayerPedId(), MyHorse, `s_inv_horsereviver01x`) -- TaskReviveTarget
-        TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, nil)
+        TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, 'revive')
         SetEntityHealth(MyHorse, GetEntityMaxHealth(MyHorse), 0)
         SaveHorseStats(true)
         InWrithe = false
@@ -1385,14 +1588,17 @@ end
 
 function FleeHorse()
     IsFleeing = true
-    SaveHorseStats(false)
+    SaveHorseStats(false, true)
 
     GetControlOfHorse()
 
     Citizen.InvokeNative(0x22B0D0E37CCB840D, MyHorse, PlayerPedId(), 150.0, 10000, 6, 3.0) -- TaskSmartFleePed
     Wait(10000)
     DeleteEntity(MyHorse)
+    Sending = false
+    HorseGeneration = HorseGeneration + 1
     MyHorse = 0
+    MyHorseId = nil
     IsFleeing = false
 end
 
@@ -1401,34 +1607,47 @@ function ReturnHorse()
 
     if not MyHorse or MyHorse == 0 then
         Core.NotifyRightTip(_U('noHorse'), 4000)
-        return
+        return false
     end
 
     if Citizen.InvokeNative(0x460BC76A0E10655E, playerPed) then -- IsPedOnMount
         Citizen.InvokeNative(0x48E92D3DDE23C23A, playerPed, 0, 0, 0, 0, MyHorse) -- TaskDismountAnimal
-        while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) do -- IsPedOnFoot
+        local dismountDeadline = GetGameTimer() + 5000
+        while not Citizen.InvokeNative(0x01FEE67DB37F59B2, playerPed) and GetGameTimer() < dismountDeadline do -- IsPedOnFoot
             Wait(10)
         end
     end
 
-    SaveHorseStats(InWrithe)
+    if not SaveHorseStats(InWrithe, true) then
+        Core.NotifyRightTip('บันทึกสถานะม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
+        return false
+    end
     GetControlOfHorse()
+    Sending = false
+    HorseGeneration = HorseGeneration + 1
     DeleteEntity(MyHorse)
     MyHorse = 0
+    MyHorseId = nil
     Core.NotifyRightTip(_U('horseReturned'), 4000)
+    return true
 end
 
 function GetControlOfHorse()
-    while not NetworkHasControlOfEntity(MyHorse) do
-        NetworkRequestControlOfEntity(MyHorse)
+    local entity = MyHorse
+    local deadline = GetGameTimer() + 3000
+    while DoesEntityExist(entity) and not NetworkHasControlOfEntity(entity) and GetGameTimer() < deadline do
+        NetworkRequestControlOfEntity(entity)
         Wait(100)
     end
+    return DoesEntityExist(entity) and NetworkHasControlOfEntity(entity)
 end
 
 AddEventHandler('bcc-stables:HorseBonding', function()
     local trainingDistance = Config.trainingDistance
+    local generation = HorseGeneration
+    local horseId = MyHorseId
 
-    while not MaxBonding do
+    while not MaxBonding and MyHorse ~= 0 and DoesEntityExist(MyHorse) and generation == HorseGeneration and horseId == MyHorseId do
         Wait(5000)
 
         local playerPed = PlayerPedId()
@@ -1464,8 +1683,11 @@ function SaveXp(xpSource)
 
     horseXp = updateXp[xpSource]
     if not horseXp then
-        return print('No xpSource Data!')
+        return DebugPrint('No xpSource data: ' .. tostring(xpSource))
     end
+
+    local applied = Core.Callback.TriggerAwait('bcc-stables:ApplyHorseXp', MyHorseId, xpSource)
+    if type(applied) ~= 'table' or applied.ok ~= true then return end
 
     Citizen.InvokeNative(0x75415EE0CB583760, MyHorse, 7, horseXp) -- AddAttributePoints
 
@@ -1478,10 +1700,9 @@ function SaveXp(xpSource)
 
     MaxBonding = newXp >= maxXp
 
-    TriggerServerEvent('bcc-stables:UpdateHorseXp', newXp, MyHorseId)
 end
 
-RegisterNetEvent('bcc-stables:BrushHorse', function(skipDurability)
+RegisterNetEvent('bcc-stables:BrushHorse', function(simpleBrushItem)
     if not MyHorse or MyHorse == 0 then
         return Core.NotifyRightTip(_U('noHorse'), 4000)
     end
@@ -1493,14 +1714,23 @@ RegisterNetEvent('bcc-stables:BrushHorse', function(skipDurability)
         return Core.NotifyRightTip(_U('tooFar'), 4000)
     end
 
+    local skipDurability = type(simpleBrushItem) == 'string'
+    if skipDurability then
+        local consumed = Core.Callback.TriggerAwait('bcc-stables:UseSimpleBrush', MyHorseId, simpleBrushItem)
+        if consumed ~= true then
+            return Core.NotifyRightTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
+        end
+    else
+        local authorized = Core.Callback.TriggerAwait('bcc-stables:AuthorizeHorseCare', MyHorseId, 'brush')
+        if authorized ~= true then
+            return Core.NotifyRightTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
+        end
+    end
+
     ClearPedTasks(playerPed)
 
     -- skipDurability = true มาจากแปรงแบบใช้ครั้งเดียว (hr_brush) ที่ถูกหักไปแล้วฝั่ง server — ไม่ต้องไป
     -- ลด durability ของ Config.horsebrush.item (แปรงหลักคนละตัว) ไม่งั้นจะไปกินความทนของแปรงหลักผิดตัว
-    if Config.horsebrush.durability and not skipDurability then
-        TriggerServerEvent('bcc-stables:HorseBrushDurability')
-    end
-
     Citizen.InvokeNative(0xCD181A959CFDD7F4, playerPed, MyHorse, `Interaction_Brush`, `p_brushHorse02x`, true) -- TaskAnimalInteraction
     Wait(5000)
     Citizen.InvokeNative(0x6585D955A68452A5, MyHorse) -- ClearPedEnvDirt
@@ -1522,6 +1752,7 @@ RegisterNetEvent('bcc-stables:BrushHorse', function(skipDurability)
         local newStamina = math.min(stamina + staminaBoost, 100)
         Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 1, newStamina) -- SetAttributeCoreValue
     end
+    SaveHorseStats(false, true)
 
     if (Config.horseXpPerBrush > 0) and (not MaxBonding) then
         if not Config.trainerOnly or IsTrainer then
@@ -1545,9 +1776,13 @@ RegisterNetEvent('bcc-stables:FeedHorse', function(item)
         return
     end
 
+    local consumed = Core.Callback.TriggerAwait('bcc-stables:UseHorseFood', MyHorseId, item)
+    if consumed ~= true then
+        return Core.NotifyRightTip('ไม่สามารถให้อาหารม้าตัวนี้ได้', 4000)
+    end
+
     ClearPedTasks(playerPed)
     Citizen.InvokeNative(0xCD181A959CFDD7F4, playerPed, MyHorse, `Interaction_Food`, `s_horsnack_haycube01x`, true) -- TaskAnimalInteraction
-    TriggerServerEvent('bcc-stables:RemoveItem', item)
     Wait(5000)
 
     local health = Citizen.InvokeNative(0x36731AC041289BB1, MyHorse, 0, Citizen.ResultAsInteger()) -- GetAttributeCoreValue
@@ -1565,6 +1800,7 @@ RegisterNetEvent('bcc-stables:FeedHorse', function(item)
         local newStamina = math.min(stamina + staminaBoost, 100)
         Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 1, newStamina) -- SetAttributeCoreValue
     end
+    SaveHorseStats(false)
 
     if (Config.horseXpPerFeed > 0) and (not MaxBonding) then
         if not Config.trainerOnly or IsTrainer then
@@ -1641,7 +1877,8 @@ RegisterNetEvent('bcc-stables:UseLantern', function()
 end)
 
 AddEventHandler('bcc-stables:TradeHorse', function()
-    while MyHorse ~= 0 do
+    local generation, horse, horseId = HorseGeneration, MyHorse, MyHorseId
+    while MyHorse == horse and MyHorseId == horseId and generation == HorseGeneration and DoesEntityExist(horse) do
         local playerPed = PlayerPedId()
         local sleep = 1000
         local lastLed = Citizen.InvokeNative(0x693126B5D0457D0D, playerPed) -- GetLastLedMount
@@ -1655,13 +1892,29 @@ AddEventHandler('bcc-stables:TradeHorse', function()
                 if Citizen.InvokeNative(0xE0F65F0640EF0617, TradeHorse) then  -- PromptHasHoldModeCompleted
                     local serverId = GetPlayerServerId(closestPlayer)
                     TriggerServerEvent('bcc-stables:SaveHorseTrade', serverId, MyHorseId)
-                    FleeHorse()
                     break
                 end
             end
         end
         Wait(sleep)
     end
+end)
+
+RegisterNetEvent('bcc-stables:TradeOffer', function(offerId, ownerName, horseName)
+    Core.NotifyRightTip(('%s ต้องการมอบม้า %s ให้คุณ พิมพ์ ACCEPT เพื่อยืนยัน'):format(ownerName or 'ผู้เล่น', horseName or ''), 8000)
+    local prompt = {
+        type = 'enableinput', inputType = 'input', button = 'ยืนยัน', placeholder = 'ACCEPT', style = 'block',
+        attributes = { inputHeader = 'รับม้า', type = 'text', pattern = '^(ACCEPT|accept)$', title = 'พิมพ์ ACCEPT เพื่อรับม้า' }
+    }
+    TriggerEvent('vorpinputs:advancedInput', json.encode(prompt), function(result)
+        TriggerServerEvent('bcc-stables:ResolveTradeOffer', offerId, type(result) == 'string' and result:upper() == 'ACCEPT')
+    end)
+end)
+
+RegisterNetEvent('bcc-stables:TradeCompleted', function(horseId)
+    if tonumber(MyHorseId) ~= tonumber(horseId) then return end
+    FleeHorse()
+    MyHorseId = nil
 end)
 
 function GetClosestPlayer()
@@ -1750,7 +2003,7 @@ RegisterNUICallback('Tails', function(data, cb)
     cb('ok')
     if tonumber(data.id) == -1 then
         TailsUsing = 0
-        RemoveComponent(0x17CEB41A)
+        RemoveComponent(0xA63CAE10)
     else
         local hash = data.hash
         SetComponent(MyEntity, hash)
@@ -1851,27 +2104,8 @@ function SetComponent(entity, hash)
 
     local comp = tonumber(hash)
 
-    local timeout = 0
-    local maxTimeout = 1000
-    repeat
-        Wait(100)
-        timeout = timeout + 1
-        if timeout >= maxTimeout then
-            break
-        end
-    until GetNumComponentsInPed(entity) ~= 0
-
     Citizen.InvokeNative(0xD3A7B003ED343FD9, entity, comp, true, true, true) -- ApplyShopItemToPed
-
-    timeout = 0
-    repeat
-        Wait(100)
-        timeout = timeout + 1
-        if timeout >= maxTimeout then
-            break
-        end
-    until GetNumComponentsInPed(entity) ~= 0
-
+    Wait(50)
     Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
 end
 
@@ -1881,18 +2115,19 @@ function RemoveComponent(category)
 end
 
 RegisterNUICallback('sellHorse', function(data, cb)
-    cb('ok')
-    DeleteEntity(MyEntity)
-    MyEntity = 0
-    Cam = false
-
-    local horseSold = Core.Callback.TriggerAwait('bcc-stables:SellMyHorse', data)
-    if horseSold then
-        StableMenu()
+    data = type(data) == 'table' and data or {}
+    data.site = Site
+    local result = Core.Callback.TriggerAwait('bcc-stables:SellMyHorse', data)
+    if result == true then result = { ok = true } end -- legacy callback compatibility
+    if type(result) ~= 'table' then result = { ok = false, reason = 'callback_failed' } end
+    if result.ok == true then
+        ClearShopHorse()
+        MyEntityID = nil
     end
+    cb(result)
 end)
 
-function SaveHorseStats(dead)
+function SaveHorseStats(dead, awaitResult)
     local healthCore, staminaCore
 
     if not dead then
@@ -1907,7 +2142,11 @@ function SaveHorseStats(dead)
 
     Wait(100) -- Wait for the values to be set before saving
 
+    if awaitResult then
+        return Core.Callback.TriggerAwait('bcc-stables:SaveHorseStatsChecked', healthCore, staminaCore, MyHorseId) == true
+    end
     TriggerServerEvent('bcc-stables:SaveHorseStatsToDb', healthCore, staminaCore, MyHorseId)
+    return true
 end
 
 -- View Horses While in Menu
@@ -2155,7 +2394,8 @@ end
 
 function LoadModel(model, modelName)
     if not IsModelValid(model) then
-        return print('Invalid model:', modelName)
+        DebugPrint('Invalid model: ' .. tostring(modelName))
+        return false
     end
 
     if not HasModelLoaded(model) then
@@ -2166,12 +2406,13 @@ function LoadModel(model, modelName)
 
         while not HasModelLoaded(model) do
             if GetGameTimer() - startTime > timeout then
-                print('Failed to load model:', modelName)
-                return
+                DebugPrint('Failed to load model: ' .. tostring(modelName))
+                return false
             end
             Wait(10)
         end
     end
+    return true
 end
 
  -- Update Global Horse Entity after session change
@@ -2190,38 +2431,16 @@ local function len(t)
     return counter
 end
 
--- to generate ordered index
-local function __genOrderedIndex( t )
-    local orderedIndex = {}
-    for key in pairs(t) do
-        table.insert(orderedIndex, key)
-    end
-    table.sort(orderedIndex)
-    return orderedIndex
-end
-
--- to get the next ordered pair
-local function orderedNext(t, state)
-    if state == nil then
-        t.__orderedIndex = __genOrderedIndex(t)
-        t.__index = 1
-    else
-        t.__index = t.__index + 1
-    end
-
-    local key = t.__orderedIndex[t.__index]
-    if key then
-        return key, t[key]
-    end
-
-    t.__orderedIndex = nil
-    t.__index = nil
-    return
-end
-
--- to get ordered pairs
 local function orderedPairs(t)
-    return orderedNext, t, nil
+    local keys = {}
+    for key in pairs(t) do keys[#keys + 1] = key end
+    table.sort(keys)
+    local index = 0
+    return function()
+        index = index + 1
+        local key = keys[index]
+        if key ~= nil then return key, t[key] end
+    end
 end
 
 function FindHorsesByJob(job)
@@ -2291,6 +2510,9 @@ AddEventHandler('onResourceStop', function(resourceName)
     end
 
     if MyHorse ~= 0 then
+        SaveHorseStats(InWrithe)
+        Sending = false
+        HorseGeneration = HorseGeneration + 1
         DeleteEntity(MyHorse)
         MyHorse = 0
     end

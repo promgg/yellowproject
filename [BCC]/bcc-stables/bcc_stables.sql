@@ -20,6 +20,7 @@ ALTER TABLE `player_horses` ADD COLUMN IF NOT EXISTS `writhe` INT(11) NOT NULL D
 
 CREATE INDEX IF NOT EXISTS `idx_charid` ON `player_horses` (`charid`);
 CREATE INDEX IF NOT EXISTS `idx_identifier` ON `player_horses` (`identifier`);
+CREATE INDEX IF NOT EXISTS `idx_horse_owner_state` ON `player_horses` (`identifier`, `charid`, `dead`, `selected`);
 
 INSERT INTO `items`(`item`, `label`, `limit`, `can_remove`, `type`, `usable`, `desc`)
 VALUES
