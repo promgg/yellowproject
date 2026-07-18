@@ -1,5 +1,56 @@
 local RESOURCE_NAME = GetCurrentResourceName()
 
+local SET_PED_ACTION_DISABLE_FLAG = 0xB8DE69D9473B7593
+local CLEAR_PED_ACTION_DISABLE_FLAG = 0x949B2F9ED2917F5D
+local actionFlagsPed = 0
+local appliedActionFlags = {}
+
+local function GetConfiguredActionFlags()
+    local result = {}
+    local seen = {}
+    local config = Config.ActionDisableFlags
+
+    if type(config) ~= 'table' or type(config.Flags) ~= 'table' then
+        return result
+    end
+
+    for i = 1, #config.Flags do
+        local flag = tonumber(config.Flags[i])
+        if flag and flag >= 0 and flag <= 34 and not seen[flag] then
+            seen[flag] = true
+            result[#result + 1] = flag
+        end
+    end
+
+    return result
+end
+
+local function ClearActionDisableFlags(ped)
+    if ped == 0 or not DoesEntityExist(ped) then
+        appliedActionFlags = {}
+        return
+    end
+
+    for i = 1, #appliedActionFlags do
+        Citizen.InvokeNative(CLEAR_PED_ACTION_DISABLE_FLAG, ped, appliedActionFlags[i])
+    end
+    appliedActionFlags = {}
+end
+
+local function ApplyActionDisableFlags(ped)
+    local flags = GetConfiguredActionFlags()
+    for i = 1, #flags do
+        Citizen.InvokeNative(SET_PED_ACTION_DISABLE_FLAG, ped, flags[i])
+    end
+    appliedActionFlags = flags
+
+    local config = Config.ActionDisableFlags
+    if config and config.Debug then
+        print(('[%s] action disable flags applied ped=%s flags=%s')
+            :format(RESOURCE_NAME, tostring(ped), json.encode(flags)))
+    end
+end
+
 local Controls = {
     INPUT_ATTACK = 0x07CE1E61, -- Left click / primary attack: blocks running tackle, takedown, execute when melee/unarmed.
     INPUT_ATTACK2 = 0x0283C582, -- Secondary attack: blocks alternate contextual melee follow-up.
@@ -189,5 +240,38 @@ CreateThread(function()
         end
 
         Wait(sleep)
+    end
+end)
+
+-- Action disable flags persist on the ped until explicitly cleared. Apply only
+-- when the player ped changes instead of invoking six natives every frame.
+CreateThread(function()
+    while true do
+        local config = Config.ActionDisableFlags
+        local enabled = type(config) == 'table' and config.Enable == true
+        local ped = PlayerPedId()
+
+        if enabled and ped ~= 0 and DoesEntityExist(ped) then
+            if actionFlagsPed ~= ped or #appliedActionFlags == 0 then
+                if actionFlagsPed ~= 0 and actionFlagsPed ~= ped then
+                    ClearActionDisableFlags(actionFlagsPed)
+                end
+                actionFlagsPed = ped
+                ApplyActionDisableFlags(ped)
+            end
+        elseif actionFlagsPed ~= 0 then
+            ClearActionDisableFlags(actionFlagsPed)
+            actionFlagsPed = 0
+        end
+
+        Wait(500)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= RESOURCE_NAME then return end
+    if actionFlagsPed ~= 0 then
+        ClearActionDisableFlags(actionFlagsPed)
+        actionFlagsPed = 0
     end
 end)

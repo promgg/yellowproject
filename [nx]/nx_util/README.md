@@ -46,6 +46,15 @@ Config.AntiCombat = {
 - Hogtie action
 - Melee contextual action กลุ่ม execute/knife throat attack เมื่อถือ melee/unarmed
 
+## Persistent Action Disable Flags
+
+`Config.ActionDisableFlags` disables the following player-ped actions globally:
+`ADF_GRAPPLE`, `ADF_KICK`, `ADF_SHOVE`, `ADF_CHOKE`, `ADF_AUTO_SHOVE`, and
+`ADF_TACKLE`. The flags are applied once whenever the player ped changes and
+are cleared automatically when `nx_util` stops.
+
+Set `Config.ActionDisableFlags.Enable = false` to restore all six actions.
+
 ## Performance
 
 ระบบทำงานฝั่ง client เท่านั้น ไม่มี event spam และไม่มี server loop

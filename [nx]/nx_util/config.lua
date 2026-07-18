@@ -23,3 +23,18 @@ Config.AntiCombat = {
     -- true = debug print ตอนระบบเริ่มทำงาน
     Debug = false
 }
+
+-- Persistent ped action flags. These are global for the local player and are
+-- independent from the proximity/control checks in AntiCombat above.
+Config.ActionDisableFlags = {
+    Enable = true,
+    Flags = {
+        1,  -- ADF_GRAPPLE
+        4,  -- ADF_KICK
+        5,  -- ADF_SHOVE
+        6,  -- ADF_CHOKE
+        32, -- ADF_AUTO_SHOVE
+        33, -- ADF_TACKLE
+    },
+    Debug = false,
+}
