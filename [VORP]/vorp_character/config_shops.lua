@@ -1,6 +1,9 @@
 ConfigShops                      = {}
 
-ConfigShops.UseShops             = true  -- if you want to use the shops set to true if not set to false
+-- ปิดร้านเสื้อผ้าเดิมของ vorp_character แล้ว — ใช้ jo_clothingstore แทน (ต้องปิดตัวนี้ ไม่งั้นร้านซ้อนกัน 2 ระบบ)
+-- หมายเหตุ: พิกัดร้านใน ConfigShops.Shops ด้านล่างจะไม่ถูกใช้อีกต่อไป (รวมร้าน Annesburg ที่เพิ่มไว้)
+-- ถ้าต้องการร้านที่พิกัดเดิม ต้องไปตั้งใหม่ใน config ของ jo_clothingstore
+ConfigShops.UseShops             = false -- if you want to use the shops set to true if not set to false
 
 ConfigShops.SecondChancePrice    = 15000 -- if store is second chance then this is the price they need to pay to use it
 

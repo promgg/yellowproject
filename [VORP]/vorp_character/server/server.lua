@@ -15,6 +15,9 @@ local function ConvertTable(comps, compTints)
 			NewComps[k].tint1 = compTint.tint1 or 0
 			NewComps[k].tint2 = compTint.tint2 or 0
 			NewComps[k].palette = compTint.palette or 0
+			-- jo_clothingstore integration: ส่ง state ต่อไปด้วย (เสื้อผ้าบางชิ้นมีสถานะ เช่น พับแขน/เปิดปก)
+			-- ไม่งั้น jo_libs อ่านสถานะชิ้นนั้นไม่ได้ ชุดที่ใส่จะเพี้ยนตอน sync
+			NewComps[k].state = compTint.state or nil
 		end
 	end
 
