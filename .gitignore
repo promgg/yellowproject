@@ -15,4 +15,10 @@ Thumbs.db
 
 # Node (ถ้ามีรีซอร์สที่ build ด้วย npm)
 node_modules/
-dist/"[MJDEV]/MJ-WelfareLogin/data/players.json" 
+dist/
+[MJDEV]/MJ-WelfareLogin/data/players.json
+
+# jo_clothingstore/jo_libs ฯลฯ — escrow asset ซื้อมา ผูก key กับ tx เครื่องเซิฟ ไม่ขึ้น git
+# (ยกเว้น config/custom/*.lua ที่เราแก้เอง — เก็บสำรองแยกไว้เอง ไม่ sync ผ่าน repo นี้)
+# หมายเหตุ: ต้อง escape [ ] เพราะ gitignore ตีความ [Lock] เป็น character class ไม่ใช่ชื่อโฟลเดอร์ตรงตัว
+\[Lock\]/
