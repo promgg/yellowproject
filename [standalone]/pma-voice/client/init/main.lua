@@ -213,7 +213,11 @@ end)
 if gameVersion == 'redm' then
 	CreateThread(function()
 		while true do
-			if IsControlJustPressed(0, 0xA5BDCD3C --[[ Right Bracket ]]) then
+			-- เดิมใช้ 0xA5BDCD3C (Right Bracket) แต่ hash นี้คือ native control INPUT_SNIPER_ZOOM_IN_ONLY
+			-- ซึ่งเกมผูก default ไว้ทั้งปุ่ม ] และสกอร์ลเมาส์พร้อมกัน ทำให้เลื่อนสกอร์ลก็ปรับวงไมค์ไปด้วยโดยไม่ตั้งใจ
+			-- เปลี่ยนมาใช้ 0x26E9DC00 (ปุ่ม Z, INPUT_GAME_MENU_TAB_LEFT_SECONDARY) แทน — ไม่มีเมาส์/สกอร์ลผูกอยู่เลย
+			-- (มีผูกกับ "สลับ tab เมนู" ในบางจอเมนู/ร้านค้า แต่ไม่ชนกับ input ที่ใช้งานทั่วไปตลอดเวลาแบบสกอร์ล)
+			if IsControlJustPressed(0, 0x26E9DC00 --[[ Z ]]) then
 				ExecuteCommand('cycleproximity')
 			end
 			if IsControlJustPressed(0, 0x430593AA --[[ Left Bracket ]]) then
