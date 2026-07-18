@@ -1,5 +1,27 @@
 local VORPcore = exports['vorp_core']:GetCore()
 
+-- ตัวละครที่บันทึก status ไว้ก่อนระบบความเครียดถูกเพิ่ม จะมี JSON ใน DB แบบ {"Hunger":..,"Thirst":..}
+-- ที่ไม่มีคีย์ Stress เลย เดิมโค้ดเช็คแค่ความยาว string (#s_status > 5) แล้วส่งค่าดิบให้ client ตรงๆ
+-- ทำให้ PlayerStatus.Stress เป็น nil ฝั่ง client แล้วพังต่อกันเป็นทอด (concat nil ที่ needs.lua,
+-- หารด้วย nil ที่ client.lua, เทียบ number กับ nil) — เติมคีย์ที่ขาดให้ครบก่อนส่งเสมอ
+-- ฝั่ง save มี sanitize อยู่แล้ว (ดู MJ-STATUS:saveStatus) อันนี้คือด้านขากลับที่ยังขาดไป
+local function normalizeStatusJSON(raw)
+    local status = nil
+    if type(raw) == 'string' and raw ~= '' then
+        local ok, decoded = pcall(json.decode, raw)
+        if ok and type(decoded) == 'table' then status = decoded end
+    elseif type(raw) == 'table' then
+        status = raw
+    end
+
+    status = status or {}
+    status.Hunger = tonumber(status.Hunger) or Config.MaxHunger or 1000
+    status.Thirst = tonumber(status.Thirst) or Config.MaxThirst or 1000
+    status.Stress = tonumber(status.Stress) or Config.MinStress or 0
+
+    return json.encode(status)
+end
+
 -- กันกดกิน/ดื่มรัวๆ: server หัก item ทันทีทุกครั้งที่ callback ยิง (client ท่ากิน ~7 วิ ไม่ได้บล็อก
 -- การหัก item ที่ server ทำไปแล้ว) spam คลิกเลยกินหมดสต็อกในพริบตา + ท่า/prop ซ้อนกันหลายอัน —
 -- cooldown ต่อคนเท่าความยาวท่ากิน กันหักซ้ำระหว่างท่ายังเล่นอยู่
@@ -153,7 +175,8 @@ AddEventHandler("MJ-STATUS:loadStatus", function()
     and s_status ~= "{}"
     and #s_status > 5 then
 
-        TriggerClientEvent("MJ-STATUS:setStatus", _source, s_status)
+        -- เติมคีย์ที่ขาด (เช่น Stress ของตัวละครเก่า) ก่อนส่ง ไม่ส่งค่าดิบจาก DB ตรงๆ
+        TriggerClientEvent("MJ-STATUS:setStatus", _source, normalizeStatusJSON(s_status))
 
     else
 
@@ -250,8 +273,9 @@ AddEventHandler("vorp:SelectedCharacter",function(source)
     if not Character then return end
 
     local s_status = Character.status
-    if (#s_status > 5) then
-        TriggerClientEvent("MJ-STATUS:setStatus", _source, s_status)
+    if type(s_status) == "string" and #s_status > 5 then
+        -- เติมคีย์ที่ขาด (เช่น Stress ของตัวละครเก่า) ก่อนส่ง ไม่ส่งค่าดิบจาก DB ตรงๆ
+        TriggerClientEvent("MJ-STATUS:setStatus", _source, normalizeStatusJSON(s_status))
     else
         local status = json.encode({
             ['Hunger'] = Config.MaxHunger or 1000,

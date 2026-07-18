@@ -20,11 +20,23 @@ end)
 
 RegisterNetEvent("MJ-STATUS:setStatus")
 AddEventHandler("MJ-STATUS:setStatus", function(status)
-    if (#status < 2) then
+    if type(status) ~= "string" or #status < 2 then
         return
     end
+
+    local ok, decoded = pcall(json.decode, status)
+    if not ok or type(decoded) ~= "table" then
+        return
+    end
+
+    -- เติมคีย์ที่ขาดให้ครบเสมอ (server normalize มาให้แล้ว แต่กันไว้อีกชั้นเผื่อมี path อื่นยิงมา) —
+    -- ค่า nil ตัวเดียวทำให้ทั้ง HUD thread พังทั้งเส้น
+    decoded.Hunger = tonumber(decoded.Hunger) or Config.MaxHunger or 1000
+    decoded.Thirst = tonumber(decoded.Thirst) or Config.MaxThirst or 1000
+    decoded.Stress = tonumber(decoded.Stress) or Config.MinStress or 0
+
     isLoggedIn = true
-    PlayerStatus = json.decode(status)
+    PlayerStatus = decoded
     print("Hunger: " .. PlayerStatus.Hunger .. ", Thirst: " .. PlayerStatus.Thirst .. ", Stress: " .. PlayerStatus.Stress)
 end)
 
@@ -314,9 +326,11 @@ function TaskAnim(animDict, animName, flags, duration)
     RemoveAnimDict(animDict)
 end
 
-exports('setThirst', function() return PlayerStatus.Thirst end)
-exports('setHunger', function() return PlayerStatus.Hunger end)
-exports('setStress', function() return PlayerStatus.Stress end) 
+-- ห้ามคืน nil เด็ดขาด — ผู้เรียกเอาไปหาร/เทียบค่าต่อทันที (เช่น client.lua เอาไป / 1000)
+-- ถ้า PlayerStatus ยังไม่มาหรือขาดคีย์ (เช่นตัวละครเก่าที่ไม่มี Stress) จะพังทั้ง HUD thread
+exports('setThirst', function() return tonumber(PlayerStatus.Thirst) or Config.MaxThirst or 1000 end)
+exports('setHunger', function() return tonumber(PlayerStatus.Hunger) or Config.MaxHunger or 1000 end)
+exports('setStress', function() return tonumber(PlayerStatus.Stress) or Config.MinStress or 0 end)
 exports('setTemp', function() return temperature end)
 
 ------------------------------------------------
