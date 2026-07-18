@@ -37,7 +37,7 @@ local function ClearActionDisableFlags(ped)
     appliedActionFlags = {}
 end
 
-local function ApplyActionDisableFlags(ped)
+local function ApplyActionDisableFlags(ped, verbose)
     local flags = GetConfiguredActionFlags()
     for i = 1, #flags do
         Citizen.InvokeNative(SET_PED_ACTION_DISABLE_FLAG, ped, flags[i])
@@ -45,7 +45,9 @@ local function ApplyActionDisableFlags(ped)
     appliedActionFlags = flags
 
     local config = Config.ActionDisableFlags
-    if config and config.Debug then
+    -- verbose only on a real ped change; the tick re-applies constantly and would
+    -- otherwise spam the console twice a second when Debug is on.
+    if verbose and config and config.Debug then
         print(('[%s] action disable flags applied ped=%s flags=%s')
             :format(RESOURCE_NAME, tostring(ped), json.encode(flags)))
     end
@@ -243,8 +245,18 @@ CreateThread(function()
     end
 end)
 
--- Action disable flags persist on the ped until explicitly cleared. Apply only
--- when the player ped changes instead of invoking six natives every frame.
+-- These flags live on the ped, and the game silently resets them on death/
+-- respawn, revive, ragdoll, mount transitions, scripted animations/cutscenes and
+-- routing-bucket (instance) switches -- all WITHOUT handing out a new ped handle.
+-- The previous "apply once, only when the ped handle changes" guard therefore
+-- went permanently dormant after any of those (actionFlagsPed still matched the
+-- ped and appliedActionFlags was still populated), which is why the flags
+-- appeared to switch themselves off partway through a session. #appliedActionFlags
+-- never reached 0 on its own either, so that half of the condition was dead code.
+--
+-- Re-applying is idempotent, so just do it every tick. Six natives per 500ms tick
+-- (12/sec) is negligible -- the original perf note was about not doing it every
+-- FRAME, which this still avoids.
 CreateThread(function()
     while true do
         local config = Config.ActionDisableFlags
@@ -252,13 +264,12 @@ CreateThread(function()
         local ped = PlayerPedId()
 
         if enabled and ped ~= 0 and DoesEntityExist(ped) then
-            if actionFlagsPed ~= ped or #appliedActionFlags == 0 then
-                if actionFlagsPed ~= 0 and actionFlagsPed ~= ped then
-                    ClearActionDisableFlags(actionFlagsPed)
-                end
-                actionFlagsPed = ped
-                ApplyActionDisableFlags(ped)
+            local pedChanged = (actionFlagsPed ~= ped)
+            if pedChanged and actionFlagsPed ~= 0 then
+                ClearActionDisableFlags(actionFlagsPed)
             end
+            actionFlagsPed = ped
+            ApplyActionDisableFlags(ped, pedChanged)
         elseif actionFlagsPed ~= 0 then
             ClearActionDisableFlags(actionFlagsPed)
             actionFlagsPed = 0
@@ -267,6 +278,36 @@ CreateThread(function()
         Wait(500)
     end
 end)
+
+-- Close the up-to-500ms gap right after the moments most likely to wipe the
+-- flags, so a player can't shove/tackle in the instant after respawning or being
+-- revived. Safe to fire spuriously: these only ever re-add restrictions.
+local function ReapplyActionFlagsNow()
+    local config = Config.ActionDisableFlags
+    if type(config) ~= 'table' or config.Enable ~= true then return end
+
+    local ped = PlayerPedId()
+    if ped == 0 or not DoesEntityExist(ped) then return end
+
+    actionFlagsPed = ped
+    ApplyActionDisableFlags(ped, false)
+end
+
+local REAPPLY_EVENTS = {
+    'vorp_core:Client:OnPlayerRespawn',
+    'vorp_core:Client:OnPlayerRevive',
+    'vorp:SelectedCharacter',
+    'MJ-ReSpwan:Client:ReviveAnim',
+    'MJ-ReSpwan:revive:DeadRedM',
+    'MJ-ReSpwan:client:adminRevive',
+}
+
+for i = 1, #REAPPLY_EVENTS do
+    RegisterNetEvent(REAPPLY_EVENTS[i], function()
+        Wait(1000) -- let the respawn/revive finish rebuilding the ped first
+        ReapplyActionFlagsNow()
+    end)
+end
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= RESOURCE_NAME then return end
