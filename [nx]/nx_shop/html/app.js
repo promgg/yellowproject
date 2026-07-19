@@ -173,23 +173,61 @@ function renderCart() {
         const item = state.items.find((candidate) => candidate.id === id);
         if (!item) continue;
 
+        const max = itemMax(item);
+
         row.className = 'cart-item';
         row.innerHTML = `
             <img src="${imageUrl(item)}" alt="">
             <div class="cart-info">
                 <b>${item.label}</b>
-                <span>${formatMoney((Number(item.price) || 0) * qty)}</span>
+                <span class="cart-price">${formatMoney((Number(item.price) || 0) * qty)}</span>
             </div>
-            <div class="qty">
-                <button type="button" data-delta="-1">-</button>
-                <strong>${qty}</strong>
-                <button type="button" data-delta="1">+</button>
+            <div class="qty-stack">
+                <div class="qty">
+                    <button type="button" data-delta="-1" ${qty <= 1 ? 'disabled' : ''}>-</button>
+                    <input type="number" inputmode="numeric" min="1" max="${max}" value="${qty}">
+                    <button type="button" data-delta="1" ${qty >= max ? 'disabled' : ''}>+</button>
+                </div>
+                <div class="qty-edges">
+                    <button type="button" data-set="min">MIN</button>
+                    <button type="button" data-set="max">MAX</button>
+                </div>
             </div>
             <button class="remove" type="button">×</button>
         `;
 
         row.querySelector('[data-delta="-1"]').addEventListener('click', () => addItem(id, -1));
         row.querySelector('[data-delta="1"]').addEventListener('click', () => addItem(id, 1));
+        row.querySelector('[data-set="min"]').addEventListener('click', () => setItemQty(id, 1));
+        row.querySelector('[data-set="max"]').addEventListener('click', () => setItemQty(id, max));
+
+        const input = row.querySelector('.qty input');
+
+        // ระหว่างพิมพ์อัปเดตแค่ราคาแถวนี้กับยอดรวม ไม่เรียก render() เพราะ renderCart ล้าง innerHTML
+        // ทั้งตะกร้า -> input ตัวที่กำลังพิมพ์อยู่จะถูกสร้างใหม่และหลุด focus กลางคัน
+        input.addEventListener('input', () => {
+            const typed = clampQty(input.value, max);
+
+            // พิมพ์เกิน max แล้วปล่อยเลขเดิมค้างไว้ = ในช่องเขียน 500 แต่ราคาคิดแค่ 99 ตัว
+            // ผู้เล่นอ่านแล้วขัดกันเอง เขียนค่าที่ clamp แล้วกลับลงช่องทันที ไม่รอ blur
+            // (ปล่อยค่าว่างผ่านไปได้ ไม่งั้นลบเลขตัวสุดท้ายไม่ได้เลย)
+            if (input.value !== '' && typed !== Number(input.value)) {
+                input.value = String(typed);
+            }
+
+            // ค่าว่าง/0 ระหว่างพิมพ์ยังไม่ลบออกจากตะกร้า (แถวจะหายไปทั้งที่ยังพิมพ์ไม่เสร็จ)
+            if (typed > 0) state.cart.set(id, typed);
+            row.querySelector('.cart-price').textContent = formatMoney((Number(item.price) || 0) * typed);
+            renderTotals();
+            els.payBtn.disabled = state.pending || state.cart.size === 0;
+        });
+
+        // พิมพ์เสร็จค่อย normalize ทีเดียว (ว่าง/0 = เอาออกจากตะกร้า)
+        input.addEventListener('blur', () => setItemQty(id, input.value));
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') input.blur();
+        });
+
         row.querySelector('.remove').addEventListener('click', () => {
             state.cart.delete(id);
             render();
@@ -223,13 +261,28 @@ function render() {
     els.payBtn.disabled = state.pending || state.cart.size === 0;
 }
 
+function itemMax(item) {
+    return Number(item.max) || 100;
+}
+
+function clampQty(value, max) {
+    return Math.max(0, Math.min(max, Math.floor(Number(value) || 0)));
+}
+
 function addItem(id, delta) {
     const item = state.items.find((entry) => entry.id === id);
     if (!item || state.pending) return;
 
     const current = state.cart.get(id) || 0;
-    const max = Number(item.max) || 100;
-    const next = Math.max(0, Math.min(max, current + delta));
+    setItemQty(id, current + delta);
+}
+
+// ตั้งจำนวนเป็นค่าตรงๆ — ใช้ร่วมกันทั้ง MIN/MAX และช่องพิมพ์เลข
+function setItemQty(id, value) {
+    const item = state.items.find((entry) => entry.id === id);
+    if (!item || state.pending) return;
+
+    const next = clampQty(value, itemMax(item));
 
     if (next === 0) state.cart.delete(id);
     else state.cart.set(id, next);
@@ -281,10 +334,16 @@ els.payBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.open) {
-        closeShop();
-        post('close');
+    if (event.key !== 'Escape' || !state.open) return;
+
+    // กำลังพิมพ์จำนวนอยู่ -> Escape แค่ออกจากช่อง ไม่ปิดร้านทิ้งทั้งตะกร้า
+    if (document.activeElement && document.activeElement.matches('.qty input')) {
+        document.activeElement.blur();
+        return;
     }
+
+    closeShop();
+    post('close');
 });
 
 window.addEventListener('resize', updateShopScale);

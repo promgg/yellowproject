@@ -259,9 +259,12 @@ h2 {
 .cart-item {
     position: relative;
     display: grid;
-    grid-template-columns: 62px minmax(0, 1fr) 92px;
+    /* คอลัมน์ที่ 4 คือปุ่มลบ — เดิมเป็น position:absolute ลอยทับมุมขวาบนจนชนชื่อไอเทม
+       และอยู่ติดปุ่ม + จนกดพลาดบ่อย ย้ายมาอยู่ในกริดให้มีที่ของตัวเอง
+       ปุ่มลบกินความกว้างเพิ่ม จึงบีบ gap + คอลัมน์จำนวนคืนให้ ไม่งั้นชื่อไอเทมโดนตัดหนักกว่าเดิม */
+    grid-template-columns: 56px minmax(0, 1fr) 84px 22px;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     padding: 8px 10px;
     background: rgba(18, 18, 18, 0.98);
 }
@@ -301,11 +304,17 @@ h2 {
     font-weight: 800;
 }
 
+/* ช่องจำนวนเป็น 2 ชั้น: บน = ปรับทีละ 1 (พิมพ์เลขเองได้), ล่าง = กระโดดสุดขอบ */
+.qty-stack {
+    display: grid;
+    gap: 3px;
+}
+
 .qty {
     display: grid;
     grid-template-columns: 22px 1fr 22px;
     align-items: center;
-    height: 24px;
+    height: 22px;
     overflow: hidden;
     border-radius: 9px;
     background: #030303;
@@ -323,27 +332,79 @@ h2 {
     line-height: 16px;
 }
 
-.qty strong {
-    overflow: hidden;
+.qty button:hover:not(:disabled) {
+    background: #2e2e2e;
+}
+
+/* ถึงขอบแล้วจางลง ให้รู้ว่ากดต่อไม่ได้ ไม่ใช่ปุ่มเสีย */
+.qty button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.qty input {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 12px;
     text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -moz-appearance: textfield;
+}
+
+/* ลูกศร spinner ของ input[type=number] ไม่เข้ากับธีมและเล็กเกินกดในเกม */
+.qty input::-webkit-outer-spin-button,
+.qty input::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+}
+
+.qty input:focus {
+    background: rgba(169, 125, 61, 0.18);
+}
+
+.qty-edges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+}
+
+.qty-edges button {
+    height: 15px;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #9a9a9a;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+
+.qty-edges button:hover {
+    background: var(--gold);
+    color: #101010;
 }
 
 .remove {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     border-radius: 6px;
-    background: #777;
-    box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+    color: #8a8a8a;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 18px;
-    font-weight: 800;
-    line-height: 15px;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+/* ลบเป็น action ที่ย้อนไม่ได้ ให้สีแดงเตือนตอน hover ก่อนกดจริง */
+.remove:hover {
+    background: var(--red);
+    color: #fff;
 }
 
 .totals {
