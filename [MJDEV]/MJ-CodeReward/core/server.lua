@@ -54,6 +54,19 @@ local function LoadUsedCodes()
     end
 end
 
+-- ล้างประวัติโค้ดที่ผู้เล่นคนนี้เคยกด — ใช้โดย MJ-Admin ตอนรีเซ็ตบัญชี
+-- โค้ดที่กดแล้วเก็บในไฟล์ used_codes.json ไม่ได้อยู่ใน DB คำสั่ง SQL จึงแตะไม่ถึง
+-- ถ้าไม่ล้างตรงนี้ ผู้เล่นที่ถูกรีเซ็ตเป็น "คนใหม่" แล้วจะยังกดโค้ดเดิมซ้ำไม่ได้
+exports('ClearPlayerCodes', function(identifier)
+    if type(identifier) ~= 'string' or identifier == '' then return false end
+    if UsedCodes[identifier] == nil then return true end -- ไม่เคยกดโค้ดไหนเลย ถือว่าสำเร็จ
+
+    UsedCodes[identifier] = nil
+    SaveUsedCodes()
+    print(('^3[MJ-CodeReward]^7 ล้างประวัติโค้ดของ %s แล้ว'):format(identifier))
+    return true
+end)
+
 local function convertToTimestamp(dateStr)
     return os.time({
         year  = tonumber(dateStr:sub(1, 4)),
