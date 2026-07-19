@@ -242,6 +242,19 @@ if Config.DebugLog and Config.Command then
     end, false)
 end
 
+-- ── ทดสอบว่า client คุยกับ server ใน resource นี้ได้จริงไหม ────────────────
+-- แยกออกมาจาก logic interior ทั้งหมด ไม่พึ่ง config/พิกัด/native อะไรเลย
+-- /interiorping  -> ถ้า server ตอบกลับ แปลว่าเส้นทาง event ปกติ ปัญหาอยู่ที่ logic
+--                   ถ้าไม่ตอบ แปลว่า server script ไม่ได้โหลด (คนละเรื่องกับ native)
+RegisterCommand('interiorping', function()
+    print(('[%s] ping -> ส่งไป server...'):format(RESOURCE))
+    TriggerServerEvent('lp_interior:ping')
+end, false)
+
+RegisterNetEvent('lp_interior:pong', function(msg)
+    print(('[%s] ^2pong <- server ตอบกลับแล้ว:^7 %s'):format(RESOURCE, tostring(msg)))
+end)
+
 -- ── cleanup ──────────────────────────────────────────────────────────────
 -- ถ้า resource ถูกหยุดขณะผู้เล่นอยู่ในมิติแยก ต้องดึงกลับมิติหลัก ไม่งั้นค้างอยู่มิติเปล่า
 AddEventHandler('onResourceStop', function(res)
