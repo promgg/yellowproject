@@ -271,18 +271,39 @@ exports("setSyncDelay", setSyncDelay)
 exports("resetSyncDelay", resetSyncDelay)
 exports("getForecast", createForecast)
 
-AddEventHandler("weathersync:setWeather", setWeather)
-AddEventHandler("weathersync:resetWeather", resetWeather)
-AddEventHandler("weathersync:setWeatherPattern", setWeatherPattern)
-AddEventHandler("weathersync:resetWeatherPattern", resetWeatherPattern)
-AddEventHandler("weathersync:setTime", setTime)
-AddEventHandler("weathersync:resetTime", resetTime)
-AddEventHandler("weathersync:setTimescale", setTimescale)
-AddEventHandler("weathersync:resetTimescale", resetTimescale)
-AddEventHandler("weathersync:setSyncDelay", setSyncDelay)
-AddEventHandler("weathersync:resetSyncDelay", resetSyncDelay)
-AddEventHandler("weathersync:setWind", setWind)
-AddEventHandler("weathersync:resetWind", resetWind)
+-- ── กันผู้เล่นทั่วไปยิง event เปลี่ยนเวลา/อากาศทั้งเซิร์ฟเวอร์ ──────────────────
+-- event พวกนี้เป็น RegisterNetEvent ทั้งหมด = ผู้เล่นคนไหนก็ TriggerServerEvent เองได้
+-- และเดิมไม่มีการเช็คสิทธิ์เลยสักชั้น ใครก็สั่งพายุหิมะทั้งแมพหรือหยุดเวลาได้
+--
+-- ครอบเฉพาะ "ทางที่มาจาก event" เท่านั้น ไม่แตะตัวฟังก์ชัน — resource อื่นที่เรียกผ่าน
+-- exports.weathersync:setWeather() (เช่น MJ-Admin) ยังทำงานได้ตามเดิม ไม่ต้องมี ACE
+local function guard(fn)
+	return function(...)
+		local src = source
+		-- source 0 / ว่าง = สั่งจากฝั่ง server เอง (console หรือ resource อื่น) ปล่อยผ่าน
+		if src == nil or src == 0 or src == '' then return fn(...) end
+
+		if not IsPlayerAceAllowed(src, 'weathersync.admin') then
+			print(("^3[weathersync]^0 ปฏิเสธคำสั่งเปลี่ยนเวลา/อากาศจาก %s (id %s) — ไม่มี ace weathersync.admin")
+				:format(GetPlayerName(src) or '?', tostring(src)))
+			return
+		end
+		return fn(...)
+	end
+end
+
+AddEventHandler("weathersync:setWeather", guard(setWeather))
+AddEventHandler("weathersync:resetWeather", guard(resetWeather))
+AddEventHandler("weathersync:setWeatherPattern", guard(setWeatherPattern))
+AddEventHandler("weathersync:resetWeatherPattern", guard(resetWeatherPattern))
+AddEventHandler("weathersync:setTime", guard(setTime))
+AddEventHandler("weathersync:resetTime", guard(resetTime))
+AddEventHandler("weathersync:setTimescale", guard(setTimescale))
+AddEventHandler("weathersync:resetTimescale", guard(resetTimescale))
+AddEventHandler("weathersync:setSyncDelay", guard(setSyncDelay))
+AddEventHandler("weathersync:resetSyncDelay", guard(resetSyncDelay))
+AddEventHandler("weathersync:setWind", guard(setWind))
+AddEventHandler("weathersync:resetWind", guard(resetWind))
 
 AddEventHandler("weathersync:requestUpdatedForecast", function()
 	TriggerClientEvent("weathersync:updateForecast", source, createForecast())
