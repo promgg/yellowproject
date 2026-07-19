@@ -984,6 +984,154 @@ function SetDistcord(name, message, description, color, DiscordWebHook)
     })
 end
 
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  เวลา & สภาพอากาศ — สั่งผ่าน weathersync เท่านั้น
+--
+--  ห้ามใช้ native (NetworkOverrideClockTime / SetWeatherType) ตรงๆ เด็ดขาด:
+--  weathersync มีลูป broadcast เวลา/อากาศให้ทุก client ทุก 5 วินาที (Config.syncDelay)
+--  ถ้าเราไปตั้งเองด้วย native มันจะโดนเขียนทับหายภายใน 5 วิ ดูเหมือนคำสั่งไม่ทำงาน
+--
+--  client callback (setTime/changeWeather/freezeTime/freezeWeather) มีอยู่ใน
+--  client/client.lua ตั้งแต่แรกแล้ว แต่ไม่เคยมี handler ฝั่ง server มารับ — นี่คือส่วนที่ขาดไป
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ชื่ออากาศที่ RDR2 รองรับจริง (weathersync/shared.lua : RDR2WeatherTypes)
+-- setWeather() ของ weathersync ไม่ validate ให้ ถ้าส่งชื่อมั่วเข้าไปอากาศจะเพี้ยนทั้งเซิร์ฟ
+-- เราจึงต้องกรองเองที่นี่ก่อนส่งต่อเสมอ
+local VALID_WEATHER = {
+    blizzard = true, clouds = true, drizzle = true, fog = true,
+    groundblizzard = true, hail = true, highpressure = true, hurricane = true,
+    misty = true, overcast = true, overcastdark = true, rain = true,
+    sandstorm = true, shower = true, sleet = true, snow = true,
+    snowlight = true, sunny = true, thunder = true, thunderstorm = true,
+    whiteout = true,
+}
+
+-- weathersync ไม่มีฟังก์ชัน freeze แยก ต้องส่ง freeze ไปพร้อม setTime/setWeather
+-- จึงต้องจำสถานะไว้เองว่าตอนนี้ล็อกอยู่ไหม (weathersync เก็บใน local ของมัน อ่านจากนอกไม่ได้)
+local timeFrozen    = false
+local weatherFrozen = false
+
+local function notify(src, text, kind)
+    TriggerClientEvent("pNotify:SendNotification", src, {
+        text = text, type = kind or "success", timeout = 4000, layout = "topRight",
+    })
+end
+
+local function canDo(src, flag)
+    local group = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    return Config["Perms"][group] and Config["Perms"][group][flag]
+end
+
+-- pcall กัน: ถ้า weathersync ไม่ได้ ensure อยู่ exports จะ error แล้วพา handler ตายทั้งตัว
+local function wsync(fn, ...)
+    local ok, err = pcall(function(...) return exports.weathersync[fn](exports.weathersync, ...) end, ...)
+    if not ok then
+        print(("^1[MJ-Admin]^7 เรียก weathersync:%s ไม่สำเร็จ: %s (ensure weathersync อยู่ไหม?)"):format(fn, tostring(err)))
+    end
+    return ok
+end
+
+-- ตั้งเวลา — client ส่งมาเป็นสตริง "HH:MM" จาก input type="time"
+RegisterNetEvent("admin:Time")
+AddEventHandler("admin:Time", function(input)
+    local src = source
+    if not canDo(src, 'CanSetTime') then return end
+
+    local hh, mm = tostring(input or ''):match('^(%d%d?):(%d%d)$')
+    hh, mm = tonumber(hh), tonumber(mm)
+    if not hh or not mm or hh > 23 or mm > 59 then
+        notify(src, "รูปแบบเวลาไม่ถูกต้อง ต้องเป็น HH:MM เช่น 18:30", "error")
+        return
+    end
+
+    -- คงวันเดิมไว้ เปลี่ยนแค่เวลา (weathersync นับ day 0=อาทิตย์..6=เสาร์)
+    local day = 0
+    local ok, cur = pcall(function() return exports.weathersync:getTime() end)
+    if ok and type(cur) == 'table' and cur.day then day = cur.day end
+
+    if wsync('setTime', day, hh, mm, 0, 5000, timeFrozen) then
+        notify(src, ("ตั้งเวลาเป็น %02d:%02d แล้ว"):format(hh, mm))
+        print(("^3[MJ-Admin]^7 %s ตั้งเวลาเซิร์ฟเวอร์เป็น %02d:%02d"):format(GetPlayerName(src) or src, hh, mm))
+    end
+end)
+
+RegisterNetEvent("admin:freezeTime")
+AddEventHandler("admin:freezeTime", function()
+    local src = source
+    if not canDo(src, 'CanFreezeTime') then return end
+
+    timeFrozen = not timeFrozen
+
+    local t = { day = 0, hour = 12, minute = 0, second = 0 }
+    local ok, cur = pcall(function() return exports.weathersync:getTime() end)
+    if ok and type(cur) == 'table' then t = cur end
+
+    -- ส่งเวลาปัจจุบันกลับไปพร้อมธง freeze — transition 0 เพื่อไม่ให้เวลากระโดดตอนสลับโหมด
+    if wsync('setTime', t.day or 0, t.hour or 12, t.minute or 0, t.second or 0, 0, timeFrozen) then
+        notify(src, timeFrozen and "หยุดเวลาแล้ว" or "ปล่อยเวลาเดินต่อแล้ว")
+        print(("^3[MJ-Admin]^7 %s %s"):format(GetPlayerName(src) or src, timeFrozen and "หยุดเวลา" or "ปล่อยเวลาเดิน"))
+    end
+end)
+
+-- เปลี่ยนอากาศ
+RegisterNetEvent("admin:Weather")
+AddEventHandler("admin:Weather", function(weather)
+    local src = source
+    if not canDo(src, 'CanChangeWeather') then return end
+
+    weather = tostring(weather or ''):lower()
+    if not VALID_WEATHER[weather] then
+        notify(src, "ไม่รู้จักสภาพอากาศนี้", "error")
+        return
+    end
+
+    -- freeze = true เสมอตอนแอดมินเลือกเอง ไม่งั้นลูป forecast ของ weathersync
+    -- จะหมุนอากาศเปลี่ยนไปเองภายใน 1 ชั่วโมงในเกม (แอดมินสั่งแล้วอยู่ไม่ทน)
+    weatherFrozen = true
+    if wsync('setWeather', weather, 10.0, true, false) then
+        notify(src, "เปลี่ยนสภาพอากาศเป็น " .. weather .. " แล้ว (ล็อกไว้)")
+        print(("^3[MJ-Admin]^7 %s เปลี่ยนอากาศเป็น %s"):format(GetPlayerName(src) or src, weather))
+    end
+end)
+
+-- ปลดล็อก = คืนให้ weathersync คุมเองตามพยากรณ์
+RegisterNetEvent("admin:freezeWeather")
+AddEventHandler("admin:freezeWeather", function()
+    local src = source
+    if not canDo(src, 'CanFreezeWeather') then return end
+
+    weatherFrozen = not weatherFrozen
+
+    if weatherFrozen then
+        local cur = 'sunny'
+        local ok, w = pcall(function() return exports.weathersync:getWeather() end)
+        if ok and type(w) == 'string' and VALID_WEATHER[w] then cur = w end
+        if wsync('setWeather', cur, 0.0, true, false) then
+            notify(src, "ล็อกสภาพอากาศไว้ที่ " .. cur .. " แล้ว")
+        end
+    else
+        if wsync('resetWeather') then
+            notify(src, "ปลดล็อกอากาศแล้ว — กลับไปเปลี่ยนเองตามพยากรณ์")
+        end
+    end
+    print(("^3[MJ-Admin]^7 %s %s"):format(GetPlayerName(src) or src, weatherFrozen and "ล็อกอากาศ" or "ปลดล็อกอากาศ"))
+end)
+
+-- คืนค่าเวลา+อากาศกลับเป็นอัตโนมัติทั้งคู่
+RegisterNetEvent("admin:ResetWeatherTime")
+AddEventHandler("admin:ResetWeatherTime", function()
+    local src = source
+    if not canDo(src, 'CanChangeWeather') then return end
+    timeFrozen, weatherFrozen = false, false
+    wsync('resetWeather')
+    wsync('resetTime')
+    notify(src, "คืนค่าเวลาและอากาศเป็นอัตโนมัติแล้ว")
+    print(("^3[MJ-Admin]^7 %s คืนค่าเวลา/อากาศเป็นอัตโนมัติ"):format(GetPlayerName(src) or src))
+end)
+
+
 Citizen.CreateThread(function()
     Citizen.Wait(5000) 
     print("##################################################")
