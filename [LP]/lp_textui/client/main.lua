@@ -70,6 +70,16 @@ local holdOwner = nil
 local isSuppressed = false
 local suppressOwners = {}
 local suppressGen = {}
+
+-- จำ prompt ที่กำลังแสดงอยู่ เพื่อ "คืนให้เอง" หลังปลด suppress
+-- จำเป็นเพราะตัวเรียกส่วนใหญ่ (lp_animalFarm, lp_fasttravel, nx_shop ฯลฯ) แสดง prompt
+-- ครั้งเดียวตอนเข้าโซนแล้ว latch ไว้ ไม่ได้เรียกซ้ำทุกเฟรม — พอเปิดกระเป๋าแล้วเราสั่งซ่อนทิ้ง
+-- ตัวเรียกไม่มีทางรู้ว่าต้องแสดงใหม่ prompt เลยหายถาวรจนกว่าจะเดินออกโซนแล้วเข้าใหม่
+local activeShow = nil         -- prompt ที่แสดงอยู่ตอนนี้ (nil = ไม่มี)
+local suppressedSnapshot = nil -- สำเนาที่เก็บไว้ตอนโดน suppress รอคืน
+-- true ระหว่างที่ SetSuppressed สั่งซ่อนเอง — ให้ HideUI/CancelHold รู้ว่าอย่าไปล้าง snapshot
+-- ที่เพิ่งเก็บมา (ต่างจากตอนเจ้าของสั่งซ่อนเอง ซึ่งต้องล้าง)
+local internalSuppressTeardown = false
 local setSitRestScenariosBlocked
 local blockNearbyAmbientPrompts
 
@@ -120,6 +130,8 @@ local function TextUI(message, key, worldAnchor, ownerName)
 
     isShowing = true
     currentOwner = owner
+    -- TextUIHold เรียกฟังก์ชันนี้ต่อ แล้วจะเขียนทับ activeShow เป็น kind='hold' อีกที
+    activeShow = { kind = 'plain', message = message, key = key, worldAnchor = worldAnchor, owner = owner }
     worldGen  = worldGen + 1 -- ปิด world thread เก่า (ถ้ามี) ก่อนเปิดของใหม่
     SendNUIMessage({ action = 'lp_textui:show', message = message or '', key = key, world = worldAnchor ~= nil })
     if worldAnchor then worldPosThread(worldAnchor) end
@@ -128,6 +140,14 @@ end
 
 local function HideUI(ownerName)
     local owner = resolveOwner(ownerName)
+
+    -- ระหว่าง suppress ไม่มีอะไรแสดงอยู่ คำสั่งซ่อนจะตกไปที่ early-return ข้างล่างเฉยๆ
+    -- แต่ต้องทิ้ง snapshot ด้วย ไม่งั้นพอปลด suppress จะคืน prompt ที่เจ้าของสั่งซ่อนไปแล้ว
+    -- (เคสจริง: เดินออกจากโซนขณะกระเป๋าเปิดค้างอยู่)
+    if not internalSuppressTeardown and suppressedSnapshot and suppressedSnapshot.owner == owner then
+        suppressedSnapshot = nil
+    end
+
     if currentOwner ~= nil and currentOwner ~= owner then return false end
     if currentOwner == nil and holdOwner ~= nil and holdOwner ~= owner then return false end
     if not isShowing and not holdActive then return false end
@@ -142,6 +162,7 @@ local function HideUI(ownerName)
 
     isShowing = false
     currentOwner = nil
+    activeShow = nil -- ซ่อนตามปกติ = ไม่มีอะไรต้องคืนแล้ว (ตอน suppress จะ copy ไว้ก่อนเรียกตรงนี้)
     worldGen  = worldGen + 1 -- หยุด world thread ที่รันอยู่ (ถ้ามี)
     SendNUIMessage({ action = 'lp_textui:hide' })
     return true
@@ -228,6 +249,11 @@ local function TextUIHold(message, holdMs, callback, controlCode, worldAnchor, o
     setHoldProgress(0)
     holdActive = true
     holdOwner  = owner
+    -- ทับ activeShow ที่ TextUI ตั้งไว้ ให้เก็บ callback/holdMs ครบ เผื่อต้องสร้าง hold ใหม่ตอนคืน
+    activeShow = {
+        kind = 'hold', message = message, holdMs = holdMs, callback = callback,
+        controlCode = controlCode, worldAnchor = worldAnchor, owner = owner,
+    }
     holdGen    = holdGen + 1
     local gen  = holdGen
     setSitRestScenariosBlocked(true)
@@ -272,6 +298,12 @@ end
 
 local function CancelHold(ownerName)
     local owner = resolveOwner(ownerName)
+
+    -- เหตุผลเดียวกับใน HideUI — ยกเลิกระหว่าง suppress ต้องทิ้ง snapshot ด้วย
+    if not internalSuppressTeardown and suppressedSnapshot and suppressedSnapshot.owner == owner then
+        suppressedSnapshot = nil
+    end
+
     if not holdActive or (holdOwner ~= nil and holdOwner ~= owner) then return false end
     holdActive = false
     holdOwner  = nil
@@ -290,6 +322,28 @@ end
 -- Temporarily blocks every TextUI caller while a full-screen NUI is open.
 -- Suppression is tracked per invoking resource so a bank -> locker handoff, or
 -- two overlapping UIs, cannot release another resource's active lock.
+-- คืน prompt ที่ถูกซ่อนไปตอน suppress ให้เอง
+-- ตัวเรียกส่วนใหญ่ latch ไว้ว่า "แสดงแล้ว" เลยไม่มีทางรู้ว่าต้องเรียกซ้ำ ถ้าไม่คืนให้ตรงนี้
+-- prompt จะหายถาวรจนกว่าจะออกจากโซนแล้วเข้าใหม่ (อาการที่เจอกับ lp_animalFarm ตอนเปิดกระเป๋า)
+local function restoreSuppressed()
+    local snap = suppressedSnapshot
+    suppressedSnapshot = nil
+
+    if not snap then return end
+    if isSuppressed then return end            -- ยังมีเจ้าอื่น suppress ค้างอยู่
+    if isShowing or holdActive then return end -- มีตัวอื่นยึดจอไปแล้ว อย่าไปทับของเขา
+
+    -- เจ้าของเดิมยังรันอยู่ไหม (owner อาจเป็น "resource" หรือ "resource:sub")
+    local ownerRes = snap.owner and snap.owner:match('^[^:]+')
+    if ownerRes and GetResourceState(ownerRes) ~= 'started' then return end
+
+    if snap.kind == 'hold' then
+        TextUIHold(snap.message, snap.holdMs, snap.callback, snap.controlCode, snap.worldAnchor, snap.owner)
+    else
+        TextUI(snap.message, snap.key, snap.worldAnchor, snap.owner)
+    end
+end
+
 local function SetSuppressed(state, releaseDelayMs, ownerName)
     local owner = tostring(ownerName or GetInvokingResource() or "lp_textui")
     suppressGen[owner] = (suppressGen[owner] or 0) + 1
@@ -300,8 +354,16 @@ local function SetSuppressed(state, releaseDelayMs, ownerName)
         isSuppressed = true
         local activeOwner = holdOwner or currentOwner
         if activeOwner then
+            -- copy ไว้ก่อนเรียก CancelHold/HideUI เพราะสองตัวนั้นจะล้าง activeShow ทิ้ง
+            -- (ไม่ทับของเดิมถ้ามี snapshot ค้างอยู่แล้ว = โดน suppress ซ้อนจากหลาย UI)
+            if activeShow and not suppressedSnapshot then
+                suppressedSnapshot = activeShow
+            end
+            -- กัน CancelHold/HideUI ข้างล่างไปล้าง snapshot ที่เพิ่งเก็บมา
+            internalSuppressTeardown = true
             CancelHold(activeOwner)
             HideUI(activeOwner)
+            internalSuppressTeardown = false
         end
         return
     end
@@ -310,6 +372,7 @@ local function SetSuppressed(state, releaseDelayMs, ownerName)
     if delay == 0 then
         suppressOwners[owner] = nil
         isSuppressed = next(suppressOwners) ~= nil
+        restoreSuppressed()
         return
     end
 
@@ -317,6 +380,7 @@ local function SetSuppressed(state, releaseDelayMs, ownerName)
         if gen == suppressGen[owner] then
             suppressOwners[owner] = nil
             isSuppressed = next(suppressOwners) ~= nil
+            restoreSuppressed()
         end
     end)
 end
