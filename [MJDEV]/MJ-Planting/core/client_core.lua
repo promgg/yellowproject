@@ -98,7 +98,7 @@ Citizen.CreateThread(function()
     end
 end)
 
--- STEP 1-2: ใช้เมล็ด (เช็คแค่เมล็ด) -> ghost placement (freeze ผู้เล่น) -> ปลูกต้นกล้า สถานะ 'fertilize'
+-- STEP 1-2: ใช้เมล็ด (เช็คแค่เมล็ด) -> ท่าปลูก -> ปลูกต้นกล้าตรงหน้า สถานะ 'fertilize'
 -- ปุ๋ย/น้ำ ไม่เช็ค/ไม่หักที่นี่ — แยกไปเป็น interaction กด E ที่ต้น (ดู doPlantAction/loop ด้านล่าง)
 function StartPlantings(k)
     local zoneId = k.zoneId
@@ -106,12 +106,16 @@ function StartPlantings(k)
 
     if Start[zoneId] then return end -- กำลังปลูกที่โซนนี้อยู่แล้ว (race guard)
 
-    -- เช็คระยะห่างจากต้นอื่นในโซนเดียวกัน
+    -- ── จุดปลูกคือตรงหน้าผู้เล่น (ไม่มี ghost ให้เล็งแล้ว) หาก่อนเช็คระยะห่าง ──
+    local place = PlantSpotInFront(1.5)
+
+    -- เช็คระยะห่างจากต้นอื่นในโซนเดียวกัน — วัดจากจุดที่จะปลูกจริง ไม่ใช่ตำแหน่งผู้เล่น
+    -- (สมัย ghost ต้นอาจไปอยู่ไกลจากตัวได้ถึง 6m การวัดจากตัวผู้เล่นจึงคลาดเคลื่อน)
     local minDis = k.Dis or 3.0
     for i = 1, #PLANT do
         if PLANT[i].Planting and DoesEntityExist(PLANT[i].Planting)
             and PLANT[i].Data.zoneId == zoneId
-            and #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(PLANT[i].Planting)) < minDis then
+            and #(place.coords - GetEntityCoords(PLANT[i].Planting)) < minDis then
             notifyErr('มีพืชปลูกอยู่ใกล้เกินไป กรุณาปลูกให้ห่างกว่านี้')
             return
         end
@@ -119,11 +123,7 @@ function StartPlantings(k)
 
     Start[zoneId] = true
 
-    -- ── Ghost placement (เช็คแค่เมล็ด — มาถึงนี่ได้แปลว่ากำลังใช้เมล็ด) freeze ผู้เล่นใน GhostPlace ──
-    local place = GhostPlace(k.model)
-    if not place then Start[zoneId] = false; return end
-
-    -- ── lp_progbar ท่าปลูกเมล็ด (ต่อจาก ghost confirm) — ยกเลิกกลางคัน = ยังไม่หักเมล็ด/ไม่ spawn ──
+    -- ── lp_progbar ท่าปลูกเมล็ด — ยกเลิกกลางคัน = ยังไม่หักเมล็ด/ไม่ spawn ──
     if animPlant() then Start[zoneId] = false; return end
 
     -- server ยืนยัน + หักเมล็ดจริงตรงนี้ (ระยะ/โควตา/ระยะห่างจากต้นอื่น/มีเมล็ดจริงไหม ตรวจซ้ำฝั่ง

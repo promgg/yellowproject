@@ -119,7 +119,7 @@ VORPcore.addRpcCallback('MJ-Planting:GetMyPlants:SV', function(source, cb)
 end)
 
 -- ── STEP 1: ยืนยันการปลูกจริง (หักเมล็ด + สร้าง record) ──────────────────────
--- client ทำ ghost placement + ท่าปลูก (animPlant) เสร็จก่อนแล้วค่อยเรียกอันนี้ — ทุกอย่างที่ client
+-- client เล่นท่าปลูก (animPlant) เสร็จก่อนแล้วค่อยเรียกอันนี้ — ทุกอย่างที่ client
 -- เคยเชื่อเอง (อยู่ในโซนไหม / ใกล้ต้นอื่นไปไหม / มีเมล็ดไหม) ตรวจซ้ำฝั่งนี้ทั้งหมด
 VORPcore.addRpcCallback('MJ-Planting:ConfirmPlace:SV', function(source, cb, idx, coords, heading)
     local src = source

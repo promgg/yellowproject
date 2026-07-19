@@ -33,25 +33,6 @@ MJDEV.RefillAnim = {
     task     = 'WORLD_HUMAN_BUCKET_FILL',
 }
 
--- ── Ghost placement (ยกแนวคิดจาก Devchacha01/Farming, ทำด้วย native ล้วน) ──
--- หลังทำ 3 ritual (พลวนดิน→ใส่ปุ๋ย→รดน้ำ) เสร็จ จะขึ้น prop โปร่งใสให้เล็งวางจุดปลูกก่อน
--- ปลูกจริง control hash ทั้งหมด verify แล้วจาก MJ-Admin (ใช้ได้จริงใน build นี้)
-MJDEV.Ghost = {
-    moveStep   = 0.06, -- ระยะขยับต่อเฟรมตอนกดค้าง WASD
-    rotateStep = 2.5,  -- องศาหมุนต่อเฟรมตอนกด Q/Z
-    maxDist    = 6.0,  -- ระยะไกลสุดจากตัวผู้เล่นที่วางต้นได้ (กันวางทะลุกำแพง/ไกลเกิน)
-    keys = {
-        forward = 0x8FD015D8, -- W
-        back    = 0xD27782E3, -- S
-        left    = 0x7065027D, -- A
-        right   = 0xB4E465B4, -- D
-        rotL    = 0xDE794E3E, -- Q
-        rotR    = 0x26E9DC00, -- Z
-        confirm = 0x17BEC168, -- E
-        cancel  = 0x8CC9CD42, -- X
-    },
-}
-
 -- จุดเติมน้ำ — ถังน้ำ (tool_bucket) เก็บจำนวนครั้งที่รดได้เหลือไว้ใน metadata.uses
 -- ถังใหม่/ถังที่รดจนหมด (uses = 0) ต้องมาเติมที่จุดนี้ก่อนถึงจะรดต่อได้ (ถังไม่หายไปตอนหมด)
 MJDEV.WaterRefill = {

@@ -72,7 +72,7 @@ function animacion2()
     })
 end
 
--- ── Progress หลัง Ghost placement (ก่อนหักเมล็ด/spawn จริง) — ท่าปลูกเมล็ดลงดิน ──
+-- ── Progress ตอนปลูก (ก่อนหักเมล็ด/spawn จริง) — ท่าปลูกเมล็ดลงดิน ──
 -- ยกมาจาก Devchacha Farming ตรงๆ (FinalizePlacement: TaskStartScenarioInPlace WORLD_HUMAN_FARMER_WEEDING, 5000ms)
 -- โปรเจกต์อ้างอิงไม่มีท่า "พลวนดิน" แยกต่างหาก — นี่คือท่าเดียวที่เล่นตอนปลูกเมล็ด
 function animPlant()
@@ -112,69 +112,23 @@ function animFertilize()
     })
 end
 
--- ── Ghost placement — prop โปร่งใสให้เล็งจุดปลูก คืน { coords, heading } หรือ nil ถ้ายกเลิก ──
-function GhostPlace(model)
-    if not LoadModel(model) then return nil end
+-- ── จุดปลูก: ตรงหน้าผู้เล่นระยะคงที่ คืน { coords, heading } ──
+-- เดิมเป็น ghost placement (prop โปร่งใส + WASD/Q/Z เล็งเอง) ตัดออกแล้ว: ใช้เมล็ดปุ๊บลงต้นตรงหน้าเลย
+-- ระยะ/ระยะห่างจากต้นอื่น server ตรวจซ้ำอยู่แล้วใน ConfirmPlace:SV จึงไม่เสียความปลอดภัย
+--
+-- z ที่คืนไปเป็นแค่ค่าประมาณจากระดับพื้น — ทั้งตอน spawn จริงและตอน restorePlant เรียก
+-- PlaceObjectOnGroundProperly ต่ออยู่แล้ว ต้นจึงสแนปลงพื้นเองไม่ลอย/ไม่จม
+function PlantSpotInFront(dist)
     local ped = PlayerPedId()
-    FreezeEntityPosition(ped, true)
-    local p = GetEntityCoords(ped)
-    local f = GetEntityForwardVector(ped)
-    local gx, gy, gz = p.x + f.x * 1.5, p.y + f.y * 1.5, p.z
-    local heading = GetEntityHeading(ped)
+    local p   = GetEntityCoords(ped)
+    local f   = GetEntityForwardVector(ped)
+    local x, y = p.x + f.x * (dist or 1.5), p.y + f.y * (dist or 1.5)
 
-    local ghost = CreateObject(GetHashKey(model), gx, gy, gz, false, false, false)
-    SetEntityAlpha(ghost, 150, false)
-    SetEntityCollision(ghost, false, false)
-    SetEntityInvincible(ghost, true)
-    -- ไม่ freeze: เรา SetEntityCoords + PlaceObjectOnGroundProperly เองทุกเฟรม (freeze อาจบล็อกการวางพื้น)
+    -- หาพื้นไม่เจอ (ยืนในน้ำ/ใต้สิ่งปลูกสร้าง) ใช้ z ของผู้เล่นแทน ดีกว่าได้ 0.0 แล้วต้นหลุดใต้แมพ
+    local found, groundZ = GetGroundZFor_3dCoord(x, y, p.z + 1.0, false)
+    local z = (found and groundZ) or p.z
 
-    local K = MJDEV.Ghost.keys
-    local step, rot = MJDEV.Ghost.moveStep, MJDEV.Ghost.rotateStep
-    local result = nil
-
-    -- prompt ตำแหน่งคงที่บนจอ (lp_textui ธรรมดา ไม่ world-anchor) แทน DrawText3D เดิมที่ลอยตามผีขยับ
-    exports.lp_textui:TextUI('E วางต้น  |  WASD ขยับ  |  Q/Z หมุน  |  X ยกเลิก')
-
-    while true do
-        Citizen.Wait(0)
-
-        local pc = GetEntityCoords(ped)
-        local fwd = GetEntityForwardVector(ped)
-        local rgt = vector3(fwd.y, -fwd.x, 0.0)
-
-        if IsControlPressed(0, K.forward) then gx = gx + fwd.x * step; gy = gy + fwd.y * step end
-        if IsControlPressed(0, K.back)    then gx = gx - fwd.x * step; gy = gy - fwd.y * step end
-        if IsControlPressed(0, K.right)   then gx = gx + rgt.x * step; gy = gy + rgt.y * step end
-        if IsControlPressed(0, K.left)    then gx = gx - rgt.x * step; gy = gy - rgt.y * step end
-        if IsControlPressed(0, K.rotL)    then heading = (heading + rot) % 360.0 end
-        if IsControlPressed(0, K.rotR)    then heading = (heading - rot) % 360.0 end
-
-        -- กันวางไกลเกิน maxDist จากตัวผู้เล่น
-        local dx, dy = gx - pc.x, gy - pc.y
-        local flat = math.sqrt(dx * dx + dy * dy)
-        if flat > MJDEV.Ghost.maxDist then
-            gx = pc.x + dx / flat * MJDEV.Ghost.maxDist
-            gy = pc.y + dy / flat * MJDEV.Ghost.maxDist
-        end
-
-        SetEntityCoords(ghost, gx, gy, gz, false, false, false, false)
-        PlaceObjectOnGroundProperly(ghost)
-        SetEntityHeading(ghost, heading)
-        gz = GetEntityCoords(ghost).z
-
-        if IsControlJustPressed(0, K.confirm) then
-            result = { coords = GetEntityCoords(ghost), heading = heading }
-            break
-        elseif IsControlJustPressed(0, K.cancel) then
-            result = nil
-            break
-        end
-    end
-
-    exports.lp_textui:HideUI()
-    if DoesEntityExist(ghost) then DeleteEntity(ghost); DeleteObject(ghost) end
-    FreezeEntityPosition(ped, false)
-    return result
+    return { coords = vector3(x, y, z), heading = GetEntityHeading(ped) }
 end
 
 MJDEV_GetEvent_Planting = function()
