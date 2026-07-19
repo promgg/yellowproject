@@ -13,6 +13,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# preview dev server ของ Claude Code — path เฉพาะเครื่อง คนละพอร์ตกันแต่ละเครื่อง
+.claude/launch.json
+
 # Node (ถ้ามีรีซอร์สที่ build ด้วย npm)
 node_modules/
 dist/
