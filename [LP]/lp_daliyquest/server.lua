@@ -179,9 +179,12 @@ end)
 --  Hook: MJ-Planting — เก็บแครอท 1 ต้น = +1 plant
 -- ────────────────────────────────────────────
 
-AddEventHandler('MJ-Planting:Giveitem', function(ITEM)
-  if ITEM == 'carrot_seed' then
-    doAddProgress(source, 'plant', 1)
+-- เดิมฟัง 'MJ-Planting:Giveitem' ซึ่งถูกถอดออกตอน MJ-Planting rewrite เป็น RPC
+-- เควสนี้จึงนับไม่ขึ้นมานาน และต่อให้ยิงอยู่ก็เทียบชื่อผิด ('carrot_seed' ทั้งที่
+-- ชื่อไอเทมจริงคือ 'seed_carrot') — ย้ายมาเกาะ lp_planting แล้วแก้ชื่อให้ตรง
+AddEventHandler('lp_planting:harvested', function(src, seed, item, count)
+  if seed == 'seed_carrot' then
+    doAddProgress(src, 'plant', 1)
   end
 end)
 
