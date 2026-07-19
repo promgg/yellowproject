@@ -26,6 +26,9 @@ Config.Zones = {
   ['bison'] = {
     coords    = vector4(-617.6779, -25.5035, 85.5194, 116.5602),
     pedModel  = 'a_c_buffalo_01',
+    -- RDR2 มีควายแค่ 3 โมเดลและไม่มีตัววัยเด็กเลย (a_c_buffalo_01 ปกติ / tatanka ตัวใหญ่กว่า /
+    -- mp_ ตัวเดียวกัน) อยากได้ลูกควายจึงย่อโมเดลตัวเต็มวัยเอา — ไม่ใส่ฟิลด์นี้ = ขนาดปกติ
+    pedScale  = 0.5,
     image     = 'nui://vorp_inventory/html/img/items/animal_bison.png',
     maxSlots  = 5,
     feedsRequired = 1,

@@ -114,6 +114,15 @@ local function spawnPed(animalId, zoneType)
   SetEntityCanBeDamaged(ped, false)
   SetBlockingOfNonTemporaryEvents(ped, true)
   TaskSetBlockingOfNonTemporaryEvents(ped, true)
+
+  -- ย่อ/ขยายขนาดตัว (ไม่ตั้งใน config = ขนาดปกติ)
+  -- RDR2 ไม่มีโมเดลสัตว์วัยเด็กเลยสักชนิด (ไม่มี calf/foal/cub ใน ped list) อยากได้ตัวเล็ก
+  -- จึงต้องย่อโมเดลตัวเต็มวัยเอา — ตั้งหลัง PlaceEntityOnGroundProperly เพราะย่อแล้วความสูงเปลี่ยน
+  if zone.pedScale then
+    SetPedScale(ped, zone.pedScale + 0.0)
+    PlaceEntityOnGroundProperly(ped, true) -- วางพื้นซ้ำตามขนาดใหม่ ไม่งั้นตัวเล็กจะลอยเหนือพื้น
+  end
+
   -- วนเดินในโซน radius 8m
   local zc = Config.Zones[zoneType].coords
   TaskWanderInArea(ped, zc.x, zc.y, zc.z, 8.0, 2.0, 5.0)
@@ -379,13 +388,6 @@ RegisterNUICallback('receiveReward', function(data, cb)
   cb('ok')
 end)
 
-RegisterNUICallback('deleteAnimal', function(data, cb)
-  if isValidAnimalId(data and data.animalId) then
-    TriggerServerEvent('animalfarm:deleteAnimal', data.animalId)
-  end
-  cb('ok')
-end)
-
 -- ─── SERVER → CLIENT EVENTS ──────────────────────────────────────────────────
 
 RegisterNetEvent('animalfarm:spawnZonePeds')
@@ -429,7 +431,8 @@ AddEventHandler('animalfarm:receiveAnimals', function(animals)
       last_fed   = a.last_fed or 0,
     }
     -- ped อาจ spawn แล้วจาก zoneEnter แต่ถ้ายังไม่มีก็ spawn ตอนนี้
-    if a.state ~= 'dead' and a.state ~= 'receive' then
+    -- state 'dead' ไม่มีแล้ว (ตายปุ๊บลบทิ้งเลย) เหลือกัน 'receive' ที่รอกดรับของอย่างเดียว
+    if a.state ~= 'receive' then
       local aid = a.id
       local cz  = currentZone
       pedZone[aid] = cz
@@ -501,9 +504,8 @@ end)
 
 AddEventHandler('animalfarm:animalDied', function(animalId)
   hpTickRefs[animalId] = nil   -- หยุด track HP/timer
-  if nuiOpen then
-    sendNUI({ action = 'markDead', data = { id = animalId } })
-  end
+  -- server ลบแถวไปแล้ว เอาการ์ดออกเลย (เดิม markDead ค้างการ์ดไว้พร้อมปุ่ม DELETE ให้กดเอง)
+  sendNUI({ action = 'removeCard', data = { id = animalId } })
 
   local ped = spawnedPeds[animalId]
   if not ped or not DoesEntityExist(ped) then return end
@@ -532,6 +534,7 @@ AddEventHandler('animalfarm:animalDied', function(animalId)
     TaskGoStraightToCoord(ped, tx, ty, pos.z, 0.6, 4000, GetEntityHeading(ped), 0.1)
     Wait(3500)
     deletePed(animalId)
+    pedZone[animalId] = nil -- แถวถูกลบถาวรแล้ว ไม่ต้องจำโซนไว้อีก (เดิมค้างไว้จน resource restart)
   end)
 end)
 

@@ -8,7 +8,6 @@ local COOLDOWN  = {
   addAnimal     = 1000,
   feedAnimal    = 1000,
   receiveReward = 1000,
-  deleteAnimal  = 1000,
   getAnimals    = 1000,
   zoneEnter     = 3000,   -- กัน spam เข้า-ออกโซนซ้ำๆ
 }
@@ -136,12 +135,12 @@ AddEventHandler('animalfarm:getAnimals', function(zoneType)
       local updated = {}
       local deadIds = {}
       for _, row in ipairs(rows) do
+        local died = false
         if row.state == 'feed' and row.last_fed and row.last_fed > 0 then
           local deadline = row.last_fed + Config.hpDecayTime + Config.feedWindow
           if deadline < now() then
             deadIds[#deadIds+1] = row.id
-            row.state = 'dead'
-            row.hp    = 0
+            died = true
           else
             local elapsed = now() - row.last_fed
             row.hp         = math.max(0, 100 - math.floor((elapsed / Config.hpDecayTime) * 100))
@@ -149,11 +148,19 @@ AddEventHandler('animalfarm:getAnimals', function(zoneType)
             row.deathTimer = math.max(0, deadline - now())
           end
         end
-        table.insert(updated, row)
+        -- ตายแล้วไม่ส่งกลับไปให้ NUI อีก การ์ดจะได้ไม่ค้างรอให้กดลบ
+        if not died then table.insert(updated, row) end
       end
+
+      -- ตัวที่ตายระหว่างผู้เล่นออฟไลน์ (decay tick วิ่งเฉพาะคนที่ออนไลน์) มาเก็บกวาดตอนเปิด UI
       if #deadIds > 0 then
-        MySQL.update('UPDATE animal_farm SET state="dead", hp=0 WHERE id IN (' .. table.concat(deadIds, ',') .. ')')
+        MySQL.update('DELETE FROM animal_farm WHERE id IN (' .. table.concat(deadIds, ',') .. ')')
+        notify(src, ('สัตว์ของคุณตายไป %d ตัว (ไม่ได้ให้อาหารทันเวลา)'):format(#deadIds), 'error')
+        for _, id in ipairs(deadIds) do
+          TriggerClientEvent('animalfarm:animalDied', src, id)
+        end
       end
+
       TriggerClientEvent('animalfarm:receiveAnimals', src, updated)
     end
   )
@@ -173,7 +180,8 @@ AddEventHandler('animalfarm:zoneEnter', function(zoneType)
   if not charId then return end
 
   MySQL.query(
-    'SELECT id, state FROM animal_farm WHERE char_id = @cid AND zone_type = @zone AND state != "dead"',
+    -- ไม่ต้องกรอง state != "dead" แล้ว: ตายปุ๊บแถวถูกลบทิ้งทันที ไม่มีสถานะนี้ค้างใน DB อีก
+    'SELECT id, state FROM animal_farm WHERE char_id = @cid AND zone_type = @zone',
     { cid = charId, zone = zoneType },
     function(rows)
       if not rows or #rows == 0 then return end
@@ -460,30 +468,7 @@ AddEventHandler('animalfarm:receiveReward', function(animalId, zoneType)
   )
 end)
 
--- ─── DELETE DEAD ANIMAL ──────────────────────────────────────────────────────
-
-RegisterServerEvent('animalfarm:deleteAnimal')
-AddEventHandler('animalfarm:deleteAnimal', function(animalId)
-  if not isValidId(animalId) then return end
-  if not checkCooldown(source, 'deleteAnimal', animalId) then
-    notify(source, 'กรุณารอสักครู่ก่อนลบตัวนี้ซ้ำ')
-    return
-  end
-
-  local src    = source
-  local charId = getCharId(src)
-  if not charId then return end
-
-  MySQL.update(
-    'DELETE FROM animal_farm WHERE id=@id AND char_id=@cid AND state="dead"',
-    { id = animalId, cid = charId },
-    function(affected)
-      if affected and affected > 0 then
-        TriggerClientEvent('animalfarm:animalRemoved', src, animalId)
-      end
-    end
-  )
-end)
+-- (ลบ event animalfarm:deleteAnimal ทิ้ง — สัตว์ตายแล้วถูกลบอัตโนมัติ ไม่มีปุ่ม DELETE ให้กดอีก)
 
 -- ─── GLOBAL DECAY TICK ───────────────────────────────────────────────────────
 
@@ -497,13 +482,10 @@ CreateThread(function()
       { d = deadline },
       function(rows)
         if not rows or #rows == 0 then return end
-        local ids = {}
-        for _, row in ipairs(rows) do
-          ids[#ids+1] = row.id
-        end
-        -- mark dead
+        -- เดิม mark state="dead" ค้างไว้ให้ผู้เล่นกดปุ่ม DELETE เอง — ตอนนี้ลบทิ้งเลยพร้อมแจ้งเตือน
+        -- (ช่องในคอกจึงว่างทันที ไม่ต้องกลับมาเก็บกวาดเอง)
         MySQL.update(
-          'UPDATE animal_farm SET state="dead", hp=0 WHERE state="feed" AND last_fed > 0 AND last_fed < @d',
+          'DELETE FROM animal_farm WHERE state="feed" AND last_fed > 0 AND last_fed < @d',
           { d = deadline }
         )
         -- build charId → src map ครั้งเดียว (แทน getUser ซ้ำใน nested loop)

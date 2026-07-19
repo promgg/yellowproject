@@ -35,7 +35,6 @@ var DEFAULT_DATA = {
     { id: 2, name: 'CAT', type: 'BABY', stage: '5/10', hp: 80,  exp: 50, state: 'loading' },
     { id: 3, name: 'CAT', type: 'BABY', stage: '10/10', hp: 10, exp: 50, state: 'receive' },
     { id: 4, name: 'CAT', type: 'BABY', stage: '3/10', hp: 10, exp: 50, state: 'feed', timer: 600 },
-    { id: 5, name: 'CAT', type: 'BABY', stage: '1/10', hp: 0,  exp: 0,  state: 'dead' },
   ]
 };
 
@@ -115,7 +114,6 @@ function buildActionArea(animal) {
                (hungry ? ' onclick="onFeed(' + animal.id + ')"' : ' disabled') +
              '>' + (hungry ? 'FEED' : 'NOT HUNGRY') + '</button>';
     }
-    case 'dead':
     default:
       return '';
   }
@@ -126,14 +124,6 @@ function buildCard(animal) {
   card.className = 'animal-card state-' + animal.state;
   card.dataset.id = animal.id;
 
-  var deadOverlay = '';
-  if (animal.state === 'dead') {
-    deadOverlay = '<div class="dead-overlay">' +
-                    '<div class="dead-x-icon"><img src="assets/close.png" alt="delete"></div>' +
-                    '<div class="dead-label">DELETE</div>' +
-                  '</div>';
-  }
-
   var animalImg = animal.image || 'assets/cat.png';
 
   card.innerHTML =
@@ -141,7 +131,6 @@ function buildCard(animal) {
       '<div class="card-icon-inner">' +
         '<img src="' + animalImg + '" alt="' + animal.name + '">' +
       '</div>' +
-      deadOverlay +
     '</div>' +
     '<div class="card-info">' +
       '<div class="card-header-row">' +
@@ -183,9 +172,6 @@ function renderAnimalList(animals) {
     var card = buildCard(animal);
     list.appendChild(card);
     // ตัวเลข timer เริ่มต้น render จาก buildActionArea แล้ว — client tick จะ push อัปเดตต่อ
-    if (animal.state === 'dead') {
-      attachDeleteListener(card, animal.id);
-    }
     if (animal.state === 'loading') {
       // fallback: refresh ถ้า loading ค้างเกิน 10 วิ
       (function(id) {
@@ -198,13 +184,6 @@ function renderAnimalList(animals) {
       })(animal.id);
     }
   });
-}
-
-function attachDeleteListener(card, id) {
-  var iconEl = card.querySelector('.card-icon');
-  if (iconEl) {
-    iconEl.addEventListener('click', function() { onDeleteAnimal(id); });
-  }
 }
 
 function renderUI(data) {
@@ -263,12 +242,6 @@ function onFeed(id) {
   });
 }
 
-function onDeleteAnimal(id) {
-  withLock('delete_' + id, function() {
-    nuiCallback('deleteAnimal', { animalId: id });
-  }, 2000);
-}
-
 function addAnimal() {
   withLock('addAnimal', function() {
     nuiCallback('addAnimal', {});
@@ -296,7 +269,6 @@ window.addEventListener('message', function(event) {
       var list = document.getElementById('animal-list');
       var newCard = buildCard(data);
       list.appendChild(newCard);
-      if (data.state === 'dead') attachDeleteListener(newCard, data.id);
       break;
     }
 
@@ -319,7 +291,6 @@ window.addEventListener('message', function(event) {
         card.className = 'animal-card state-' + data.state;
         var action2 = card.querySelector('.card-action');
         if (action2) action2.innerHTML = buildActionArea(Object.assign({}, data));
-        if (data.state === 'dead') attachDeleteListener(card, data.id);
       }
       // feed แล้ว → rebuild action area (HP กลับ 100 → NOT HUNGRY, timer เต็ม)
       if (data.state === 'feed') {
@@ -362,26 +333,6 @@ window.addEventListener('message', function(event) {
       break;
     }
 
-    case 'markDead': {
-      var deadCard = document.querySelector('.animal-card[data-id="' + data.id + '"]');
-      if (!deadCard) break;
-      deadCard.className = 'animal-card state-dead';
-      var hpFill = deadCard.querySelector('.hp-bar-fill');
-      if (hpFill) hpFill.style.width = '0%';
-      var hpPct = deadCard.querySelector('.bar-row:first-child .bar-pct');
-      if (hpPct) hpPct.textContent = '0%';
-      var actionArea = deadCard.querySelector('.card-action');
-      if (actionArea) actionArea.innerHTML = '';
-      var iconEl = deadCard.querySelector('.card-icon-inner');
-      if (iconEl && !deadCard.querySelector('.dead-overlay')) {
-        var overlay = document.createElement('div');
-        overlay.className = 'dead-overlay';
-        overlay.innerHTML = '<div class="dead-x-icon"><img src="assets/close.png" alt="delete"></div><div class="dead-label">DELETE</div>';
-        deadCard.querySelector('.card-icon').appendChild(overlay);
-      }
-      attachDeleteListener(deadCard, data.id);
-      break;
-    }
 
     case 'notify': {
       console.log('[AnimalFarm] ' + data.type + ': ' + data.message);
