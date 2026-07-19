@@ -510,9 +510,9 @@ Stables = {
             distance = 100.0
         },
         horse = {
-            coords = vector3(2980.2861, 1434.3289, 44.7171),
-            heading = 45.9213,
-            camera = vector3(2978.2861, 1432.3289, 44.7171),
+            coords = vector3(2985.6477, 1438.0641, 45.4803),
+            heading = 150.4803,
+            camera = vector3(2984.8945, 1434.1263, 45.1895),
         },
         trainerBuy = false
     }
