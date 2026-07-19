@@ -60,7 +60,10 @@ const secondaryCallbacks = {
     container: { move: "MoveToContainer", take: "TakeFromContainer", idKey: "Container" },
 };
 
-const draggableSecondaryTypes = new Set(["custom", "horse", "cart", "house", "bank", "hideout", "clan", "container"]);
+// เซ็ตนี้คุมว่าช่องขวา "ลากเข้าออกได้ไหม" — ถ้าไม่อยู่ในนี้จะเหลือแค่ปุ่ม take/move
+// เพิ่ม "steal" เข้ามา: กระเป๋าผู้เล่นที่แอดมินเปิด (MJ-Admin) ควรลากได้เหมือนตู้ล็อคเกอร์
+// ตัว callback ของ steal มีครบอยู่แล้วใน secondaryCallbacks ด้านบน ขาดแค่ไม่ได้ขึ้นทะเบียนตรงนี้
+const draggableSecondaryTypes = new Set(["custom", "horse", "cart", "house", "bank", "hideout", "clan", "container", "steal"]);
 const groupCategories = {
     2: "medical",
     3: "foods",
