@@ -24,7 +24,7 @@ Config.hpDecayTime = 5 * 60      -- seconds for HP to drain from 100 → 0 (5 mi
 -- zones  {x, y, z, heading}
 Config.Zones = {
   ['bison'] = {
-    coords    = vector4(-617.6779, -25.5035, 85.5194, 116.5602),
+    coords    = vector4(-614.8346, -8.8549, 86.7030, 321.2693),
     pedModel  = 'a_c_buffalo_01',
     -- RDR2 มีควายแค่ 3 โมเดลและไม่มีตัววัยเด็กเลย (a_c_buffalo_01 ปกติ / tatanka ตัวใหญ่กว่า /
     -- mp_ ตัวเดียวกัน) อยากได้ลูกควายจึงย่อโมเดลตัวเต็มวัยเอา — ไม่ใส่ฟิลด์นี้ = ขนาดปกติ
@@ -42,7 +42,7 @@ Config.Zones = {
     },
   },
   ['tiger'] = {
-    coords    = vector4(2985.9424, 2195.9185, 166.2030, 73.1517),
+    coords    = vector4(3014.3445, 2203.9314, 166.1201, 292.1043),
     pedModel  = 'a_c_panther_01',
     image     = 'nui://vorp_inventory/html/img/items/animal_tiger.png',
     maxSlots  = 5,
@@ -57,7 +57,7 @@ Config.Zones = {
     },
   },
   ['croc'] = {
-    coords    = vector4(1377.9629, -866.6765, 69.3180, 339.3852),
+    coords    = vector4(1377.7518, -843.0614, 69.9767, 25.9582),
     pedModel  = 'a_c_alligator_01',
     image     = 'nui://vorp_inventory/html/img/items/animal_alligator.png',
     maxSlots  = 5,
