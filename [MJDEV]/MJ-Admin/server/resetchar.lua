@@ -407,3 +407,117 @@ RegisterCommand('mjadmin_restore', function(source, args)
         print('^3[MJ-Admin/restore]^7 แถวที่ล้มเหลวมักเกิดจาก id ชนกับข้อมูลใหม่ที่สร้างหลังรีเซ็ต')
     end
 end, true)
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  เก็บกวาดข้อมูลกำพร้า — แถวที่เจ้าของถูกลบไปแล้วแต่ข้อมูลยังค้าง
+--
+--  เกิดจาก DeleteCharacter ของ vorp_core ลบแค่แถวใน characters และ DB ไม่มี
+--  ON DELETE CASCADE เลย ทุกครั้งที่มีคนลบตัวละคร ของ/ม้า/ธนาคารของเขาจะค้างถาวร
+--
+--  วิธีใช้:  mjadmin_cleanup          -> รายงานอย่างเดียว ไม่ลบ (ค่าเริ่มต้น)
+--            mjadmin_cleanup confirm  -> ลบจริง (สำรองก่อนเสมอ)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+RegisterCommand('mjadmin_cleanup', function(source, args)
+    if source ~= 0 then return end -- console เท่านั้น
+
+    local doIt = (args[1] == 'confirm')
+
+    -- ⚠️ กันหายนะ: ถ้าตาราง characters ว่าง เงื่อนไข NOT IN (ชุดว่าง) จะเป็นจริงกับทุกแถว
+    -- = ลบข้อมูลผู้เล่นทั้งเซิร์ฟเวอร์ทิ้งหมด ต้องหยุดก่อนถึงจะไปต่อ
+    local charCount = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM characters')) or 0
+    if charCount == 0 then
+        print('^1[MJ-Admin/cleanup]^7 ตาราง characters ว่างเปล่า — หยุดทันที')
+        print('^1[MJ-Admin/cleanup]^7 ถ้าปล่อยไปจะกลายเป็นลบข้อมูลผู้เล่นทั้งเซิร์ฟเวอร์')
+        return
+    end
+
+    print(('^3[MJ-Admin/cleanup]^7 %s (ตัวละครที่ยังอยู่ %d ตัว)')
+        :format(doIt and 'กำลังลบข้อมูลกำพร้า' or 'ตรวจอย่างเดียว ยังไม่ลบ', charCount))
+
+    -- นับก่อนเสมอ ทั้งโหมดตรวจและโหมดลบ (โหมดลบใช้ยอดนี้ไปทำ backup ด้วย)
+    local found, total = {}, 0
+    for _, e in ipairs(CHAR_TABLES) do
+        if TableExists(e.t) then
+            local ok, n = pcall(function()
+                return MySQL.scalar.await(
+                    ('SELECT COUNT(*) FROM `%s` WHERE `%s` NOT IN (SELECT charidentifier FROM characters)')
+                        :format(e.t, e.c))
+            end)
+            n = ok and (tonumber(n) or 0) or 0
+            if n > 0 then
+                found[#found+1] = { t = e.t, c = e.c, n = n }
+                total = total + n
+            end
+        end
+    end
+
+    -- บัญชีที่ไม่เหลือตัวละครสักตัว (vorp_core มี DeleteFromUsersTable ทำตอนบูตอยู่แล้ว
+    -- แต่ทำเฉพาะตอนรีสตาร์ท ตรงนี้เก็บให้เดี๋ยวนั้นเลย)
+    local orphanUsers = tonumber(MySQL.scalar.await(
+        'SELECT COUNT(*) FROM users WHERE identifier NOT IN (SELECT identifier FROM characters)')) or 0
+
+    if total == 0 and orphanUsers == 0 then
+        print('^2[MJ-Admin/cleanup]^7 สะอาดอยู่แล้ว ไม่มีข้อมูลกำพร้า')
+        return
+    end
+
+    for _, f in ipairs(found) do
+        print(('  %-32s %d แถว'):format(f.t, f.n))
+    end
+    if orphanUsers > 0 then print(('  %-32s %d แถว'):format('users (ไม่เหลือตัวละคร)', orphanUsers)) end
+    print(('^3[MJ-Admin/cleanup]^7 รวม %d แถว'):format(total + orphanUsers))
+
+    if not doIt then
+        print('^3[MJ-Admin/cleanup]^7 พิมพ์ "mjadmin_cleanup confirm" เพื่อลบจริง (สำรองให้ก่อนอัตโนมัติ)')
+        return
+    end
+
+    -- สำรองก่อนลบ เหมือนตอนรีเซ็ตบัญชี
+    local dump = { kind = 'cleanup', at = os.date('%Y-%m-%d %H:%M:%S'), tables = {} }
+    for _, f in ipairs(found) do
+        local ok, rows = pcall(function()
+            return MySQL.query.await(
+                ('SELECT * FROM `%s` WHERE `%s` NOT IN (SELECT charidentifier FROM characters)')
+                    :format(f.t, f.c))
+        end)
+        if ok and rows and #rows > 0 then dump.tables[f.t] = rows end
+    end
+    if orphanUsers > 0 then
+        local ok, rows = pcall(function()
+            return MySQL.query.await('SELECT * FROM users WHERE identifier NOT IN (SELECT identifier FROM characters)')
+        end)
+        if ok and rows then dump.tables['users'] = rows end
+    end
+
+    local file = ('backups/cleanup_%s.json'):format(os.date('%Y%m%d_%H%M%S'))
+    if not SaveResourceFile(GetCurrentResourceName(), file, json.encode(dump), -1) then
+        print('^1[MJ-Admin/cleanup]^7 สำรองไม่สำเร็จ — ยกเลิกการลบทั้งหมด')
+        return
+    end
+    print(('^2[MJ-Admin/cleanup]^7 สำรองไว้ที่ %s'):format(file))
+
+    local deleted = 0
+    for _, f in ipairs(found) do
+        local ok, n = pcall(function()
+            return MySQL.update.await(
+                ('DELETE FROM `%s` WHERE `%s` NOT IN (SELECT charidentifier FROM characters)')
+                    :format(f.t, f.c))
+        end)
+        if ok then
+            deleted = deleted + (tonumber(n) or 0)
+            print(('  ลบ %-30s %s แถว'):format(f.t, tostring(n)))
+        else
+            print(('^1  ลบ %s ไม่สำเร็จ: %s^7'):format(f.t, tostring(n)))
+        end
+    end
+    if orphanUsers > 0 then
+        local ok, n = pcall(function()
+            return MySQL.update.await('DELETE FROM users WHERE identifier NOT IN (SELECT identifier FROM characters)')
+        end)
+        if ok then deleted = deleted + (tonumber(n) or 0) end
+    end
+
+    print(('^2[MJ-Admin/cleanup]^7 เสร็จ — ลบไป %d แถว (กู้คืนด้วย mjadmin_restore %s)')
+        :format(deleted, file:match('[^/]+$')))
+end, true)
