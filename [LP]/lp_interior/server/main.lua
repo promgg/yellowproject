@@ -39,6 +39,21 @@ local function resetPlayer(src)
     playerBucket[src] = nil
 end
 
+-- อ่าน bucket จริงจากเซิร์ฟเวอร์หลังตั้งค่าแล้ว แล้วส่งกลับไปพิมพ์ที่ F8 ของผู้เล่นด้วย
+-- (client อ่านเองไม่ได้ GetPlayerRoutingBucket เป็น server native) — ใช้ยืนยันว่า "ย้ายจริง"
+-- ไม่ใช่แค่ event ถูกส่ง ถ้าเลขไม่เปลี่ยนแปลว่า SetPlayerRoutingBucket ไม่มีผล
+local function reportBucket(src, note)
+    local actual
+    local ok, res = pcall(GetPlayerRoutingBucket, src)
+    if ok then actual = res end
+
+    local line = ('[%s] [BUCKET] src=%s  bucket=%s  %s'):format(
+        RESOURCE, tostring(src), tostring(actual), note or '')
+    print(line)
+
+    TriggerClientEvent('lp_interior:bucketReport', src, actual, note)
+end
+
 RegisterNetEvent('lp_interior:enter', function(index)
     local src = source
     if not Config.Dimension.Enabled then return end
@@ -67,12 +82,32 @@ RegisterNetEvent('lp_interior:enter', function(index)
     ensurePopulation(bucket)
     SetPlayerRoutingBucket(src, bucket)
     playerBucket[src] = bucket
+
+    reportBucket(src, ('เข้า "%s" (ระยะ %.1fm)'):format(entry.key, dist))
 end)
 
 RegisterNetEvent('lp_interior:leave', function()
     local src = source
     resetPlayer(src)
+    reportBucket(src, 'ออกกลับมิติหลัก')
 end)
+
+-- เช็ค bucket ปัจจุบันตามต้องการ — พิมพ์ทั้ง console เซิร์ฟและ F8 ของคนที่สั่ง
+RegisterCommand('bucket', function(source)
+    if source == 0 then
+        -- สั่งจาก console: ไล่ดูทุกคนที่เราย้ายมิติไว้
+        print(('[%s] [BUCKET] รายการผู้เล่นที่อยู่ในมิติแยก:'):format(RESOURCE))
+        local n = 0
+        for src, b in pairs(playerBucket) do
+            print(('  src=%s -> bucket=%s'):format(tostring(src), tostring(b)))
+            n = n + 1
+        end
+        if n == 0 then print('  (ไม่มีใครอยู่ในมิติแยก)') end
+        return
+    end
+
+    reportBucket(source, 'เช็คตามคำสั่ง /bucket')
+end, false)
 
 -- ผู้เล่นหลุด/ออกเกมขณะอยู่ในมิติแยก — ล้าง state ไม่ให้ค้าง
 AddEventHandler('playerDropped', function()

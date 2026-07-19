@@ -76,9 +76,30 @@ end
 
 local function findZoneIndexByInterior(id)
     if id == 0 then return nil end
+
     for i = 1, #Config.Interiors do
         if resolvedIds[i] == id then return i end
     end
+
+    -- ยังไม่เจอ — ลอง resolve ตัวที่ยังค้างอีกรอบ
+    -- ตอน resource เริ่ม ผู้เล่นอาจอยู่ไกลจนเกมยังไม่โหลด interior นั้น GetInteriorAtCoords เลยคืน 0
+    -- และ resolvedIds ว่างตลอดไป = ไม่มีอะไร match เลย (สาเหตุที่มิติไม่ทำงาน)
+    -- พอเดินมาถึงจริงแล้วค่อย resolve ได้ เลยลองซ้ำตรงนี้
+    for i = 1, #Config.Interiors do
+        if not resolvedIds[i] then
+            local c = Config.Interiors[i].coords
+            local rid = GetInteriorAtCoords(c.x, c.y, c.z)
+            if isValidInterior(rid) then
+                resolvedIds[i] = rid
+                if Config.DebugLog then
+                    print(('[%s] resolve ย้อนหลัง "%s" -> interior id=%s'):format(
+                        RESOURCE, Config.Interiors[i].key, tostring(rid)))
+                end
+                if rid == id then return i end
+            end
+        end
+    end
+
     return nil
 end
 
@@ -86,23 +107,46 @@ end
 -- client ส่งแค่ "index ใน config" ไม่ได้ส่งเลข bucket — server เป็นคนเปิด config เอง
 -- แล้วตรวจระยะซ้ำก่อนย้าย (ไม่เชื่อ client) กันคนยิง event เองเพื่อย้ายมิติตามใจ
 local function enterZone(index)
-    if not Config.Dimension.Enabled then return end
+    if not Config.Dimension.Enabled then
+        if Config.DebugLog then
+            print(('[%s] ^3ข้าม enterZone:^7 Config.Dimension.Enabled = false'):format(RESOURCE))
+        end
+        return
+    end
     if currentZoneIndex == index then return end
 
+    local entry = Config.Interiors[index]
     currentZoneIndex = index
+
+    if Config.DebugLog then
+        print(('[%s] -> ขอเข้ามิติ "%s" (index=%d, bucket ที่คาดไว้=%s) ส่งให้ server แล้ว'):format(
+            RESOURCE, entry.key, index, tostring(entry.bucket)))
+    end
+
     TriggerServerEvent('lp_interior:enter', index)
-    notify(Config.Text.Enter:format(Config.Interiors[index].label))
+    notify(Config.Text.Enter:format(entry.label))
 end
 
 local function leaveZone()
     if not Config.Dimension.Enabled then return end
     if not currentZoneIndex then return end
 
-    local label = Config.Interiors[currentZoneIndex].label
+    local entry = Config.Interiors[currentZoneIndex]
     currentZoneIndex = nil
+
+    if Config.DebugLog then
+        print(('[%s] <- ขอออกจากมิติ "%s" กลับ bucket 0'):format(RESOURCE, entry.key))
+    end
+
     TriggerServerEvent('lp_interior:leave')
-    notify(Config.Text.Exit:format(label))
+    notify(Config.Text.Exit:format(entry.label))
 end
+
+-- server ยืนยันกลับมาว่า bucket จริงเป็นเท่าไหร่ (client อ่าน routing bucket ของตัวเองไม่ได้ —
+-- GetPlayerRoutingBucket เป็น server native) ใช้ยืนยันว่าย้ายสำเร็จจริงไม่ใช่แค่ส่ง event ไป
+RegisterNetEvent('lp_interior:bucketReport', function(bucket, note)
+    print(('[%s] ^2[BUCKET]^7 ตอนนี้อยู่ bucket = %s  %s'):format(RESOURCE, tostring(bucket), note or ''))
+end)
 
 -- ── ลูปตรวจจับ ───────────────────────────────────────────────────────────
 CreateThread(function()
