@@ -319,6 +319,12 @@ body {
 .row-price.money { color: var(--accent-buy); }
 .row-price.gold  { color: var(--whiskey-gold); }
 
+/* ยอดเงินที่จะได้รับ (แท็บ ITEM) — ชิดขวาให้เทียบตัวเลขระหว่างแถวได้ง่าย */
+.row-payout-cell { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+.row-payout      { font-family: 'Alexandria', sans-serif; font-size: 14px; font-weight: 700; }
+.row-payout.muted { color: var(--text-muted); font-weight: 400; }
+.row-payout-sub  { font-family: 'Alexandria', sans-serif; font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
 /* Status badges */
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;

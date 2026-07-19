@@ -108,8 +108,11 @@ AddEventHandler('lp_marketplace:listItem', function(data)
 
     local itemLabel = InvGetItemLabel(data.itemName)
     local category  = GetCategoryForItem(data.itemName)
-    local duration  = Config.DurationOptions[data.durationIndex] or Config.DurationOptions[1]
-    local expiresAt = os.date('%Y-%m-%d %H:%M:%S', os.time() + duration * 3600)
+    -- ตัวเลือกอาจตั้งเป็นวัน (เช่น { value = 7, unit = 'day' }) ต้องผ่าน ResolveDuration
+    -- ก่อนเสมอ ไม่งั้นได้ table มาคูณ 3600 ตรงๆ
+    local option = Config.DurationOptions[data.durationIndex] or Config.DurationOptions[1]
+    local durationHours, durationLabel = ResolveDuration(option)
+    local expiresAt = os.date('%Y-%m-%d %H:%M:%S', os.time() + durationHours * 3600)
 
     if not InvSubItem(src, data.itemName, data.quantity) then
         Notify(src, Config.Locale.listed_fail)
@@ -128,8 +131,8 @@ AddEventHandler('lp_marketplace:listItem', function(data)
         Notify(src, Config.Locale.listed_success, 'success')
         TriggerClientEvent('lp_marketplace:refreshSell', src)
         Log('list', '📦 ลงขายสินค้า',
-            ('**%s** ลงขาย **%s** x%d ราคา **%d** (%s) %dh'):format(
-                GetPlayerName(src), itemLabel, data.quantity, data.price, data.currency, duration))
+            ('**%s** ลงขาย **%s** x%d ราคา **%d** (%s) %s'):format(
+                GetPlayerName(src), itemLabel, data.quantity, data.price, data.currency, durationLabel))
     else
         InvAddItem(src, data.itemName, data.quantity)
         Notify(src, Config.Locale.listed_fail)
@@ -233,7 +236,7 @@ DoBuyInner = function(src, listingId, buyQty)
         return
     end
 
-    local tax = math.max(Config.TaxMin, math.floor(totalPrice * Config.TaxRate / 100))
+    local tax = CalcTax(totalPrice)
 
     if buyQty == listing.quantity then
         -- ── ซื้อทั้งหมด: atomic mark sold (guard ด้วย quantity เดิมกัน race กับ partial buy) ──
@@ -340,6 +343,14 @@ AddEventHandler('lp_marketplace:getItemClaims', function()
         'SELECT id,item_name,item_label,category,quantity,price,currency,status FROM lp_marketplace WHERE seller_id=? AND status IN (?,?) ORDER BY created_at DESC',
         { Character.charIdentifier, 'sold', 'expired' })
 
+    -- แนบยอดที่จะได้รับจริงไปเลย ให้ NUI แค่เอาไปแสดง ไม่ต้องรู้สูตรภาษี — ตัวเลขที่ผู้เล่นเห็น
+    -- จึงมาจากฟังก์ชันเดียวกับที่ claimItem ใช้จ่ายเงินจริง โอกาสโชว์ไม่ตรงกับที่ได้จึงเป็นศูนย์
+    for _, row in ipairs(rows or {}) do
+        if row.status == 'sold' then
+            row.payout, row.tax = CalcPayout(row.price, row.quantity)
+        end
+    end
+
     TriggerClientEvent('lp_marketplace:receiveItemClaims', src, rows or {})
 end)
 
@@ -365,9 +376,7 @@ AddEventHandler('lp_marketplace:claimItem', function(listingId)
 
     if listing.status == 'sold' then
         -- คิดจากราคารวม (price × quantity) ไม่ใช่ราคาต่อชิ้น
-        local gross = listing.price * (tonumber(listing.quantity) or 1)
-        local tax   = math.max(Config.TaxMin, math.floor(gross * Config.TaxRate / 100))
-        local net   = gross - tax
+        local net, tax = CalcPayout(listing.price, listing.quantity)
         Character.addCurrency(CurrencyType(listing.currency), net)
         Log('claim', '💵 รับเงิน',
             ('**%s** รับ **%d** %s (หลังภาษี %d)'):format(GetPlayerName(src), net, listing.currency, tax))

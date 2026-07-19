@@ -12,9 +12,8 @@ function OpenMarketUI()
         theme        = Config.Theme,
         categories   = Config.Categories,
         currencies   = Config.AllowedCurrencies,
-        durations    = Config.DurationOptions,
-        taxRate      = Config.TaxRate,
-        taxMin       = Config.TaxMin,
+        -- ส่งเป็น { hours, label } ที่แปลงหน่วยแล้ว NUI จะได้ไม่ต้องรู้ว่าตั้งเป็นชั่วโมงหรือวัน
+        durations    = GetDurationChoices(),
         itemsPerPage = Config.ItemsPerPage,
     })
 end
@@ -31,6 +30,21 @@ end
 -- ── NUI Callbacks (NUI → Lua) ──────────────────────────────────────────────────
 RegisterNUICallback('closeUI', function(_, cb)
     CloseMarketUI(); cb('ok')
+end)
+
+-- พรีวิวภาษีหน้า SELL — ให้ Lua คิดแล้วส่งกลับ NUI จึงไม่มีสูตรภาษีอยู่ใน JS เลยสักที่
+-- (config.lua เป็น shared_script ฝั่ง client เลยเรียก CalcPayout ตัวเดียวกับ server ได้)
+RegisterNUICallback('calcTax', function(data, cb)
+    local price    = tonumber(data and data.price) or 0
+    local quantity = tonumber(data and data.quantity) or 1
+    local net, tax, gross = CalcPayout(price, quantity)
+    -- ส่ง price/quantity กลับไปด้วย NUI จะได้ทิ้งคำตอบที่ล้าสมัยตอนผู้เล่นพิมพ์รัวๆ
+    SendNUIMessage({
+        action = 'taxPreview',
+        price = price, quantity = quantity,
+        gross = gross, tax = tax, net = net,
+    })
+    cb('ok')
 end)
 
 RegisterNUICallback('getListings', function(data, cb)

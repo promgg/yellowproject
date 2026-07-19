@@ -28,8 +28,6 @@ const state = {
     categories:   [],
     currencies:   {},
     durations:    [],
-    taxRate:      10,
-    taxMin:       100,
     itemsPerPage: 20,
     // Cached data for safe data-attribute pattern
     _listings:   [],
@@ -47,9 +45,7 @@ function onOpen(msg) {
 
     state.categories   = msg.categories   || [];
     state.currencies   = msg.currencies   || {};
-    state.durations    = msg.durations    || [12, 24, 48];
-    state.taxRate      = msg.taxRate      || 10;
-    state.taxMin       = msg.taxMin       != null ? msg.taxMin : 100;
+    state.durations    = msg.durations    || [{ hours: 168, label: '7 วัน' }];
     state.itemsPerPage = msg.itemsPerPage || 20;
 
     buildCategoryList();
@@ -120,10 +116,12 @@ function createCatBtn(id, label, icon, active) {
 function buildDurationRadios() {
     const el = document.getElementById('durationRadios');
     el.innerHTML = '';
-    state.durations.forEach((h, i) => {
+    state.durations.forEach((d, i) => {
+        // Lua แปลงหน่วยมาให้แล้ว (ชั่วโมง/วัน) ใช้ label ตรงๆ — รองรับ config แบบตัวเลขเปล่าเดิมด้วย
+        const text = (d && d.label) ? d.label : `${d} ชั่วโมง`;
         const label = document.createElement('label');
         label.className = 'sf-radio' + (i === 0 ? ' selected' : '');
-        label.innerHTML = `<input type="radio" name="duration" value="${i}"><i class="fa-solid fa-clock"></i> ${h} ชั่วโมง`;
+        label.innerHTML = `<input type="radio" name="duration" value="${i}"><i class="fa-solid fa-clock"></i> ${text}`;
         label.onclick = () => {
             document.querySelectorAll('.sf-radio[data-type="dur"]').forEach(l => l.classList.remove('selected'));
             label.classList.add('selected');
@@ -268,10 +266,24 @@ function onReceiveItemClaims(claims) {
         return;
     }
     el.innerHTML = claims.map((r, i) => {
-        const statusLabel = r.status === 'sold' ? 'การขายสำเร็จ' : 'หมดอายุ';
-        const btnLabel    = r.status === 'sold' ? 'กดเพื่อรับเงิน' : 'รับของคืน';
+        const sold        = r.status === 'sold';
+        const statusLabel = sold ? 'การขายสำเร็จ' : 'หมดอายุ';
+        const btnLabel    = sold ? 'กดเพื่อรับเงิน' : 'รับของคืน';
+
+        // payout/tax คิดมาจาก server แล้ว (CalcPayout ตัวเดียวกับที่ใช้จ่ายเงินจริง)
+        // ห้ามคำนวณภาษีซ้ำตรงนี้ ไม่งั้นยอดที่โชว์กับที่ได้จริงมีโอกาสไม่ตรงกัน
+        // ของหมดอายุไม่ได้เงิน ได้ของคืนแทน จึงขีด - ไว้
+        let payoutCell = '<span class="row-payout muted">-</span>';
+        if (sold) {
+            // โชว์แค่ตัวเลข ไม่ต่อท้ายชื่อสกุลเงิน — สีบอกอยู่แล้วว่าเป็นเงินสดหรือทอง
+            const curColor = (state.currencies[r.currency] && state.currencies[r.currency].color) || '#e0e0e0';
+            payoutCell =
+                `<span class="row-payout" style="color:${curColor}">${fmt(r.payout)}</span>` +
+                `<span class="row-payout-sub">หักภาษี ${fmt(r.tax)}</span>`;
+        }
+
         return `
-    <div class="tbl-row" style="grid-template-columns:40px 1fr 120px 130px 110px">
+    <div class="tbl-row" style="grid-template-columns:40px 1fr 120px 130px 130px 110px">
       <div class="row-icon">${itemImg(r.item_name)}</div>
       <div>
         <div class="row-name">${esc(r.item_label)}</div>
@@ -279,6 +291,7 @@ function onReceiveItemClaims(claims) {
       </div>
       <div class="row-cat">${getCatLabel(r.category)}</div>
       <div><span class="status-badge ${r.status}">${statusLabel}</span></div>
+      <div class="row-payout-cell">${payoutCell}</div>
       <div class="row-action-cell"><button class="row-action claim" data-idx="${i}" onclick="claimItem(this)">${btnLabel}</button></div>
     </div>`;
     }).join('');
@@ -426,13 +439,23 @@ function confirmInventorySelect() {
 }
 
 // ─── Sell Form ────────────────────────────────────────────────────────────────
+// ขอให้ Lua คิดให้ (CalcPayout ตัวเดียวกับที่ server ใช้จ่ายเงินจริง) แล้วรอ taxPreview กลับมา
+// เดิมคิดเองใน JS ด้วยสูตรที่ก๊อปมา ซึ่งลืมคูณจำนวน — ขาย 10 ชิ้นราคา 250 โชว์ "ได้รับ 225"
+// ทั้งที่ได้จริง 2,250 (ผิด 10 เท่า) แม้ฟังก์ชันนี้จะถูกเรียกตอนเปลี่ยนจำนวนก็ตาม
 function updateTaxDisplay() {
     const price = parseInt(document.getElementById('priceInput').value) || 0;
-    const tax   = Math.max(state.taxRate > 0 ? state.taxMin : 0, Math.floor(price * state.taxRate / 100));
-    const net   = price - tax;
     const el    = document.getElementById('taxDisplay');
     if (price <= 0) { el.innerHTML = '—'; return; }
-    el.innerHTML = `ภาษี <span>${fmt(tax)}</span> · ได้รับ <span style="color:var(--accent-buy)">${fmt(net)}</span>`;
+    NUI.calcTax(price, state.selectedQty);
+}
+
+function onTaxPreview(msg) {
+    // คำตอบมาช้ากว่าที่พิมพ์ไปแล้ว -> ทิ้ง ไม่งั้นตัวเลขกระพริบเป็นค่าเก่า
+    const price = parseInt(document.getElementById('priceInput').value) || 0;
+    if (msg.price !== price || msg.quantity !== state.selectedQty) return;
+
+    document.getElementById('taxDisplay').innerHTML =
+        `ภาษี <span>${fmt(msg.tax)}</span> · ได้รับ <span style="color:var(--accent-buy)">${fmt(msg.net)}</span>`;
 }
 
 function clearSellForm() {

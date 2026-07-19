@@ -23,6 +23,7 @@ const NUI = {
     buyItem(id, qty)          { nuiFetch('buyItem', { id, qty: qty || 1 }); },
     cancelListing(id)         { nuiFetch('cancelListing', { id }); },
     claimItem(id)             { nuiFetch('claimItem', { id }); },
+    calcTax(price, quantity)  { nuiFetch('calcTax', { price, quantity }); },
 };
 
 // ─── Lua → NUI messages ──────────────────────────────────────────────────────
@@ -47,6 +48,9 @@ window.addEventListener('message', (e) => {
             break;
         case 'receiveInventory':
             onReceiveInventory(msg.inventory);
+            break;
+        case 'taxPreview':
+            onTaxPreview(msg);
             break;
         case 'refreshBuy':
             if (state.tab === 'buy') NUI.getListings({ category: state.category, search: state.search, page: state.page });
@@ -81,10 +85,20 @@ if (!IS_FIVEM) {
                 money: { enabled:true, label:'เงินสด', color:'#60cd8e' },
                 gold:  { enabled:true, label:'ทอง',    color:'#f0ca78' },
             },
-            durations: [12, 24, 48],
-            taxRate: 10,
+            durations: [{ hours: 168, label: '7 วัน' }],
         }}));
     }, 100);
+
+    // Mock ภาษี — ในเกมฝั่ง Lua (CalcPayout) เป็นคนคิด อันนี้มีไว้ให้ทดสอบในเบราว์เซอร์ได้เท่านั้น
+    // ถ้าแก้เกณฑ์ภาษีจริง ให้แก้ที่ config.lua ที่เดียว ตรงนี้เป็นแค่ตัวจำลองของหน้า dev
+    NUI.calcTax = function(price, quantity) {
+        const MOCK_RATE = 10, MOCK_MIN = 1;
+        const gross = price * (quantity || 1);
+        const tax   = MOCK_RATE > 0 ? Math.max(MOCK_MIN, Math.floor(gross * MOCK_RATE / 100)) : 0;
+        window.dispatchEvent(new MessageEvent('message', { data: {
+            action: 'taxPreview', price, quantity: quantity || 1, gross, tax, net: gross - tax,
+        }}));
+    };
 
     // Mock inventory — override NUI.getInventory โดยตรง (nuiFetch short-circuits ก่อนถึง window.fetch)
     NUI.getInventory = function() {

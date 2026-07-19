@@ -35,11 +35,34 @@ Config.Zones = {
 }
 
 -- ─── ภาษี ──────────────────────────────────────────────────────────────────────
-Config.TaxRate = 10     -- เปอร์เซ็นต์ภาษีที่หักจากผู้ขายตอนรับเงิน
+Config.TaxRate = 10     -- เปอร์เซ็นต์ภาษีที่หักจากผู้ขายตอนรับเงิน (0 = ปิดภาษี)
 Config.TaxMin  = 1    -- ภาษีขั้นต่ำ (หน่วย: เงิน)
 
+-- คิดภาษีที่นี่ที่เดียว — ทั้งตอนซื้อ, ตอนจ่ายเงินให้ผู้ขาย และตอนโชว์ยอดใน UI
+-- เดิมสูตรนี้ถูกก๊อปไว้ 3 ที่ (server 2 + NUI 1) และไม่ตรงกันด้วย: ฝั่ง NUI ยกเว้น TaxMin
+-- เมื่อ TaxRate = 0 แต่ server ยังหัก TaxMin อยู่ ตั้งเป็น 0 เมื่อไหร่ยอดที่โชว์กับที่หักจริง
+-- จะไม่ตรงกันทันที — ยึดตาม NUI (rate 0 = ปิดภาษีจริง) เพราะเป็นความหมายที่คนตั้งค่าคาดหวัง
+function CalcTax(gross)
+    gross = tonumber(gross) or 0
+    if (Config.TaxRate or 0) <= 0 then return 0 end
+    return math.max(Config.TaxMin or 0, math.floor(gross * Config.TaxRate / 100))
+end
+
+-- คืน net, tax, gross จากราคาต่อชิ้น × จำนวน
+function CalcPayout(price, quantity)
+    local gross = (tonumber(price) or 0) * (tonumber(quantity) or 1)
+    local tax   = CalcTax(gross)
+    return gross - tax, tax, gross
+end
+
 -- ─── การลงขาย ──────────────────────────────────────────────────────────────────
-Config.DurationOptions      = { 12, 24, 48 }   -- ตัวเลือกระยะเวลาขาย (ชั่วโมง)
+-- ตัวเลือกระยะเวลาขาย เขียนได้ 2 แบบ:
+--   ตัวเลขเปล่า            = ชั่วโมง (แบบเดิม ยังใช้ได้)   เช่น 24
+--   { value = N, unit = }  = 'hour' หรือ 'day'            เช่น { value = 7, unit = 'day' }
+-- ตั้งเป็นวันได้เลยไม่ต้องคูณ 24 เอง และป้ายในหน้าลงขายจะขึ้นหน่วยตรงตามที่ตั้ง
+Config.DurationOptions      = {
+    { value = 7, unit = 'day' },
+}
 Config.MaxListingsPerPlayer = 10               -- จำนวนสินค้าลงขายสูงสุดต่อผู้เล่น
 Config.ItemsPerPage         = 20               -- จำนวนรายการต่อหน้าในแท็บ BUY
 
@@ -91,3 +114,34 @@ Config.Theme = {
     radius        = '4px',       -- cards are printed tickets: square-ish
     radiusSm      = '4px',
 }
+
+-- ─── Duration helper ───────────────────────────────────────────────────────────
+-- แปลงตัวเลือกใน Config.DurationOptions เป็นชั่วโมง + ป้ายภาษาไทย ให้ที่เดียว
+-- server ใช้คิด expires_at, client ส่งป้ายที่แปลงแล้วให้ NUI (NUI จะได้ไม่ต้องรู้เรื่องหน่วยเอง)
+function ResolveDuration(option)
+    -- ตัวเลขเปล่า = ชั่วโมง (รูปแบบเดิมก่อนรองรับหน่วยวัน)
+    if type(option) == 'number' then
+        return option, ('%d ชั่วโมง'):format(option)
+    end
+
+    if type(option) == 'table' then
+        local value = tonumber(option.value) or 0
+        if option.unit == 'day' then
+            return value * 24, ('%d วัน'):format(value)
+        end
+        return value, ('%d ชั่วโมง'):format(value)
+    end
+
+    -- ตั้งค่าผิดรูปแบบ: ตกลงมาที่ 24 ชม. ดีกว่าปล่อยให้ expires_at เป็น nil แล้วลงขายไม่ได้ทั้งระบบ
+    return 24, '24 ชั่วโมง'
+end
+
+-- ลิสต์ที่แปลงแล้วสำหรับส่งเข้า NUI: { { hours = 168, label = '7 วัน' }, ... }
+function GetDurationChoices()
+    local choices = {}
+    for i, option in ipairs(Config.DurationOptions) do
+        local hours, label = ResolveDuration(option)
+        choices[i] = { hours = hours, label = label }
+    end
+    return choices
+end
