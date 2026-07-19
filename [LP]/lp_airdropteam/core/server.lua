@@ -571,40 +571,59 @@ end)
 -- =========================
 -- Admin command / Auto schedule
 -- =========================
+-- เทียบ group แบบ case-sensitive ตรงๆ ทำให้ group ที่ DB เก็บเป็น "Admin"/มีช่องว่างหลุดเงียบๆ
+-- (บั๊กชุดเดียวกับที่เจอใน MJ-Admin) — normalize ก่อนเทียบเสมอ
+local ADMIN_GROUPS = { superadmin = true, admin = true }
+
+local function isAdmin(src)
+    if src == 0 then return true end -- server console / txAdmin สั่งได้เสมอ
+
+    local user = VORPcore.getUser(src)
+    if not user then return false end
+
+    local character = user.getUsedCharacter
+    if not character then return false end
+
+    local group = tostring(character.group or ''):lower():gsub('%s+', '')
+    return ADMIN_GROUPS[group] == true
+end
+
+-- แจ้งผลกลับ ไม่ให้คำสั่งเงียบหายเหมือนเดิม (console ใช้ print, ในเกมใช้ notify)
+local function adminFeedback(src, msg)
+    if src == 0 then
+        print(('[%s] %s'):format(script_name, msg))
+    else
+        VORPcore.NotifyRightTip(src, msg, 4000)
+    end
+end
+
 if Config['Command'] then
     RegisterCommand(Config['Command'], function(source, args, rawCommand)
-        print(('[lp_airdropteam] /%s received from source=%d'):format(Config['Command'], source))
+        if not isAdmin(source) then return end
 
-        local user = VORPcore.getUser(source)
-        if not user then
-            print('[lp_airdropteam] VORPcore.getUser(source) returned nil, aborting')
-            return
-        end
-        local xPlayer = user.getUsedCharacter
-        if not xPlayer then
-            print('[lp_airdropteam] user.getUsedCharacter is nil, aborting')
+        if IsAirdropStarted then
+            adminFeedback(source, 'Airdrop กำลังทำงานอยู่แล้ว')
             return
         end
 
-        print('[lp_airdropteam] xPlayer.group=' .. tostring(xPlayer.group))
-
-        if xPlayer.group == 'superadmin' or xPlayer.group == 'admin' then
-            if IsAirdropStarted then
-                print('[lp_airdropteam] IsAirdropStarted already true, ignoring')
-                return
-            end
-            local ok, err = pcall(GameStart)
-            if not ok then
-                print('[lp_airdropteam] GameStart() ERRORED: ' .. tostring(err))
-            else
-                print('[lp_airdropteam] GameStart() completed OK, IsAirdropStarted=' .. tostring(IsAirdropStarted))
-            end
-        else
-            print('[lp_airdropteam] source=' .. source .. ' is not admin/superadmin, ignoring')
-        end
+        GameStart()
+        adminFeedback(source, 'เริ่ม Airdrop แล้ว')
     end)
-else
-    print('[lp_airdropteam] Config[\'Command\'] is nil/false -- admin command was never registered!')
+
+    -- ลบ/ยกเลิก Airdrop กลางคัน — ใช้ AirdropAutoDelete เพราะเป็นตัวเดียวที่ล้างครบทั้งฝั่ง server
+    -- (prop, zone lock, loot lock) และ broadcast CL:DeleteAirdrop/Revive ให้ client เก็บ blip+prop ด้วย
+    -- (GameFinish ล้างเฉพาะ state ฝั่ง server ไม่ยิงให้ client -> blip ค้างบนแมพ)
+    RegisterCommand('del' .. Config['Command'], function(source, args, rawCommand)
+        if not isAdmin(source) then return end
+
+        if not IsAirdropStarted then
+            adminFeedback(source, 'ยังไม่มี Airdrop ที่กำลังทำงานอยู่')
+            return
+        end
+
+        AirdropAutoDelete()
+        adminFeedback(source, 'ลบ Airdrop แล้ว')
+    end)
 end
 
 if Config["AutoTime"] then
