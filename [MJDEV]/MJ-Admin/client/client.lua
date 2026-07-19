@@ -233,11 +233,26 @@ RegisterNUICallback("addBank", function(data)
 
 end)
 
+-- จำไว้ว่ากระเป๋าที่เปิดอยู่เป็นของผู้เล่นคนอื่นที่แอดมินสั่งเปิด ไม่ใช่กระเป๋าตัวเอง
+-- (syn:closeinv ยิงตอนปิดกระเป๋าอะไรก็ได้ ถ้าไม่แยกจะไปล้าง DataSteal ผิดจังหวะ)
+local viewingPlayerInv = false
+
 RegisterNUICallback("inventory", function(data)
     SetDisplay(false)
-    -- TriggerServerEvent("admin:ReloadInventory", data.playerid)
-    -- TriggerServerEvent("admin:OpenInventory", data.playerid)
-    TriggerEvent("vorp_inventory:OpenstealInventory", 'กระเป๋าผู้เล่น ID : ' .. data.playerid, data.playerid)
+    -- เดิมเรียก vorp_inventory:OpenstealInventory ตรงนี้เลย ซึ่งเปิดได้แค่หน้าต่างเปล่า
+    -- (ไม่มีใครส่งรายการของเข้าไป และไม่ได้ตั้ง DataSteal ที่ระบบหยิบของต้องใช้)
+    -- ให้ server เป็นคนจัดการทั้งชุด — ดู admin:OpenPlayerInventory ใน server/server.lua
+    viewingPlayerInv = true
+    TriggerServerEvent("admin:OpenPlayerInventory", data.playerid)
+end)
+
+-- vorp_inventory ยิง syn:closeinv ทุกครั้งที่ปิดกระเป๋า (NUIService.CloseInv)
+-- ใช้จังหวะนี้ล้าง DataSteal ฝั่ง server ไม่งั้นค่าค้างไว้ แล้วแอดมินไปเปิดตู้อื่นทีหลัง
+-- ของที่ลากอาจไปโผล่ที่ผู้เล่นคนเดิมโดยไม่ตั้งใจ
+AddEventHandler("syn:closeinv", function()
+    if not viewingPlayerInv then return end
+    viewingPlayerInv = false
+    TriggerServerEvent("admin:ClosePlayerInventory")
 end)
 
 RegisterNUICallback("giveitem", function(data)

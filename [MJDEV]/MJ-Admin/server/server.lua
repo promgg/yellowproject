@@ -1143,3 +1143,230 @@ Citizen.CreateThread(function()
     print("##################################################")
     print("###### \27[36mDiscord: https://discord.gg/gHRNMDQKzb\27[0m ####")
 end)
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  เปิดกระเป๋าผู้เล่น (ปุ่ม "เปิดกระเป๋า" ในเมนูแอดมิน)
+--
+--  เดิม client เรียก TriggerEvent("vorp_inventory:OpenstealInventory", ...) ตรงๆ ฝั่ง client
+--  ซึ่ง "เปิดหน้าต่างเปล่า" อย่างเดียว ไม่มีขั้นตอนส่งรายการของเข้าไป จึงเห็นกระเป๋าว่างตลอด
+--
+--  ของจริงต้องทำ 3 อย่างเหมือนที่ MJ-LootPlayer ทำ (server/server.lua:55-108):
+--    1. ตั้ง state DataSteal ให้ผู้สั่ง — syn_search:MoveTosteal/TakeFromsteal อ่านตัวนี้
+--       เพื่อรู้ว่ากำลังยุ่งกับกระเป๋าของใคร ถ้าไม่ตั้งจะหยิบ/ใส่ของไม่ได้เลย
+--    2. เปิดหน้าต่างด้วย OpenstealInventory
+--    3. ยิงรายการของ (ไอเทม + อาวุธ + เงิน) ตามด้วย ReloadstealInventory
+-- ═══════════════════════════════════════════════════════════════════════════
+RegisterNetEvent('admin:OpenPlayerInventory')
+AddEventHandler('admin:OpenPlayerInventory', function(targetId)
+    local src = source
+
+    local group = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    if not (Config["Perms"][group] and Config["Perms"][group].CanOpenPlayerInventory) then return end
+
+    targetId = tonumber(targetId)
+    if not targetId then return end
+
+    local tUser = VORPcore.getUser(targetId)
+    local tChar = tUser and tUser.getUsedCharacter
+    if not tChar then
+        TriggerClientEvent("pNotify:SendNotification", src, {
+            text = "หาผู้เล่นคนนี้ไม่เจอ", type = "error", timeout = 4000, layout = "topRight" })
+        return
+    end
+
+    -- 1) DataSteal — โครงสร้างต้องมีคีย์ source เพราะ MoveTosteal อ่าน state.DataSteal.source
+    Player(src).state:set('DataSteal', { source = targetId }, true)
+
+    -- 2) เปิดหน้าต่าง (charIdentifier เป็น stealId เหมือน MJ-LootPlayer)
+    TriggerClientEvent('vorp_inventory:OpenstealInventory', src,
+        ('กระเป๋า: %s %s (ID %d)'):format(tChar.firstname or '', tChar.lastname or '', targetId),
+        tChar.charIdentifier)
+
+    -- 3) รวบรวมของแล้วส่งเข้าไป
+    local inventory = {}
+
+    exports.vorp_inventory:getUserInventoryItems(targetId, function(items)
+        for _, v in pairs(items or {}) do
+            table.insert(inventory, v)
+        end
+
+        exports.vorp_inventory:getUserInventoryWeapons(targetId, function(weapons)
+            for _, v in pairs(weapons or {}) do
+                v.count = 1
+                v.limit = 1
+                v.type  = 'item_weapon'
+                table.insert(inventory, v)
+            end
+
+            -- เงินสดเป็นรายการหลอกให้เห็นยอด (แถวนี้ MJ-LootPlayer ก็ใส่เหมือนกัน)
+            table.insert(inventory, {
+                id = 1, group = 1, label = 'เงิน', type = 'item_money', name = 'money',
+                count = tChar.money, limit = tChar.money, weight = 0,
+                metadata = {}, desc = 'เงินสด', canUse = false,
+            })
+
+            TriggerClientEvent('vorp_inventory:ReloadstealInventory', src, json.encode({
+                itemList = inventory,
+                action   = 'setSecondInventoryItems',
+            }))
+        end)
+    end)
+
+    print(('^3[MJ-Admin]^7 %s เปิดกระเป๋าของ %s %s (id %d)')
+        :format(GetPlayerName(src) or src, tChar.firstname or '', tChar.lastname or '', targetId))
+end)
+
+-- ── หยิบ/ใส่ของในกระเป๋าผู้เล่น ────────────────────────────────────────────────
+-- syn_search:MoveTosteal   = ลากของ "จากกระเป๋าแอดมิน" ไปใส่ให้ผู้เล่น
+-- syn_search:TakeFromsteal = ลากของ "จากกระเป๋าผู้เล่น" มาเข้าแอดมิน
+--
+-- ปกติ 2 event นี้เป็นของ MJ-LootPlayer/MJ-Police แต่ทั้งคู่ถูกปิดใน MJDEV.cfg
+-- (คอมเมนต์ ensure ไว้) จึงไม่มี handler อยู่เลยทั้งเซิร์ฟ = เห็นของแต่หยิบไม่ได้
+--
+-- ต่างจากของ MJ-LootPlayer ตรงที่ไม่มี ItemsBlackList และไม่มี CheckLimit —
+-- นั่นเป็นกติกาของ "การปล้น" ไม่ใช่ของแอดมิน แต่ใส่การเช็คสิทธิ์แทนทุกครั้ง
+-- (state DataSteal อย่างเดียวไม่พอ ผู้เล่นทั่วไปยิง event นี้เองได้)
+
+local function adminStealGuard(src)
+    local group = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    if not (Config["Perms"][group] and Config["Perms"][group].CanOpenPlayerInventory) then
+        return nil
+    end
+    local st = Player(src).state.DataSteal
+    return st and st.source or nil
+end
+
+-- ยิงรายการของใหม่หลังย้ายเสร็จ ทั้งสองฝั่งจะได้เห็นตรงกัน
+local function reloadStealView(adminSrc, targetId)
+    local tChar = VORPcore.getUser(targetId)
+    tChar = tChar and tChar.getUsedCharacter
+    if not tChar then return end
+
+    local inventory = {}
+    exports.vorp_inventory:getUserInventoryItems(targetId, function(items)
+        for _, v in pairs(items or {}) do table.insert(inventory, v) end
+        exports.vorp_inventory:getUserInventoryWeapons(targetId, function(weapons)
+            for _, v in pairs(weapons or {}) do
+                v.count, v.limit, v.type = 1, 1, 'item_weapon'
+                table.insert(inventory, v)
+            end
+            table.insert(inventory, {
+                id = 1, group = 1, label = 'เงิน', type = 'item_money', name = 'money',
+                count = tChar.money, limit = tChar.money, weight = 0,
+                metadata = {}, desc = 'เงินสด', canUse = false,
+            })
+            TriggerClientEvent('vorp_inventory:ReloadstealInventory', adminSrc, json.encode({
+                itemList = inventory, action = 'setSecondInventoryItems',
+            }))
+        end)
+    end)
+end
+
+RegisterNetEvent('syn_search:MoveTosteal')
+AddEventHandler('syn_search:MoveTosteal', function(obj)
+    local src = source
+    local targetId = adminStealGuard(src)
+    if not targetId then return end
+
+    local data = json.decode(obj)
+    if type(data) ~= 'table' or type(data.item) ~= 'table' then return end
+    data.number = tonumber(data.number)
+    if not data.number or data.number <= 0 then return end
+    if data.number > (tonumber(data.item.count) or 0) then return end
+
+    local aChar = VORPcore.getUser(src); aChar = aChar and aChar.getUsedCharacter
+    local tChar = VORPcore.getUser(targetId); tChar = tChar and tChar.getUsedCharacter
+    if not aChar or not tChar then return end
+
+    if data.type == 'item_standard' then
+        if not (exports.vorp_inventory:canCarryItems(targetId, data.number)
+            and exports.vorp_inventory:canCarryItem(targetId, data.item.name, data.number)) then
+            TriggerClientEvent("pNotify:SendNotification", src, {
+                text = "กระเป๋าผู้เล่นเต็ม", type = "error", timeout = 4000, layout = "topRight" })
+            return
+        end
+        exports.vorp_inventory:subItem(src, data.item.name, data.number, data.item.metadata)
+        exports.vorp_inventory:addItem(targetId, data.item.name, data.number, data.item.metadata)
+        print(('^3[MJ-Admin]^7 %s ใส่ %s x%d ให้ %s'):format(
+            GetPlayerName(src) or src, data.item.label or data.item.name, data.number, GetPlayerName(targetId) or targetId))
+
+    elseif data.type == 'item_money' then
+        aChar.removeCurrency(0, data.number)
+        tChar.addCurrency(0, data.number)
+        print(('^3[MJ-Admin]^7 %s ให้เงิน %d กับ %s'):format(
+            GetPlayerName(src) or src, data.number, GetPlayerName(targetId) or targetId))
+
+    elseif data.type == 'item_weapon' then
+        if not exports.vorp_inventory:canCarryWeapons(targetId, 1) then
+            TriggerClientEvent("pNotify:SendNotification", src, {
+                text = "ผู้เล่นถืออาวุธเต็มแล้ว", type = "error", timeout = 4000, layout = "topRight" })
+            return
+        end
+        exports.vorp_inventory:giveWeapon(targetId, data.item.id, src)
+        print(('^3[MJ-Admin]^7 %s ให้อาวุธ %s กับ %s'):format(
+            GetPlayerName(src) or src, data.item.label or '?', GetPlayerName(targetId) or targetId))
+    else
+        return
+    end
+
+    Wait(100)
+    reloadStealView(src, targetId)
+end)
+
+RegisterNetEvent('syn_search:TakeFromsteal')
+AddEventHandler('syn_search:TakeFromsteal', function(obj)
+    local src = source
+    local targetId = adminStealGuard(src)
+    if not targetId then return end
+
+    local data = json.decode(obj)
+    if type(data) ~= 'table' or type(data.item) ~= 'table' then return end
+    data.number = tonumber(data.number)
+    if not data.number or data.number <= 0 then return end
+    if data.number > (tonumber(data.item.count) or 0) then return end
+
+    local aChar = VORPcore.getUser(src); aChar = aChar and aChar.getUsedCharacter
+    local tChar = VORPcore.getUser(targetId); tChar = tChar and tChar.getUsedCharacter
+    if not aChar or not tChar then return end
+
+    if data.type == 'item_standard' then
+        if not (exports.vorp_inventory:canCarryItems(src, data.number)
+            and exports.vorp_inventory:canCarryItem(src, data.item.name, data.number)) then
+            TriggerClientEvent("pNotify:SendNotification", src, {
+                text = "กระเป๋าคุณเต็ม", type = "error", timeout = 4000, layout = "topRight" })
+            return
+        end
+        exports.vorp_inventory:subItem(targetId, data.item.name, data.number, data.item.metadata)
+        exports.vorp_inventory:addItem(src, data.item.name, data.number, data.item.metadata)
+        print(('^3[MJ-Admin]^7 %s เอา %s x%d จาก %s'):format(
+            GetPlayerName(src) or src, data.item.label or data.item.name, data.number, GetPlayerName(targetId) or targetId))
+
+    elseif data.type == 'item_money' then
+        tChar.removeCurrency(0, data.number)
+        aChar.addCurrency(0, data.number)
+        print(('^3[MJ-Admin]^7 %s เอาเงิน %d จาก %s'):format(
+            GetPlayerName(src) or src, data.number, GetPlayerName(targetId) or targetId))
+
+    elseif data.type == 'item_weapon' then
+        if not exports.vorp_inventory:canCarryWeapons(src, 1) then
+            TriggerClientEvent("pNotify:SendNotification", src, {
+                text = "คุณถืออาวุธเต็มแล้ว", type = "error", timeout = 4000, layout = "topRight" })
+            return
+        end
+        exports.vorp_inventory:giveWeapon(src, data.item.id, targetId)
+        print(('^3[MJ-Admin]^7 %s เอาอาวุธ %s จาก %s'):format(
+            GetPlayerName(src) or src, data.item.label or '?', GetPlayerName(targetId) or targetId))
+    else
+        return
+    end
+
+    Wait(100)
+    reloadStealView(src, targetId)
+end)
+
+-- ปิดหน้าต่างแล้วล้าง DataSteal ทิ้ง ไม่งั้นค่าค้างไว้ แล้วแอดมินไปเปิดกระเป๋าตัวเอง
+-- หรือตู้อื่นทีหลัง การลากของอาจไปโผล่ที่ผู้เล่นคนเดิมโดยไม่ตั้งใจ
+RegisterNetEvent('admin:ClosePlayerInventory')
+AddEventHandler('admin:ClosePlayerInventory', function()
+    Player(source).state:set('DataSteal', nil, true)
+end)
