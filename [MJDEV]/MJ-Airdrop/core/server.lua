@@ -569,14 +569,59 @@ end)
 -- =========================
 -- Admin command / Auto schedule
 -- =========================
+-- เดิม: VORPcore.getUser(source).getUsedCharacter ตรงๆ -> พังทันทีถ้าสั่งจาก console (source=0
+-- ไม่มี user) และเทียบ group แบบ case-sensitive ตรงๆ ทำให้ group ที่ DB เก็บเป็น "Admin"/มีช่องว่าง
+-- หลุดเงียบๆ โดยไม่มี feedback ว่าไม่ผ่านสิทธิ์ (บั๊กชุดเดียวกับที่เจอใน MJ-Admin)
+local ADMIN_GROUPS = { superadmin = true, admin = true }
+
+local function isAdmin(src)
+    if src == 0 then return true end -- server console / txAdmin สั่งได้เสมอ
+
+    local user = VORPcore.getUser(src)
+    if not user then return false end
+
+    local character = user.getUsedCharacter
+    if not character then return false end
+
+    local group = tostring(character.group or ''):lower():gsub('%s+', '')
+    return ADMIN_GROUPS[group] == true
+end
+
+-- แจ้งผลกลับ ไม่ให้คำสั่งเงียบหายเหมือนเดิม (console ใช้ print, ในเกมใช้ notify)
+local function adminFeedback(src, msg)
+    if src == 0 then
+        print(('[%s] %s'):format(script_name, msg))
+    else
+        VORPcore.NotifyRightTip(src, msg, 4000)
+    end
+end
+
 if Config['Command'] then
     RegisterCommand(Config['Command'], function(source, args, rawCommand)
-        local xPlayer = VORPcore.getUser(source).getUsedCharacter
-        if xPlayer.group == 'superadmin' or xPlayer.group == 'admin' then
-            if not IsAirdropStarted then
-                GameStart()
-            end
+        if not isAdmin(source) then return end
+
+        if IsAirdropStarted then
+            adminFeedback(source, 'Airdrop กำลังทำงานอยู่แล้ว')
+            return
         end
+
+        GameStart()
+        adminFeedback(source, 'เริ่ม Airdrop แล้ว')
+    end)
+
+    -- ลบ/ยกเลิก Airdrop กลางคัน — ใช้ AirdropAutoDelete เพราะเป็นตัวเดียวที่ล้างครบทั้งฝั่ง server
+    -- (prop, zone lock, loot lock) และ broadcast CL:DeleteAirdrop/Revive ให้ client เก็บ blip+prop ด้วย
+    -- (GameFinish ล้างเฉพาะ state ฝั่ง server ไม่ยิงให้ client -> blip ค้างบนแมพ)
+    RegisterCommand('del' .. Config['Command'], function(source, args, rawCommand)
+        if not isAdmin(source) then return end
+
+        if not IsAirdropStarted then
+            adminFeedback(source, 'ยังไม่มี Airdrop ที่กำลังทำงานอยู่')
+            return
+        end
+
+        AirdropAutoDelete()
+        adminFeedback(source, 'ลบ Airdrop แล้ว')
     end)
 end
 
