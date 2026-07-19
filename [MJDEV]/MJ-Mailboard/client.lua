@@ -109,7 +109,11 @@ AddEventHandler("mailboard:receiveAll", function(posts, myIdentifier)
     SendNUIMessage({
         action = "loadMails",
         mails = posts,
-        myIdentifier = myIdentifier
+        myIdentifier = myIdentifier,
+        -- ส่งค่าจาก config ไปด้วยทุกครั้ง UI จะได้โชว์ราคา/วันหมดอายุตรงกับที่ server ใช้จริง
+        -- (ถ้า hardcode ไว้ใน UI แล้วแก้ config ทีหลัง ตัวเลขจะไม่ตรงกันโดยไม่มีใครรู้)
+        postPrice = Config.PostPrice or 0,
+        expireDays = Config.PostExpireDays or 0
     })
 end)
 

@@ -273,3 +273,11 @@ h2 {
 .post-list::-webkit-scrollbar-thumb:hover {
   background-color: var(--gold-light);
 }
+
+/* ราคา/อายุประกาศ ใต้ช่องกรอกในหน้าต่างเขียนประกาศ */
+.post-cost {
+    margin: 6px 0 10px;
+    font-size: 13px;
+    color: #c9a227;
+    text-align: center;
+}

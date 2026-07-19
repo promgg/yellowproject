@@ -1,6 +1,10 @@
 let allPosts = [];
 let myIdentifier = null; // เก็บค่า identifier ของเราเอง
 let lastPostTime = 0;
+// ค่าจาก config.lua ฝั่ง Lua ส่งมาให้ทุกครั้งที่โหลดประกาศ — ห้าม hardcode ตรงนี้
+// ไม่งั้นแก้ราคาใน config แล้วตัวเลขที่ผู้เล่นเห็นจะไม่ตรงกับที่หักจริง
+let postPrice = 0;
+let expireDays = 0;
 
 // รับข้อมูลจาก server
 window.addEventListener("message", function (event) {
@@ -14,9 +18,23 @@ window.addEventListener("message", function (event) {
     if (data.action === "loadMails") {
         allPosts = data.mails;
         myIdentifier = data.myIdentifier; // << ตัวแปรนี้ใช้เทียบโพสต์เรา
+        postPrice = Number(data.postPrice) || 0;
+        expireDays = Number(data.expireDays) || 0;
+        updatePriceLabels();
         renderPosts("all");
     }
 });
+
+// เขียนราคา/อายุประกาศลงปุ่มกับ modal ตามค่าที่ server ส่งมา
+function updatePriceLabels() {
+    const fee = postPrice > 0 ? ` ($${postPrice.toLocaleString()})` : "";
+    $("#addPostBtn").text("เพิ่มประกาศใหม่" + fee);
+
+    const parts = [];
+    if (postPrice > 0)  parts.push(`ค่าลงประกาศ $${postPrice.toLocaleString()}`);
+    if (expireDays > 0) parts.push(`ประกาศอยู่ได้ ${expireDays} วัน`);
+    $("#postCost").text(parts.join(" · "));
+}
 
 // ฟังก์ชันแสดงโพสต์ตาม filter
 function renderPosts(filter) {
