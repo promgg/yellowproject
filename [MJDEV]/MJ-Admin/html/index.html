@@ -80,6 +80,43 @@
                             <div><button class="btn" data-action="delcarall"><i class="fas fa-trash-alt"></i>ลบเกวียนทั้งหมด</button></div>
                             <div><button class="btn" data-action="banlist"><i class="fas fa-ban"></i>รายชื่อผู้ถูกแบน</button></div> 
                         </div>
+
+                        <!-- เวลา & สภาพอากาศ — สั่งผ่าน weathersync (ดู server/server.lua) -->
+                        <div class="sectiontitle">เวลา &amp; สภาพอากาศ</div>
+                        <div class="grid-container">
+                            <div><button class="btn" data-action="setTime"><i class="fas fa-clock"></i>ตั้งเวลา</button></div>
+                            <div><button class="btn" data-action="freezeTime"><i class="fas fa-hourglass-half"></i>หยุด/เดินเวลา</button></div>
+                            <div><button class="btn" data-action="freezeWeather"><i class="fas fa-lock"></i>ล็อก/ปลดล็อกอากาศ</button></div>
+                            <div><button class="btn" data-action="resetWeatherTime"><i class="fas fa-undo"></i>คืนค่าอัตโนมัติ</button></div>
+                        </div>
+                        <div class="grid-container" style="grid-template-columns: 2fr 1fr;">
+                            <div>
+                                <select id="weatherTypes" class="uk-input uk-from-large">
+                                    <option value="sunny">แจ่มใส (sunny)</option>
+                                    <option value="clouds">มีเมฆ (clouds)</option>
+                                    <option value="overcast">เมฆครึ้ม (overcast)</option>
+                                    <option value="overcastdark">เมฆครึ้มมืด (overcastdark)</option>
+                                    <option value="highpressure">ฟ้าโปร่ง (highpressure)</option>
+                                    <option value="misty">หมอกบาง (misty)</option>
+                                    <option value="fog">หมอกหนา (fog)</option>
+                                    <option value="drizzle">ฝนปรอย (drizzle)</option>
+                                    <option value="shower">ฝนซู่ (shower)</option>
+                                    <option value="rain">ฝนตก (rain)</option>
+                                    <option value="thunder">ฟ้าร้อง (thunder)</option>
+                                    <option value="thunderstorm">พายุฝนฟ้าคะนอง (thunderstorm)</option>
+                                    <option value="hurricane">พายุเฮอริเคน (hurricane)</option>
+                                    <option value="hail">ลูกเห็บ (hail)</option>
+                                    <option value="sleet">ฝนปนหิมะ (sleet)</option>
+                                    <option value="snowlight">หิมะบาง (snowlight)</option>
+                                    <option value="snow">หิมะ (snow)</option>
+                                    <option value="blizzard">พายุหิมะ (blizzard)</option>
+                                    <option value="groundblizzard">พายุหิมะระดับพื้น (groundblizzard)</option>
+                                    <option value="whiteout">หิมะขาวโพลน (whiteout)</option>
+                                    <option value="sandstorm">พายุทราย (sandstorm)</option>
+                                </select>
+                            </div>
+                            <div><button class="btn" data-action="changeWeather"><i class="fas fa-cloud-sun"></i>เปลี่ยนอากาศ</button></div>
+                        </div>
                     </div>
                     <div id="actions">
                         <div id="info">
@@ -155,6 +192,18 @@
                                 <div>
                                     <button class="btn" data-action="promote" data-level="admin"><i class="fad fa-user-shield"></i> Admin</button>
                                 </div>
+
+                            <!-- ลบข้อมูลทั้งบัญชีถาวร — แยกออกมาจากกริดปุ่มอื่นโดยตั้งใจ
+                                 เพื่อไม่ให้กดโดนตอนเล็งปุ่มข้างๆ (ดู server/resetchar.lua) -->
+                            <div class="sectiontitle" style="color:#ff5544;">โซนอันตราย</div>
+                            <div class="grid-container" style="grid-template-columns: 1fr;">
+                                <div>
+                                    <button class="btn" data-action="resetAccount"
+                                            style="border-color:#b00; background:rgba(140,0,0,.35);">
+                                        <i class="fas fa-radiation"></i>รีเซ็ตบัญชี (ลบทุกอย่างถาวร)
+                                    </button>
+                                </div>
+                            </div>
                             </div>
                         </div>
                     </div>

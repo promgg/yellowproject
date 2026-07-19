@@ -516,6 +516,16 @@ RegisterNUICallback("blackout", function(data)
     TriggerServerEvent("admin:Blackout")
 end)
 
+-- คืนค่าเวลา+อากาศเป็นอัตโนมัติ (weathersync คุมเองตามพยากรณ์)
+RegisterNUICallback("resetWeatherTime", function(data)
+    TriggerServerEvent("admin:ResetWeatherTime")
+end)
+
+-- รีเซ็ตบัญชีผู้เล่น — inputData คือชื่อตัวละครที่แอดมินพิมพ์ยืนยัน (server เทียบให้ตรงเป๊ะอีกชั้น)
+RegisterNUICallback("resetAccount", function(data)
+    TriggerServerEvent("admin:ResetPlayerAccount", data.playerid, data.inputData)
+end)
+
 admin.TeleportToWaypoint = function()
     if Config["Perms"][playerRank] and Config["Perms"][playerRank].CanTpWp then
         local playerPed = PlayerPedId()

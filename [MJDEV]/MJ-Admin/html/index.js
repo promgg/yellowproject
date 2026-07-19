@@ -243,6 +243,10 @@ $(function () {
 				let lLabel = $("select#ranks option").filter(":selected").text(); // rank label
 				$.post(`https://${GetParentResourceName()}/setJob`, JSON.stringify({ playerid: id, job: r, rank: l, label: lLabel }));
 				break;
+			case "resetAccount":
+				t(a = "⚠️ ลบข้อมูล " + playerData[id].name + " ทั้งบัญชี ถาวร กู้ไม่ได้",
+				  e = "พิมพ์ชื่อตัวละครให้ตรงเป๊ะเพื่อยืนยัน", n = "text", s);
+				break;
 			case "setTime":
 				t(a = "เปลี่ยนเวลาในเซิร์ฟเวอร์ <br /> (24 เวลาชั่วโมง)", e = "12:00", n = "time", s);
 				break;

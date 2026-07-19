@@ -1,6 +1,9 @@
 # ไฟล์ config server (มี path/secret เฉพาะเครื่อง)
 server.cfg
 
+# ข้อมูลสำรองก่อนรีเซ็ตบัญชีผู้เล่น — มีของ/เงิน/steam id ครบ ไม่ควรขึ้น repo
+[MJDEV]/MJ-Admin/backups/
+
 # ข้อมูล runtime ที่สคริปต์เขียนทับเอง (ไม่ควร sync ข้ามเครื่อง)
 **/used_codes.json
 **/user_afk.json

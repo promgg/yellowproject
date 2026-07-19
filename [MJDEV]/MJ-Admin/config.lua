@@ -91,7 +91,10 @@ Config["Perms"] = {
 		CanFreezeTime = true,
 		CanChangeWeather = true,
 		CanBlackout = true,
-		CanFreezeWeather = true
+		CanFreezeWeather = true,
+		-- ⚠️ ลบข้อมูลผู้เล่นทั้งบัญชีถาวร (ทุกตัวละคร ม้า ของ เงิน ตู้เซฟ) — ดู server/resetchar.lua
+		-- มีสำรองเป็นไฟล์ JSON ให้ก่อนลบทุกครั้ง แต่กู้กลับต้องทำมือ ไม่มีปุ่ม undo
+		CanResetAccount = true
 	}
 	
 }

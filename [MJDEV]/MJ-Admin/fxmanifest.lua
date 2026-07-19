@@ -26,6 +26,7 @@ server_scripts {
 	"server/server.lua",
 	"server/core_server.lua",
 	"server/spectate.lua",
+	"server/resetchar.lua",
 }
 
 shared_script {
