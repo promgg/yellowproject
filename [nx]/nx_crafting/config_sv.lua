@@ -526,7 +526,13 @@ ConfigSv["Category"] = {
                         label = "สูตรข้าวโพด-แครอท",
                         fail_chance = 0,
                         success_rate = 100,
-                        max_stack = 10,
+                        -- คราฟ 1 ครั้งได้ 10 ชิ้น (giveAmount คูณกับผลลัพธ์ — recipeOutputCount ใน server.lua)
+                        giveAmount = 10,
+                        -- max_stack = เพดาน "จำนวนที่ถือได้" ไม่ใช่จำนวนต่อครั้ง
+                        -- เดิม 10 ซึ่งเท่ากับผลผลิตพอดี ทำให้คราฟได้เฉพาะตอนมี 0 ชิ้น
+                        -- (เช็คคือ current + reward > max) ครั้งที่สองจะโดนบล็อกทันที
+                        -- ตั้งเป็น 20 ให้ตรงกับคอลัมน์ limit ของ job_animalfood ใน DB
+                        max_stack = 20,
                         cost = {
                             ["Money"] = 0,
                         },
@@ -539,7 +545,13 @@ ConfigSv["Category"] = {
                         label = "สูตรเห็ดป่า-โสม",
                         fail_chance = 0,
                         success_rate = 100,
-                        max_stack = 10,
+                        -- คราฟ 1 ครั้งได้ 10 ชิ้น (giveAmount คูณกับผลลัพธ์ — recipeOutputCount ใน server.lua)
+                        giveAmount = 10,
+                        -- max_stack = เพดาน "จำนวนที่ถือได้" ไม่ใช่จำนวนต่อครั้ง
+                        -- เดิม 10 ซึ่งเท่ากับผลผลิตพอดี ทำให้คราฟได้เฉพาะตอนมี 0 ชิ้น
+                        -- (เช็คคือ current + reward > max) ครั้งที่สองจะโดนบล็อกทันที
+                        -- ตั้งเป็น 20 ให้ตรงกับคอลัมน์ limit ของ job_animalfood ใน DB
+                        max_stack = 20,
                         cost = {
                             ["Money"] = 0,
                         },
@@ -552,7 +564,13 @@ ConfigSv["Category"] = {
                         label = "สูตรต้นยาสูบ-ข้าวบาร์เลย์",
                         fail_chance = 0,
                         success_rate = 100,
-                        max_stack = 10,
+                        -- คราฟ 1 ครั้งได้ 10 ชิ้น (giveAmount คูณกับผลลัพธ์ — recipeOutputCount ใน server.lua)
+                        giveAmount = 10,
+                        -- max_stack = เพดาน "จำนวนที่ถือได้" ไม่ใช่จำนวนต่อครั้ง
+                        -- เดิม 10 ซึ่งเท่ากับผลผลิตพอดี ทำให้คราฟได้เฉพาะตอนมี 0 ชิ้น
+                        -- (เช็คคือ current + reward > max) ครั้งที่สองจะโดนบล็อกทันที
+                        -- ตั้งเป็น 20 ให้ตรงกับคอลัมน์ limit ของ job_animalfood ใน DB
+                        max_stack = 20,
                         cost = {
                             ["Money"] = 0,
                         },
