@@ -64,7 +64,7 @@ MJDEV['Planting'] = {
         zoneId = "valentine_farm", -- เชื่อม entry ที่จุดเดียวกันเข้าด้วยกัน (รวม reward panel / Count / เช็คระยะห่าง)
         zoneName = "Valentine", -- ชื่ออ่านง่ายไว้ใช้ในข้อความแจ้งเตือน
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -93,7 +93,7 @@ MJDEV['Planting'] = {
         zoneId = "valentine_farm", -- เชื่อม entry ที่จุดเดียวกันเข้าด้วยกัน (รวม reward panel / Count / เช็คระยะห่าง)
         zoneName = "Valentine", -- ชื่ออ่านง่ายไว้ใช้ในข้อความแจ้งเตือน
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -122,7 +122,7 @@ MJDEV['Planting'] = {
         zoneId = "valentine_farm", -- เชื่อม entry ที่จุดเดียวกันเข้าด้วยกัน (รวม reward panel / Count / เช็คระยะห่าง)
         zoneName = "Valentine", -- ชื่ออ่านง่ายไว้ใช้ในข้อความแจ้งเตือน
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -151,7 +151,7 @@ MJDEV['Planting'] = {
         zoneId = "valentine_farm", -- เชื่อม entry ที่จุดเดียวกันเข้าด้วยกัน (รวม reward panel / Count / เช็คระยะห่าง)
         zoneName = "Valentine", -- ชื่ออ่านง่ายไว้ใช้ในข้อความแจ้งเตือน
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -182,7 +182,7 @@ MJDEV['Planting'] = {
         zoneId = "annesburg_farm",
         zoneName = "Annesburg",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -211,7 +211,7 @@ MJDEV['Planting'] = {
         zoneId = "annesburg_farm",
         zoneName = "Annesburg",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -240,7 +240,7 @@ MJDEV['Planting'] = {
         zoneId = "annesburg_farm",
         zoneName = "Annesburg",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -269,7 +269,7 @@ MJDEV['Planting'] = {
         zoneId = "annesburg_farm",
         zoneName = "Annesburg",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -300,7 +300,7 @@ MJDEV['Planting'] = {
         zoneId = "rhodes_farm",
         zoneName = "Rhodes",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -329,7 +329,7 @@ MJDEV['Planting'] = {
         zoneId = "rhodes_farm",
         zoneName = "Rhodes",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -358,7 +358,7 @@ MJDEV['Planting'] = {
         zoneId = "rhodes_farm",
         zoneName = "Rhodes",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
@@ -387,7 +387,7 @@ MJDEV['Planting'] = {
         zoneId = "rhodes_farm",
         zoneName = "Rhodes",
         count = 10,
-        range = 20.0,
+        range = 40.0,
         plantmax = 1200, -- 1200 วิ = 20 นาที (เพิ่ม Hungry ทีละ 1 ทุก 1 วิ)
         percent_feed = {1, 5},
         watering = 600, -- รดน้ำตอนโตครึ่งทาง (600 วิ = 10 นาที)
