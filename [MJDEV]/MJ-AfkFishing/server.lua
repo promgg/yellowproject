@@ -116,25 +116,6 @@ end
 --  ทุกครั้งที่กดโดน ทำให้ปลา legendary ออกทั้งที่โอกาสตั้งไว้ 1-6% ตอนนี้ทุก path ใช้ getReward()
 --  พูลรวมตาม % จริงใน config เหมือนกันหมด — ตาราง % เป็นความจริงเดียว)
 
--- เช็คว่าปลา "ทุกชนิด" ที่ตกได้ในโซนนี้ยังพกเพิ่มได้ไหม — มีชนิดใดชนิดหนึ่งเต็ม = false
--- (เจ้าของกำหนด: มีของบางชนิดเต็ม = ตกไม่ได้เลย เหมือน MJ-Mining/MJ-Lumberjack)
-local function canCarryAllAvailable(src, zoneHashes)
-    local pool = getAvailableRewards(zoneHashes)
-    if #pool == 0 then return true end
-    for _, r in ipairs(pool) do
-        if not exports.vorp_inventory:canCarryItem(src, r.item, r.amount) then
-            return false
-        end
-    end
-    return true
-end
-
--- callback ให้ client เช็คก่อน "เริ่ม" ตกปลา — บล็อกทันทีถ้ามีปลาบางชนิดเต็ม (ไม่ต้องรอจบรอบ 60 วิ + ไม่เปลืองเหยื่อ)
-VORPcore.Callback.Register('MJ-AfkFishing:canStart', function(source, cb, rawZoneHashes)
-    local zoneHashes = sanitizeZoneHashes(rawZoneHashes)
-    cb(canCarryAllAvailable(source, zoneHashes))
-end)
-
 local function giveReward(src, reward)
     local added = exports.vorp_inventory:addItem(src, reward.item, reward.amount)
     if added == false then
@@ -165,12 +146,6 @@ AddEventHandler('fishing:giveReward', function(rawZoneHashes)
     local User = VORPcore.getUser(src)
     if not User or not User.getUsedCharacter then return end
 
-    -- backstop: ระหว่าง AFK ถ้ากระเป๋าเต็มระหว่างทาง หยุดก่อนหักเหยื่อ (ไม่เปลืองเหยื่อฟรี)
-    if not canCarryAllAvailable(src, zoneHashes) then
-        TriggerClientEvent('fishing:inventoryFull', src)
-        return
-    end
-
     exports.vorp_inventory:subItem(src, Config.BaitItem, Config.BaitPerCatch)
     local reward = getReward(zoneHashes)
     if reward then
@@ -191,12 +166,6 @@ AddEventHandler('fishing:giveRewardMini', function(isHit, rawZoneHashes)
     if not User or not User.getUsedCharacter then return end
 
     if type(isHit) ~= 'boolean' then isHit = false end
-
-    -- backstop: กระเป๋าเต็มระหว่างทาง หยุดก่อนหักเหยื่อ (ไม่เปลืองเหยื่อฟรี)
-    if not canCarryAllAvailable(src, zoneHashes) then
-        TriggerClientEvent('fishing:inventoryFull', src)
-        return
-    end
 
     exports.vorp_inventory:subItem(src, Config.BaitItem, Config.BaitPerCatch)
     -- กดโดน/พลาด ต่างกันแค่ "ได้ปลา vs ไม่ได้อะไร" (พลาดไม่มาถึง server อยู่แล้ว — client คัดออกก่อน)

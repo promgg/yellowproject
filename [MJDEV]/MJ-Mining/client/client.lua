@@ -172,13 +172,6 @@ AddEventHandler("mining:noaxe", function()
     exports.pNotify:SendNotification({ type = 'error', text = 'Your pickaxe broke!', timeout = 4000 })
 end)
 
--- server บล็อกก่อนเริ่มขุด (กระเป๋าเต็มทุกชนิดที่ดรอปได้) — reset state เงียบๆ ปลด freeze
--- (notify "กระเป๋าเต็ม" มาจาก server ผ่าน pNotify แล้ว ไม่ต้องแจ้งซ้ำที่นี่)
-RegisterNetEvent("mining:blocked")
-AddEventHandler("mining:blocked", function()
-    stopMining(true)
-end)
-
 RegisterNetEvent("mining:itemAwarded")
 AddEventHandler("mining:itemAwarded", function(itemName)
     exports.lp_rewardpanel:Highlight(itemName)
