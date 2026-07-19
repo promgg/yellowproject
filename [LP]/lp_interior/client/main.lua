@@ -161,9 +161,37 @@ CreateThread(function()
         enterZone(startIndex)
     end
 
+    local missCount = 0
+
     while true do
         local ped = PlayerPedId()
-        local id = getInterior(ped)
+        local rawId = getInterior(ped)
+        local id = rawId
+
+        -- กันอาการกระพริบ: native คืน 0 เป็นช่วงๆ ทั้งที่ยังยืนอยู่ข้างใน ถ้าเชื่อค่าเดียวตรงๆ
+        -- ผู้เล่นจะโดนเด้งกลับ bucket 0 ทุกไม่กี่วินาที ต้องอ่าน 0 ติดกันหลายครั้ง + ออกไปไกลจริง
+        -- ถึงจะนับว่าออก
+        if rawId == 0 and currentZoneIndex then
+            local entry = Config.Interiors[currentZoneIndex]
+            local dist = #(GetEntityCoords(ped) - entry.coords)
+
+            if dist <= (Config.Dimension.ExitGuardDistance or 30.0) then
+                missCount = missCount + 1
+                if missCount < (Config.Dimension.ExitConfirmTicks or 3) then
+                    id = currentInterior -- ถือว่ายังอยู่ข้างในเหมือนเดิม
+                    if Config.DebugLog then
+                        print(('[%s] ~ กรองการกระพริบ (อ่านได้ 0 ครั้งที่ %d/%d, ห่างโซน %.1fm)'):format(
+                            RESOURCE, missCount, Config.Dimension.ExitConfirmTicks or 3, dist))
+                    end
+                else
+                    missCount = 0
+                end
+            else
+                missCount = 0 -- ออกไปไกลแล้ว = ออกจริง
+            end
+        else
+            missCount = 0
+        end
 
         if id ~= currentInterior then
             local coords = GetEntityCoords(ped)

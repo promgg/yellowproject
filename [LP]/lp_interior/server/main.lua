@@ -9,6 +9,22 @@ local RESOURCE = GetCurrentResourceName()
 local playerBucket = {} -- [src] = bucket id ที่เราตั้งให้ (nil = อยู่มิติหลัก)
 local populationDone = {} -- [bucket] = true เมื่อตั้งค่า population แล้ว
 
+-- บรรทัดแรกสุด ยังไม่แตะ Config เลย — ถ้าไม่เห็นบรรทัดนี้ใน console เซิร์ฟหลัง ensure
+-- แปลว่าไฟล์นี้ไม่ได้ถูกโหลดเลย (ไม่มีไฟล์บนเครื่องนั้น / fxmanifest ไม่ได้ประกาศ server_scripts)
+print(('[%s] ^2server/main.lua โหลดแล้ว^7'):format(RESOURCE))
+
+-- แยกออกมาอีกบรรทัด เพราะถ้า Config เป็น nil บน server (config.lua ไม่เข้า context เซิร์ฟ)
+-- การอ่าน #Config.Interiors จะ error ทันที ทำให้ทั้งไฟล์หยุดกลางคัน = RegisterNetEvent
+-- ด้านล่างไม่ทำงาน client ยิง event มาก็ไม่มีใครรับ (ตรงกับอาการที่ไม่มี [BUCKET] ตอบกลับ)
+if not Config or not Config.Interiors then
+    print(('[%s] ^1ผิดพลาด:^7 Config ไม่ถูกโหลดใน context ของ server — ตรวจ shared_script ใน fxmanifest')
+        :format(RESOURCE))
+    return
+end
+
+print(('[%s] ^2พร้อมทำงาน^7 — interior ใน config: %d จุด, Dimension.Enabled=%s')
+    :format(RESOURCE, #Config.Interiors, tostring(Config.Dimension and Config.Dimension.Enabled)))
+
 local function bucketFor(entry, src)
     -- PerPlayer: ให้แต่ละคนได้มิติของตัวเอง โดยบวก src เข้ากับ bucket ฐาน
     -- (ยังคงอยู่ในช่วง 7100+ ที่กันไว้ ไม่ชนกับ bucket ที่ resource อื่นใช้)
