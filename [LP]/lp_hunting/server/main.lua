@@ -54,6 +54,43 @@ end
 -- resolve entity + tier + ไอเทมที่ต้องเช็ค จาก netId เดียว (ใช้ร่วมกันทั้ง pre-check callback ด้านล่าง
 -- และ event แจกรางวัลจริง) คืน nil ถ้า resolve ไม่ผ่านจุดใดจุดหนึ่ง (ไม่ dbg เหตุผลตรงนี้ — ผู้เรียกที่
 -- รู้ context ว่ากำลังทำอะไรอยู่จะ dbg เอง)
+-- ของที่กลุ่มนี้ "มีโอกาส" ได้ทั้งหมด (ยังไม่สุ่ม) — ใช้เช็คกระเป๋าล่วงหน้าก่อนเริ่มถลก
+-- เช็คแบบเผื่อไว้เต็มที่: ถ้าที่ว่างไม่พอสำหรับทุกอย่างที่อาจดรอป ก็ยังไม่ให้เริ่ม
+-- (ดีกว่าปล่อยให้ถลกจนจบแล้วของหล่นหายเพราะกระเป๋าเต็ม)
+local function possibleItemsForGroup(group)
+    local loot = Config.GroupLoot[group] or Config.GroupLoot.other
+    if not loot then return {} end
+
+    local out = {}
+    for _, item in ipairs(loot.always or {}) do out[#out + 1] = item end
+    for _, item in ipairs(loot.pickOne or {}) do out[#out + 1] = item end
+    for _, roll in ipairs(loot.rolls or {}) do out[#out + 1] = roll.item end
+    return out
+end
+
+-- สุ่มของจริงตอนถลกเสร็จ — คืนลิสต์ไอเทมที่ได้ (อาจว่างเปล่าได้ถ้ากลุ่มนั้นเป็น rolls ล้วนแล้วพลาดหมด)
+local function rollLootForGroup(group)
+    local loot = Config.GroupLoot[group] or Config.GroupLoot.other
+    if not loot then return {} end
+
+    local out = {}
+    for _, item in ipairs(loot.always or {}) do out[#out + 1] = item end
+
+    local pick = loot.pickOne
+    if pick and #pick > 0 then
+        out[#out + 1] = pick[math.random(#pick)]
+    end
+
+    -- แต่ละ roll อิสระต่อกัน — ได้หลายอย่างพร้อมกันได้ (เช่นหมี: เนื้อ+หนัง+เล็บ ครบทั้ง 3)
+    for _, roll in ipairs(loot.rolls or {}) do
+        if math.random(100) <= (roll.chance or 0) then
+            out[#out + 1] = roll.item
+        end
+    end
+
+    return out
+end
+
 local function resolveCarcass(netId)
     local ent = NetworkGetEntityFromNetworkId(netId)
     if not ent or ent == 0 or not DoesEntityExist(ent) then return nil end
@@ -62,19 +99,8 @@ local function resolveCarcass(netId)
     local tier  = Config.SkinTiers[model]
     if not tier then return nil end
 
-    local meatBucket = Config.Items[tier.meat]
-    if not meatBucket then return nil end
-    local meatItem = meatBucket.meat
-
-    local hideItem = nil
-    if tier.hide then
-        local hideKey    = Config.HideRankToItemsKey[tier.hide]
-        local hideBucket = hideKey and Config.Items[hideKey]
-        if not hideBucket then return nil end
-        hideItem = hideBucket.hide
-    end
-
-    return ent, tier, meatItem, hideItem
+    local group = tier.group or 'other'
+    return ent, tier, group, possibleItemsForGroup(group)
 end
 
 -- คืน id (แถวอาวุธจริงใน vorp_inventory) ของมีดชนิดใดชนิดหนึ่งที่ผู้เล่นเป็นเจ้าของ หรือ nil ถ้าไม่มีเลย
@@ -84,7 +110,7 @@ end
 -- ในสายตาเกม (ให้ผลกับ native TASK_LOOT_ENTITY) ก็ต่อเมื่อผ่าน native GiveDelayedWeaponToPed แล้ว
 -- เท่านั้น ซึ่งเกิดขึ้นเฉพาะตอนผู้เล่น "สวม/equip" มีดผ่าน flow ของ vorp_inventory เอง (กด Use ใน
 -- กระเป๋า) เท่านั้น — id ที่คืนจากฟังก์ชันนี้เอาไปให้ client เรียก
--- exports.vorp_inventory:useWeapon({id=..., type='item_weapon'}) เพื่อสวมมีดจริงก่อนเริ่มถลกเสมอ
+-- (เดิม client เอา id นี้ไปสวมมีดให้อัตโนมัติ ตอนนี้เอาออกแล้ว — ผู้เล่นต้องถือมีดเอง)
 -- (เรียกซ้ำได้ปลอดภัยแม้สวมอยู่แล้ว ไม่ใช่การเดา state)
 local function findOwnedKnife(source)
     local ok, weapons = pcall(function() return exports.vorp_inventory:getUserInventoryWeapons(source) end)
@@ -120,17 +146,25 @@ VorpCore.Callback.Register('lp_hunting:cb:canSkin', function(source, cb, netId)
     netId = tonumber(netId)
     if not netId then return cb({ ok = false, reason = 'invalid' }) end
 
-    local ent, _, meatItem, hideItem = resolveCarcass(netId)
+    local ent, _, _, possible = resolveCarcass(netId)
     if not ent then return cb({ ok = false, reason = 'invalid' }) end
 
-    local knifeWeaponId = findOwnedKnife(source)
-    if not knifeWeaponId then
+    -- ยังเช็คว่า "เป็นเจ้าของมีด" ฝั่ง server ไว้เป็นด่านล่างสุด (client เช็ค "ถืออยู่ในมือ" อีกชั้น
+    -- ก่อนเรียกมาถึงตรงนี้) — server มองไม่เห็นว่าอะไรอยู่ในมือจริง เลยยืนยันได้แค่ความเป็นเจ้าของ
+    if not findOwnedKnife(source) then
         dbg('pre-check reject src=%d netId=%d: no knife', source, netId)
         return cb({ ok = false, reason = 'noKnife' })
     end
 
-    local canCarry = exports.vorp_inventory:canCarryItem(source, meatItem, 1)
-        and (not hideItem or exports.vorp_inventory:canCarryItem(source, hideItem, 1))
+    -- เช็คที่ว่างสำหรับ "ทุกอย่างที่มีโอกาสดรอป" ไม่ใช่แค่ที่จะได้จริง — ยังไม่สุ่มตอนนี้
+    -- (สุ่มตอนถลกเสร็จใน lp_hunting:sv:skin) กันเคสถลกจบแล้วของหล่นหายเพราะไม่มีที่
+    local canCarry = true
+    for _, item in ipairs(possible) do
+        if not exports.vorp_inventory:canCarryItem(source, item, 1) then
+            canCarry = false
+            break
+        end
+    end
 
     if not canCarry then
         dbg('pre-check reject src=%d netId=%d: inventory full', source, netId)
@@ -138,8 +172,7 @@ VorpCore.Callback.Register('lp_hunting:cb:canSkin', function(source, cb, netId)
         return cb({ ok = false, reason = 'full' })
     end
 
-    -- client จะเรียก exports.vorp_inventory:useWeapon({id=knifeWeaponId}) ก่อนเริ่มถลกเสมอ (สวมมีดจริง)
-    return cb({ ok = true, knifeWeaponId = knifeWeaponId })
+    return cb({ ok = true })
 end)
 
 RegisterServerEvent('lp_hunting:sv:skin', function(netId)
@@ -246,51 +279,49 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     local Character = user.getUsedCharacter
     if not Character then return end
 
-    -- resolve ไอเทม: เนื้อจาก tier.meat (บังคับทุกตัว), หนังจาก tier.hide ผ่าน Config.HideRankToItemsKey
-    -- (ดูคอมเมนต์ใน config.lua — Items ใช้ key ร่วมกัน small/medium/large แทนทั้ง 2 แกน)
-    -- สัตว์บางชนิด (นก) ไม่มี key `hide` = แจกเฉพาะเนื้อ
-    local meatBucket = Config.Items[tier.meat]
-    if not meatBucket then
-        dbg('reject src=%d netId=%d: bad tier config (meat=%s)', _source, netId, tostring(tier.meat))
-        handledCarcass[netId] = nil -- บั๊ก config ไม่ควรเผาซากทิ้งถาวร
-        return
-    end
-    local meatItem = meatBucket.meat
+    -- (5) สุ่มของจริงตามกลุ่มสัตว์ (ดู Config.GroupLoot) — server สุ่มเองทั้งหมด client ไม่มีสิทธิ์
+    local group = tier.group or 'other'
+    local rolled = rollLootForGroup(group)
 
-    local hideItem = nil
-    if tier.hide then
-        local hideKey    = Config.HideRankToItemsKey[tier.hide]
-        local hideBucket = hideKey and Config.Items[hideKey]
-        if not hideBucket then
-            dbg('reject src=%d netId=%d: bad tier config (hide=%s)', _source, netId, tostring(tier.hide))
-            handledCarcass[netId] = nil
-            return
-        end
-        hideItem = hideBucket.hide
-    end
-
-    -- (5) canCarryItem ก่อน addItem เสมอ (mirror vorp_hunting) — หนังเช็คเฉพาะเมื่อสัตว์ตัวนี้มีหนัง
-    -- ปกติ client เช็คผ่าน lp_hunting:cb:canSkin ก่อนเริ่มแอนิเมชันไปแล้ว (ไม่ควรมาถึงตรงนี้ถ้าเต็ม)
-    -- จุดนี้เป็น defense-in-depth เผื่อ client เก่า/ถูกแก้ข้ามการเช็คก่อน
-    if not exports.vorp_inventory:canCarryItem(_source, meatItem, 1)
-        or (hideItem and not exports.vorp_inventory:canCarryItem(_source, hideItem, 1)) then
+    -- กลุ่มที่เป็น rolls ล้วน (หมี) มีโอกาสพลาดครบทุกอย่าง = ไม่ได้อะไรเลย
+    -- ถือว่าถลกสำเร็จตามปกติ (ซากหายไป ได้ XP) แค่ไม่มีของติดมือ
+    if #rolled == 0 then
+        Character.addXp(Config.Xp or 1)
+        cooldowns[_source] = now
+        DeleteEntity(ent)
         TriggerClientEvent('pNotify:SendNotification', _source, {
-            text = 'กระเป๋าเต็ม ไม่สามารถชำแหละได้',
-            type = 'error',
+            text = ('ชำแหละ%sสำเร็จ แต่ไม่ได้ของติดมือ (+%d XP)'):format(
+                tier.name and (tier.name .. ' ') or '', Config.Xp or 1),
+            type = 'info',
             timeout = 4000,
         })
-        handledCarcass[netId] = nil -- กระเป๋าเต็มไม่ใช่ความผิดของซาก ปลดล็อกให้ลองใหม่ได้หลังเคลียร์กระเป๋า
-        scheduleAbandonedDespawn(netId, ent) -- ซากยังอยู่ แต่ตั้งเวลาลบถ้าไม่มีใครกลับมาเก็บ
+        TriggerEvent('lp_leaderboard:SV:HuntSkin', { src = _source, amount = 0 })
+        dbg('grant src=%d netId=%d model=%s animal=%s group=%s items=(none) xp=%d',
+            _source, netId, tostring(model), tier.name or '?', group, Config.Xp or 1)
         return
     end
 
-    -- (6) แจกของจริง — เนื้อเสมอ, หนังถ้ามี
-    exports.vorp_inventory:addItem(_source, meatItem, 1)
-    local granted = 1
-    if hideItem then
-        exports.vorp_inventory:addItem(_source, hideItem, 1)
-        granted = 2
+    -- canCarryItem ก่อน addItem เสมอ (mirror vorp_hunting) — เช็คเฉพาะของที่สุ่มได้จริงรอบนี้
+    -- ปกติ client เช็คผ่าน lp_hunting:cb:canSkin ก่อนเริ่มแอนิเมชันไปแล้ว (ไม่ควรมาถึงตรงนี้ถ้าเต็ม)
+    -- จุดนี้เป็น defense-in-depth เผื่อ client เก่า/ถูกแก้ข้ามการเช็คก่อน
+    for _, item in ipairs(rolled) do
+        if not exports.vorp_inventory:canCarryItem(_source, item, 1) then
+            TriggerClientEvent('pNotify:SendNotification', _source, {
+                text = 'กระเป๋าเต็ม ไม่สามารถชำแหละได้',
+                type = 'error',
+                timeout = 4000,
+            })
+            handledCarcass[netId] = nil -- กระเป๋าเต็มไม่ใช่ความผิดของซาก ปลดล็อกให้ลองใหม่ได้หลังเคลียร์กระเป๋า
+            scheduleAbandonedDespawn(netId, ent) -- ซากยังอยู่ แต่ตั้งเวลาลบถ้าไม่มีใครกลับมาเก็บ
+            return
+        end
     end
+
+    -- (6) แจกของจริง
+    for _, item in ipairs(rolled) do
+        exports.vorp_inventory:addItem(_source, item, 1)
+    end
+    local granted = #rolled
     Character.addXp(Config.Xp or 1)
     cooldowns[_source] = now
 
@@ -309,9 +340,9 @@ RegisterServerEvent('lp_hunting:sv:skin', function(netId)
     -- amount = จำนวนไอเทมจริงที่แจก (นก = 1, สัตว์มีหนัง = 2)
     TriggerEvent('lp_leaderboard:SV:HuntSkin', { src = _source, amount = granted })
 
-    dbg('grant src=%d netId=%d model=%s animal=%s items=%s%s xp=%d',
-        _source, netId, tostring(model), tier.name or '?', meatItem,
-        hideItem and (',' .. hideItem) or '', Config.Xp or 1)
+    dbg('grant src=%d netId=%d model=%s animal=%s group=%s items=%s xp=%d',
+        _source, netId, tostring(model), tier.name or '?', group,
+        table.concat(rolled, ','), Config.Xp or 1)
 end)
 
 AddEventHandler('playerDropped', function()
