@@ -40,7 +40,7 @@
     {
       "name": "lp_textui",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "5506", "D:/project/txData/VORPCore/resources/[Script]/lp_textui/nui"],
+      "runtimeArgs": ["serve", "-p", "5506", "D:/project/txData/VORPCore/resources/[LP]/lp_textui/nui"],
       "port": 5506
     },
     {
@@ -114,6 +114,36 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "5517", "D:/project/txData/VORPCore/resources/[LP]/lp_deathmatch/html"],
       "port": 5517
+    },
+    {
+      "name": "fx-Idcard",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5518", "D:/project/txData/VORPCore/resources/[Script]/fx-Idcard"],
+      "port": 5518
+    },
+    {
+      "name": "vorp_inventory",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5519", "D:/project/txData/VORPCore/resources/[VORP]/vorp_inventory/html"],
+      "port": 5519
+    },
+    {
+      "name": "MJ-Announcement",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5520", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-Announcement/html"],
+      "port": 5520
+    },
+    {
+      "name": "MJ-LoadingScreen",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5521", "D:/project/txData/VORPCore/resources/[MJDEV]/MJ-LoadingScreen/html"],
+      "port": 5521
+    },
+    {
+      "name": "readiness-checklist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5522", "C:/Users/User/AppData/Local/Temp/claude/D--project-txData-VORPCore-resources/319f6e26-3c44-48f7-8fd4-9f05f61c573e/scratchpad"],
+      "port": 5522
     }
   ]
 }

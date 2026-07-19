@@ -2,28 +2,33 @@
 
 body {
   font-family: 'Kanit', sans-serif;
-  color: #ffffff;
   background: transparent;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-.lt-prompt {
+.lt {
   display: none;
   position: fixed;
   left: 50%;
   bottom: 14vh;
   transform: translateX(-50%);
-  align-items: center;
-  animation: lt-fade-in 160ms ease-out;
+  align-items: stretch;
+  gap: 8px;
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.6));
 }
 
-.lt-prompt.lt-mounted { bottom: 18vh; }
+.lt.lt-show {
+  display: inline-flex;
+  animation: lt-rise 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
 
-.lt-prompt.lt-show { display: inline-flex; }
+.lt.lt-mounted { bottom: 18vh; }
 
 /* โหมด world: ลอยติดพิกัดโลก (GetScreenCoordFromWorldCoord) แทนตำแหน่งกลางล่างจอปกติ —
-   left/top เป็น % ที่ Lua ส่งมาทุกเฟรม (worldPos), anchor จุดกึ่งกลางล่างของกล่องให้ลอยอยู่เหนือพิกัดพอดี */
-.lt-prompt.lt-world {
+   left/top เป็น % ที่ Lua ส่งมาทุกเฟรม (worldPos), anchor จุดกึ่งกลางล่างของกล่องให้ลอยอยู่เหนือพิกัดพอดี
+   ต้องประกาศหลัง .lt-show เพื่อให้ animation: none ชนะ (specificity เท่ากัน ตัวหลังชนะ) */
+.lt.lt-world {
   position: absolute;
   bottom: auto;
   left: 0; top: 0;
@@ -31,73 +36,93 @@ body {
   animation: none;
 }
 
-.lt-prompt.lt-world.lt-mounted { bottom: auto; }
+.lt.lt-world.lt-mounted { bottom: auto; }
 
-.lt-badge {
+/* ── ปุ่ม keycap ─────────────────────────────────────────────────
+   ทรงเหลี่ยมมุมมนแบบปุ่มกดจริง ไล่สีทองเหลือง + ขอบบนสว่าง/ขอบล่างเงาให้ดูนูน */
+.lt-keycap {
   position: relative;
-  width: 42px; height: 42px;
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(19, 19, 19, 0.9);
-  border-radius: 50%;
-  left: 10px;
+  flex: 0 0 auto;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #8a6a30 0%, #4a3517 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 168, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(124, 85, 38, 0.9);
 }
 
-.lt-ring {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  transform: rotate(-90deg);
+.lt-keycap-char {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fdf1d8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
 }
 
-.lt-ring-track {
-  fill: none;
-  stroke: #2a2a2a;
-  stroke-width: 3;
+/* ── ป้ายข้อความ ──────────────────────────────────────────────── */
+.lt-plaque {
+  position: relative;
+  min-width: 112px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px 0 15px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.95), rgba(15, 13, 10, 0.95));
+  box-shadow: 0 0 0 1px rgba(124, 85, 38, 0.75);
 }
 
-.lt-ring-fill {
-  fill: none;
-  stroke: #f0ca78;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 113.1;
-  stroke-dashoffset: 0;
+/* ขีดทองด้านซ้าย — ตัวคั่นสายตาแทนกรอบหนา */
+.lt-plaque::before {
+  content: '';
+  position: absolute;
+  left: 6px; top: 8px; bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f0ca78, #8a6a30);
+  z-index: 1;
 }
 
-.lt-key {
+/* แถบไล่สีพื้นหลัง = ความคืบหน้าตอนกดค้าง — ว่าง (scaleX 0) ตอนปกติ
+   ปลายขวาของ gradient สว่างกว่า เลยกลายเป็น "หัวคลื่น" ที่ไล่ไปพร้อมกับ transform */
+.lt-plaque-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg,
+    rgba(240, 202, 120, 0.08) 0%,
+    rgba(240, 202, 120, 0.24) 88%,
+    rgba(247, 221, 163, 0.55) 100%);
+}
+
+.lt-plaque-text {
   position: relative;
   z-index: 1;
-  min-width: 22px; height: 22px;
-  padding: 0 5px;
-  border-radius: 11px;
-  background: linear-gradient(180deg, #937036, #573d18);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
-  text-transform: uppercase;
-  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
+  color: #ded4c4;
 }
 
-.lt-textbox {
-  min-width: 110px;
-  width: fit-content;
-  height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(19, 19, 19, 0.9);
-  border: 1px solid #7c5526;
-  border-radius: 6px;
-  padding: 0 10px;
+.lt-plaque-text .lt-hl {
+  color: #f0ca78;
+  font-weight: 700;
 }
 
-.lt-text {
-  font-size: 13px; font-weight: 500;
-  white-space: nowrap;
-  color: #d9d9d9;
-}
-
-.lt-text .lt-hl { color: #f0ca78; font-weight: 700; }
-
-@keyframes lt-fade-in {
-  from { opacity: 0; transform: translate(-50%, 5px); }
+@keyframes lt-rise {
+  from { opacity: 0; transform: translate(-50%, 8px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }

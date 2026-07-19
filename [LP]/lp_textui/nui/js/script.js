@@ -1,11 +1,9 @@
 (function () {
   var promptEl = document.getElementById('prompt');
-  var badgeEl  = document.getElementById('ltBadge');
+  var keycapEl = document.getElementById('ltKeycap');
   var keyEl    = document.getElementById('ltKey');
-  var ringEl   = document.getElementById('ltRingFill');
+  var fillEl   = document.getElementById('ltFill');
   var textEl   = document.getElementById('ltText');
-
-  var CIRC = 2 * Math.PI * 18; // ~113.1
 
   function esc(s) {
     return String(s || '')
@@ -29,23 +27,26 @@
     return safe.replace(re, function (m) { return '<span class="lt-hl">' + m + '</span>'; });
   }
 
-  function setRing(pct) {
-    ringEl.style.transition = 'none';
-    ringEl.style.strokeDashoffset = CIRC * (1 - Math.min(Math.max(pct, 0), 1));
+  // ความคืบหน้า = พื้นหลังป้ายไล่จากซ้าย (scaleX 0 -> 1) ตอนปกติว่างเปล่า
+  function setFill(pct) {
+    var v = Math.min(Math.max(pct, 0), 1);
+    fillEl.style.transition = 'none';
+    fillEl.style.transform = 'scaleX(' + v + ')';
   }
 
-  function stopRing() {
-    var frozen = getComputedStyle(ringEl).strokeDashoffset;
-    ringEl.style.transition = 'none';
-    ringEl.style.strokeDashoffset = frozen;
+  // หยุดค้างตรงตำแหน่งปัจจุบัน — อ่านค่า computed (matrix) แล้วปักกลับไปเพื่อตัด transition ที่วิ่งอยู่
+  function stopFill() {
+    var frozen = getComputedStyle(fillEl).transform;
+    fillEl.style.transition = 'none';
+    fillEl.style.transform = (frozen && frozen !== 'none') ? frozen : 'scaleX(0)';
   }
 
-  function startRing(duration) {
-    ringEl.style.transition = 'none';
-    ringEl.style.strokeDashoffset = CIRC;
-    ringEl.getBoundingClientRect(); // force reflow ให้ browser จำค่าเริ่มต้นก่อนค่อยเปลี่ยน transition
-    ringEl.style.transition = 'stroke-dashoffset ' + duration + 'ms linear';
-    ringEl.style.strokeDashoffset = 0;
+  function startFill(duration) {
+    fillEl.style.transition = 'none';
+    fillEl.style.transform = 'scaleX(0)';
+    fillEl.getBoundingClientRect(); // force reflow ให้ browser จำค่าเริ่มต้นก่อนค่อยเปลี่ยน transition
+    fillEl.style.transition = 'transform ' + duration + 'ms linear';
+    fillEl.style.transform = 'scaleX(1)';
   }
 
   function show(data) {
@@ -60,13 +61,13 @@
 
     if (key) {
       keyEl.textContent = key;
-      badgeEl.style.display = '';
-      stopRing();
-      setRing(1);
+      keycapEl.style.display = '';
     } else {
-      badgeEl.style.display = 'none';
-      stopRing();
+      keycapEl.style.display = 'none';
     }
+
+    stopFill();
+    setFill(0);
 
     textEl.innerHTML = highlightKey(text, key);
     promptEl.classList.toggle('lt-world', !!data.world);
@@ -84,11 +85,10 @@
     promptEl.style.left = '';
     promptEl.style.top = '';
     promptEl.style.visibility = '';
-    stopRing();
-    setRing(1);
+    stopFill();
+    setFill(0);
   }
 
-  
   function setWorldPos(onScreen, x, y) {
     if (!onScreen) {
       promptEl.style.visibility = 'hidden';
@@ -104,10 +104,10 @@
     switch (d.action) {
       case 'lp_textui:show':            show(d); break;
       case 'lp_textui:hide':            hide(); break;
-      case 'lp_textui:progress':        if (Number(d.duration) > 0) startRing(Number(d.duration)); break;
-      case 'lp_textui:progress_stop':   stopRing(); break;
-      case 'lp_textui:progress_reset':  stopRing(); setRing(0); break;
-      case 'lp_textui:holdProgress':    stopRing(); setRing((Number(d.pct) || 0) / 100); break;
+      case 'lp_textui:progress':        if (Number(d.duration) > 0) startFill(Number(d.duration)); break;
+      case 'lp_textui:progress_stop':   stopFill(); break;
+      case 'lp_textui:progress_reset':  stopFill(); setFill(0); break;
+      case 'lp_textui:holdProgress':    stopFill(); setFill((Number(d.pct) || 0) / 100); break;
       case 'lp_textui:mounted':         promptEl.classList.toggle('lt-mounted', !!d.mounted); break;
       case 'lp_textui:worldPos':        setWorldPos(d.onScreen, d.x, d.y); break;
     }

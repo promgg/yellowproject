@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="UTF-8">
   <title>lp_textui</title>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="prompt" class="lt-prompt">
-    <div class="lt-badge" id="ltBadge">
-      <svg class="lt-ring" viewBox="0 0 44 44">
-        <circle class="lt-ring-track" cx="22" cy="22" r="18"/>
-        <circle class="lt-ring-fill" id="ltRingFill" cx="22" cy="22" r="18"/>
-      </svg>
-      <span class="lt-key" id="ltKey"></span>
+  <!-- ปุ่ม keycap ทรงเหลี่ยม + ป้ายข้อความสลัก
+       ความคืบหน้าตอนกดค้าง = พื้นหลังของป้ายไล่สีทองจากซ้ายไปขวา (lt-plaque-fill)
+       วาดด้วย CSS transform ล้วน ไม่มี SVG -->
+  <div id="prompt" class="lt">
+    <div class="lt-keycap" id="ltKeycap">
+      <span class="lt-keycap-char" id="ltKey"></span>
     </div>
-    <div class="lt-textbox">
-      <span class="lt-text" id="ltText"></span>
+    <div class="lt-plaque">
+      <span class="lt-plaque-fill" id="ltFill"></span>
+      <span class="lt-plaque-text" id="ltText"></span>
     </div>
   </div>
   <script src="js/script.js"></script>
