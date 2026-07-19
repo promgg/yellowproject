@@ -9,6 +9,11 @@ Config.Align = "top-left" -- menu position
 
 Config.MinAge = 18 -- minimum age required to create a character
 
+-- true = ซ่อนหมวด "เสื้อผ้า" ในเมนูสร้างตัวละคร ผู้เล่นแก้ชุดตอนสร้างไม่ได้ ได้ชุดเริ่มต้นของเกมไปเลย
+-- ส่วนหน้าตา/รูปร่าง/ทรงผม/แต่งหน้า ยังปรับได้ตามปกติทั้งหมด
+-- (เสื้อผ้าไปเปลี่ยนที่ jo_clothingstore แทน — ร้านเสื้อผ้าเดิมของ vorp_character ปิดไปแล้วที่ config_shops.lua)
+Config.LockClothingInCreator = true
+
 --* when player choosing a name  make sure it doesn't contain any of the words in the list below
 Config.BannedNames = { "Arthur", "Marshton", "Shit", "Dick" } --* you can add more words
 

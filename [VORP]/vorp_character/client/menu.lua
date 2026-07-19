@@ -290,11 +290,15 @@ function OpenCharCreationMenu(clothingtable, value)
             desc = imgPath:format("character_creator_head") .. "<br>" .. T.MenuCreation.element.desc
         }
 
-        elements[#elements + 1] = {
-            label = T.MenuCreation.element2.label .. opacity:format(T.Secondchance.DescClothing),
-            value = "clothing",
-            desc = imgPath:format("clothing_generic_outfit") .. "<br> " .. T.MenuCreation.element2.desc
-        }
+        -- Config.LockClothingInCreator = ซ่อนหมวดเสื้อผ้า ให้ผู้เล่นได้ชุดเริ่มต้นของเกมไปเลย
+        -- (หน้าตา/ทรงผม/รูปร่าง ยังอยู่ครบใน "appearance") — เปลี่ยนชุดไปทำที่ jo_clothingstore แทน
+        if not Config.LockClothingInCreator then
+            elements[#elements + 1] = {
+                label = T.MenuCreation.element2.label .. opacity:format(T.Secondchance.DescClothing),
+                value = "clothing",
+                desc = imgPath:format("clothing_generic_outfit") .. "<br> " .. T.MenuCreation.element2.desc
+            }
+        end
 
         -- confirm pay
         if not IsInCharCreation then
@@ -379,6 +383,7 @@ function OpenCharCreationMenu(clothingtable, value)
             end
 
             if (data.current.value == "clothing") then
+                if Config.LockClothingInCreator then return end -- กันเส้นทางอื่นที่อาจยิงค่านี้เข้ามาแม้ปุ่มถูกซ่อนแล้ว
                 return OpenClothingMenu(clothingtable, value)
             end
 
