@@ -78,11 +78,13 @@ Config["Craft_Table"] = {
 
 	-- พิกัดด้านล่างเป็นตำแหน่งคร่าวๆ ใกล้ตัวเมือง ยังไม่ได้วัดจุดจริงในเกม ต้องปรับพิกัดให้ตรงจุดก่อนขึ้นจริง
 	{
-		Position = {x = -300.0, y = 750.0, z = 45.0, h = 0.0},
+		Position = {x = -359.5163, y = 742.1522, z = 116.0760, h = -79.3870},
 		Table_Name = "Valentine Cooking",
 		Max_Distance = 2.5,
-		Disable_Model = false, -- โชว์ prop คราฟอาหารจริง (พิกัดยังไม่ได้เช็คในเกม ใช้ prop ช่วยมาร์กจุด)
-		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x", -- prop คราฟที่ผ่านการรับรองแล้วใน vorp_crafting/config.lua (Config.CraftingProps) เหมาะกับโต๊ะทำอาหารโดยเฉพาะ
+		-- จุดนี้มีกาต้มน้ำ (p_kettle03x) อยู่ในแมพของเกมอยู่แล้ว เลยไม่ต้องสร้างซ้อน
+		-- ไม่งั้นจะได้ prop ทับกันสองอันตรงจุดเดียว
+		Disable_Model = true,
+		Model = GetHashKey and GetHashKey("p_kettle03x") or "p_kettle03x", -- อ้างอิงเฉยๆ ไม่ได้ถูกสร้าง (Disable_Model = true)
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Valentine",
 
@@ -96,11 +98,11 @@ Config["Craft_Table"] = {
 	},
 
 	{
-		Position = {x = 1234.0, y = -1274.0, z = 76.0, h = 0.0},
+		Position = {x = 1305.7445, y = -1277.4363, z = 74.9953, h = -66.9541},
 		Table_Name = "Rhodes Cooking",
 		Max_Distance = 2.5,
 		Disable_Model = false,
-		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x",
+		Model = GetHashKey and GetHashKey("p_campfirecombined02x") or "p_campfirecombined02x",
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Rhodes",
 
@@ -114,11 +116,11 @@ Config["Craft_Table"] = {
 	},
 
 	{
-		Position = {x = 2895.0, y = 1385.0, z = 45.0, h = 0.0},
+		Position = {x = 2938.2727, y = 1308.6079, z = 43.5394, h = -109.1218},
 		Table_Name = "Annesburg Cooking",
 		Max_Distance = 2.5,
 		Disable_Model = false,
-		Model = GetHashKey and GetHashKey("p_campfirecook02x") or "p_campfirecook02x",
+		Model = GetHashKey and GetHashKey("p_campfirecombined02x") or "p_campfirecombined02x",
 		Name = "~y~Cooking Table",
 		Desc = "โต๊ะทำอาหาร Annesburg",
 
@@ -131,30 +133,63 @@ Config["Craft_Table"] = {
 		Category = { 21 } -- โต๊ะทำอาหาร Annesburg
 	},
 
-	-- รวม Wood Whittling Table + Wood Plank Table (เดิมห่างกันแค่ ~2.4m ขณะ Max_Distance = 2.5 ทั้งคู่
-	-- ทำให้ระยะเข้าซ้อนกัน — ดู debug log ใน [nx]/nx_crafting/client/client.lua) เป็นจุดเดียวที่เปิดได้
-	-- ทั้งสองหมวด ใช้พิกัดของ Wood Plank Table เดิม (ทั้งสองจุดเป็นค่าประมาณ ยังไม่เข้าเกมเช็คจริง —
-	-- ต้องปรับพิกัดให้ตรงจุดก่อนขึ้นจริงเหมือนเดิม)
-	--
-	-- ปิดไว้ก่อน: Position.x ไม่เคยถูกใส่ค่าจริง (มีแค่ "x = , h = ...") ทำให้ทั้งไฟล์ syntax error
-	-- Config เป็น nil ทั้งตัว (ดู SCRIPT ERROR ที่ client.lua:76/86) — ต้องใส่พิกัดจริงก่อนเปิดใช้
-	-- {
-	-- 	Position = {x = 0.0, y = 0.0, z = 0.0, h = 111.2098},
-	-- 	Table_Name = "Wood Crafting",
-	-- 	Max_Distance = 2.5,
-	-- 	Disable_Model = true,
-	-- 	Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
-	-- 	Name = "~y~Wood Crafting",
-	-- 	Desc = "โต๊ะงานไม้",
+	-- ── โต๊ะงานไม้ (เหลาไม้ + ทำไม้แผ่น) ──────────────────────────────────────
+	-- เดิมบล็อกนี้ถูกคอมเมนต์ทิ้งเพราะไม่เคยมีพิกัดจริง (x ว่างจนไฟล์ syntax error ทั้งไฟล์)
+	-- ตอนนี้ได้พิกัดที่วัดในเกมแล้ว 3 จุด ใช้ prop p_sawhorse04x เป็นตัวมาร์ก
+	{
+		Position = {x = -32.0531, y = 1234.1144, z = 171.8039, h = -177.0000},
+		Table_Name = "Wood Crafting 1",
+		Max_Distance = 2.5,
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
+		Name = "~y~Wood Crafting",
+		Desc = "โต๊ะงานไม้",
 
-	-- 	Map_blip = true,
-	-- 	Blip_name = "WoodCraftingTable",
-	-- 	Blip_sprite = 12,
-	-- 	Blip_scale = 1.2,
-	-- 	Blip_color = 47,
+		Map_blip = true,
+		Blip_name = "WoodCraftingTable1",
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
+		Blip_scale = 1.2,
+		Blip_color = 47,
 
-	-- 	Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
-	-- },
+		Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
+	},
+
+	{
+		Position = {x = 3021.0964, y = 1755.0084, z = 82.7649, h = 113.0000},
+		Table_Name = "Wood Crafting 2",
+		Max_Distance = 2.5,
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
+		Name = "~y~Wood Crafting",
+		Desc = "โต๊ะงานไม้",
+
+		Map_blip = true,
+		Blip_name = "WoodCraftingTable2",
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
+		Blip_scale = 1.2,
+		Blip_color = 47,
+
+		Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
+	},
+
+	{
+		Position = {x = 674.1143, y = -1253.0436, z = 43.0176, h = -111.0000},
+		Table_Name = "Wood Crafting 3",
+		Max_Distance = 2.5,
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
+		Name = "~y~Wood Crafting",
+		Desc = "โต๊ะงานไม้",
+
+		Map_blip = true,
+		Blip_name = "WoodCraftingTable3",
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
+		Blip_scale = 1.2,
+		Blip_color = 47,
+
+		Category = { 22 } -- เหลาไม้ + ทำไม้แผ่น
+	},
+
 
 	{
 		Position = {x = -368.5274, y = 794.9661, z = 116.1981, h = 185.1594},
