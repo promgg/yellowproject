@@ -917,9 +917,12 @@ CreateThread(function()
     end
 end)
 
--- ── marker พรีวิวจุดตกตอนง้างเบ็ด ────────────────────────────────────────────
--- ตัวเกมเป็นคนคำนวณจุดตกจริง เราไม่ไปยุ่งกับ physics เลย แค่วาด marker "ประมาณ"
--- ตามทิศกล้อง + เวลาที่ง้างค้าง เพื่อให้ผู้เล่นเห็นก่อนปล่อยว่าเบ็ดจะไปลงแถวไหน
+-- ── โหมดเล็งเหวี่ยงเบ็ด ─────────────────────────────────────────────────────
+-- คลิกขวา 1 ครั้ง = เข้า/ออกโหมดเล็ง | เมาส์ = ทิศ | สกรอลล์ = ระยะ | E = เหวี่ยง
+--
+-- ไม่ได้เทเลพอร์ตเบ็ด แต่เซ็ต f_1 (ระยะเหวี่ยงสูงสุด) = ระยะถึง marker แล้วง้าง
+-- แทนผู้เล่นด้วย SetControlValueNextFrame พอง้างเต็มก็ลงตรง marker พอดี
+-- physics ของเกมยังทำงานปกติทุกอย่าง
 
 -- แปลงมุมกล้องเป็นเวกเตอร์ทิศทาง
 local function camForwardVec()
@@ -938,56 +941,147 @@ local function waterZAt(x, y, fromZ)
     return nil
 end
 
+local function drawText3D(x, y, z, text)
+    local onScreen, sx, sy = GetScreenCoordFromWorldCoord(x, y, z)
+    if not onScreen then return end
+    local str = CreateVarString(10, 'LITERAL_STRING', tostring(text))
+    SetTextScale(0.35, 0.35)
+    SetTextColor(255, 235, 190, 235)
+    SetTextCentre(true)
+    SetTextDropshadow(1, 0, 0, 0, 255)
+    -- RedM บางบิลด์ไม่มี SetTextOutline — กันไว้ไม่ให้สคริปต์พัง
+    if SetTextOutline then SetTextOutline() end
+    DisplayText(str, sx, sy)
+end
+
+-- เส้นโค้งพาราโบลาจากปลายคันเบ็ดถึง marker
+local function drawCastArc(fx, fy, fz, tx, ty, tz, A)
+    local segs = A.ArcSegments or 14
+    local col  = A.ArcColor or { r = 235, g = 200, b = 120, a = 200 }
+    local dx, dy = tx - fx, ty - fy
+    local flat = math.sqrt(dx * dx + dy * dy)
+    local peak = flat * (A.ArcHeight or 0.25)
+
+    local px, py, pz = fx, fy, fz
+    for i = 1, segs do
+        local t = i / segs
+        local nx = fx + dx * t
+        local ny = fy + dy * t
+        -- ยกโค้ง: สูงสุดกลางทาง (4t(1-t) = 1 ที่ t=0.5)
+        local nz = fz + (tz - fz) * t + peak * 4.0 * t * (1.0 - t)
+        DrawLine(px, py, pz, nx, ny, nz, col.r, col.g, col.b, col.a)
+        px, py, pz = nx, ny, nz
+    end
+end
+
+local aimActive  = false
+local aimCasting = false
+
 CreateThread(function()
+    local A = Config.AimMode
     local M = Config.CastMarker
+    if not A or not A.Enabled then return end
     if not M or not M.Enabled then return end
 
-    local chargeStart = nil
-    -- cache ผล probe น้ำ ไม่ต้องยิงทุกเฟรม (VERTICAL_PROBE วิ่งผ่าน JS export)
+    local hToggle = GetHashKey(A.ToggleControl or 'INPUT_AIM')
+    local hCast   = GetHashKey(A.CastControl or 'INPUT_CONTEXT')
+    local hCancel = GetHashKey(A.CancelControl or 'INPUT_FRONTEND_CANCEL')
+    local hUp     = GetHashKey(A.ScrollUpControl or 'INPUT_CURSOR_SCROLL_UP')
+    local hDown   = GetHashKey(A.ScrollDownControl or 'INPUT_CURSOR_SCROLL_DOWN')
+
+    local aimDist, aimMax = 0.0, 0.0
+    local aimEnteredAt = 0
     local lastProbeAt, lastProbeZ = 0, nil
+
+    -- ง้างแทนผู้เล่นแล้วปล่อย — เรียกตอนกด E
+    local function doCast(dist)
+        if aimCasting then return end
+        aimCasting = true
+        aimActive  = false
+
+        CreateThread(function()
+            -- บอกเกมว่าเหวี่ยงได้ไกลสุดเท่าระยะถึง marker
+            FISHING_SET_F_(1, dist + 0.0)
+
+            -- ง้าง
+            for _ = 1, (A.ChargeFrames or 30) do
+                SetControlValueNextFrame(0, hToggle, 1.0)
+                Wait(0)
+            end
+            -- ปล่อย (ยังกด aim ค้างไว้ระหว่างสั่ง attack ไม่งั้น native จะยกเลิกการง้าง)
+            for _ = 1, (A.ReleaseFrames or 3) do
+                SetControlValueNextFrame(0, hToggle, 1.0)
+                SetControlValueNextFrame(0, GetHashKey('INPUT_ATTACK'), 1.0)
+                Wait(0)
+            end
+
+            Wait(500)
+            aimCasting = false
+        end)
+    end
 
     while true do
         local sleep = 200
         local state = FISHING_GET_MINIGAME_STATE()
 
-        -- ง้างได้เฉพาะตอนพร้อมตก (state 1) หรือกำลังเหวี่ยง (state 2)
-        if state == 1 or state == 2 then
+        -- เล็งได้เฉพาะตอนพร้อมตก (state 1) และไม่ได้กำลังเหวี่ยงอยู่
+        if state == 1 and not aimCasting then
             sleep = 0
 
-            if IsControlPressed(0, GetHashKey('INPUT_AIM')) then
-                chargeStart = chargeStart or GetGameTimer()
+            if not aimActive then
+                if IsControlJustPressed(0, hToggle) then
+                    aimActive = true
+                    -- อ่านระยะสูงสุดครั้งเดียวตอนเข้าโหมด — ห้ามอ่านซ้ำทุกเฟรม
+                    -- เพราะ doCast เขียนทับ f_1 เอง ถ้าอ่านซ้ำระยะจะ drift ลงเรื่อยๆ
+                    aimMax = M.MaxDistance or 0.0
+                    if aimMax <= 0.0 then
+                        local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
+                        aimMax = (type(fromGame) == 'number' and fromGame > 0.0)
+                            and fromGame or (M.FallbackMax or 30.0)
+                    end
+                    aimDist = math.min(aimMax, (M.MinDistance or 4.0) + (aimMax - (M.MinDistance or 4.0)) * 0.5)
+                    lastProbeAt, lastProbeZ = 0, nil
+                    aimEnteredAt = GetGameTimer()
+                end
+            else
+                -- กันไม่ให้ native เริ่มง้างเองซ้อนกับโหมดเรา
+                DisableControlAction(0, hToggle, true)
 
-                -- แรงง้าง 0..1 ตามเวลาที่ค้างไว้
-                local held = GetGameTimer() - chargeStart
-                local t = math.min(held / (M.ChargeTimeMs or 1200), 1.0)
-
-                -- ระยะสูงสุด: เอาจากเกมก่อน ถ้าเกมยังไม่คืนค่าค่อยใช้ fallback
-                local maxDist = M.MaxDistance or 0.0
-                if maxDist <= 0.0 then
-                    local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
-                    maxDist = (type(fromGame) == 'number' and fromGame > 0.0)
-                        and fromGame or (M.FallbackMax or 30.0)
+                -- ออกจากโหมด
+                -- หน่วงสั้นๆ ก่อนรับปุ่ม toggle อีกครั้ง กันเคสที่ผู้เล่นกดคลิกขวาค้างไว้
+                -- แล้ว IsDisabledControlJustPressed มองว่าเป็นการกดใหม่ → เด้งออกทันที
+                local settled = (GetGameTimer() - aimEnteredAt) > (A.ToggleCooldownMs or 250)
+                if (settled and IsDisabledControlJustPressed(0, hToggle))
+                    or IsControlJustPressed(0, hCancel) then
+                    aimActive = false
+                    goto continue
                 end
 
-                local minDist = M.MinDistance or 4.0
-                local dist = minDist + (maxDist - minDist) * t
+                -- สกรอลล์ปรับระยะ
+                local step = A.ScrollStep or 1.5
+                if IsControlJustPressed(0, hUp) then
+                    aimDist = math.min(aimMax, aimDist + step)
+                elseif IsControlJustPressed(0, hDown) then
+                    aimDist = math.max(M.MinDistance or 4.0, aimDist - step)
+                end
 
                 local ped = PlayerPedId()
-                local c = GetEntityCoords(ped)
+                local c   = GetEntityCoords(ped)
                 local dir = camForwardVec()
-                local tx, ty = c.x + dir.x * dist, c.y + dir.y * dist
+                local tx, ty = c.x + dir.x * aimDist, c.y + dir.y * aimDist
 
+                -- probe น้ำแบบ throttle (VERTICAL_PROBE วิ่งผ่าน JS export)
                 local now = GetGameTimer()
                 if now - lastProbeAt >= 60 then
                     lastProbeAt = now
                     lastProbeZ = waterZAt(tx, ty, c.z)
                 end
-                local wz = lastProbeZ
+
+                local wz  = lastProbeZ
                 local col = wz and M.OverWater or M.NoWater
+                local mz  = wz or c.z
 
                 if wz or M.ShowNoWater then
-                    -- ไม่ใช่น้ำก็วาดที่ระดับเท้าไปก่อน ให้เห็นว่าเล็งไปโดนพื้น
-                    local mz = wz or c.z
                     local s = M.Scale or { x = 1.2, y = 1.2, z = 0.6 }
                     DrawMarker(
                         M.Type or 0x07DCE236,
@@ -998,16 +1092,68 @@ CreateThread(function()
                         col.r, col.g, col.b, col.a,
                         false, false, 2, false, nil, nil, false
                     )
+
+                    if A.ShowArc then
+                        -- ออกจากปลายคันเบ็ดโดยประมาณ (สูงจากเท้าราวหนึ่งช่วงตัว)
+                        drawCastArc(c.x, c.y, c.z + 1.0, tx, ty, mz, A)
+                    end
+
+                    if A.ShowDistanceText then
+                        drawText3D(tx, ty, mz + 1.2, string.format('%.0f ม.', aimDist))
+                    end
                 end
-            else
-                chargeStart, lastProbeZ, lastProbeAt = nil, nil, 0
+
+                -- เหวี่ยง
+                if IsControlJustPressed(0, hCast) then
+                    if wz then
+                        doCast(aimDist)
+                    else
+                        exports.pNotify:SendNotification({
+                            text = A.BlockedMsg or 'ต้องเล็งลงน้ำก่อนถึงจะเหวี่ยงได้',
+                            type = 'error',
+                            timeout = 3000,
+                        })
+                    end
+                end
             end
-        else
-            chargeStart, lastProbeZ, lastProbeAt = nil, nil, 0
+        elseif aimActive then
+            aimActive = false
         end
 
+        ::continue::
         Wait(sleep)
     end
+end)
+
+-- ── debug ไว้ไล่หาค่าตอนทดสอบในเกม ──────────────────────────────────────────
+CreateThread(function()
+    if not Config.AimMode or not Config.AimMode.DebugCommands then return end
+
+    -- ดูค่าทั้ง struct — ใช้ตอบว่า "เซ็ต f_1 แล้วเกมเคารพไหม" ได้ทันที
+    RegisterCommand('fishdump', function()
+        print('[lp_fishing] state=' .. tostring(FISHING_GET_MINIGAME_STATE()) ..
+              ' maxThrow(f_1)=' .. tostring(FISHING_GET_MAX_THROWING_DISTANCE()) ..
+              ' lineDist(f_2)=' .. tostring(FISHING_GET_LINE_DISTANCE()))
+        for i = 0, 27 do
+            print(('  f_%d = %s'):format(i, tostring(FISHING_GET_F_(i))))
+        end
+    end, false)
+
+    -- ยิง transition flag ทีละค่าเพื่อหาว่าเลขไหน = "เหวี่ยง"
+    -- ที่รู้แล้ว: 4=ปลาติดเบ็ด 8=ออกจากโหมด 11=เอ็นขาด 12=ได้ปลา 32=เก็บ 64=ปล่อย 128=(state 6)
+    RegisterCommand('fishflag', function(_, args)
+        local n = tonumber(args[1])
+        if not n then
+            print('[lp_fishing] ใช้: /fishflag <เลข>')
+            return
+        end
+        print(('[lp_fishing] ก่อนยิง flag %d -> state=%s'):format(n, tostring(FISHING_GET_MINIGAME_STATE())))
+        FISHING_SET_TRANSITION_FLAG(n)
+        CreateThread(function()
+            Wait(400)
+            print(('[lp_fishing] หลังยิง flag %d -> state=%s'):format(n, tostring(FISHING_GET_MINIGAME_STATE())))
+        end)
+    end, false)
 end)
 
 AddEventHandler('onResourceStop', function(res)
