@@ -140,15 +140,17 @@ function renderItems() {
 
     filtered.forEach((item) => {
         const qty = state.cart.get(item.id) || 0;
+        const full = itemMax(item) === 0;   // ถือครบ limit แล้ว
         const card = document.createElement('button');
         card.type = 'button';
         card.className = qty > 0 ? 'item-card selected' : 'item-card';
+        card.disabled = full;
         card.innerHTML = `
-            <span class="item-name">${item.label}</span>
+            <span class="item-name">${item.label}${full ? ' (เต็ม)' : ''}</span>
             <img src="${imageUrl(item)}" alt="">
             <strong>${formatMoney(item.price)}</strong>
         `;
-        card.addEventListener('click', () => addItem(item.id, 1));
+        if (!full) card.addEventListener('click', () => addItem(item.id, 1));
         els.items.appendChild(card);
     });
 }
@@ -261,8 +263,11 @@ function render() {
     els.payBtn.disabled = state.pending || state.cart.size === 0;
 }
 
+// max = 0 หมายถึง "กระเป๋าเต็มแล้ว ซื้อเพิ่มไม่ได้" ซึ่งเป็นค่าที่ใช้ได้จริง
+// เขียน `Number(item.max) || 100` ไม่ได้เพราะ 0 เป็น falsy ใน JS -> จะกลายเป็น 100
 function itemMax(item) {
-    return Number(item.max) || 100;
+    const n = Number(item.max);
+    return Number.isFinite(n) && n >= 0 ? n : 100;
 }
 
 function clampQty(value, max) {

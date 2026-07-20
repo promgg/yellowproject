@@ -29,6 +29,27 @@ local function getDBLimit(source, itemName)
     return limit or nil
 end
 
+-- นับของที่ถืออยู่ทั้งกระเป๋าในครั้งเดียว — ถ้าเรียก getItemCount ทีละไอเทมจะกลายเป็น
+-- ~60 await ต่อการเปิดร้านหนึ่งครั้ง ดึงทั้งกระเป๋าทีเดียวแล้วนับเองถูกกว่ามาก
+local function heldCounts(source)
+    local p = promise.new()
+    local ok = pcall(function()
+        exports.vorp_inventory:getUserInventoryItems(source, function(items)
+            p:resolve(items or {})
+        end)
+    end)
+    if not ok then p:resolve({}) end
+
+    local counts = {}
+    for _, row in pairs(Citizen.Await(p)) do
+        local name = row and row.name
+        if name then
+            counts[name] = (counts[name] or 0) + (tonumber(row.count) or 0)
+        end
+    end
+    return counts
+end
+
 local function roundMoney(value)
     return math.floor((tonumber(value) or 0) * 100 + 0.5) / 100
 end
@@ -124,6 +145,9 @@ local function buildClientStore(storeId, store, source)
         }
     end
 
+    -- ดึงครั้งเดียวใช้ทั้งร้าน
+    local held = Config.MaxFromItemLimit and heldCounts(source) or {}
+
     local items = {}
     for _, item in ipairs(store.items or {}) do
         local cap = tonumber(item.max) or Config.MaxCartQuantityPerItem
@@ -131,7 +155,11 @@ local function buildClientStore(storeId, store, source)
         -- อาวุธไม่มีแถวในตาราง items (สร้างผ่าน createWeapon) -> ใช้ max จาก config ต่อไป
         if Config.MaxFromItemLimit and not item.weapon then
             local dbLimit = getDBLimit(source, item.item)
-            if dbLimit then cap = dbLimit end
+            if dbLimit then
+                -- เหลือที่ว่างเท่าไหร่ = limit ลบของที่ถืออยู่ (0 = เต็มแล้ว ซื้อไม่ได้)
+                local room = dbLimit - (held[item.item] or 0)
+                cap = room > 0 and room or 0
+            end
         end
 
         items[#items + 1] = {
@@ -172,23 +200,32 @@ local function buildOrder(store, cart, source)
         blackTotal = 0
     }
 
+    -- ต้องคิดเพดานแบบเดียวกับตอนส่งให้ NUI เป๊ะๆ ไม่งั้น MAX โชว์เลขนึงแล้ว
+    -- server ตัดเหลืออีกเลข ผู้เล่นกด MAX แล้วได้ไม่ครบตามที่เห็น
+    local held = Config.MaxFromItemLimit and heldCounts(source) or {}
+
     for _, row in ipairs(cart) do
         local id = type(row) == 'table' and tostring(row.id or '') or ''
         local qty = type(row) == 'table' and sanitizeQuantity(row.qty) or 0
         local cfg = byId[id]
 
         if cfg and qty > 0 then
-            -- ต้องใช้เพดานเดียวกับที่ส่งให้ NUI ไม่งั้นปุ่ม MAX จะโชว์เลขนึงแล้ว
-            -- server ตัดเหลืออีกเลขเงียบๆ ผู้เล่นกด MAX แล้วได้ไม่ครบตามที่เห็น
             local max = tonumber(cfg.max) or Config.MaxCartQuantityPerItem
             if Config.MaxFromItemLimit and not cfg.weapon then
                 local dbLimit = getDBLimit(source, cfg.item)
-                if dbLimit then max = dbLimit end
+                if dbLimit then
+                    local room = dbLimit - (held[cfg.item] or 0)
+                    max = room > 0 and room or 0
+                end
             end
             if qty > max then
                 qty = max
             end
+        end
 
+        -- เช็ค qty อีกครั้ง "หลัง" clamp — ของเต็มกระเป๋าแล้ว max จะเป็น 0 ถ้าไม่ดักตรงนี้
+        -- จะได้ order line ที่ qty = 0 แล้วระบบขึ้นว่าซื้อสำเร็จทั้งที่ไม่ได้ของ
+        if cfg and qty > 0 then
             local price = tonumber(cfg.price) or 0
             local currency = cfg.currency or 'cash'
             local lineTotal = roundMoney(price * qty)
