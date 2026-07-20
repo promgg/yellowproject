@@ -992,6 +992,7 @@ CreateThread(function()
     for _, st in ipairs(A.AimDuringStates or { 13 }) do aimStates[st] = true end
 
     local aimDist, aimMax = 0.0, 0.0
+    local gameMaxSeen = 0.0
     local lastProbeAt, lastProbeZ = 0, nil
 
     -- ปุ่มที่ต้องปิดตลอดช่วงตกปลา (สกรอลล์ = ปุ่มสลับอาวุธ → เปิด weapon wheel → เกมเก็บเบ็ด)
@@ -1053,8 +1054,13 @@ CreateThread(function()
                 aimMax = M.MaxDistance or 0.0
                 if aimMax <= 0.0 then
                     local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
-                    aimMax = (type(fromGame) == 'number' and fromGame > 0.0)
-                        and fromGame or (M.FallbackMax or 30.0)
+                    if type(fromGame) ~= 'number' or fromGame <= 0.0 then
+                        fromGame = M.FallbackMax or 30.0
+                    end
+                    -- เก็บค่าสูงสุดที่เคยเห็น ไม่ใช่ค่าล่าสุด — กันเคสอ่านไปเจอ f_1 ที่
+                    -- เราเขียนเองค้างอยู่จากการเหวี่ยงครั้งก่อน แล้วเพดานจะถูกล็อกต่ำถาวร
+                    gameMaxSeen = math.max(gameMaxSeen, fromGame)
+                    aimMax = gameMaxSeen
                 end
                 -- ครั้งแรกเริ่มที่กลางช่วง ครั้งต่อไปจำระยะเดิมที่ผู้เล่นตั้งไว้
                 if aimDist <= 0.0 then

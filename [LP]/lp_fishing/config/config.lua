@@ -68,8 +68,10 @@ Config.CastMarker = {
 Config.AimMode = {
     Enabled = true,
 
-    -- state ที่ผู้เล่นอยู่ในท่าง้าง = ช่วงที่ marker ขึ้น (จาก /fishwatch คือ 13)
-    AimDuringStates = { 13 },
+    -- state ที่ผู้เล่นอยู่ในท่าง้าง (คันพาดบ่า) = ช่วงที่ marker ขึ้น
+    -- จาก /fishwatch คือ 3 — และเกมใส่ f_1 = 30 ให้เองที่ state นี้ (ระยะสูงสุดจริงของเกม)
+    -- ส่วน 13 เป็นช่วง prepare ตอนหยิบเบ็ด ไม่ใช่ท่าง้าง
+    AimDuringStates = { 3 },
 
     -- สกรอลล์เมาส์ใน RedM = ปุ่มสลับอาวุธ ไม่ใช่ INPUT_CURSOR_SCROLL_*
     -- (อ้างอิง jo_libs/modules/camera/client.lua ที่ระบุ mapping นี้ไว้)
@@ -88,8 +90,8 @@ Config.AimMode = {
         'INPUT_SELECT_NEXT_WEAPON',
         'INPUT_SELECT_PREV_WEAPON',
     },
-    -- state ที่ถือว่า "กำลังตกปลาอยู่" และต้องปิดปุ่มข้างบน (13 = ท่าง้าง)
-    BlockDuringStates = { 1, 2, 6, 7, 12, 13 },
+    -- state ที่ถือว่า "กำลังตกปลาอยู่" และต้องปิดปุ่มข้างบน (3 = ท่าง้าง, 13 = prepare)
+    BlockDuringStates = { 1, 2, 3, 6, 7, 12, 13 },
 
     -- หลังปล่อยคลิกซ้าย ยึด f_1 ต่ออีกกี่ ms จนกว่าเบ็ดจะลงน้ำ
     -- (เกมล้างค่ากลับเป็น 0 เรื่อยๆ ถ้าไม่เขียนย้ำ ระยะจะไม่ตรง marker)
