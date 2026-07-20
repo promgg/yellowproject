@@ -380,11 +380,53 @@ CreateThread(function()
                 end, nil, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
             else
                 -- ยังโตไม่เสร็จ: โชว์ข้อความเฉยๆ กดไม่ได้
-                exports.lp_textui:TextUI(label, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
+                -- signature คือ TextUI(message, key, worldAnchor) — ตัวที่ 2 เป็นปุ่มที่จะโชว์
+                -- ไม่ใช่ตัวเลือก ถ้ายัด world-anchor ไปตรงนั้นจะได้ [object Object] บนจอ
+                exports.lp_textui:TextUI(label, nil, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
             end
         end
 
         ::continue::
+    end
+end)
+
+-- ── แผงโชว์ผลผลิตตอนอยู่ในไร่ (lp_rewardpanel) ──────────────────────────────
+-- โผล่ตอนเดินเข้าเขตไร่ หายตอนออก — โชว์ว่าไร่นี้ปลูกอะไรได้บ้าง
+
+local function buildRewardItems(zone)
+    local items = {}
+    for _, crop in pairs(zone.crops) do
+        items[#items + 1] = {
+            img    = 'nui://vorp_inventory/html/img/items/' .. crop.reward.item .. '.png',
+            chance = 100, -- ได้แน่นอนเมื่อเก็บเกี่ยวสำเร็จ ไม่ใช่ % สุ่ม
+            item   = crop.reward.item,
+        }
+    end
+    return items
+end
+
+CreateThread(function()
+    Wait(4000) -- รอ config/โซนพร้อมก่อน
+    local inZone = nil
+
+    while true do
+        Wait(500)
+        local pos = GetEntityCoords(PlayerPedId())
+
+        local found = nil
+        for zoneId, zone in pairs(Config.Zones) do
+            if #(pos - zone.coords) <= zone.range then found = zoneId break end
+        end
+
+        if found ~= inZone then
+            if found then
+                local zone = Config.Zones[found]
+                exports.lp_rewardpanel:Show(buildRewardItems(zone), zone.label, 'ผลผลิตในไร่นี้')
+            else
+                exports.lp_rewardpanel:Hide()
+            end
+            inZone = found
+        end
     end
 end)
 
@@ -412,4 +454,5 @@ AddEventHandler('onResourceStop', function(res)
     for _, p in pairs(Plants) do despawnProp(p) end
     for _, b in ipairs(blips) do RemoveBlip(b) end
     exports.lp_textui:CancelHold()
+    exports.lp_rewardpanel:Hide() -- ไม่ปิดจะค้างบนจอหลัง restart resource
 end)

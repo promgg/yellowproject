@@ -28,6 +28,7 @@ dependencies {
     'vorp_inventory',
     'lp_textui',
     'lp_progbar',
+    'lp_rewardpanel',
     'pNotify',
 }
 
