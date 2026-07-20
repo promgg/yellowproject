@@ -144,6 +144,64 @@ CreateThread(function()
 end)
 
 
+-- ── ลดสเตมิน่าตอนวิ่ง ───────────────────────────────────────────────────────
+-- core ของ RDR3 เป็น 0-100 index 1 คือ stamina (index 0 คือ health)
+-- native ทั้งคู่ยืนยันจาก bcc-stables ที่ใช้งานจริงบนเซิร์ฟนี้อยู่แล้ว
+local CORE_STAMINA   = 1
+local GET_CORE_VALUE = 0x36731AC041289BB1
+local SET_CORE_VALUE = 0xC6258F41D86676E0
+
+local function getStaminaCore(ped)
+    return Citizen.InvokeNative(GET_CORE_VALUE, ped, CORE_STAMINA, Citizen.ResultAsInteger())
+end
+
+local function setStaminaCore(ped, value)
+    Citizen.InvokeNative(SET_CORE_VALUE, ped, CORE_STAMINA, math.floor(value + 0.5))
+end
+
+CreateThread(function()
+    if not (Config.Stamina and Config.Stamina.enabled) then return end
+
+    local tick    = Config.Stamina.tickMs or 100
+    local drainMs = (Config.Stamina.drainSeconds or 8.0) * 1000
+
+    local startedAt    = nil -- เวลาที่เริ่มวิ่งรอบนี้
+    local startedValue = nil -- สเตมิน่าตอนเริ่มวิ่งรอบนี้
+
+    while true do
+        Wait(tick)
+
+        if isLoggedIn then
+            local ped = PlayerPedId()
+            local moving = Config.Stamina.sprintOnly
+                and IsPedSprinting(ped)
+                or (IsPedSprinting(ped) or IsPedRunning(ped))
+
+            if moving and not IsPedDeadOrDying(ped, true) then
+                if not startedAt then
+                    startedAt    = GetGameTimer()
+                    startedValue = getStaminaCore(ped)
+                end
+
+                -- คิดจากค่าตอนเริ่มวิ่งเสมอ ไม่ลบสะสมทีละรอบ
+                -- (ลบสะสมจะไปทบกับการลดตามธรรมชาติของเกม เวลาจริงเลยสั้นกว่าที่ตั้ง)
+                local elapsed = GetGameTimer() - startedAt
+                local target  = startedValue - (elapsed / drainMs) * 100.0
+
+                if target < 0 then target = 0 end
+
+                -- เขียนเฉพาะตอนค่าน้อยลงจริง ไม่งั้นจะไปกันการฟื้นตัวปกติของเกม
+                if target < getStaminaCore(ped) then
+                    setStaminaCore(ped, target)
+                end
+            else
+                startedAt    = nil
+                startedValue = nil
+            end
+        end
+    end
+end)
+
 CreateThread(function()
     while true do
         Wait(1000)  -- ตรวจสอบทุก 1 วินาที
