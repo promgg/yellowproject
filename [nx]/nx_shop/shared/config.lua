@@ -6,6 +6,12 @@ Config.BlackMoneyItem = 'black_money'
 Config.MaxCartQuantityPerItem = 100
 Config.ServerDistancePadding = 2.0
 
+-- ปุ่ม MAX ใน NUI ใช้ limit ของไอเทมจากตาราง items แทนค่า max ที่ตั้งมือไว้ในไฟล์นี้
+-- กด MAX = ซื้อได้เท่าที่กระเป๋ารับไหวจริง ไม่ต้องไล่ตั้ง max ทีละตัวให้ตรงกับ DB
+-- ไอเทมที่ไม่มีแถวใน DB (หรืออาวุธ) จะใช้ค่า max ในไฟล์นี้ตามเดิม
+-- ตั้ง false = กลับไปใช้ max จากไฟล์นี้อย่างเดียว
+Config.MaxFromItemLimit = true
+
 Config.Text = {
     Prompt = 'Open Shop',
     Closed = 'ร้านค้าปิดอยู่',
@@ -56,8 +62,8 @@ local generalCategories = {
 
 local generalItems = {
     -- ทำฟาร์ม
-    { id = 'tool_shovel', item = 'tool_shovel', label = 'พลั่วพรวนดิน', category = 'farming', price = 10, currency = 'cash', max = 1 },
-    { id = 'tool_bucket', item = 'tool_bucket', label = 'ถังน้ำ', category = 'farming', price = 5, currency = 'cash', max = 10 },
+    { id = 'tool_shovel', item = 'tool_shovel', label = 'พลั่วพรวนดิน', category = 'farming', price = 50, currency = 'cash', max = 1 },
+    { id = 'tool_bucket', item = 'tool_bucket', label = 'ถังน้ำ', category = 'farming', price = 50, currency = 'cash', max = 10 },
     { id = 'compost', item = 'compost', label = 'ปุ๋ย', category = 'farming', price = 1, currency = 'cash', max = 10 },
     { id = 'seed_tobacco_plant', item = 'seed_tobacco_plant', label = 'เมล็ดยาสูบ', category = 'farming', price = 1, currency = 'cash', max = 10 },
     { id = 'seed_cotton', item = 'seed_cotton', label = 'เมล็ดฝ้าย', category = 'farming', price = 1, currency = 'cash', max = 10 },
@@ -73,8 +79,8 @@ local generalItems = {
     { id = 'seed_berry', item = 'seed_berry', label = 'เมล็ดเบอรี่', category = 'farming', price = 1, currency = 'cash', max = 10 },
 
     -- เครื่องมือทำมาหากิน
-    { id = 'tool_pickaxe', item = 'tool_pickaxe', label = 'ที่ขุดเหมือง', category = 'work_tools', price = 5, currency = 'cash', max = 10 },
-    { id = 'tool_axe', item = 'tool_axe', label = 'ขวานตัดไม้', category = 'work_tools', price = 5, currency = 'cash', max = 10 },
+    { id = 'tool_pickaxe', item = 'tool_pickaxe', label = 'ที่ขุดเหมือง', category = 'work_tools', price = 10, currency = 'cash', max = 10 },
+    { id = 'tool_axe', item = 'tool_axe', label = 'ขวานตัดไม้', category = 'work_tools', price = 10, currency = 'cash', max = 10 },
 
     -- อาหาร
     { id = 'food_bread', item = 'food_bread', label = 'ขนมปัง', category = 'food', price = 5, currency = 'cash', max = 10 },

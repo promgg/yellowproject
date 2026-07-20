@@ -1,6 +1,34 @@
 local Core = exports.vorp_core:GetCore()
 local Purchasing = {}
 
+-- ── เพดานจำนวนจาก limit ของไอเทมใน DB ──────────────────────────────────────
+-- ปุ่ม MAX ใน NUI ใช้ค่า item.max ที่ส่งไปจากที่นี่ ถ้าดึงจาก limit ในตาราง items
+-- ผู้เล่นกด MAX แล้วจะได้จำนวนเท่าที่กระเป๋ารับไหวจริง ไม่ต้องมาไล่ตั้ง max มือทีละตัว
+--
+-- limit ไม่เปลี่ยนตอนรันไทม์ เลย query ครั้งเดียวแล้ว cache ไว้ — ไม่งั้นร้านทั่วไป
+-- ที่มี ~60 ไอเทมจะยิง SELECT 60 ครั้งทุกครั้งที่มีคนเปิดร้าน
+local dbLimitCache = {}
+
+local function getDBLimit(source, itemName)
+    local cached = dbLimitCache[itemName]
+    if cached ~= nil then
+        return cached or nil     -- false = เคยหาแล้วไม่เจอ อย่า query ซ้ำ
+    end
+
+    local ok, row = pcall(function()
+        return exports.vorp_inventory:getDBItem(source, itemName)
+    end)
+
+    local limit = false
+    if ok and type(row) == 'table' then
+        local n = tonumber(row.limit)
+        if n and n > 0 then limit = n end
+    end
+
+    dbLimitCache[itemName] = limit
+    return limit or nil
+end
+
 local function roundMoney(value)
     return math.floor((tonumber(value) or 0) * 100 + 0.5) / 100
 end
@@ -87,7 +115,7 @@ local function itemMap(store)
     return map
 end
 
-local function buildClientStore(storeId, store)
+local function buildClientStore(storeId, store, source)
     local categories = {}
     for _, category in ipairs(store.categories or {}) do
         categories[#categories + 1] = {
@@ -98,6 +126,14 @@ local function buildClientStore(storeId, store)
 
     local items = {}
     for _, item in ipairs(store.items or {}) do
+        local cap = tonumber(item.max) or Config.MaxCartQuantityPerItem
+
+        -- อาวุธไม่มีแถวในตาราง items (สร้างผ่าน createWeapon) -> ใช้ max จาก config ต่อไป
+        if Config.MaxFromItemLimit and not item.weapon then
+            local dbLimit = getDBLimit(source, item.item)
+            if dbLimit then cap = dbLimit end
+        end
+
         items[#items + 1] = {
             id = item.id,
             item = item.item,
@@ -106,7 +142,7 @@ local function buildClientStore(storeId, store)
             price = tonumber(item.price) or 0,
             currency = item.currency or 'cash',
             image = item.image or (item.item .. '.png'),
-            max = tonumber(item.max) or Config.MaxCartQuantityPerItem
+            max = cap
         }
     end
 
@@ -124,7 +160,7 @@ local function buildClientStore(storeId, store)
     }
 end
 
-local function buildOrder(store, cart)
+local function buildOrder(store, cart, source)
     if type(cart) ~= 'table' then
         return nil
     end
@@ -142,7 +178,13 @@ local function buildOrder(store, cart)
         local cfg = byId[id]
 
         if cfg and qty > 0 then
+            -- ต้องใช้เพดานเดียวกับที่ส่งให้ NUI ไม่งั้นปุ่ม MAX จะโชว์เลขนึงแล้ว
+            -- server ตัดเหลืออีกเลขเงียบๆ ผู้เล่นกด MAX แล้วได้ไม่ครบตามที่เห็น
             local max = tonumber(cfg.max) or Config.MaxCartQuantityPerItem
+            if Config.MaxFromItemLimit and not cfg.weapon then
+                local dbLimit = getDBLimit(source, cfg.item)
+                if dbLimit then max = dbLimit end
+            end
             if qty > max then
                 qty = max
             end
@@ -262,7 +304,7 @@ Core.Callback.Register('nx_shop:server:getShop', function(source, cb, storeId)
         return
     end
 
-    cb({ ok = true, store = buildClientStore(storeId, store) })
+    cb({ ok = true, store = buildClientStore(storeId, store, source) })
 end)
 
 RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
@@ -295,7 +337,7 @@ RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
         return
     end
 
-    local order = buildOrder(store, cart)
+    local order = buildOrder(store, cart, source)
     if not order then
         finish(false, Config.Text.InvalidCart)
         return
