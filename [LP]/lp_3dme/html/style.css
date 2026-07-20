@@ -1,0 +1,79 @@
+/* lp_3dme — กล่องข้อความลอยเหนือหัว
+   หน้าตาอิงจากภาพที่เจ้าของเซิร์ฟส่งมา: กล่องดำมุมมน ป้ายกำกับสีตามชนิด ข้อความสีขาว */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  /* ฟอนต์ระบบที่รองรับไทยครบ — ไม่โหลดฟอนต์นอกเพราะ NUI ออกเน็ตไม่ได้เสมอไป
+     และการรอฟอนต์โหลดทำให้ข้อความกระพริบตอนโผล่ */
+  font-family: "Kanit", "Leelawadee UI", "Tahoma", sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* กล่องหนึ่งใบ — จุดยึดอยู่ "กึ่งกลางล่าง" ของกล่อง เพื่อให้ปลายกล่องชี้ที่หัวพอดี
+   ตอนกล่องยืดหลายบรรทัดมันจะโตขึ้นด้านบน ไม่ทับหัวผู้เล่น
+
+   ⚠️ ปักไว้ที่ 0,0 เสมอแล้วเลื่อนด้วย transform ล้วน — ห้ามใช้ left/top เป็น %
+      ถ้าตั้ง left: 100% พื้นที่ที่เหลือทางขวาจะเป็นศูนย์ เบราว์เซอร์บีบกล่องให้แคบ
+      แล้วตัดบรรทัดทีละตัวอักษรตั้งแต่ก่อนที่โค้ดหนีบขอบจอจะได้ทำงาน
+      (วัดจริงแล้วกล่องริมขวาเหลือกว้าง 45px สูง 176px) */
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  /* px ตรงๆ ไม่ใช่ vw — NUI ล็อกที่ 1920x1080 เสมอ ใช้หน่วยสัมพัทธ์แล้วกล่องจะ
+     กว้างไม่เท่ากันเวลาเปิดทดสอบในเบราว์เซอร์ที่หน้าต่างเล็กกว่า */
+  max-width: 480px;
+  padding: 6px 12px;
+  border-radius: 8px;
+
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;   /* ตัดบรรทัดเองเมื่อยาว แต่ยังเคารพช่องว่าง */
+  word-break: break-word;  /* ข้อความยาวไม่มีเว้นวรรคจะได้ไม่ดันกล่องล้นจอ */
+
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+
+  /* animate เฉพาะ opacity — ห้ามแตะ transform เพราะ JS ใช้ transform หนีบกล่อง
+     ไม่ให้ทะลุขอบจอ ถ้า keyframes เขียน transform ด้วยจะแย่งกันตอน 120ms แรก
+     แล้วกล่องกระตุกกลับไปตำแหน่งที่ทะลุขอบชั่วขณะ */
+  animation: pop 120ms ease-out;
+}
+
+/* ป้ายกำกับ (ME: / DO: / OOC: ...) สีมาจาก config ฝั่ง Lua ผ่าน inline style */
+.bubble .label {
+  font-weight: 700;
+  margin-right: 5px;
+}
+
+@keyframes pop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ผู้เล่นที่กำลังจะเลือนหาย — JS ใส่คลาสนี้ให้ตอนใกล้หมดอายุ */
+.bubble.fading {
+  transition: opacity 400ms linear;
+  opacity: 0;
+}
