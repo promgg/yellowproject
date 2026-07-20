@@ -6,7 +6,9 @@ Config.Axe = "tool_axe"            -- Item you want to use as an axe, same DB
 
 -- false = ซื้อขวานครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง (แค่เช็คว่ามีขวานไหมก่อนตัด)
 -- true  = เปิดระบบ durability ลดทุกครั้งที่ฟัน แล้วมีโอกาสหักตอน durability ต่ำกว่า 20
-Config.AxeDurability = false
+-- true = ขวานสึก ตัดครบ Config.ChopsPerAxe ต้น หักขวาน 1 อัน / false = ใช้ได้ตลอดไม่มีวันพัง
+Config.AxeDurability = true
+Config.ChopsPerAxe   = 10  -- ตัดกี่ต้นถึงหักขวาน 1 อัน (นับเฉพาะต้นที่ตัดสำเร็จ ยกเลิกกลางคันไม่นับ)
 
 Config.KEY_E   = 0x17BEC168  -- E (เริ่มตัดไม้)
 Config.KEY_X   = 0x8CC9CD42  -- X (ยกเลิก)

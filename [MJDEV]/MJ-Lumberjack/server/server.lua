@@ -55,39 +55,60 @@ RegisterServerEvent("!MJ-Lumberjack:axecheck", function(tree)
         return
     end
 
-    -- Config.AxeDurability = false: ซื้อขวานครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง แค่เช็คว่ามีขวานพอ
-    if not Config.AxeDurability then
-        TriggerClientEvent("!MJ-Lumberjack:axechecked", _source, tree, 99)
-        return
-    end
+    -- ตรงนี้แค่เช็คว่ามีขวาน ไม่หักความทนทานแล้ว — ย้ายไปหักตอนตัดสำเร็จจริงใน addItem
+    -- (เดิมหักที่นี่ ยกเลิกมินิเกมกลางคันก็เสียความทนทานฟรี ทั้งที่ยังไม่ได้ต้นไม้เลย)
+    -- เลขนี้เป็นแค่ค่าโชว์ ส่งเลขเต็มไปก่อน — จะรู้ว่าเหลือจริงเท่าไหร่ต้องไล่ดูทั้งกระเป๋า
+    -- แบบเดียวกับตอนหัก (getItem คืนอันไหนก็ได้ อาจไม่ใช่อันที่จะโดนหักจริง) และ client
+    -- ก็ไม่ได้เอาค่านี้ไปแสดงที่ไหนอยู่แล้ว — ตัวเลขจริงอยู่ในคำอธิบายไอเทมซึ่ง server เขียนให้
+    TriggerClientEvent("!MJ-Lumberjack:axechecked", _source, tree, Config.ChopsPerAxe or 10)
+end)
 
-    local meta       = axe.metadata
-    local durability = 99
+-- ── หักความทนทานขวาน (เรียกหลังตัดสำเร็จเท่านั้น) ────────────────────────────
+-- นับจำนวนครั้งใน metadata.uses ครบ ChopsPerAxe แล้วหักขวานทิ้ง 1 อัน
+--
+-- ทำไมต้องไล่ดูทั้งกระเป๋าแทน getItem: setItemMetadata ด้วย amount = 1 จะ "แยกกอง" อันที่ใช้อยู่
+-- ออกจากกองที่ยังใหม่ พอถือหลายอันจึงมีทั้งอันสึกแล้วและอันใหม่ปนกัน getItem คืนอันไหนก็ได้
+-- ถ้าไปโดนอันใหม่ทุกครั้ง ตัวนับจะไม่เดินเลย = ขวานไม่มีวันพัง
+--
+-- กติกาเลือก: อันที่ "เหลือน้อยที่สุด" ก่อนเสมอ (uses มากสุด) ให้พังไปทีละอัน
+-- ไม่งั้นจะได้ขวานสึกครึ่งๆ กลางๆ เต็มกระเป๋า / ไม่มีอันสึกเลยค่อยหยิบอันใหม่
+local function consumeAxeUse(src)
+    if not Config.AxeDurability then return end
+    local maxUses = tonumber(Config.ChopsPerAxe) or 10
+    if maxUses <= 0 then return end
 
-    if not next(meta) then
-        -- ขวานใหม่ ตั้ง durability
-        local metadata = { description = "Durability 99", durability = 99 }
-        exports.vorp_inventory:setItemMetadata(_source, axe.id, metadata, 1)
-        durability = 99
-        TriggerClientEvent("!MJ-Lumberjack:axechecked", _source, tree, durability)
-    else
-        durability = (meta.durability or 99) - 1
-        local metadata = { description = "Durability " .. durability, durability = durability }
+    exports.vorp_inventory:getUserInventoryItems(src, function(items)
+        if type(items) ~= 'table' then return end
 
-        if durability < 20 then
-            local roll = math.random(1, 3)
-            if roll == 1 then
-                notify(_source, 'error', 'ขวานของคุณหักแล้ว!', 5000)
-                exports.vorp_inventory:subItem(_source, Config.Axe, 1, meta)
-                TriggerClientEvent("!MJ-Lumberjack:noaxe", _source)
-                return
+        local target
+        for _, it in pairs(items) do
+            if it.name == Config.Axe then
+                local uses = tonumber(it.metadata and it.metadata.uses) or 0
+                -- uses มากกว่า = เหลือน้อยกว่า -> เลือกอันนั้น
+                if not target or uses > target.uses then
+                    target = { id = it.id, uses = uses, metadata = it.metadata or {} }
+                end
             end
         end
+        if not target then return end
 
-        exports.vorp_inventory:setItemMetadata(_source, axe.id, metadata, 1)
-        TriggerClientEvent("!MJ-Lumberjack:axechecked", _source, tree, durability)
-    end
-end)
+        local used = target.uses + 1
+        if used >= maxUses then
+            exports.vorp_inventory:subItem(src, Config.Axe, 1, target.metadata)
+            notify(src, 'error', ('ขวานพังแล้ว (ใช้ครบ %d ครั้ง)'):format(maxUses), 5000)
+            TriggerClientEvent("!MJ-Lumberjack:noaxe", src)
+        else
+            local remaining = maxUses - used
+            exports.vorp_inventory:setItemMetadata(src, target.id, {
+                uses = used,
+                description = ('ตัดได้อีก %d ครั้ง'):format(remaining),
+            }, 1)
+            if remaining <= 3 then
+                notify(src, 'warning', ('ขวานใกล้พัง เหลืออีก %d ครั้ง'):format(remaining), 4000)
+            end
+        end
+    end)
+end
 
 RegisterServerEvent('!MJ-Lumberjack:addItem', function(treeCoords)
     local _source = source
@@ -139,6 +160,7 @@ RegisterServerEvent('!MJ-Lumberjack:addItem', function(treeCoords)
     end
 
     exports.vorp_inventory:addItem(_source, pick.name, count)
+    consumeAxeUse(_source) -- ตัดสำเร็จแล้วค่อยหักความทนทาน
     -- lp_leaderboard (LUMBERJACK RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
     -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
     TriggerEvent('lp_leaderboard:SV:LumberChop', { src = _source, amount = count })

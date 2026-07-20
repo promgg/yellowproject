@@ -4,7 +4,9 @@ Config.Pickaxe   = "tool_pickaxe"
 
 -- false = ซื้อจอบครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง (แค่เช็คว่ามีจอบไหมก่อนขุด)
 -- true  = เปิดระบบ durability ลดทุกครั้งที่ขุด แล้วมีโอกาสหักตอน durability ต่ำกว่า 20
-Config.PickaxeDurability = false
+-- true = จอบสึก ขุดครบ Config.MinesPerPickaxe ครั้ง หักจอบ 1 อัน / false = ใช้ได้ตลอดไม่มีวันพัง
+Config.PickaxeDurability = true
+Config.MinesPerPickaxe   = 10  -- ขุดกี่ครั้งถึงหักจอบ 1 อัน (นับเฉพาะครั้งที่ขุดสำเร็จ ยกเลิกกลางคันไม่นับ)
 
 Config.KEY_E   = 0x17BEC168  -- E
 Config.KEY_X   = 0x8CC9CD42  -- X

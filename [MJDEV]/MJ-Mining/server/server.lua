@@ -45,38 +45,60 @@ AddEventHandler("mining:axecheck", function()
         return
     end
 
-    -- Config.PickaxeDurability = false: ซื้อจอบครั้งเดียวใช้ได้ตลอด ไม่มีวันหัก/พัง แค่เช็คว่ามีจอบพอ
-    if not Config.PickaxeDurability then
-        TriggerClientEvent("mining:axechecked", _source, 99)
-        return
-    end
+    -- ตรงนี้แค่เช็คว่ามีจอบ ไม่หักความทนทานแล้ว — ย้ายไปหักตอนขุดสำเร็จจริงใน addItem
+    -- (เดิมหักที่นี่ ยกเลิกมินิเกมกลางคันก็เสียความทนทานฟรี ทั้งที่ยังไม่ได้แร่เลย)
+    -- เลขนี้เป็นแค่ค่าโชว์ ส่งเลขเต็มไปก่อน — จะรู้ว่าเหลือจริงเท่าไหร่ต้องไล่ดูทั้งกระเป๋า
+    -- แบบเดียวกับตอนหัก (getItem คืนอันไหนก็ได้ อาจไม่ใช่อันที่จะโดนหักจริง) และ client
+    -- ก็ไม่ได้เอาค่านี้ไปแสดงที่ไหนอยู่แล้ว — ตัวเลขจริงอยู่ในคำอธิบายไอเทมซึ่ง server เขียนให้
+    TriggerClientEvent("mining:axechecked", _source, Config.MinesPerPickaxe or 10)
+end)
 
-    local meta       = axe.metadata
-    local durability = 99
+-- ── หักความทนทานจอบ (เรียกหลังขุดสำเร็จเท่านั้น) ─────────────────────────────
+-- นับจำนวนครั้งใน metadata.uses ครบ MinesPerPickaxe แล้วหักจอบทิ้ง 1 อัน
+--
+-- ทำไมต้องไล่ดูทั้งกระเป๋าแทน getItem: setItemMetadata ด้วย amount = 1 จะ "แยกกอง" อันที่ใช้อยู่
+-- ออกจากกองที่ยังใหม่ พอถือหลายอันจึงมีทั้งอันสึกแล้วและอันใหม่ปนกัน getItem คืนอันไหนก็ได้
+-- ถ้าไปโดนอันใหม่ทุกครั้ง ตัวนับจะไม่เดินเลย = จอบไม่มีวันพัง
+--
+-- กติกาเลือก: อันที่ "เหลือน้อยที่สุด" ก่อนเสมอ (uses มากสุด) ให้พังไปทีละอัน
+-- ไม่งั้นจะได้จอบสึกครึ่งๆ กลางๆ เต็มกระเป๋า / ไม่มีอันสึกเลยค่อยหยิบอันใหม่
+local function consumePickaxeUse(src)
+    if not Config.PickaxeDurability then return end
+    local maxUses = tonumber(Config.MinesPerPickaxe) or 10
+    if maxUses <= 0 then return end
 
-    if not next(meta) then
-        local metadata = { description = "Durability 99", durability = 99 }
-        exports.vorp_inventory:setItemMetadata(_source, axe.id, metadata, 1)
-        durability = 99
-        TriggerClientEvent("mining:axechecked", _source, durability)
-    else
-        durability = (meta.durability or 99) - 1
-        local metadata = { description = "Durability " .. durability, durability = durability }
+    exports.vorp_inventory:getUserInventoryItems(src, function(items)
+        if type(items) ~= 'table' then return end
 
-        if durability < 20 then
-            local roll = math.random(1, 3)
-            if roll == 1 then
-                notify(_source, 'error', 'Your pickaxe broke!', 5000)
-                exports.vorp_inventory:subItem(_source, Config.Pickaxe, 1, meta)
-                TriggerClientEvent("mining:noaxe", _source)
-                return
+        local target
+        for _, it in pairs(items) do
+            if it.name == Config.Pickaxe then
+                local uses = tonumber(it.metadata and it.metadata.uses) or 0
+                -- uses มากกว่า = เหลือน้อยกว่า -> เลือกอันนั้น
+                if not target or uses > target.uses then
+                    target = { id = it.id, uses = uses, metadata = it.metadata or {} }
+                end
             end
         end
+        if not target then return end
 
-        exports.vorp_inventory:setItemMetadata(_source, axe.id, metadata, 1)
-        TriggerClientEvent("mining:axechecked", _source, durability)
-    end
-end)
+        local used = target.uses + 1
+        if used >= maxUses then
+            exports.vorp_inventory:subItem(src, Config.Pickaxe, 1, target.metadata)
+            notify(src, 'error', ('จอบพังแล้ว (ใช้ครบ %d ครั้ง)'):format(maxUses), 5000)
+            TriggerClientEvent("mining:noaxe", src)
+        else
+            local remaining = maxUses - used
+            exports.vorp_inventory:setItemMetadata(src, target.id, {
+                uses = used,
+                description = ('ขุดได้อีก %d ครั้ง'):format(remaining),
+            }, 1)
+            if remaining <= 3 then
+                notify(src, 'warning', ('จอบใกล้พัง เหลืออีก %d ครั้ง'):format(remaining), 4000)
+            end
+        end
+    end)
+end
 
 -- เมืองไม่เชื่อ client แล้ว — คำนวณจากพิกัดผู้เล่นเทียบ Config.RocksZone ฝั่ง server (serverTownForPlayer)
 -- แทนการใช้ native _GET_MAP_ZONE_AT_COORDS (client-only) หรือรับ townName จาก client (โกงได้)
@@ -136,6 +158,7 @@ AddEventHandler("mining:addItem", function(rockKey)
     end
 
     exports.vorp_inventory:addItem(_source, pick.name, count)
+    consumePickaxeUse(_source) -- ขุดสำเร็จแล้วค่อยหักความทนทาน
     -- lp_leaderboard (MINING RANK): soft integration — ยิงเฉยๆ ไม่ต้อง depend, เงียบถ้าไม่มี resource นี้
     -- ต้องแนบ src เอง เพราะ TriggerEvent ข้าม resource ไม่รับประกัน global `source` ฝั่งผู้รับ
     TriggerEvent('lp_leaderboard:SV:MiningGather', { src = _source, amount = count })
