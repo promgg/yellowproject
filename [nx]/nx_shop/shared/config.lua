@@ -74,8 +74,6 @@ local generalItems = {
     -- เครื่องมือทำมาหากิน
     { id = 'tool_pickaxe', item = 'tool_pickaxe', label = 'ที่ขุดเหมือง', category = 'work_tools', price = 5, currency = 'cash', max = 10 },
     { id = 'tool_axe', item = 'tool_axe', label = 'ขวานตัดไม้', category = 'work_tools', price = 5, currency = 'cash', max = 10 },
-    { id = 'job_fishing_rod', item = 'job_fishing_rod', label = 'เบ็ดตกปลา', category = 'work_tools', price = 200, currency = 'cash', max = 1 },
-    { id = 'job_fishing_bait', item = 'job_fishing_bait', label = 'เหยื่อตกปลา', category = 'work_tools', price = 2, currency = 'cash', max = 20 },
 
     -- อาหาร
     { id = 'food_bread', item = 'food_bread', label = 'ขนมปัง', category = 'food', price = 5, currency = 'cash', max = 10 },
