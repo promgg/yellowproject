@@ -61,23 +61,39 @@ local generalCategories = {
     { id = 'grooming', label = 'แต่งตัว' }
 }
 
-local generalItems = {
+-- เมล็ดแยกตามเมือง — แต่ละสาขาขายเฉพาะเมล็ดที่ "ปลูกได้ในไร่ของเมืองตัวเอง"
+-- ชุดเมล็ดตรงกับ Config.Zones ของ lp_planting (valentine_farm / annesburg_farm / rhodes_farm)
+-- ถ้าเพิ่มพืชใน lp_planting ต้องมาเพิ่มที่นี่ด้วย ไม่งั้นซื้อเมล็ดนั้นไม่ได้เลย
+local seedsByCity = {
+    valentine = {
+        { id = 'seed_corn', item = 'seed_corn', label = 'เมล็ดข้าวโพด', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_carrot', item = 'seed_carrot', label = 'เมล็ดแครอท', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_yarrow', item = 'seed_yarrow', label = 'เมล็ดยาร์โรว์', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_sugarcane', item = 'seed_sugarcane', label = 'เมล็ดอ้อย', category = 'farming', price = 1, currency = 'cash', max = 10 },
+    },
+    annesburg = {
+        { id = 'seed_mushroom', item = 'seed_mushroom', label = 'เมล็ดเห็ดป่า', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_Ginseng', item = 'seed_Ginseng', label = 'เมล็ดโสม', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_opium', item = 'seed_opium', label = 'เมล็ดฝิ่น', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_berry', item = 'seed_berry', label = 'เมล็ดเบอรี่', category = 'farming', price = 1, currency = 'cash', max = 10 },
+    },
+    rhodes = {
+        { id = 'seed_tobacco_plant', item = 'seed_tobacco_plant', label = 'เมล็ดยาสูบ', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_barley', item = 'seed_barley', label = 'เมล็ดข้าวบาร์เลย์', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_cotton', item = 'seed_cotton', label = 'เมล็ดฝ้าย', category = 'farming', price = 1, currency = 'cash', max = 10 },
+        { id = 'seed_orange', item = 'seed_orange', label = 'เมล็ดส้ม', category = 'farming', price = 1, currency = 'cash', max = 10 },
+    },
+    -- Emerald Ranch ไม่มีไร่ใน lp_planting จึงไม่มีเมล็ดของตัวเอง
+    -- ถ้าวันหลังอยากให้ขายเมล็ดของเมืองไหน ใส่ชุดนั้นตรงนี้ได้เลย
+    emerald = {},
+}
+
+-- ของทั่วไปที่ทุกสาขาขายเหมือนกัน (ไม่รวมเมล็ด)
+local generalBaseItems = {
     -- ทำฟาร์ม
     { id = 'tool_shovel', item = 'tool_shovel', label = 'พลั่วพรวนดิน', category = 'farming', price = 50, currency = 'cash', max = 1 },
     { id = 'tool_bucket', item = 'tool_bucket', label = 'ถังน้ำ', category = 'farming', price = 50, currency = 'cash', max = 10 },
     { id = 'compost', item = 'compost', label = 'ปุ๋ย', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_tobacco_plant', item = 'seed_tobacco_plant', label = 'เมล็ดยาสูบ', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_cotton', item = 'seed_cotton', label = 'เมล็ดฝ้าย', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_barley', item = 'seed_barley', label = 'เมล็ดข้าวบาร์เลย์', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_opium', item = 'seed_opium', label = 'เมล็ดฝิ่น', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_Ginseng', item = 'seed_Ginseng', label = 'เมล็ดโสม', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_mushroom', item = 'seed_mushroom', label = 'เมล็ดเห็ดป่า', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_yarrow', item = 'seed_yarrow', label = 'เมล็ดยาร์โรว์', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_carrot', item = 'seed_carrot', label = 'เมล็ดแครอท', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_corn', item = 'seed_corn', label = 'เมล็ดข้าวโพด', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_sugarcane', item = 'seed_sugarcane', label = 'เมล็ดอ้อย', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_orange', item = 'seed_orange', label = 'เมล็ดส้ม', category = 'farming', price = 1, currency = 'cash', max = 10 },
-    { id = 'seed_berry', item = 'seed_berry', label = 'เมล็ดเบอรี่', category = 'farming', price = 1, currency = 'cash', max = 10 },
 
     -- เครื่องมือทำมาหากิน
     { id = 'tool_pickaxe', item = 'tool_pickaxe', label = 'ที่ขุดเหมือง', category = 'work_tools', price = 10, currency = 'cash', max = 10 },
@@ -130,6 +146,22 @@ local generalItems = {
     -- โพเมดใส่ผม (jo_pomade) — กดใช้แล้วหักทิ้ง 1 ชิ้น พกได้สูงสุด 2 (limit ใน DB)
     { id = 'pomade', item = 'pomade', label = 'โพเมด', category = 'grooming', price = 50, currency = 'cash', max = 2 },
 }
+
+-- รวมของทั่วไป + เมล็ดของเมืองนั้น เป็นรายการสินค้าของสาขาหนึ่ง
+-- คืน "ตารางใหม่ทุกครั้ง" ไม่ใช่ตัวเดิม — ถ้าคืนตัวเดิมแล้วมีโค้ดไหนไปแก้ items
+-- ของสาขาหนึ่ง จะไปโดนทุกสาขาพร้อมกัน (ของเดิมทุกสาขาชี้ตารางเดียวกันหมด)
+local function generalItemsFor(cityKey)
+    local seeds = seedsByCity[cityKey]
+    if not seeds then
+        print(('^1[nx_shop]^7 ไม่รู้จักเมือง "%s" — สาขานี้จะไม่มีเมล็ดขาย'):format(tostring(cityKey)))
+        seeds = {}
+    end
+
+    local list = {}
+    for _, v in ipairs(generalBaseItems) do list[#list + 1] = v end
+    for _, v in ipairs(seeds) do list[#list + 1] = v end
+    return list
+end
 
 -- ---------- ร้านปืน (Gunsmith) ----------
 -- อาวุธ (melee/revolver/rifle/bow) เป็นอาวุธจริง: item = ชื่อ weapon hash ตรงกับ
@@ -229,7 +261,7 @@ Config.Stores = {
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
-        items = generalItems
+        items = generalItemsFor('valentine')
     },
 
     general_rho = { -- Rhodes
@@ -246,7 +278,7 @@ Config.Stores = {
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
-        items = generalItems
+        items = generalItemsFor('rhodes')
     },
 
     general_anb = { -- Annesburg
@@ -263,7 +295,7 @@ Config.Stores = {
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
-        items = generalItems
+        items = generalItemsFor('annesburg')
     },
 
     general_emr = { -- Emerald Ranch
@@ -280,7 +312,7 @@ Config.Stores = {
         jobs = {},
         payment = defaultPayment,
         categories = generalCategories,
-        items = generalItems
+        items = generalItemsFor('emerald')
     },
 
     -- general_bw = { -- Blackwater (คอมเมนต์ไว้ตามที่ตกลง)
