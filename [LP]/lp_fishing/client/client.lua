@@ -983,11 +983,13 @@ CreateThread(function()
     if not A or not A.Enabled then return end
     if not M or not M.Enabled then return end
 
-    local hToggle = GetHashKey(A.ToggleControl or 'INPUT_AIM')
-    local hCast   = GetHashKey(A.CastControl or 'INPUT_CONTEXT')
-    local hCancel = GetHashKey(A.CancelControl or 'INPUT_FRONTEND_CANCEL')
-    local hUp     = GetHashKey(A.ScrollUpControl or 'INPUT_CURSOR_SCROLL_UP')
-    local hDown   = GetHashKey(A.ScrollDownControl or 'INPUT_CURSOR_SCROLL_DOWN')
+    -- เหลือแค่ปุ่มสกรอลล์ — ปุ่มเข้าโหมด/เหวี่ยง/ยกเลิก เป็นของ native ทั้งหมดแล้ว
+    local hUp   = GetHashKey(A.ScrollUpControl or 'INPUT_SELECT_PREV_WEAPON')
+    local hDown = GetHashKey(A.ScrollDownControl or 'INPUT_SELECT_NEXT_WEAPON')
+
+    -- state ที่ผู้เล่นอยู่ในท่าง้างเบ็ด (กดคลิกซ้ายค้าง) = ช่วงที่ marker ต้องขึ้น
+    local aimStates = {}
+    for _, st in ipairs(A.AimDuringStates or { 13 }) do aimStates[st] = true end
 
     local aimDist, aimMax = 0.0, 0.0
     local lastProbeAt, lastProbeZ = 0, nil
@@ -1011,25 +1013,18 @@ CreateThread(function()
         aimActive  = false
 
         CreateThread(function()
-            FISHING_SET_F_(1, dist + 0.0)
-
-            -- state ที่ถือว่า "เบ็ดกำลังออก" — จาก /fishwatch พบว่าเกมใช้ 13 ไม่ใช่ 2
-            -- เขียน f_1 ซ้ำทุกเฟรมตลอดช่วงนี้ กันเกมคำนวณทับ
-            local holdStates = {}
-            for _, st in ipairs(A.HoldDuringStates or { 2, 13 }) do holdStates[st] = true end
-
+            -- ช่วงระหว่าง "ปล่อยคลิกซ้าย" กับ "เบ็ดลงน้ำ" ยังไม่รู้ว่าเกมใช้ state อะไร
+            -- เลยไม่กรองด้วย state — เขียน f_1 รัวไปเลยจนกว่าเบ็ดจะลงน้ำหรือหมดเวลา
             local holdUntil = GetGameTimer() + (A.HoldMaxDistMs or 1500)
             while GetGameTimer() < holdUntil do
                 local st = FISHING_GET_MINIGAME_STATE()
-                if holdStates[st] then
-                    FISHING_SET_F_(1, dist + 0.0)
-                elseif st == 6 or st == 7 or st == 12 then
-                    break -- เบ็ดลงน้ำแล้ว ไม่ต้องยึดต่อ
+                if st == 6 or st == 7 or st == 12 or st == 0 then
+                    break -- เบ็ดลงน้ำแล้ว (หรือเลิกตกปลา) ไม่ต้องยึดต่อ
                 end
+                FISHING_SET_F_(1, dist + 0.0)
                 Wait(0)
             end
 
-            Wait(300)
             aimCasting = false
         end)
     end
@@ -1047,113 +1042,98 @@ CreateThread(function()
             end
         end
 
-        -- เล็งได้เฉพาะตอนพร้อมตก (state 1) และไม่ได้กำลังเหวี่ยงอยู่
-        if state == 1 and not aimCasting then
+        -- เล็งตอนอยู่ในท่าง้างเบ็ด (คันพาดบ่า) = state 13
+        -- ผู้เล่นทำเองทั้งหมด: คลิกขวา -> กดคลิกซ้ายค้าง (เข้า state 13) -> เล็ง+สกรอลล์
+        -- -> ปล่อยคลิกซ้าย = โยน  เราไม่แย่งปุ่มอะไรกับ native เลย เป็นแค่ภาพซ้อน + ตั้ง f_1
+        if aimStates[state] then
             sleep = 0
 
             if not aimActive then
-                if IsControlJustPressed(0, hToggle) then
-                    aimActive = true
-                    -- อ่านระยะสูงสุดครั้งเดียวตอนเข้าโหมด — ห้ามอ่านซ้ำทุกเฟรม
-                    -- เพราะเราเขียนทับ f_1 เองตอนเหวี่ยง ถ้าอ่านซ้ำระยะจะ drift ลงเรื่อยๆ
-                    aimMax = M.MaxDistance or 0.0
-                    if aimMax <= 0.0 then
-                        local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
-                        aimMax = (type(fromGame) == 'number' and fromGame > 0.0)
-                            and fromGame or (M.FallbackMax or 30.0)
-                    end
-                    aimDist = math.min(aimMax, (M.MinDistance or 4.0) + (aimMax - (M.MinDistance or 4.0)) * 0.5)
-                    lastProbeAt, lastProbeZ = 0, nil
+                aimActive = true
+                aimMax = M.MaxDistance or 0.0
+                if aimMax <= 0.0 then
+                    local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
+                    aimMax = (type(fromGame) == 'number' and fromGame > 0.0)
+                        and fromGame or (M.FallbackMax or 30.0)
                 end
-            else
-                -- ห้ามปิด hToggle (คลิกขวา) เด็ดขาด — native ต้องมีการง้างค้างอยู่
-                -- คลิกซ้ายถึงจะเหวี่ยงได้ ถ้าปิดไปคือปิดการง้างของเกมด้วย แล้วเหวี่ยงไม่ออก
-                -- แทนที่จะปิด เราป้อนค่าค้างให้แทน เกมจะคิดว่ากำลังง้างอยู่ตลอด
-                -- ผู้เล่นเลยไม่ต้องกดค้างเอง
-                if A.KeepChargeHeld ~= false then
-                    SetControlValueNextFrame(0, hToggle, 1.0)
+                -- ครั้งแรกเริ่มที่กลางช่วง ครั้งต่อไปจำระยะเดิมที่ผู้เล่นตั้งไว้
+                if aimDist <= 0.0 then
+                    aimDist = (M.MinDistance or 4.0) + (aimMax - (M.MinDistance or 4.0)) * 0.5
                 end
+                aimDist = math.min(aimDist, aimMax)
+                lastProbeAt, lastProbeZ = 0, nil
+            end
 
-                -- ออกจากโหมดได้ทาง ESC เท่านั้น — คลิกขวาใช้ไม่ได้เพราะเราป้อนค่ามันอยู่
-                -- เกมจึงเห็นเป็น "กดค้าง" ตลอด ไม่มีจังหวะ just-pressed ให้จับ
-                if IsControlJustPressed(0, hCancel) then
-                    aimActive = false
-                    goto continue
+            local minDist = M.MinDistance or 4.0
+            local step    = A.ScrollStep or 1.5
+
+            local ped = PlayerPedId()
+            local c   = GetEntityCoords(ped)
+            local dir = camForwardVec()
+
+            -- สกรอลล์ปรับระยะ — อ่านผ่าน IsDisabledControl* เพราะปุ่มสกรอลล์ถูกปิดไว้
+            -- ข้างบนแล้ว (ไม่งั้นมันไปเปิด weapon wheel)
+            local want = aimDist
+            if IsDisabledControlJustPressed(0, hUp) then
+                want = math.min(aimMax, aimDist + step)
+            elseif IsDisabledControlJustPressed(0, hDown) then
+                want = math.max(minDist, aimDist - step)
+            end
+
+            -- ไม่ให้เลื่อน marker ออกไปนอกน้ำ — ถ้าระยะใหม่ตกบนพื้นก็คงระยะเดิมไว้
+            -- (บังคับทิศไม่ได้เพราะเป็นกล้อง แต่กันเรื่องระยะได้)
+            if want ~= aimDist then
+                if A.ClampToWater == false
+                    or waterZAt(c.x + dir.x * want, c.y + dir.y * want, c.z) then
+                    aimDist = want
+                    lastProbeAt = 0 -- บังคับ probe ใหม่ทันที ไม่ใช้ค่าเก่าค้าง
                 end
+            end
 
-                -- สกรอลล์ปรับระยะ — ต้องอ่านผ่าน IsDisabledControl* เพราะปุ่มพวกนี้
-                -- ถูกปิดไปแล้วข้างบน (ไม่งั้นมันจะไปเปิด weapon wheel)
-                local step = A.ScrollStep or 1.5
-                if IsDisabledControlJustPressed(0, hUp) then
-                    aimDist = math.min(aimMax, aimDist + step)
-                elseif IsDisabledControlJustPressed(0, hDown) then
-                    aimDist = math.max(M.MinDistance or 4.0, aimDist - step)
-                end
+            local tx, ty = c.x + dir.x * aimDist, c.y + dir.y * aimDist
 
-                -- ตรึง f_1 ทุกเฟรม — /fishwatch พบว่าเกมล้างค่ากลับเป็น 0 ภายใน ~20-135ms
-                -- เขียนครั้งเดียวตอนกดเหวี่ยงจึงไม่ทัน ต้องเขียนค้างไว้ตลอดที่เล็ง
-                FISHING_SET_F_(1, aimDist + 0.0)
+            -- ตรึง f_1 ทุกเฟรม — /fishwatch พบว่าเกมล้างค่ากลับเป็น 0 ภายใน ~20-135ms
+            -- เขียนครั้งเดียวไม่พอ ต้องเขียนค้างไว้ตลอดที่ยังง้างอยู่
+            FISHING_SET_F_(1, aimDist + 0.0)
 
-                local ped = PlayerPedId()
-                local c   = GetEntityCoords(ped)
-                local dir = camForwardVec()
-                local tx, ty = c.x + dir.x * aimDist, c.y + dir.y * aimDist
+            -- probe น้ำแบบ throttle (VERTICAL_PROBE วิ่งผ่าน JS export)
+            local now = GetGameTimer()
+            if now - lastProbeAt >= 60 then
+                lastProbeAt = now
+                lastProbeZ = waterZAt(tx, ty, c.z)
+            end
 
-                -- probe น้ำแบบ throttle (VERTICAL_PROBE วิ่งผ่าน JS export)
-                local now = GetGameTimer()
-                if now - lastProbeAt >= 60 then
-                    lastProbeAt = now
-                    lastProbeZ = waterZAt(tx, ty, c.z)
-                end
+            local wz  = lastProbeZ
+            local col = wz and M.OverWater or M.NoWater
+            local mz  = wz or c.z
 
-                local wz  = lastProbeZ
-                local col = wz and M.OverWater or M.NoWater
-                local mz  = wz or c.z
+            if wz or M.ShowNoWater then
+                local s = M.Scale or { x = 1.2, y = 1.2, z = 0.6 }
+                DrawMarker(
+                    M.Type or 0x07DCE236,
+                    tx, ty, mz + 0.05,
+                    0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0,
+                    s.x, s.y, s.z,
+                    col.r, col.g, col.b, col.a,
+                    false, false, 2, false, nil, nil, false
+                )
 
-                if wz or M.ShowNoWater then
-                    local s = M.Scale or { x = 1.2, y = 1.2, z = 0.6 }
-                    DrawMarker(
-                        M.Type or 0x07DCE236,
-                        tx, ty, mz + 0.05,
-                        0.0, 0.0, 0.0,
-                        0.0, 0.0, 0.0,
-                        s.x, s.y, s.z,
-                        col.r, col.g, col.b, col.a,
-                        false, false, 2, false, nil, nil, false
-                    )
-
-                    if A.ShowArc then
-                        -- ออกจากปลายคันเบ็ดโดยประมาณ (สูงจากเท้าราวหนึ่งช่วงตัว)
-                        drawCastArc(c.x, c.y, c.z + 1.0, tx, ty, mz, A)
-                    end
-
-                    if A.ShowDistanceText then
-                        drawText3D(tx, ty, mz + 1.2, string.format('%.0f ม.', aimDist))
-                    end
+                if A.ShowArc then
+                    -- ออกจากปลายคันเบ็ดโดยประมาณ (สูงจากเท้าราวหนึ่งช่วงตัว)
+                    drawCastArc(c.x, c.y, c.z + 1.0, tx, ty, mz, A)
                 end
 
-                -- เหวี่ยง — native ทำเองเมื่อผู้เล่นคลิก เราแค่ตั้งระยะให้ก่อน
-                -- เล็งโดนพื้น = ปิดปุ่มไว้เลย เกมจะเหวี่ยงไม่ออกเอง ไม่ต้องไปยกเลิกทีหลัง
-                if wz then
-                    if IsControlJustPressed(0, hCast) then
-                        holdCastDistance(aimDist)
-                    end
-                else
-                    DisableControlAction(0, hCast, true)
-                    if IsDisabledControlJustPressed(0, hCast) then
-                        exports.pNotify:SendNotification({
-                            text = A.BlockedMsg or 'ต้องเล็งลงน้ำก่อนถึงจะเหวี่ยงได้',
-                            type = 'error',
-                            timeout = 3000,
-                        })
-                    end
+                if A.ShowDistanceText then
+                    drawText3D(tx, ty, mz + 1.2, string.format('%.0f ม.', aimDist))
                 end
             end
         elseif aimActive then
             aimActive = false
+            -- ปล่อยคลิกซ้ายแล้ว native กำลังโยน — ยึด f_1 ต่ออีกพักกันเกมคำนวณทับ
+            holdCastDistance(aimDist)
         end
 
-        ::continue::
         Wait(sleep)
     end
 end)
