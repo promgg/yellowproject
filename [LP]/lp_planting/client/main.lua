@@ -354,21 +354,27 @@ end
 CreateThread(function()
     local active, activeLabel = nil, nil
 
+    -- ต้องใช้ HideUI ไม่ใช่ CancelHold: CancelHold มี early return ถ้าไม่มี hold ทำงานอยู่
+    -- ป้ายนับถอยหลังสร้างด้วย TextUI ธรรมดา (ไม่ใช่ hold) เรียก CancelHold จึงไม่ปิดให้
+    -- แล้วป้ายค้างบนจอตลอด — HideUI ปิดได้ทั้งสองแบบ
+    local function clearPrompt()
+        exports.lp_textui:HideUI()
+        active, activeLabel = nil, nil
+    end
+
     while true do
-        Wait(active and 0 or 250)
+        -- ตอนมี prompt อยู่เช็คถี่หน่อยให้ป้ายหายทันทีที่เดินออก แต่ไม่ต้องทุกเฟรม
+        Wait(active and 100 or 250)
 
         if busy then
-            if active then exports.lp_textui:CancelHold(); active, activeLabel = nil, nil end
+            if active then clearPrompt() end
             goto continue
         end
 
         local target, action, label, pos = findTarget()
 
-        -- เปลี่ยนต้น หรือ ป้ายเปลี่ยน (เช่นนับถอยหลัง) -> สร้าง prompt ใหม่
-        if active and (target ~= active or label ~= activeLabel) then
-            exports.lp_textui:CancelHold()
-            active, activeLabel = nil, nil
-        end
+        -- เดินออกนอกระยะ หรือเปลี่ยนไปต้นอื่น -> เก็บป้ายเดิมก่อน
+        if active and target ~= active then clearPrompt() end
 
         if target and not active then
             active, activeLabel = target, label
@@ -382,6 +388,22 @@ CreateThread(function()
                 -- ยังโตไม่เสร็จ: โชว์ข้อความเฉยๆ กดไม่ได้
                 -- signature คือ TextUI(message, key, worldAnchor) — ตัวที่ 2 เป็นปุ่มที่จะโชว์
                 -- ไม่ใช่ตัวเลือก ถ้ายัด world-anchor ไปตรงนั้นจะได้ [object Object] บนจอ
+                exports.lp_textui:TextUI(label, nil, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
+            end
+
+        elseif target and active == target and label ~= activeLabel then
+            -- ต้นเดิมแต่ข้อความเปลี่ยน (นับถอยหลังเดิน หรือโตครบพร้อมเก็บแล้ว)
+            activeLabel = label
+            if action then
+                -- เพิ่งพร้อมเก็บ: ต้องเปลี่ยนจากป้ายเฉยๆ เป็นแบบกดค้างได้
+                local thisP, thisAction = target, action
+                exports.lp_textui:HideUI()
+                exports.lp_textui:TextUIHold(label, Config.InteractHoldMs, function()
+                    active, activeLabel = nil, nil
+                    doAction(thisP, thisAction)
+                end, nil, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
+            else
+                -- แค่อัปเดตตัวเลข ส่ง TextUI ทับได้เลย ไม่ต้อง Hide ก่อน (ไม่งั้นกะพริบทุกวินาที)
                 exports.lp_textui:TextUI(label, nil, { coords = pos, offset = vector3(0.0, 0.0, 0.3) })
             end
         end
@@ -453,6 +475,6 @@ AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for _, p in pairs(Plants) do despawnProp(p) end
     for _, b in ipairs(blips) do RemoveBlip(b) end
-    exports.lp_textui:CancelHold()
+    exports.lp_textui:HideUI() -- HideUI ไม่ใช่ CancelHold — ดูเหตุผลที่ clearPrompt
     exports.lp_rewardpanel:Hide() -- ไม่ปิดจะค้างบนจอหลัง restart resource
 end)

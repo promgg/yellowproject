@@ -110,7 +110,7 @@ CreateThread(function()
         Wait(active and 0 or 500)
 
         if busy then
-            if active then exports.lp_textui:CancelHold(); active = nil end
+            if active then exports.lp_textui:HideUI(); active = nil end
             goto continue
         end
 
@@ -121,7 +121,7 @@ CreateThread(function()
         end
 
         if active and target ~= active then
-            exports.lp_textui:CancelHold()
+            exports.lp_textui:HideUI()
             active = nil
         end
 
