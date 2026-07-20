@@ -264,6 +264,24 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
 .card.state-locked .card-num { color: #766242; }
 .card.state-locked .card-img { opacity: 0.5; }
 
+/* — state: missed (ขาดวันไปแล้ว เคลมไม่ได้อีก) —
+   ใช้โทนแดงหม่นแยกจาก locked ที่เป็นน้ำตาลทอง เพื่อให้กวาดตาแล้วเห็นทันทีว่าเสียไปกี่วัน
+   จงใจให้จางกว่า locked ด้วย เพราะ locked ยังมีอนาคต ส่วน missed จบไปแล้ว */
+.card.state-missed {
+  border: 1px solid #5a3736;
+  background:
+    linear-gradient(rgba(120,60,58,0.06) 0%, rgba(120,60,58,0.14) 100%),
+    rgba(0,0,0,0.5);
+}
+.card.state-missed .card-num { color: #8c5350; }
+.card.state-missed .card-img { opacity: 0.28; filter: grayscale(1); }
+.card.state-missed .card-label { color: #7a5b59; }
+.card-btn-missed {
+  color: #8c5350;
+  background: rgba(120,60,58,0.12);
+  border: 1px solid rgba(140,83,80,0.35);
+}
+
 /* ══════════════════════════════════════
    SCORE BAR  left:615 top:986 w:691 h:88
    (เดิม top:808 ชิดขอบล่าง panel พอดี — เลื่อนลงตามความสูง panel ใหม่ 760

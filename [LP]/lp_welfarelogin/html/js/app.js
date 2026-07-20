@@ -38,14 +38,18 @@ document.getElementById('tab-vip').addEventListener('click', function () { switc
 
 /* ── card state → ปุ่มรับรางวัล (ข้อความ/สถานะจริง ไม่ใช้คำว่า "เลือก" ตามภาพต้นแบบ
    เพราะ action จริงคือ "รับ" ของ ไม่ใช่ "เลือก") ── */
+/* 'missed' = วันที่ผ่านไปแล้วโดยไม่ได้เข้า เคลมไม่ได้อีก (VIP เท่านั้นที่ย้อนได้)
+   แยกจาก 'locked' ที่แปลว่ายังไม่ถึงวัน — ต้องดูออกจากหน้าจอว่าอันไหนรอได้ อันไหนเสียไปแล้ว */
 function btnTextFor(state) {
   if (state === 'current')   return 'รับรางวัล';
   if (state === 'completed') return 'รับแล้ว';
+  if (state === 'missed')    return 'ขาดวัน';
   return 'ยังไม่ถึง';
 }
 function btnClassFor(state) {
   if (state === 'current')   return 'card-btn card-btn-claim';
   if (state === 'completed') return 'card-btn card-btn-claimed';
+  if (state === 'missed')    return 'card-btn card-btn-missed';
   return 'card-btn card-btn-locked';
 }
 
@@ -235,14 +239,34 @@ var LABELS = [
   'ขนมปัง','สตูว์เนื้อ','ยารักษา','ทองคำแท่ง','เงิน $100','ขนมปัง','น้ำ','สเต๊กพาย','ยารักษา','เงิน $125',
   'ทองคำแท่ง','สตูว์เนื้อ','ขนมปัง','ยารักษา','เงิน $150','สเต๊กพาย','น้ำ','ทองคำแท่ง','เงิน $200','ทองคำแท่ง x3'
 ];
-window.test = function (currentDay, onlineHrs, vip) {
+/* test(currentDay, onlineHrs, vip, claimedDays)
+   claimedDays = array ของวันที่เคลมไปแล้ว เช่น [1,2,5] — วันที่ผ่านมาแต่ไม่อยู่ในลิสต์ = ขาดวัน
+   ไม่ใส่ = ถือว่าเคลมครบทุกวันที่ผ่านมา (จะไม่เห็นสถานะ missed เลย)
+   ตัวอย่างเคสที่ออกแบบไว้: test(30, 0, false, [1]) = เข้าวันที่ 1 แล้วหายไปโผล่วันที่ 30 */
+window.test = function (currentDay, onlineHrs, vip, claimedDays) {
   currentDay = currentDay || 1;
   onlineHrs  = (onlineHrs !== undefined) ? onlineHrs : (currentDay - 1) * 0.4;
   vip = !!vip;
+
+  var claimed = null;
+  if (claimedDays) {
+    claimed = {};
+    claimedDays.forEach(function (d) { claimed[d] = true; });
+  }
+
+  // ตรรกะเดียวกับ cardState()/canClaimDay() ฝั่ง server
+  function stateFor(i, needVip) {
+    if (claimed ? claimed[i] : i < currentDay) return 'completed';
+    if (needVip && !vip) return 'locked'; // ไม่ใช่ VIP = ทั้งแถวทองล็อกหมด ไม่ใช่ 'ขาดวัน'
+    if (i === currentDay) return 'current';
+    if (i < currentDay)   return vip ? 'current' : 'missed';
+    return 'locked';
+  }
+
   var dayCards = [], vipCards = [];
   for (var i = 1; i <= 30; i++) {
-    dayCards.push({ num: i, label: LABELS[i - 1], state: i < currentDay ? 'completed' : (i === currentDay ? 'current' : 'locked') });
-    vipCards.push({ num: i, label: LABELS[i - 1], state: i < currentDay ? 'completed' : (i <= currentDay ? (vip ? 'current' : 'locked') : 'locked'), vip: true });
+    dayCards.push({ num: i, label: LABELS[i - 1], state: stateFor(i, false) });
+    vipCards.push({ num: i, label: LABELS[i - 1], state: stateFor(i, true), vip: true });
   }
   var done = Math.floor(onlineHrs);
   var onlineSlots = [1, 2, 3, 4, 5, 6].map(function (h) { return { hours: h, state: h <= done ? 'done' : 'locked' }; });

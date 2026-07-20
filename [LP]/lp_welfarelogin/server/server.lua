@@ -63,6 +63,12 @@ local function welfareDate()
     return os.date('%Y-%m-%d', os.time() - ((Config.ResetHour or 4) * 3600))
 end
 
+-- 'YYYY-MM-DD' -> 'YYYY-MM' | เลขวันที่ของเดือน
+-- ตัดจากสตริงตรงๆ ไม่เรียก os.date ซ้ำ เพื่อให้ทุกที่อ่านจากค่าเดียวกันเสมอ
+-- (ถ้าเรียกแยกกันคนละครั้ง มีโอกาสคร่อมนาที 04:00 พอดีแล้วได้คนละวัน)
+local function monthOf(date)  return date and date:sub(1, 7) or nil end
+local function dayOfMonth(date) return tonumber(date:sub(9, 10)) end
+
 -- JSON array (TEXT ใน DB) <-> set { [id]=true }
 local function jsonToSet(s)
     local set = {}
@@ -141,30 +147,52 @@ local function persist(st)
     st.dirty = false
 end
 
--- ปรับ state ให้ตรง welfare-day ปัจจุบัน: เลื่อน cycle_day (+1 ต่อวันที่ล็อกอิน,
--- ครบ cycleDays วนกลับ 1 + ล้าง claimed) และรีเซ็ต online เมื่อข้ามวัน
+-- ปรับ state ให้ตรง welfare-day ปัจจุบัน
+--
+-- ⚠️ ผูกกับ "วันที่จริงในปฏิทิน" ไม่ใช่ streak
+--    การ์ดใบที่ N = วันที่ N ของเดือน — เข้าวันที่ 1 แล้วหายไปโผล่วันที่ 30 จะได้แค่ใบ 1 กับ 30
+--    ใบ 2-29 ที่ขาดไปถือว่าเสียถาวร (ยกเว้น VIP ที่ย้อนเก็บได้ ดู canClaimDay)
+--
+--    ของเดิมเป็น streak: +1 ทุกครั้งที่ล็อกอินวันใหม่ ไม่สนว่าห่างกันกี่วัน เคสข้างบนจะได้ใบ 1 กับ 2
+--
+-- ไม่ต้องแก้ schema — เดือนของรอบดูจาก last_welfare_date ที่เก็บอยู่แล้ว (7 ตัวแรก = YYYY-MM)
+-- ข้ามเดือน = รอบใหม่ ล้าง claimed ทั้งสองแถว
+-- cycle_day ยังเขียนต่อ (= วันที่ของเดือน) เพื่อไม่ให้ค่าใน DB กลายเป็นขยะที่อ่านไม่รู้เรื่อง
 local function refreshDay(st)
-    local wd = welfareDate()
+    local wd    = welfareDate()
+    local today = dayOfMonth(wd)
+
     if st.last_welfare_date ~= wd then
-        if st.last_welfare_date == nil then
-            st.cycle_day = st.cycle_day or 1           -- ครั้งแรก = day 1
-        else
-            local nd = (st.cycle_day or 1) + 1
-            if nd > Config.Daily.cycleDays then
-                nd = 1
-                st.free, st.vip = {}, {}               -- รอบใหม่ ล้าง claimed
-            end
-            st.cycle_day = nd
+        if monthOf(st.last_welfare_date) ~= monthOf(wd) then
+            st.free, st.vip = {}, {}
         end
         st.last_welfare_date = wd
+        st.cycle_day = today
+        st.dirty = true
+    elseif st.cycle_day ~= today then
+        st.cycle_day = today
         st.dirty = true
     end
+
     if st.online_date ~= wd then
         st.online_date     = wd
         st.online_seconds  = 0
         st.online_claimed  = {}
         st.dirty = true
     end
+end
+
+-- ใครเคลมวันไหนได้บ้าง — ใช้ร่วมกันระหว่าง buildState (แสดงผล) กับ claim (ตัดสินจริง)
+-- เพื่อไม่ให้ UI กับ server ตัดสินคนละแบบ
+--   วันนี้        -> เคลมได้ทุกคน
+--   วันที่ผ่านมา  -> เฉพาะ VIP (ย้อนได้ทั้งเดือน ไม่จำกัดจำนวนวัน และครอบทั้งแถวฟรีและแถวทอง)
+--   วันอนาคต     -> ไม่มีใครเคลมได้
+-- การ์ดใบ 29-30 ในเดือนกุมภาพันธ์ตกเป็นวันอนาคตตลอดทั้งเดือนโดยธรรมชาติ จึงเคลมไม่ได้เอง
+-- ไม่ต้องเขียนเงื่อนไขแยก (ตรงตามที่ตกลง: คงการ์ด 30 ใบ ไม่ยืดหดตามความยาวเดือน)
+local function canClaimDay(day, today, vip)
+    if day == today then return true end
+    if day < today then return vip end
+    return false
 end
 
 local function loadProgress(src, cb)
@@ -206,19 +234,30 @@ end
 local function buildState(src, st)
     local vip = isVip(src)
     local cd  = st.cycle_day
+    -- 'missed' = วันที่ผ่านไปแล้วและเคลมไม่ได้อีก (คนไม่ใช่ VIP) — แยกจาก 'locked' ที่แปลว่า
+    -- "ยังไม่ถึงวัน" โดยตั้งใจ ผู้เล่นต้องแยกออกว่าอันไหนรอได้ อันไหนเสียไปแล้ว
+    -- ไม่งั้นกติกา "ขาดวันแล้วเสียถาวร" จะมองไม่เห็นเลยจากหน้าจอ
+    local function cardState(claimed, d)
+        if claimed[d] then return 'completed' end
+        if canClaimDay(d, cd, vip) then return 'current' end
+        if d < cd then return 'missed' end
+        return 'locked'
+    end
+
     local dayCards, vipCards = {}, {}
     for d = 1, Config.Daily.cycleDays do
-        local f, state = Config.DailyFree[d], nil
-        if st.free[d] then state = 'completed'
-        elseif d <= cd then state = 'current'
-        else state = 'locked' end
-        dayCards[d] = { num = d, label = f and f.title or '', img = f and f.img or nil, state = state }
+        local f = Config.DailyFree[d]
+        dayCards[d] = { num = d, label = f and f.title or '', img = f and f.img or nil,
+                        state = cardState(st.free, d) }
 
-        local v, vstate = Config.DailyVip[d], nil
-        if st.vip[d] then vstate = 'completed'
-        elseif d <= cd then vstate = vip and 'current' or 'locked'
-        else vstate = 'locked' end
-        vipCards[d] = { num = d, label = v and v.title or '', img = v and v.img or nil, state = vstate, vip = true }
+        -- แถวทองต้องเป็น VIP ถึงจะกดได้ แม้เป็นวันปัจจุบันก็ตาม
+        -- คนไม่ใช่ VIP เห็นทุกใบที่ยังไม่ได้เคลมเป็น 'locked' ไม่ใช่ 'missed' — เพราะเขาไม่เคยมี
+        -- สิทธิ์ในแถวนี้ตั้งแต่แรก การขึ้นว่า "ขาดวัน" จะสื่อผิดว่าเคยกดได้แล้วพลาดไปเอง
+        local v = Config.DailyVip[d]
+        local vstate = cardState(st.vip, d)
+        if not vip and vstate ~= 'completed' then vstate = 'locked' end
+        vipCards[d] = { num = d, label = v and v.title or '', img = v and v.img or nil,
+                        state = vstate, vip = true }
     end
 
     local onlineSlots = {}
@@ -303,8 +342,16 @@ RegisterNetEvent('lp_welfarelogin:claim', function(track, day)
     local st = cache[src]; if not st then return end
     refreshDay(st)
 
-    -- bounds เทียบ cycle_day ของ server (client จะยิง day 30 ตอนอยู่ day 5 ไม่ได้)
-    if day < 1 or day > st.cycle_day then return end
+    if day < 1 or day > Config.Daily.cycleDays then return end
+
+    -- ตัดสินสิทธิ์ตามวันที่จริง — ตรรกะเดียวกับที่ buildState ใช้วาดการ์ด
+    -- client ยิง day 30 ตอนวันที่ 5 ไม่ได้ และคนไม่ใช่ VIP ยิงย้อนวันที่ผ่านมาไม่ได้
+    -- (isVip อ่านจากไอเทมในกระเป๋าฝั่ง server ไม่เชื่อ flag ที่ client ส่งมา)
+    local vip = isVip(src)
+    if not canClaimDay(day, st.cycle_day, vip) then
+        notify(src, day < st.cycle_day and Config.Locale.claimMissed or Config.Locale.claimLocked, 'error')
+        return
+    end
 
     local claimedSet = (track == 'free') and st.free or st.vip
     if claimedSet[day] then
@@ -322,7 +369,7 @@ RegisterNetEvent('lp_welfarelogin:claim', function(track, day)
     local def = (track == 'free' and Config.DailyFree[day]) or Config.DailyVip[day]
     if not def then claimedSet[day] = nil; return end
 
-    if track == 'vip' and not isVip(src) then
+    if track == 'vip' and not vip then
         claimedSet[day] = nil
         notify(src, Config.Locale.notVip, 'error')
         pushState(src) -- รีเฟรชการ์ดให้เป็น locked ทันที เผื่อ UI ค้าง state เก่าตอนยังมี vip_card อยู่
@@ -379,7 +426,9 @@ end)
 
 -- ════════════════════════════════════════════════════════════════════════════
 --  Debug command (เฉพาะ Config.Debug=true + admin) — เทสได้โดยไม่ต้องรอวันจริง
---    /welfaredebug nextday      เลื่อนไปวันถัดไป (จำลอง welfare-day ใหม่)
+--    /welfaredebug nextday      แกล้งเป็นวันถัดไปของเดือน
+--    /welfaredebug setday <n>   แกล้งเป็นวันที่ n ของเดือน (เทสเคสขาดวันได้ตรงๆ)
+--    /welfaredebug newmonth     จำลองขึ้นเดือนใหม่ (ล้าง claimed ทั้งสองแถว)
 --    /welfaredebug reset        รีเซ็ต progress ของตัวเองเป็นเริ่มใหม่ (ทั้ง daily login + online)
 --    /welfaredebug onlinereset  รีเซ็ตเฉพาะ online reward (ไม่แตะ daily login ที่เคลมไปแล้ว)
 --    /welfaredebug online <s>   บวกเวลาออนไลน์ <s> วินาที แล้วเช็ค tier ทันที
@@ -395,16 +444,38 @@ if Config.Debug then
         if not st then notify(src, 'welfaredebug: เปิด /welfare ก่อน (ยังไม่โหลด progress)', 'error'); return end
         local sub = tostring(args[1] or ''):lower()
 
-        if sub == 'nextday' then
-            local nd = (st.cycle_day or 1) + 1
-            if nd > Config.Daily.cycleDays then nd = 1; st.free, st.vip = {}, {} end
+        if sub == 'nextday' or sub == 'setday' then
+            -- ระบบผูกปฏิทินจริงแล้ว จึงแกล้งวันด้วยการเขียน last_welfare_date ย้อน/ไปข้างหน้า
+            -- ให้ refreshDay รอบถัดไปคิดจากค่านั้น (ตั้ง cycle_day ตรงๆ อย่างเดียวไม่พอ
+            -- เพราะ refreshDay จะเห็นว่า last_welfare_date เป็นวันนี้แล้วดึงกลับทันที)
+            local nd
+            if sub == 'setday' then
+                nd = tonumber(args[2])
+                if not nd or nd < 1 or nd > Config.Daily.cycleDays then
+                    notify(src, 'welfaredebug: setday <1-' .. Config.Daily.cycleDays .. '>', 'error'); return
+                end
+            else
+                nd = (st.cycle_day or 1) + 1
+                if nd > Config.Daily.cycleDays then nd = 1 end
+            end
+
+            local wd = welfareDate()
+            st.last_welfare_date = ('%s-%02d'):format(monthOf(wd), nd)
             st.cycle_day = nd
-            st.last_welfare_date = welfareDate()
             st.dirty = true; persist(st); pushState(src)
-            notify(src, ('welfaredebug: cycle_day = %d'):format(nd), 'success')
+            notify(src, ('welfaredebug: แกล้งเป็นวันที่ %d ของเดือน'):format(nd), 'success')
+
+        elseif sub == 'newmonth' then
+            -- จำลองขึ้นเดือนใหม่: ล้าง claimed ทั้งสองแถวเหมือนที่ refreshDay ทำจริง
+            st.free, st.vip = {}, {}
+            st.last_welfare_date = welfareDate()
+            st.cycle_day = dayOfMonth(st.last_welfare_date)
+            st.dirty = true; persist(st); pushState(src)
+            notify(src, 'welfaredebug: ล้าง claimed แล้ว (จำลองขึ้นเดือนใหม่)', 'success')
 
         elseif sub == 'reset' then
-            st.cycle_day = 1; st.free, st.vip = {}, {}
+            st.free, st.vip = {}, {}
+            st.cycle_day = dayOfMonth(welfareDate())
             st.online_seconds = 0; st.online_claimed = {}
             st.last_welfare_date = welfareDate(); st.online_date = welfareDate()
             st.last_popup_date = nil  -- ให้ auto-popup เด้งใหม่ได้ตอน relog
@@ -429,7 +500,7 @@ if Config.Debug then
             notify(src, ('welfaredebug: isVip = %s'):format(tostring(isVip(src))), 'info')
 
         else
-            notify(src, 'welfaredebug: nextday | reset | onlinereset | online <วินาที> | vip', 'info')
+            notify(src, 'welfaredebug: nextday | setday <1-30> | newmonth | reset | onlinereset | online <วินาที> | vip', 'info')
         end
     end, false)
 end
