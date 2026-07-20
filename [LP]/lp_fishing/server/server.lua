@@ -71,6 +71,25 @@ RegisterServerEvent("lp_fishing:FishToInventory", function(netid, fishModel, fis
     local entity = NetworkGetEntityFromNetworkId(netid)
     if not DoesEntityExist(entity) then return print("Entity does not exist", netid) end
 
+    -- กันช่องโหว่ dupe/ลบของคนอื่น: เดิมเชื่อ netid/fishModel ที่ client ส่งมาตรงๆ ทั้งหมด
+    -- ผู้เล่นที่แก้ client เอง ส่ง netid ของ entity อะไรก็ได้ (ของผู้เล่นอื่น/ม้า/รถ) พร้อม fishModel
+    -- ปลาราคาแพงมา ก็จะได้ไอเทมฟรี + สั่งลบ entity นั้นทิ้งได้เลย (DeleteEntity ไม่เช็คอะไรก่อน)
+    -- เช็คเพิ่ม 3 อย่าง: entity ต้องเป็น ped จริง, model ต้องตรงกับที่อ้าง, ต้องอยู่ใกล้ผู้เล่นคนนั้นจริง
+    if GetEntityType(entity) ~= 1 then
+        return print("Claimed fish entity is not a ped", netid, GetPlayerName(_source))
+    end
+
+    local actualModel = GetEntityModel(entity)
+    if actualModel ~= fishModel then
+        return print("Claimed fishModel does not match entity's real model", netid, fishModel, actualModel, GetPlayerName(_source))
+    end
+
+    local ped = GetPlayerPed(_source)
+    local dist = #(GetEntityCoords(entity) - GetEntityCoords(ped))
+    if dist > 15.0 then
+        return print("Claimed fish entity too far from player", netid, dist, GetPlayerName(_source))
+    end
+
     local fish = fishEntity[fishModel]
     if not fish then return print("Fish model not found in table fishEntity", fishModel) end
     local fish_name = fish.name

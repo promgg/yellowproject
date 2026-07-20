@@ -78,13 +78,11 @@ Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
     end
 
     if currentLure ~= nil then
-        if currentLure == UsableBait then
-            Core.NotifyRightTip(T.AlreadyHaveBait, 4000)
-            return CB({false})
-        else
-            fishing = false
-            Core.NotifyRightTip(T.ChangeBait, 4000)
-        end
+        -- ห้ามใส่ทับ ไม่ว่าจะเหยื่อตัวเดิมหรือคนละตัว ต้องให้เหยื่อที่ติดอยู่หมดไปก่อน
+        -- (จับปลาได้ / ปลาหลุด) ถึงจะใส่เหยื่อใหม่ได้ — เดิมอนุญาตให้สลับเหยื่อคนละตัวได้
+        -- ซึ่งจะไปตัด session ที่กำลังตกอยู่ทิ้งกลางคันแบบเงียบๆ
+        Core.NotifyRightTip(T.AlreadyHaveBait, 4000)
+        return CB({false})
     end
 
     currentLure = UsableBait
@@ -463,11 +461,21 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                 end
             end
 
+            if FISHING_GET_MINIGAME_STATE() == 11 then
+                -- ปลาหลุด/เอ็นขาด (flag 11 จาก HybridMinigame ตอนแพ้ lp_minigame)
+                -- native ไม่เด้งกลับไป state ที่โค้ดนี้รู้จักเอง (0/2/6 ก็ไม่มี handler)
+                -- ถ้าไม่เคลียร์ fishing ตรงนี้ มันจะค้าง true ตลอดไป เหวี่ยงเบ็ดรอบใหม่
+                -- (lp_fishing:UseBait) จะโดน "if fishing then return end" บล็อกเงียบๆ ทุกครั้ง
+                -- อาการที่เจอ: "เบ็ดเหวี่ยงไปไม่ไป" หลังปลาหลุดไปแล้วรอบนึง
+                fishing = false
+                currentLure = nil
+                Citizen.InvokeNative(0x9B0C7FA063E67629, PlayerPedId(), "", 0, 1)
+            end
+
             if IsControlJustPressed(0, GetHashKey("INPUT_TOGGLE_HOLSTER")) then
                 fishing = false
-                -- เก็บเบ็ด = เหยื่อไม่ได้ติดอยู่แล้ว ต้องเคลียร์ด้วย ไม่งั้นค่าค้าง
-                -- แล้วรอบหน้าที่หยิบเบ็ดขึ้นมาเปล่าๆ ระบบจะคิดว่ายังมีเหยื่อติดอยู่
-                currentLure = nil
+                -- เก็บเบ็ด/สลับอาวุธ ไม่เคลียร์ currentLure — ตั้งใจให้เหยื่อยังติดค้างไว้
+                -- พอหยิบเบ็ดขึ้นมาใหม่จะตกต่อได้เลยไม่ต้องเสียเหยื่อซ้ำ (ดู thread เช็ค isHoldingRod ด้านล่าง)
                 -- ถ้าเลิกตอน minigame ยังเปิดอยู่ ต้องปิดให้ ไม่งั้น NUI ค้างทั้งจอ
                 if hybridRunning then
                     pcall(function() exports.lp_minigame:Cancel() end)
@@ -1134,38 +1142,38 @@ local function hideBaitPanel()
     pcall(function() exports.lp_rewardpanel:Hide() end)
 end
 
--- ตามสถานะเหยื่อ: เบ็ดอยู่ในมือ + มีเหยื่อติดอยู่จริง -> โชว์ panel, นอกนั้นซ่อน
+-- ตามสถานะเหยื่อ: เบ็ดอยู่ในมือ + มีเหยื่อติดอยู่จริง -> โชว์ panel, นอกนั้นซ่อน (แค่ซ่อน ไม่เคลียร์ currentLure)
 --
--- เชื่อ currentLure อย่างเดียวไม่ได้ เพราะไม่มีจุดไหนเคลียร์มันตอนผู้เล่นเก็บเบ็ด
--- (INPUT_TOGGLE_HOLSTER ตั้งแค่ fishing = false) panel เลยค้างทั้งที่เบ็ดเก็บไปแล้ว
--- จึงเช็คสถานะจริงของเกมด้วย: ถือเบ็ดอยู่ไหม + มินิเกมยังทำงานอยู่ไหม
+-- currentLure ตอนนี้ถือเป็น "เหยื่อที่ยังไม่ได้ใช้หมด" ไม่ใช่ "กำลังตกอยู่ตอนนี้"
+-- ตั้งใจให้ค้างข้ามการสลับอาวุธ/เก็บเบ็ดได้ (ผู้เล่นขอ: สลับอาวุธแล้วไม่ต้องใส่เหยื่อใหม่)
+-- สิ่งเดียวที่เคลียร์ทิ้งจริงคือตอนเหยื่อถูกใช้หมด (จับปลาได้ / ปลาหลุด) หรือ resetFishing
+--
+-- thread นี้เลยทำ 2 อย่าง: (1) auto-resume ตกต่อทันทีที่กลับมาถือเบ็ดถ้ายังมีเหยื่อค้างอยู่
+-- (2) โชว์/ซ่อน panel ตามว่าถือเบ็ดอยู่จริงไหมตอนนี้ (แค่ UI ไม่กระทบ currentLure)
 CreateThread(function()
     local shownFor = nil
+    local wasHolding = false
     while true do
         Wait(300)
 
-        local ok = false
         local lure = currentLure
-        if lure then
-            -- refresh struct เอง — ตัวที่อัปเดตให้อยู่ในลูป UseBait ซึ่งหยุดไปแล้ว
-            -- ตอนเลิกตกปลา ถ้าไม่ refresh state จะค้างค่าเก่า
+        local holding = isHoldingRod()
+
+        if lure and holding and not wasHolding and not fishing then
+            -- กลับมาถือเบ็ดพร้อมเหยื่อที่ยังค้างอยู่ (จากตอนสลับอาวุธ/เก็บเบ็ด) -> ตกต่อเลย ไม่หักเหยื่อซ้ำ
+            TriggerEvent('lp_fishing:UseBait', lure)
+        end
+        wasHolding = holding
+
+        local ok = false
+        if lure and holding then
+            -- refresh struct เอง — ตัวที่อัปเดตให้อยู่ในลูป UseBait ซึ่งอาจยังไม่ทัน sync ตอน resume
             pcall(GET_TASK_FISHING_DATA)
-            local holding = isHoldingRod()
 
             -- โหมดง่ายไม่ได้สตาร์ท native task เลย state จึงเชื่อไม่ได้ (อาจเป็น 0 ตลอด)
-            -- ใช้แค่ "ถือเบ็ดอยู่ไหม" เป็นตัวตัดสิน ไม่งั้นจะไปล้าง currentLure ทิ้ง
-            -- ตั้งแต่ยังไม่ได้เหวี่ยง แล้วโหมดง่ายจะใช้ไม่ได้เลย
             local simple = Config.SimpleMode and Config.SimpleMode.Enabled
-            local active = simple or (FISHING_GET_MINIGAME_STATE() or 0) ~= 0
-
-            if not holding or not active then
-                -- มินิเกมจบไปแล้วไม่ว่าด้วยเหตุใด (ตาย เดินหนี เก็บเบ็ดทางอื่น)
-                -- เหยื่อไม่ได้ติดอยู่แล้ว เคลียร์ทิ้งกันค่าค้างไปโผล่รอบหน้า
-                currentLure = nil
-                lure = nil
-            else
-                ok = true
-            end
+            local active = simple or fishing or (FISHING_GET_MINIGAME_STATE() or 0) ~= 0
+            ok = active
         end
 
         if ok then
