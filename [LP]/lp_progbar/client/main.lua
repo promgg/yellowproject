@@ -132,10 +132,27 @@ local seqCurrentDict, seqCurrentAnim
 local function stopSequence()
     seqActive = false
     seqGen    = seqGen + 1
+
+    local ped = PlayerPedId()
+
     if seqCurrentDict and seqCurrentAnim then
-        StopAnimTask(PlayerPedId(), seqCurrentDict, seqCurrentAnim, 1.0)
+        StopAnimTask(ped, seqCurrentDict, seqCurrentAnim, 1.0)
     end
     seqCurrentDict, seqCurrentAnim = nil, nil
+
+    -- ⚠️ StopAnimTask อย่างเดียวไม่พอ ตัวละครค้างขยับไม่ได้หลังจบ progress
+    --
+    -- คลิปในลูปเล่นด้วย flag 2 (AF_HOLD_LAST_FRAME) ซึ่งจงใจให้ค้างเฟรมสุดท้าย
+    -- ไม่หลุดกลับท่ายืน — จำเป็นตอนสลับคลิปให้ต่อเนื่อง แต่แปลว่าถ้าไม่ปลดให้ถูก
+    -- ตัวละครจะแข็งค้างอยู่ท่านั้น
+    --
+    -- และ StopAnimTask หยุดได้แค่ "คลิปที่ระบุ" ตัวเดียว ซึ่งมี race:
+    -- ถ้าเธรดลูปเพิ่งข้ามไปเรียก TaskPlayAnim คลิปถัดไปพอดีตอนที่เราสั่งหยุด
+    -- seqCurrentDict/Anim จะยังชี้คลิปเก่า -> สั่งหยุดผิดตัว คลิปใหม่เล่นค้างต่อ
+    --
+    -- ClearPedTasks ปลดทุกอย่างในทีเดียว ไม่ต้องลุ้นว่าจับคลิปถูกตัวไหม
+    -- (ทางของ scenario ใน stopAnimation ใช้ตัวนี้อยู่แล้ว ทาง sequence เดิมตกไป)
+    ClearPedTasks(ped)
 end
 
 local function playSequence(steps)
@@ -571,4 +588,92 @@ end, false)
 RegisterCommand('progbar_cancel', function()
     local n = CancelAllProgress()
     print(('[lp_progbar] cancelled %d bar(s)'):format(n))
+end, false)
+
+-- ── /progbar_looptest [รอบ] [วินาทีต่อรอบ] ───────────────────────────────────
+-- จำลองเคสจริงของ MJ-Mining / MJ-Lumberjack แบบวนซ้ำ แล้วตรวจให้เองว่า
+-- "จบรอบแล้วตัวละครหลุดจากท่าจริงไหม" — เป็นอาการที่เจอตอนเล่นจริง:
+-- progress จบแล้วแต่ตัวค้าง ขยับไม่ได้
+--
+-- ใช้ค่าเดียวกับที่ MJ-Mining ส่งมาเป๊ะ (sequence 2 คลิปทรานซิชัน + disableMovement)
+-- เพราะบั๊กอยู่ที่ทาง sequence โดยเฉพาะ ไม่ใช่ทาง animDict เดี่ยวหรือ scenario
+local MINING_SEQ = {
+    { animDict = 'amb_work@world_human_pickaxe_new@working@male_a@trans', anim = 'pre_swing_trans_after_swing' },
+    { animDict = 'amb_work@world_human_pickaxe_new@working@male_a@trans', anim = 'after_swing_trans_pre_swing' },
+}
+
+local loopTestRunning = false
+
+RegisterCommand('progbar_looptest', function(_, args)
+    if loopTestRunning then
+        print('[lp_progbar] looptest: กำลังรันอยู่แล้ว — /progbar_cancel เพื่อหยุด')
+        return
+    end
+
+    local rounds  = math.max(1, math.min(tonumber(args[1]) or 3, 20))
+    local seconds = math.max(1, math.min(tonumber(args[2]) or 3, 30))
+
+    loopTestRunning = true
+
+    Citizen.CreateThread(function()
+        local ped  = PlayerPedId()
+        local fail = 0
+
+        print(('[lp_progbar] ===== looptest เริ่ม: %d รอบ รอบละ %d วิ ====='):format(rounds, seconds))
+
+        for i = 1, rounds do
+            -- จำลองให้เหมือนของจริง: mining/lumberjack freeze ped ก่อนเริ่มทุกครั้ง
+            FreezeEntityPosition(ped, true)
+
+            local done = false
+            Progress({
+                duration = seconds * 1000,
+                label = ('looptest รอบ %d/%d'):format(i, rounds),
+                controlDisables = { disableMovement = true },
+                animation = { sequence = MINING_SEQ },
+            }, function() done = true end)
+
+            local guard = 0
+            while not done and guard < (seconds + 10) * 100 do
+                Citizen.Wait(10)
+                guard = guard + 1
+            end
+
+            -- ปลด freeze แบบเดียวกับที่ resetMiningState ทำ
+            FreezeEntityPosition(ped, false)
+
+            -- ให้เวลา blend ออกจากท่าก่อนตรวจ ไม่งั้นจะจับได้ว่ายังเล่นอยู่ทั้งที่กำลังจะจบ
+            Citizen.Wait(700)
+
+            -- ตรวจว่าหลุดจากท่าจริงไหม — ถ้ายังเล่นคลิปใดคลิปหนึ่งอยู่ = ค้าง
+            local stuckOn = nil
+            for _, s in ipairs(MINING_SEQ) do
+                if IsEntityPlayingAnim(ped, s.animDict, s.anim, 3) then
+                    stuckOn = s.anim
+                    break
+                end
+            end
+
+            local frozen    = IsEntityPositionFrozen and IsEntityPositionFrozen(ped) or false
+            local scenario  = IsPedActiveInScenario(ped)
+
+            if stuckOn or frozen or scenario then
+                fail = fail + 1
+                print(('[lp_progbar] รอบ %d  ^1ค้าง^7  anim=%s frozen=%s scenario=%s')
+                    :format(i, tostring(stuckOn), tostring(frozen), tostring(scenario)))
+                -- กู้ให้เองเพื่อให้รอบถัดไปเทสต่อได้ ไม่ต้องออกเกม
+                ClearPedTasks(ped)
+                FreezeEntityPosition(ped, false)
+            else
+                print(('[lp_progbar] รอบ %d  ^2ผ่าน^7  หลุดจากท่าปกติ'):format(i))
+            end
+
+            Citizen.Wait(500)
+        end
+
+        print(('[lp_progbar] ===== looptest จบ: ผ่าน %d/%d รอบ%s ====='):format(
+            rounds - fail, rounds, fail > 0 and ('  ^1ค้าง ' .. fail .. ' รอบ^7') or ''))
+
+        loopTestRunning = false
+    end)
 end, false)
