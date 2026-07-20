@@ -75,7 +75,7 @@ Config.DebugCommands = true
 --
 -- อย่าเปิดพร้อม Config.SimpleMode.Enabled — เลือกอย่างใดอย่างหนึ่ง
 Config.HybridMinigame = {
-    Enabled = false,
+    Enabled = true,
 
     -- ส่งต่อให้ exports.lp_minigame:Fishing() — ดู lp_minigame/config.lua
     Minigame = {
