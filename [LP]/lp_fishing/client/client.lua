@@ -235,21 +235,35 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                         -- ถ้าไม่ได้อยู่ state 7 แล้วห้ามยิง flag ไม่งั้นไปสั่ง state อื่นมั่ว
                         local stillFighting = FISHING_GET_MINIGAME_STATE() == 7
 
+                        local flag  -- flag ที่ตัดสินใจได้ (nil = ไม่ยิง ปล่อย native จัดการ)
+
                         if not called then
                             -- minigame พังไม่ใช่ความผิดผู้เล่น — คืนให้ native สู้ต่อตามปกติ
                             print('[lp_fishing] เรียก lp_minigame:Fishing ไม่ได้: ' .. tostring(passed))
                         elseif not stillFighting then
                             -- เงียบไว้ ไม่ต้องแจ้ง ผู้เล่นรู้อยู่แล้วว่าตัวเองเลิก
                         elseif passed then
-                            FISHING_SET_F_(6, 12)
+                            flag = 12
                         else
-                            FISHING_SET_F_(6, 11)
+                            flag = 11
                             pcall(function()
                                 exports.pNotify:SendNotification({
                                     text = (H and H.FailMsg) or 'ปลาหลุด!',
                                     type = 'error', timeout = 3000,
                                 })
                             end)
+                        end
+
+                        -- ห้ามปลดล็อกทันที — การเซ็ต flag ไม่ได้เปลี่ยน state ทันที
+                        -- เกมใช้อีกหลายเฟรมกว่าจะย้ายออกจาก 7 แต่ลูปหลักวิ่งทุก 4ms
+                        -- ถ้าปลดตรงนี้มันจะเห็น state=7 + ไม่ล็อก แล้วเปิด minigame ซ้ำ
+                        -- (เคสที่เจอ: ตกปลาได้แล้ว minigame เด้งมาอีกรอบ)
+                        --
+                        -- ยิง flag ซ้ำทุกรอบระหว่างรอด้วย เผื่อครั้งแรกไม่ติด — ถ้าไม่ยิงซ้ำ
+                        -- แล้วมันไม่ติด ผู้เล่นจะค้างใน state 7 ตลอด ออกได้ทางเดียวคือเก็บเบ็ด
+                        while fishing and FISHING_GET_MINIGAME_STATE() == 7 do
+                            if flag then FISHING_SET_F_(6, flag) end
+                            Wait(50)
                         end
                         hybridRunning = false
                     end)
