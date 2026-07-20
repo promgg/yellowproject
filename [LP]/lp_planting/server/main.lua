@@ -205,10 +205,13 @@ VORPcore.addRpcCallback('lp_planting:place', function(source, cb, seed, coords, 
         cb({ ok = false, reason = 'quota' }) return
     end
 
-    -- ระยะห่างจากต้นอื่น "ทุกคน" ไม่ใช่แค่ของตัวเอง — ไม่งั้นต้นซ้อนกันได้
-    local minDis = info.zone.minDistance or 3.0
+    -- ระยะห่างเช็คเฉพาะ "ต้นของตัวเอง" เท่านั้น ไม่เช็คของผู้เล่นคนอื่น
+    -- (เดิมเช็คทุกคน ทำให้ปลูกไม่ได้เพราะคนอื่นมาปลูกไว้ก่อนในจุดใกล้ ๆ)
+    -- ยอมให้ต้นของคนละคนซ้อนทับกันได้ — prop เป็นของฝั่ง client ต่างคนต่างเห็นของตัวเอง
+    local minDis = info.zone.minDistance or 1.0
     for _, p in pairs(Plants) do
-        if p.zoneId == info.zoneId and #(p.coords - coords) < minDis then
+        if p.charId == char.charIdentifier and p.zoneId == info.zoneId
+            and #(p.coords - coords) < minDis then
             cb({ ok = false, reason = 'tooclose' }) return
         end
     end

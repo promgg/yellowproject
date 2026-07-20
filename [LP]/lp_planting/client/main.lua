@@ -228,7 +228,8 @@ CreateThread(function()
                 if info and grownSeconds(p) >= info.swapSeconds then
                     despawnProp(p)
                     spawnProp(p) -- spawnProp เลือกโมเดลจากเวลาที่ผ่านไปเองแล้ว
-                    PlaySoundFrontend('CHECKPOINT_PERFECT', 'HUD_MINI_GAME_SOUNDSET', true, 1)
+                    -- ไม่เล่นเสียงตรงนี้: ต้นหลายต้นสลับโมเดลพร้อมกันได้ กลายเป็นเสียงรัวทีเดียวหลายต้น
+                    -- (เสียงตอนเก็บเกี่ยวยังอยู่ อันนั้นเกิดจากการกดของผู้เล่นเอง)
                 end
             end
         end
@@ -261,11 +262,14 @@ RegisterNetEvent('lp_planting:useSeed', function(seed)
     end
 
     placing = true
-    local coords, heading = spotInFront(1.5)
+    -- ระยะ 0 = ลงตรงจุดที่ยืนพอดี (เดิม 1.5 ทำให้ต้นไปโผล่ข้างหน้าตัว)
+    local coords, heading = spotInFront(Config.PlantDistance or 0.0)
 
-    -- เช็คระยะห่างจากต้นของตัวเองก่อน (server เช็คของทุกคนอีกชั้น)
+    -- เช็คระยะห่างจากต้นของตัวเองเท่านั้น — ตาราง Plants ฝั่งนี้มีแต่ของตัวเองอยู่แล้ว
+    -- (server เช็คซ้ำด้วยเงื่อนไขเดียวกัน คือดูเฉพาะต้นของ charIdentifier เดียวกัน
+    --  ไม่ได้เช็คของผู้เล่นคนอื่นแล้ว)
     for _, p in pairs(Plants) do
-        if #(p.coords - coords) < (info.zone.minDistance or 3.0) then
+        if #(p.coords - coords) < (info.zone.minDistance or 1.0) then
             notifyErr('ใกล้ต้นอื่นเกินไป ขยับออกไปหน่อย')
             placing = false
             return
