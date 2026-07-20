@@ -119,7 +119,13 @@ end)
 
 RegisterNetEvent("admin:AddItem")
 AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
-    local xPlayer = VORPcore.getUser(source).getUsedCharacter
+    -- ⚠️ ต้องเก็บ source ใส่ตัวแปรก่อนเสมอ
+    -- source เป็นตัวแปรวิเศษที่ใช้ได้เฉพาะ "ก่อน yield ครั้งแรก" เท่านั้น
+    -- addItem ด้านล่างวิ่งไป DB (yield) พอกลับมา source กลายเป็น nil แล้ว
+    -- ทำให้ TriggerClientEvent ที่แจ้งแอดมินโยน error ทุกครั้งที่แจกของ:
+    --   native 000000002f7a49e6: Argument at index 1 was null
+    local src = source
+    local xPlayer = VORPcore.getUser(src).getUsedCharacter
     local xTarget = VORPcore.getUser(playerID).getUsedCharacter
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
@@ -128,7 +134,7 @@ AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
     -- เดิมอ่านค่าดิบตรงๆ ทำให้ถ้า group จริงเป็น "Admin"/มีช่องว่างเกิน จะไม่ตรงคีย์ "admin" ใน
     -- Config.Perms แล้วเช็คสิทธิ์ล้มเหลวเงียบๆ (ไม่มี error/แจ้งเตือน) ทั้งที่ผู้เล่นเป็นแอดมินจริง —
     -- guard แบบเดียวกับที่ /tp ใช้อยู่แล้ว (บรรทัดบน) เพราะ core_server.lua โหลดหลังไฟล์นี้
-    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
     if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanGiveItem then
         exports.vorp_inventory:addItem(playerID, selectedItem, amount)
         TriggerClientEvent("pNotify:SendNotification", playerID, {
@@ -139,7 +145,7 @@ AddEventHandler("admin:AddItem", function(playerID, selectedItem, amount)
             queue = "left"
         })
         -- แจ้งแอดมินยืนยันความสำเร็จด้วย (เดิมแจ้งแค่เป้าหมาย แอดมินไม่เห็นผลลัพธ์อะไรเลยแม้สำเร็จ)
-        TriggerClientEvent("pNotify:SendNotification", source, {
+        TriggerClientEvent("pNotify:SendNotification", src, {
             text = 'ให้ไอเทม ' .. selectedItem .. ' จำนวน ' .. amount .. ' กับ ' .. nameTarget .. ' เรียบร้อย',
             type = "success",
             timeout = 5000,
@@ -676,12 +682,33 @@ AddEventHandler("admin:revive", function(target)
     end
 end)
 
+-- วาร์ปแอดมินไปหาผู้เล่นเป้าหมาย
+--
+-- ของเดิมพังสามชั้นพร้อมกัน:
+--   1) Sildurs.GetPlayerFromId — global ของ ESX ที่ไม่มีอยู่จริงในโปรเจกต์นี้ (grep ทั้ง repo
+--      ไม่เจอการประกาศเลย) เรียกปุ๊บ throw ทันที "attempt to index a nil value"
+--   2) xTarget.getCoords() / xPlayer.setCoords() — เมธอดของ ESX เช่นกัน ตัวละคร VORP ไม่มี
+--      ต่อให้ Sildurs มีจริงก็ยังพังอยู่ดี
+--   3) ไม่เช็คสิทธิ์เลยสักบรรทัด — ผู้เล่นทั่วไปยิง event นี้เองแล้ววาร์ปไปหาใครก็ได้
+--
+-- ท่าที่ถูกต้องมีอยู่แล้วใน core_server.lua:112-118 (MJADMIN:TeleportSpectate)
 RegisterServerEvent("admin:Spy")
 AddEventHandler("admin:Spy", function(target)
-    local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local xTarget = Sildurs.GetPlayerFromId(target)
-    local coord = xTarget.getCoords()
-    xPlayer.setCoords(coord)
+    local src = source
+
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    if not (Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanTeleport) then return end
+
+    target = tonumber(target)
+    if not target or target == src then return end
+    if not GetPlayerName(target) then return end -- ต้องออนไลน์อยู่จริงตอนนี้
+
+    local targetPed = GetPlayerPed(target)
+    if not targetPed or targetPed == 0 then return end
+
+    local coords = GetEntityCoords(targetPed)
+    TriggerClientEvent("MJADMIN:setCoords", src,
+        { x = coords.x + 0.0, y = coords.y + 0.0, z = coords.z + 0.0 })
 end)
 
 function split(s, delimiter)
@@ -828,35 +855,58 @@ AddEventHandler('admin:healall', function(playerId)
     end
 end)
 
+-- บล็อกไมค์ผู้เล่น
+--
+-- ของเดิมใช้ Sildurs.GetPlayerFromId + xPlayer.triggerEvent() + Sildurs.Math.Round() ซึ่งเป็น
+-- ของ ESX ทั้งหมด และที่ร้ายกว่านั้นคือมัน throw ที่บรรทัด Sildurs ซึ่งอยู่ "ก่อน" MySQL.Async
+-- แปลว่าไม่เคยมีแถวไหนถูกเขียนลง ban_mic เลยแม้แต่ครั้งเดียว — ระบบนี้ไม่เคยทำงานมาก่อน
 RegisterServerEvent('admin:blockMic')
 AddEventHandler('admin:blockMic', function(target, time, reason)
-    local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local xTarget = Sildurs.GetPlayerFromId(target)
+    local src = source
+
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    if not (Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanKick) then return end
+
+    target = tonumber(target)
+    time   = tonumber(time)
+    if not target or not time or time <= 0 then return end
+    if not GetPlayerName(target) then return end
+
+    local targetUser = VORPcore.getUser(target)
+    if not targetUser then return end
+    local xTarget = targetUser.getUsedCharacter
+    if not xTarget then return end
+
+    local license  = xTarget.identifier
+    local seconds  = math.floor(time + 0.5) -- แทน Sildurs.Math.Round
+    local reasonTx = tostring(reason or '-')
+    local targetName = GetPlayerName(target)
+
     MySQL.Async.execute('INSERT INTO `ban_mic` (license, name, time, reason) VALUES (@license, @name, @time, @reason)',
         {
-            ['@license'] = xTarget.getIdentifier(),
-            ['@name'] = GetPlayerName(target),
-            ['@time'] = time,
-            ['@reason'] = reason
-        }, function(result)
-            xPlayer.triggerEvent("pNotify:SendNotification", {
-                text = "<b style='color:green'>บล๊อคการสื่อการ </b> <b style='color:while'>: " ..
-                    GetPlayerName(target) .. " เวลา " .. Sildurs.Math.Round(time) ..
-                    " วินาทีแล้ว</strong>",
+            ['@license'] = license,
+            ['@name']    = targetName,
+            ['@time']    = seconds,
+            ['@reason']  = reasonTx
+        }, function()
+            -- ใช้ src/target ที่เก็บไว้ ไม่ใช่ source — ตรงนี้อยู่หลัง yield ของ MySQL แล้ว
+            TriggerClientEvent("pNotify:SendNotification", src, {
+                text = "<b style='color:green'>บล๊อคการสื่อสาร </b> <b style='color:white'>: " ..
+                    targetName .. " เวลา " .. seconds .. " วินาทีแล้ว</b>",
                 type = "success",
                 timeout = 5000,
                 layout = "topRight",
                 queue = "left"
             })
-            xTarget.triggerEvent("pNotify:SendNotification", {
-                text = "<b style='color:red'>คุณถูกบล๊อคการสื่อการข้อหา </b> <b style='color:while'>: " ..
-                    reason .. " เป็นเวลา" .. Sildurs.Math.Round(time) .. " วินาที</strong>",
-                type = "success",
+            TriggerClientEvent("pNotify:SendNotification", target, {
+                text = "<b style='color:red'>คุณถูกบล๊อคการสื่อสารข้อหา </b> <b style='color:white'>: " ..
+                    reasonTx .. " เป็นเวลา " .. seconds .. " วินาที</b>",
+                type = "error",
                 timeout = 8000,
                 layout = "topRight",
                 queue = "left"
             })
-            xTarget.triggerEvent('admin:GetTimerBlock')
+            TriggerClientEvent('admin:SetTimeBlockMic', target, seconds)
         end)
 end)
 
@@ -884,24 +934,47 @@ AddEventHandler('admin:GetTimerBlockSV', function()
 	
 end) ]]
 
+-- ปลดบล็อกไมค์
+--
+-- มีผู้เรียก 2 ทางที่ต่างกันโดยสิ้นเชิง (client/client.lua:456 กับ :1150):
+--   1) แอดมินกดปลดให้คนอื่น        -> ต้องมีสิทธิ์
+--   2) นับถอยหลังครบแล้วปลดตัวเอง  -> ยิงมาพร้อม server id ของตัวเอง ต้องผ่านโดยไม่ต้องมีสิทธิ์
+-- ถ้าใส่ด่านสิทธิ์แบบเหมารวม ทางที่ 2 จะพังและคนโดนบล็อกจะติดค้างตลอดไป
+--
+-- ของเดิมใช้ Sildurs + เมธอด ESX เหมือน blockMic จึง throw ทุกครั้ง — ประกอบกับที่ blockMic
+-- ไม่เคยเขียน DB สำเร็จ ระบบนี้จึงตายทั้งวงจร ไม่มีใครเคยโดนบล็อกและไม่มีใครเคยปลดได้
 RegisterServerEvent('admin:enableMic')
 AddEventHandler('admin:enableMic', function(playerId)
-    local xPlayer = Sildurs.GetPlayerFromId(playerId)
-    if xPlayer then
-        MySQL.Async.execute('DELETE FROM ban_mic WHERE license = @license', {
-            ['@license'] = xPlayer.getIdentifier()
-        }, function(deleted)
-            xPlayer.triggerEvent('admin:SetTimeBlockMic', 0)
-            xPlayer.triggerEvent("pNotify:SendNotification", {
-                text = '<strong class="green-text">การสื่อการ ของคุณใช้งานได้ปกติ</strong>',
-                type = "success",
-                timeout = 5000,
-                layout = "topRight",
-                queue = "left"
-            })
-            TriggerClientEvent('admin:ShowTextBlockMic', -1, 0, xPlayer.source)
-        end)
+    local src = source
+
+    playerId = tonumber(playerId)
+    if not playerId then return end
+
+    if playerId ~= src then
+        local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+        if not (Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanKick) then return end
     end
+
+    if not GetPlayerName(playerId) then return end
+
+    local targetUser = VORPcore.getUser(playerId)
+    if not targetUser then return end
+    local xTarget = targetUser.getUsedCharacter
+    if not xTarget then return end
+
+    MySQL.Async.execute('DELETE FROM ban_mic WHERE license = @license', {
+        ['@license'] = xTarget.identifier
+    }, function()
+        TriggerClientEvent('admin:SetTimeBlockMic', playerId, 0)
+        TriggerClientEvent("pNotify:SendNotification", playerId, {
+            text = '<strong class="green-text">การสื่อสารของคุณใช้งานได้ปกติแล้ว</strong>',
+            type = "success",
+            timeout = 5000,
+            layout = "topRight",
+            queue = "left"
+        })
+        TriggerClientEvent('admin:ShowTextBlockMic', -1, 0, playerId)
+    end)
 end)
 
 RegisterNetEvent("MJ-attack:attack")

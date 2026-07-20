@@ -95,6 +95,20 @@ CreateThread(function()
 end)
 
 MySQL.ready(function()
+    -- ตาราง ban_mic ไม่เคยมีไฟล์ SQL สร้างให้เลย และโค้ดที่เขียนลงตารางนี้ (admin:blockMic)
+    -- ก็ throw ก่อนถึง query ทุกครั้งมาตลอด จึงไม่เคยรู้ว่าตารางหายไป
+    -- ตอนนี้ blockMic ใช้งานได้จริงแล้ว ต้องมั่นใจว่ามีตารางรองรับ ไม่งั้นจะกลายเป็น error ใหม่
+    MySQL.query([[
+        CREATE TABLE IF NOT EXISTS `ban_mic` (
+            `id`      INT AUTO_INCREMENT PRIMARY KEY,
+            `license` VARCHAR(60)  NOT NULL,
+            `name`    VARCHAR(100) NULL,
+            `time`    INT          NOT NULL DEFAULT 0,
+            `reason`  VARCHAR(255) NULL,
+            INDEX `idx_license` (`license`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ]])
+
     MySQL.Async.fetchAll('SELECT * FROM items', {}, function(result)
 		for _, db_item in pairs(result or {}) do
 			if db_item.id then
