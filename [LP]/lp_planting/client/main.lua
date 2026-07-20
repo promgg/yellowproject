@@ -89,11 +89,20 @@ local function animFertilize()
     })
 end
 
+-- ท่ารดน้ำ — เลิกใช้ scenario WORLD_HUMAN_BUCKET_POUR_LOW ด้วยเหตุผลเดียวกับท่าใส่ปุ๋ย
+-- แต่หนักกว่า: scenario ตัวนี้ให้เกมสร้างถัง (p_bucket03x) ขึ้นมาเอง ส่วน lp_progbar
+-- ตอนจบเรียกแค่ ClearPedTasks ซึ่ง "ไม่เก็บ prop ที่ scenario สร้าง" ถังจึงค้างในโลก
+-- ทุกครั้งที่รดน้ำ กองสะสมเป็นซากไปเรื่อย ๆ
+-- ใช้ animDict ตรง ๆ แล้วให้ lp_progbar สร้าง/เก็บถังให้เอง (มันลบ prop ที่เราสั่งสร้างอยู่แล้ว)
 local function animWater()
+    local male = IsPedMale(PlayerPedId())
     return runProgress({
         duration = 8000, label = 'กำลังรดน้ำ...',
         controlDisables = { disableMovement = true },
-        animation = { task = 'WORLD_HUMAN_BUCKET_POUR_LOW' },
+        animation = male
+            and { animDict = 'amb_work@world_human_bucket_pour@low@male_a@base', anim = 'base' }
+            or  { animDict = 'amb_work@world_human_bucket_pour@low@female_a@base', anim = 'base' },
+        prop = { model = 'p_bucket03x', bone = GetEntityBoneIndexByName(PlayerPedId(), 'SKEL_R_Hand') },
     })
 end
 
