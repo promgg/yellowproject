@@ -510,7 +510,8 @@ function StartEvent()
                     local distance = GetDistanceBetweenCoords(coords, v.Position.x, v.Position.y, v.Position.z, true)
                     if distance < 10 then
                         if distance < 5 then
-                            if v.Disable_Model == false and v.Disable_Model ~= nil then
+                            -- ข้อความ 3D แยกสวิตช์จาก Disable_Model แล้ว (ดู Config.Show3DText)
+                            if Config.Show3DText and v.Disable_Model == false and v.Disable_Model ~= nil then
                                 letSleep = false
                                 if v.Name ~= nil then
                                     DrawText3D(v.Position.x, v.Position.y, v.Position.z + 0.65, v.Name)
@@ -683,7 +684,8 @@ function StartEvent()
                             end
                         end
 
-                        if v.Disable_Model == false and v.Disable_Model ~= nil then
+                        -- ไม่ต้องสตาร์ตลูปข้อความเลยถ้าปิดไว้ (ลูปนี้วิ่ง Wait(1) กินเปล่า)
+                        if Config.Show3DText and v.Disable_Model == false and v.Disable_Model ~= nil then
                             if distance < 4 and Texts == false then
                                 TriggerEvent('nx_crafting:client:displayTexts')
                             end

@@ -15,6 +15,13 @@ Config["Keys"] = {
 }
 
 Config.Debug = true -- true = print debug ตอนเข้า/ออกระยะโต๊ะคราฟ + เตือนถ้ามีหลายโต๊ะอยู่ในระยะพร้อมกัน (F8 console)
+
+-- ข้อความ 3D ลอยเหนือโต๊ะ (Name / Desc ของแต่ละโต๊ะ) — ปิดไว้เพราะใช้ prompt ของ
+-- lp_textui บอกชื่อโต๊ะอยู่แล้ว มีสองอันซ้อนกันรกเปล่าๆ
+--
+-- แยกสวิตช์ออกจาก Disable_Model โดยตั้งใจ: เดิม Disable_Model คุมทั้ง "สร้าง prop"
+-- และ "วาดข้อความ" ด้วยแฟล็กเดียว ถ้าปิดข้อความผ่านตัวนั้นจะไปลบ prop ของโต๊ะทิ้งด้วย
+Config.Show3DText = false
 Config["Font"] = "font4thai"	-- รูปแบบตัวอักษร
 Config["Keys"] = 'G'
 Config["Image_Source"] = "nui://vorp_inventory/html/img/items/" -- ตำแหน่งรูปภาพ
