@@ -155,6 +155,21 @@ local function cancelHoldPrompt()
     exports.lp_textui:CancelHold()
 end
 
+-- NUI ขอให้แจ้งเตือน — ส่งมาแค่ "เหตุผล" ไม่ใช่ข้อความเต็ม
+-- ข้อความอยู่ใน Config.Text ฝั่งนี้ NUI เปลี่ยนเนื้อความเองไม่ได้
+RegisterNUICallback('notify', function(data, cb)
+    local reason = type(data) == 'table' and data.reason or nil
+
+    if reason == 'item_full' then
+        local label = type(data.label) == 'string' and data.label or ''
+        local msg = Config.Text.ItemFull or 'ไอเทมนี้เต็มแล้ว'
+        if label ~= '' then msg = msg .. ' (' .. label .. ')' end
+        notify(msg)
+    end
+
+    cb({ ok = true })
+end)
+
 RegisterNUICallback('close', function(_, cb)
     CurrentStore = nil
     setNui(false)

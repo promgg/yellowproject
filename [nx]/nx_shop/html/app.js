@@ -143,14 +143,18 @@ function renderItems() {
         const full = itemMax(item) === 0;   // ถือครบ limit แล้ว
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = qty > 0 ? 'item-card selected' : 'item-card';
-        card.disabled = full;
+        card.className = full ? 'item-card full' : (qty > 0 ? 'item-card selected' : 'item-card');
         card.innerHTML = `
             <span class="item-name">${item.label}${full ? ' (เต็ม)' : ''}</span>
             <img src="${imageUrl(item)}" alt="">
             <strong>${formatMoney(item.price)}</strong>
         `;
-        if (!full) card.addEventListener('click', () => addItem(item.id, 1));
+        // ของเต็มยังกดได้ แต่กดแล้วต้องบอกเหตุผล — ถ้าปิดปุ่มไปเฉยๆ ผู้เล่นจะกดแล้ว
+        // ไม่มีอะไรเกิดขึ้นโดยไม่รู้ว่าทำไม
+        card.addEventListener('click', () => {
+            if (full) post('notify', { reason: 'item_full', label: item.label });
+            else addItem(item.id, 1);
+        });
         els.items.appendChild(card);
     });
 }

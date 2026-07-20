@@ -193,6 +193,16 @@ h2 {
         var(--slot);
 }
 
+/* ถือครบ limit แล้ว — ยังกดได้เพื่อให้ขึ้นแจ้งเตือนว่าทำไมซื้อไม่ได้ */
+.item-card.full {
+    opacity: 0.45;
+}
+
+.item-card.full:hover {
+    border-color: rgba(180, 70, 60, 0.85);
+    background: var(--slot);
+}
+
 .item-card img {
     width: 72%;
     max-width: 74px;

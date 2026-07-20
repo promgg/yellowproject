@@ -19,6 +19,7 @@ Config.Text = {
     TooFar = 'คุณอยู่ไกลร้านเกินไป',
     InvalidCart = 'รายการสินค้าไม่ถูกต้อง',
     CannotCarry = 'กระเป๋าเต็มหรือรับของไม่ได้',
+    ItemFull = 'ไอเทมนี้เต็มแล้ว ถือเพิ่มไม่ได้',
     NoMoney = 'เงินไม่พอ',
     NoBlackMoney = 'Black money ไม่พอ',
     BankUnavailable = 'ไม่พบบัญชีธนาคาร',
