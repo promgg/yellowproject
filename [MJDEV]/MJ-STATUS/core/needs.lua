@@ -4,8 +4,17 @@ starve = false
 notifstarve = false
 notifthirst = false
 notifstress = false  
-foodtime = Config.HungerTickInterval -- Hunger tick every 90 seconds
-thirsttime = Config.ThirstTickInterval -- Thirst tick every 75 seconds
+-- ค่าที่ต้องลดต่อ 1 รอบ คำนวณจาก "กี่นาทีถึงหมด" ใน config
+-- (เดิมบรรทัดนี้เป็น foodtime/thirsttime ที่อ่าน Config.HungerTickInterval มาแล้วไม่มีใครใช้ต่อ
+--  ส่วนการลดจริง hardcode ไว้ที่ -10 ต่อรอบ ปรับ config เท่าไหร่ก็ไม่มีผล)
+local function drainPerTick(maxValue, minutesToEmpty)
+    local ticks = (minutesToEmpty * 60000) / Config.NeedsTickInterval
+    if ticks <= 0 then return 0 end
+    return maxValue / ticks
+end
+
+local HUNGER_DRAIN = drainPerTick(Config.MaxHunger, Config.HungerMinutesToEmpty)
+local THIRST_DRAIN = drainPerTick(Config.MaxThirst, Config.ThirstMinutesToEmpty)
 stresstime = Config.StressTickInterval 
 
 RegisterNetEvent('vorp:PlayerForceRespawn', function(status)
@@ -93,7 +102,7 @@ end)
 
 CreateThread(function()
     while true do
-        Wait(10000)
+        Wait(Config.NeedsTickInterval)
         if PlayerStatus and next(PlayerStatus) and isLoggedIn then
             local playerPed = PlayerPedId()
             local currentHealth = GetEntityHealth(playerPed)
@@ -116,9 +125,11 @@ CreateThread(function()
                 notifthirst = false
             end
 
-            --  จำกัดค่าหิว/กระหายน้ำไม่ให้เกิน Max
-            PlayerStatus.Hunger = math.max(math.min(PlayerStatus.Hunger - 10, Config.MaxHunger), 0)
-            PlayerStatus.Thirst = math.max(math.min(PlayerStatus.Thirst - 10, Config.MaxThirst), 0)
+            --  ลดหลอด แล้วจำกัดไม่ให้เกิน Max / ต่ำกว่า 0
+            -- floor ไว้เพราะค่าที่ลดต่อรอบอาจเป็นทศนิยม (เช่น 166.67) — ถ้าไม่ปัด สถานะจะถูก
+            -- json.encode ลง DB เป็นทศนิยมยาวๆ อ่านไม่รู้เรื่องเวลาไปเปิดดูในตาราง characters
+            PlayerStatus.Hunger = math.max(math.min(math.floor(PlayerStatus.Hunger - HUNGER_DRAIN), Config.MaxHunger), 0)
+            PlayerStatus.Thirst = math.max(math.min(math.floor(PlayerStatus.Thirst - THIRST_DRAIN), Config.MaxThirst), 0)
 
             -- จำกัดค่า Hunger/Thirst ไม่ให้เกิน Max
             if PlayerStatus.Hunger > Config.MaxHunger then

@@ -153,8 +153,19 @@ Config.MinStamina = 0
 
 Config.SavePlayersStatus      = true        -- Future deprecated. Advised not to use, as it will be removed.
 Config.SaveStatusTickInterval = 300000 -- 5 minutes
-Config.HungerTickInterval = 80000  -- ความหิวจะลดลงทุก ๆ 90 วินาที
-Config.ThirstTickInterval  = 75000  -- ความกระหายจะลดลงทุก ๆ 75 วินาที
+
+-- ── อัตราลดของหลอดหิว/กระหาย ────────────────────────────────────────────────
+-- ตั้งเป็น "กี่นาทีจากเต็มถึงศูนย์" ตรงๆ อ่านแล้วรู้เลยว่าผู้เล่นมีเวลาเท่าไหร่
+-- โค้ดคำนวณค่าที่ลดต่อรอบเอง (needs.lua) ไม่ต้องมานั่งคูณหารเวลาปรับ
+--
+-- ⚠️ ของเดิมคือ Config.HungerTickInterval = 80000 / ThirstTickInterval = 75000 ซึ่ง
+--    "ไม่เคยถูกใช้งานเลย" — needs.lua:7-8 อ่านใส่ตัวแปร foodtime/thirsttime แล้วทิ้งไว้เฉยๆ
+--    ลูปจริงใช้ Wait(10000) ตายตัวและลดทีละ 10 จากเต็ม 100,000
+--    = หลอดหมดใน 27.8 ชั่วโมง ไม่ใช่ 80/75 วินาทีตามที่คอมเมนต์เดิมเขียนไว้
+Config.NeedsTickInterval    = 10000 -- ตรวจ/ลดหลอดทุกกี่ ms (ค่าเดิมที่ hardcode ไว้ใน needs.lua)
+Config.HungerMinutesToEmpty = 100   -- อิ่มเต็ม -> หิวจนหมด ใช้เวลากี่นาที
+Config.ThirstMinutesToEmpty = 100   -- น้ำเต็ม -> หมด ใช้เวลากี่นาที
+
 Config.StressTickInterval = 90000   -- กำหนดให้ค่าความเครียดลดลงทุก ๆ 60 วินาที
 
 Config.FoodItems = {
@@ -163,9 +174,9 @@ Config.FoodItems = {
         Animation = "eat", -- แอนิเมชันกิน
         Effect = "",
         EffectDuration = "",
-        hunger = 3000, -- เพิ่มค่าความหิว
+        hunger = 40000, -- เพิ่มค่าความหิว
         thirst = 0, -- ไม่เพิ่มค่ากระหาย
-        stress = -1000, -- ลดค่าความเครียด
+        stress = -400, -- ลดค่าความเครียด
         stamina = 10 -- เพิ่มค่า Stamina
     },
     ["water"] = {
@@ -174,8 +185,8 @@ Config.FoodItems = {
         Effect = "",
         EffectDuration = "",
         hunger = 0,
-        thirst = 4000,
-        stress = -1000,
+        thirst = 55000,
+        stress = -400,
         stamina = 10
     },
     ["burger"] = {
@@ -183,9 +194,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "PlayerDrunkSaloon1",
         EffectDuration = 1,
-        hunger = 5000,
-        thirst = 10,
-        stress = -10,
+        hunger = 70000,
+        thirst = 0,
+        stress = 0,
         stamina = 10
     },
     ["coffeebeans"] = {
@@ -193,9 +204,9 @@ Config.FoodItems = {
         Animation = "drink",
         Effect = "",
         EffectDuration = "",
-        hunger = 5000,
-        thirst = 2000,
-        stress = -1500,
+        hunger = 70000,
+        thirst = 28000,
+        stress = -600,
         stamina = 1000
     },
 
@@ -208,8 +219,8 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 2000,
-        thirst = 800,
+        hunger = 15000,
+        thirst = 8000,
         stress = 0,
         stamina = 10
     },
@@ -218,8 +229,8 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 1500,
-        thirst = 500,
+        hunger = 10000,
+        thirst = 5000,
         stress = 0,
         stamina = 10
     },
@@ -229,9 +240,69 @@ Config.FoodItems = {
         Effect = "",
         EffectDuration = "",
         hunger = 0,
-        thirst = 500,
-        stress = -1000,
+        thirst = 10000,
+        stress = -400,
         stamina = 10
+    },
+
+    -- ===== ของขายในร้านค้าทั่วไป (nx_shop หมวด food) =====
+    -- 5 ตัวนี้ขายอยู่ในร้านมาตลอดแต่ไม่เคยลงทะเบียนที่นี่ — ผู้เล่นซื้อมาใช้แล้วไม่มีผลอะไรเลย
+    --
+    -- ⚠️ ค่า stress คิดจาก "จุดตาย" ที่ 2,000 ไม่ใช่ Config.MaxStress (100,000)
+    --    เพราะ needs.lua:167-183 เริ่มหักเลือด -20 HP ซ้ำๆ ทันทีที่ Stress แตะ MaxStress*0.02
+    --    ช่วงที่ใช้งานได้จริงจึงเป็น 0-2,000 ส่วนที่เกินนั้นแตะไม่ถึงอยู่แล้วเพราะตายก่อน
+    --    -> เหล้า +10% = +200 (กิน 10 แก้วถึงจุดอันตราย) | บุหรี่ -20% = -400 (มวนเดียวแก้ได้ 2 แก้ว)
+    ["food_canned_beans"] = { -- ถั่วกระป๋อง - เพิ่มอิ่ม 25%
+        prop_name = 'p_can01x',
+        Animation = "eat",
+        Effect = "",
+        EffectDuration = "",
+        hunger = 25000,
+        thirst = 0,
+        stress = 0,
+        stamina = 10
+    },
+    ["food_beer"] = { -- เบียร์ - เพิ่มน้ำ 20% | เพิ่มเครียด 10%
+        prop_name = 'p_bottlebeer01x',
+        Animation = "drink",
+        Effect = "PlayerDrunkSaloon1",
+        EffectDuration = 1,
+        hunger = 0,
+        thirst = 20000,
+        stress = 200,
+        stamina = 10
+    },
+    ["food_brandy"] = { -- บรั่นดี - เพิ่มน้ำ 20% | เพิ่มเครียด 10%
+        prop_name = 'p_bottlenavyrum01x',
+        Animation = "drink",
+        Effect = "PlayerDrunkSaloon1",
+        EffectDuration = 1,
+        hunger = 0,
+        thirst = 20000,
+        stress = 200,
+        stamina = 10
+    },
+    ["food_vodka"] = { -- วิสกี้ - เพิ่มน้ำ 20% | เพิ่มเครียด 10%
+        prop_name = 'p_bottlenavyrum01x',
+        Animation = "drink",
+        Effect = "PlayerDrunkSaloon1",
+        EffectDuration = 1,
+        hunger = 0,
+        thirst = 20000,
+        stress = 200,
+        stamina = 10
+    },
+    ["cigarette"] = { -- บุหรี่ - ลดเครียด 20% | ไม่อิ่ม ไม่แก้กระหาย
+        -- โค้ดรองรับแค่ 2 ท่า (needs.lua:222): "eat" กับที่เหลือทั้งหมดเป็นท่าดื่ม
+        -- ท่าดื่มคือยกมือเข้าปาก ใกล้เคียงการสูบที่สุดในบรรดาที่มี
+        prop_name = 'p_cigarette01x',
+        Animation = "drink",
+        Effect = "",
+        EffectDuration = "",
+        hunger = 0,
+        thirst = 0,
+        stress = -400,
+        stamina = 0
     },
 
     -- ===== เมนูโต๊ะทำอาหาร Valentine / Rhodes / Annesburg =====
@@ -242,8 +313,8 @@ Config.FoodItems = {
         Effect = "",
         EffectDuration = "",
         hunger = 0,
-        thirst = 4500,
-        stress = -1000,
+        thirst = 70000,
+        stress = -400,
         stamina = 10
     },
     ["food_oxtail_soup"] = { -- ซุปหางวัว (Valentine) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -251,9 +322,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 5000,
-        thirst = 2500,
-        stress = -1500,
+        hunger = 70000,
+        thirst = 40000,
+        stress = -600,
         stamina = 50
     },
     ["food_braised_ribs"] = { -- ตุ๋นซี่โครง (Valentine) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -261,9 +332,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 3500,
-        thirst = 1000,
-        stress = -1000,
+        hunger = 50000,
+        thirst = 20000,
+        stress = -400,
         stamina = 30
     },
     ["food_taco"] = { -- ทาโก้ (Valentine) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -271,9 +342,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 2500,
-        thirst = 500,
-        stress = -500,
+        hunger = 40000,
+        thirst = 10000,
+        stress = -200,
         stamina = 20
     },
 
@@ -283,8 +354,8 @@ Config.FoodItems = {
         Effect = "",
         EffectDuration = "",
         hunger = 0,
-        thirst = 4500,
-        stress = -1000,
+        thirst = 70000,
+        stress = -400,
         stamina = 10
     },
     ["food_beef_stew"] = { -- สตูเนื้อ (Rhodes) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -292,9 +363,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 5000,
-        thirst = 2500,
-        stress = -1500,
+        hunger = 70000,
+        thirst = 40000,
+        stress = -600,
         stamina = 50
     },
     ["food_salted_meat_stew"] = { -- เนื้อตุ๋นเกลือ (Rhodes) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -302,9 +373,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 3500,
-        thirst = 1000,
-        stress = -1000,
+        hunger = 50000,
+        thirst = 20000,
+        stress = -400,
         stamina = 30
     },
     ["food_pasta_sauce"] = { -- พาสต้าซอส (Rhodes) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -312,9 +383,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 2500,
-        thirst = 500,
-        stress = -500,
+        hunger = 40000,
+        thirst = 10000,
+        stress = -200,
         stamina = 20
     },
 
@@ -324,8 +395,8 @@ Config.FoodItems = {
         Effect = "",
         EffectDuration = "",
         hunger = 0,
-        thirst = 4500,
-        stress = -1000,
+        thirst = 70000,
+        stress = -400,
         stamina = 10
     },
     ["food_herb_roasted_meat"] = { -- เนื้อย่างสมุนไพร (Annesburg) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -333,9 +404,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 5000,
-        thirst = 2500,
-        stress = -1500,
+        hunger = 70000,
+        thirst = 40000,
+        stress = -600,
         stamina = 50
     },
     ["food_mushroom_rib_soup"] = { -- ต้มซี่โครงเห็ด (Annesburg) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -343,9 +414,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 3500,
-        thirst = 1000,
-        stress = -1000,
+        hunger = 50000,
+        thirst = 20000,
+        stress = -400,
         stamina = 30
     },
     ["food_spaghetti"] = { -- สปาเก็ตตี้ (Annesburg) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -353,9 +424,9 @@ Config.FoodItems = {
         Animation = "eat",
         Effect = "",
         EffectDuration = "",
-        hunger = 2500,
-        thirst = 500,
-        stress = -500,
+        hunger = 40000,
+        thirst = 10000,
+        stress = -200,
         stamina = 20
     }
 }
