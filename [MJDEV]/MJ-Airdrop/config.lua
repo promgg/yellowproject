@@ -88,7 +88,12 @@ Config["Radius"] = 100.0
 Config["Airdrop"] = {
     [1] = {
         ['Label'] = "Airdrop",
-        ['MaxPlayer'] = 10, -- บังคับจริงที่ server (SV:ZonePresence) — ไม่มีระบบเมืองในรีซอร์สนี้ จึงเป็น cap รวมทั้งโซน ไม่ใช่ต่อเมืองเหมือน lp_airdropteam
+        -- เพดานคนในโซน บังคับจริงที่ server (SV:ZonePresence) ทั้งสองค่า
+        --   MaxPlayer  = รวมทั้งโซน
+        --   MaxPerCity = ต่อเมือง (เมืองมาจาก nx_cityselect ฝั่ง server ไม่ได้เชื่อ client)
+        -- ครบค่าไหนก่อนก็เข้าไม่ได้ทั้งคู่
+        ['MaxPlayer']  = 60,
+        ['MaxPerCity'] = 10,
         ['MainBlip'] = {
             sprite = 615597833,
             scale = 1.0,

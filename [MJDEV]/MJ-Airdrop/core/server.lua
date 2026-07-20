@@ -118,6 +118,25 @@ local function tableCount(t)
     return c
 end
 
+-- เมืองของผู้เล่น (จาก nx_cityselect) ใช้คุมเพดานต่อเมืองในโซนแอร์ดรอป
+--
+-- ต้องคืนค่า truthy เสมอ ห้ามคืน nil เด็ดขาด: ค่านี้ถูกเก็บเป็น value ของ ZonePlayers[id][src]
+-- ถ้าเป็น nil คีย์จะถูกลบทิ้งเงียบๆ กลายเป็นว่าคนนั้นไม่เคยเข้าโซน (ทั้งจำนวนคนและ zone lock เพี้ยน)
+--
+-- คนที่ยังไม่เลือกเมืองถูกจับรวมเป็นถังเดียวและโดนเพดานต่อเมืองเหมือนกัน
+-- ไม่ปล่อยผ่าน ไม่งั้นจะกลายเป็นช่องเลี่ยง cap ด้วยการไม่เลือกเมือง
+local NO_CITY = '__nocity__'
+
+local function getPlayerCity(src)
+    local ok, city = pcall(function()
+        return exports['nx_cityselect']:GetPlayerCityId(src)
+    end)
+    if ok and type(city) == 'string' and city ~= '' then
+        return city
+    end
+    return NO_CITY
+end
+
 local function ResetZonePresence()
     ResetZoneLock()
     ZonePlayers = {}
@@ -312,18 +331,36 @@ AddEventHandler(script_name .. ":SV:ZonePresence", function(airdropId, inside)
     ZonePlayers[airdropId] = ZonePlayers[airdropId] or {}
     local set = ZonePlayers[airdropId]
 
-    -- max-occupancy cap (server-enforced) — ไม่มีระบบเมืองในรีซอร์สนี้ จึงคุมเป็นจำนวนรวม
-    -- ทั้งโซนแทน "ต่อเมือง" (ต่างจาก lp_airdropteam ที่มี nx_cityselect ให้ผูก)
+    -- เพดานคนในโซน (บังคับฝั่ง server) — คุมสองชั้น: รวมทั้งโซน และต่อเมือง
+    -- เมืองดึงจาก nx_cityselect ฝั่ง server ไม่ได้รับมาจาก client จึงปลอมไม่ได้
     if inside and not set[src] then
-        local maxPlayer = (Config and Config["Airdrop"] and Config["Airdrop"][airdropId] and Config["Airdrop"][airdropId].MaxPlayer) or 0
+        local cfg = (Config and Config["Airdrop"] and Config["Airdrop"][airdropId]) or {}
+        local maxPlayer  = cfg.MaxPlayer or 0
+        local maxPerCity = cfg.MaxPerCity or 0
+
         if maxPlayer > 0 and tableCount(set) >= maxPlayer then
-            TriggerClientEvent(script_name .. ":CL:ZoneFull", src, airdropId)
+            TriggerClientEvent(script_name .. ":CL:ZoneFull", src, airdropId, "zone")
             return -- ไม่นับเข้า set, ไม่ยิง ZoneCount/zone-lock ต่อให้คนที่ถูกกันไว้
+        end
+
+        if maxPerCity > 0 then
+            local city = getPlayerCity(src)
+            local sameCity = 0
+            for _, c in pairs(set) do
+                if c == city then sameCity = sameCity + 1 end
+            end
+            if sameCity >= maxPerCity then
+                TriggerClientEvent(script_name .. ":CL:ZoneFull", src, airdropId, "city")
+                return
+            end
         end
     end
 
     if inside then
-        set[src] = true
+        -- เก็บ "เมือง" เป็นค่าแทน true เพื่อให้นับต่อเมืองได้โดยไม่ต้องถาม export ซ้ำทุกครั้ง
+        -- โค้ดส่วนอื่นใช้แค่ pairs(set) กับเช็ค truthiness ของ set[src] เลยไม่กระทบ
+        -- (getPlayerCity คืนค่าที่ truthy เสมอ ห้ามคืน nil ไม่งั้น key จะหายไปเงียบๆ)
+        set[src] = set[src] or getPlayerCity(src)
     else
         set[src] = nil
     end

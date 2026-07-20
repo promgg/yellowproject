@@ -1366,11 +1366,19 @@ end)
 -- a local flag; the main loop below actually pushes us back out every tick while
 -- it's true, same enforcement pattern as zone-lock's ejectFromRing
 RegisterNetEvent(script_name .. ":CL:ZoneFull")
-AddEventHandler(script_name .. ":CL:ZoneFull", function(airdropId)
+AddEventHandler(script_name .. ":CL:ZoneFull", function(airdropId, reason)
     airdropId = tonumber(airdropId) or airdropId
     if not airdropId then return end
     ZoneFullBlocked[airdropId] = true
-    nuiLootHint(true, airdropId, "โซนเต็มแล้ว", "รอคนออกก่อนแล้วค่อยลองใหม่", "", "is-locked")
+
+    -- แยกสองสาเหตุให้ชัด ไม่งั้นคนที่โดนกันเพราะโควตาเมืองตัวเองเต็มจะเห็นว่า "โซนเต็ม"
+    -- ทั้งที่ในโซนยังว่างอยู่ แล้วยืนรอเก้อ
+    if reason == "city" then
+        nuiLootHint(true, airdropId, "เมืองของคุณเต็มโควตาแล้ว",
+            "รอคนเมืองเดียวกันออกก่อน", "", "is-locked")
+    else
+        nuiLootHint(true, airdropId, "โซนเต็มแล้ว", "รอคนออกก่อนแล้วค่อยลองใหม่", "", "is-locked")
+    end
 end)
 
 RegisterNetEvent(script_name .. ":CL:ZoneEliminated")
