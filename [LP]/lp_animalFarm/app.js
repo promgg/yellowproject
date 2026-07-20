@@ -52,6 +52,16 @@ function setCardTimer(id, sec) {
   el.textContent = mm + ':' + ss;
 }
 
+function setCardReadyTimer(id, sec) {
+  var card = document.querySelector('.animal-card[data-id="' + id + '"]');
+  var btn = card && card.querySelector('.btn-receive-disabled');
+  if (!btn) return;
+  var s = Math.max(0, sec | 0);
+  var mm = String(Math.floor(s / 60)).padStart(2, '0');
+  var ss = String(s % 60).padStart(2, '0');
+  btn.textContent = mm + ':' + ss;
+}
+
 function clearAllTimers() { /* no-op: ไม่มี local timer แล้ว */ }
 
 // item icons มาจาก vorp_inventory โดยตรง — nui://vorp_inventory/html/img/items/<name>.png
@@ -97,9 +107,19 @@ function buildActionArea(animal) {
   switch (animal.state) {
     case 'loading':
       return '<div class="spinner-wrap"><img src="assets/spinner.png" alt="loading"></div>';
-    case 'receive':
+    case 'receive': {
+      // readyIn > 0 = exp ครบ 100 แล้วแต่ยังไม่ผ่าน Config.readyDelay (server เช็คจริงตอนกดเก็บ)
+      // ปุ่มต้อง inactive ในช่วงนี้ ไม่งั้นผู้เล่นกดแล้วได้แต่ toast บอกให้รอ ทั้งที่ปุ่มดูกดได้
+      var readyIn = animal.readyIn || 0;
+      if (readyIn > 0) {
+        var rm = String(Math.floor(readyIn / 60)).padStart(2, '0');
+        var rs = String(readyIn % 60).padStart(2, '0');
+        return '<div class="receive-icon"><img src="assets/package.png" alt="receive"></div>' +
+               '<button class="btn-receive btn-receive-disabled" disabled>' + rm + ':' + rs + '</button>';
+      }
       return '<div class="receive-icon"><img src="assets/package.png" alt="receive"></div>' +
              '<button class="btn-receive" onclick="onReceive(' + animal.id + ')">RECEIVE</button>';
+    }
     case 'feed': {
       var hungry = (animal.hp != null ? animal.hp : 100) <= 0;
       // เมื่อ hungry ให้แสดง deathTimer (เวลาก่อนตาย) แทน timer ปกติ
@@ -323,6 +343,19 @@ window.addEventListener('message', function(event) {
       data.forEach(function(item) {
         var card = document.querySelector('.animal-card[data-id="' + item.id + '"]');
         if (!card) return;
+
+        // ticket ของสัตว์ state=receive จะมีแค่ field readyIn (ไม่มี hp) — แยกสาขาก่อนแตะ HP bar
+        if (card.className.indexOf('state-receive') !== -1 && item.readyIn !== undefined) {
+          if (item.readyIn <= 0) {
+            // ครบเวลาแล้ว → สลับปุ่มจาก disabled countdown เป็น RECEIVE ที่กดได้จริง
+            var actionEl = card.querySelector('.card-action');
+            if (actionEl) actionEl.innerHTML = buildActionArea({ id: parseInt(card.dataset.id), state: 'receive', readyIn: 0 });
+          } else {
+            setCardReadyTimer(item.id, item.readyIn);
+          }
+          return;
+        }
+
         var hpFill = card.querySelector('.hp-bar-fill');
         if (hpFill) hpFill.style.width = item.hp + '%';
         var hpPct = card.querySelector('.bar-row:first-child .bar-pct');

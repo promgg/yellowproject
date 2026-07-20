@@ -452,6 +452,14 @@ html, body {
   color: #FFFFFF;
 }
 .btn-receive:hover { filter: brightness(1.15); }
+.btn-receive-disabled {
+  cursor: not-allowed;
+  border-color: #555;
+  background: linear-gradient(180deg, #444 0%, #2a2a2a 100%);
+  color: #888;
+  opacity: 0.6;
+}
+.btn-receive-disabled:hover { filter: none; }
 
 .btn-feed {
   font-family: 'Copperplate Gothic', 'Cinzel', serif;

@@ -147,6 +147,10 @@ AddEventHandler('animalfarm:getAnimals', function(zoneType)
             row.timer      = math.max(0, (row.last_fed + Config.hpDecayTime) - now())
             row.deathTimer = math.max(0, deadline - now())
           end
+        elseif row.state == 'receive' and row.last_fed and row.last_fed > 0 then
+          -- ปุ่มเก็บรางวัลต้อง inactive จนกว่า readyDelay จะครบ (ตรงกับเงื่อนไข last_fed<=@ready
+          -- ที่ receiveReward เช็คจริงตอน claim) ไม่งั้นผู้เล่นเห็นปุ่มโชว์ว่าพร้อม แต่กดแล้วโดนบอกให้รอ
+          row.readyIn = math.max(0, (row.last_fed + (Config.readyDelay or 0)) - now())
         end
         -- ตายแล้วไม่ส่งกลับไปให้ NUI อีก การ์ดจะได้ไม่ค้างรอให้กดลบ
         if not died then table.insert(updated, row) end
@@ -363,6 +367,8 @@ AddEventHandler('animalfarm:feedAnimal', function(animalId, zoneType)
                   exp        = newExp,
                   -- เพิ่งให้อาหาร → นับใหม่: หิวอีกครั้งใน hpDecayTime, ตายใน hpDecayTime+feedWindow
                   deathTimer = newState == 'feed' and (Config.hpDecayTime + Config.feedWindow) or 0,
+                  -- exp เพิ่งครบ 100 → last_fed เพิ่งถูกตั้งเป็นตอนนี้เป๊ะ เหลือ readyDelay เต็มจำนวน
+                  readyIn    = newState == 'receive' and (Config.readyDelay or 0) or 0,
                 })
               end
             )
