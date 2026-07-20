@@ -920,9 +920,9 @@ end)
 -- ── โหมดเล็งเหวี่ยงเบ็ด ─────────────────────────────────────────────────────
 -- คลิกขวา 1 ครั้ง = เข้า/ออกโหมดเล็ง | เมาส์ = ทิศ | สกรอลล์ = ระยะ | E = เหวี่ยง
 --
--- ไม่ได้เทเลพอร์ตเบ็ด แต่เซ็ต f_1 (ระยะเหวี่ยงสูงสุด) = ระยะถึง marker แล้วง้าง
--- แทนผู้เล่นด้วย SetControlValueNextFrame พอง้างเต็มก็ลงตรง marker พอดี
--- physics ของเกมยังทำงานปกติทุกอย่าง
+-- ไม่ได้เทเลพอร์ตเบ็ดและไม่ได้ปลอม input — native เป็นคนเหวี่ยงเองตอนผู้เล่นคลิก
+-- (prompt "Cast Fishing Rod" ของเกม) เราแค่เซ็ต f_1 (ระยะเหวี่ยงสูงสุด) = ระยะถึง
+-- marker ก่อน แล้วยึดค่านั้นไว้ระหว่างที่เบ็ดลอยออกไป physics ยังเป็นของเกมทั้งหมด
 
 -- แปลงมุมกล้องเป็นเวกเตอร์ทิศทาง
 local function camForwardVec()
@@ -1003,38 +1003,29 @@ CreateThread(function()
         blockStates[st] = true
     end
 
-    -- ง้างแทนผู้เล่นแล้วปล่อย — เรียกตอนกด E
-    local function doCast(dist)
+    -- เกมเหวี่ยงเองอยู่แล้วเมื่อผู้เล่นคลิก (prompt "Cast Fishing Rod" ของ native)
+    -- เราจึงไม่ปลอม input แค่ตั้ง f_1 = ระยะถึง marker แล้วยึดค่านั้นไว้ตลอด
+    -- ช่วงที่เบ็ดกำลังลอยออกไป ให้เกมใช้ค่าของเราเป็นระยะจริง
+    local function holdCastDistance(dist)
         if aimCasting then return end
         aimCasting = true
         aimActive  = false
 
         CreateThread(function()
-            -- บอกเกมว่าเหวี่ยงได้ไกลสุดเท่าระยะถึง marker
             FISHING_SET_F_(1, dist + 0.0)
 
-            -- ง้าง
-            for _ = 1, (A.ChargeFrames or 30) do
-                SetControlValueNextFrame(0, hToggle, 1.0)
-                Wait(0)
-            end
-            -- ปล่อย (ยังกด aim ค้างไว้ระหว่างสั่ง attack ไม่งั้น native จะยกเลิกการง้าง)
-            for _ = 1, (A.ReleaseFrames or 3) do
-                SetControlValueNextFrame(0, hToggle, 1.0)
-                SetControlValueNextFrame(0, GetHashKey('INPUT_ATTACK'), 1.0)
-                Wait(0)
-            end
+            -- state ที่ถือว่า "เบ็ดกำลังออก" — จาก /fishwatch พบว่าเกมใช้ 13 ไม่ใช่ 2
+            -- เขียน f_1 ซ้ำทุกเฟรมตลอดช่วงนี้ กันเกมคำนวณทับ
+            local holdStates = {}
+            for _, st in ipairs(A.HoldDuringStates or { 2, 13 }) do holdStates[st] = true end
 
-            -- /fishdump บอกว่า f_1 = 0 ตอน state 1 และโค้ดเดิมอ่านค่านี้เฉพาะตอน
-            -- state 2 เท่านั้น → เกมน่าจะคำนวณ f_1 ใหม่ตอนเข้า state 2 แล้วทับของเรา
-            -- เลยเขียนซ้ำทุกเฟรมตลอดช่วง state 2 เพื่อให้ค่าเราเป็นตัวที่มันใช้จริง
             local holdUntil = GetGameTimer() + (A.HoldMaxDistMs or 1500)
             while GetGameTimer() < holdUntil do
                 local st = FISHING_GET_MINIGAME_STATE()
-                if st == 2 then
+                if holdStates[st] then
                     FISHING_SET_F_(1, dist + 0.0)
                 elseif st == 6 or st == 7 or st == 12 then
-                    break -- เบ็ดลงน้ำแล้ว ไม่ต้องยึด f_1 ต่อ
+                    break -- เบ็ดลงน้ำแล้ว ไม่ต้องยึดต่อ
                 end
                 Wait(0)
             end
@@ -1065,7 +1056,7 @@ CreateThread(function()
                 if IsControlJustPressed(0, hToggle) then
                     aimActive = true
                     -- อ่านระยะสูงสุดครั้งเดียวตอนเข้าโหมด — ห้ามอ่านซ้ำทุกเฟรม
-                    -- เพราะ doCast เขียนทับ f_1 เอง ถ้าอ่านซ้ำระยะจะ drift ลงเรื่อยๆ
+                    -- เพราะเราเขียนทับ f_1 เองตอนเหวี่ยง ถ้าอ่านซ้ำระยะจะ drift ลงเรื่อยๆ
                     aimMax = M.MaxDistance or 0.0
                     if aimMax <= 0.0 then
                         local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
@@ -1137,11 +1128,15 @@ CreateThread(function()
                     end
                 end
 
-                -- เหวี่ยง
-                if IsControlJustPressed(0, hCast) then
-                    if wz then
-                        doCast(aimDist)
-                    else
+                -- เหวี่ยง — native ทำเองเมื่อผู้เล่นคลิก เราแค่ตั้งระยะให้ก่อน
+                -- เล็งโดนพื้น = ปิดปุ่มไว้เลย เกมจะเหวี่ยงไม่ออกเอง ไม่ต้องไปยกเลิกทีหลัง
+                if wz then
+                    if IsControlJustPressed(0, hCast) then
+                        holdCastDistance(aimDist)
+                    end
+                else
+                    DisableControlAction(0, hCast, true)
+                    if IsDisabledControlJustPressed(0, hCast) then
                         exports.pNotify:SendNotification({
                             text = A.BlockedMsg or 'ต้องเล็งลงน้ำก่อนถึงจะเหวี่ยงได้',
                             type = 'error',
