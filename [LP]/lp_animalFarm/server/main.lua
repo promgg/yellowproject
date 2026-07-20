@@ -407,12 +407,31 @@ AddEventHandler('animalfarm:receiveReward', function(animalId, zoneType)
 
   -- ── STEP 1: atomic claim — flip receive → claiming (ผู้ชนะ update เท่านั้นได้ไปต่อ) ──
   -- กัน retry/concurrent เก็บซ้ำ (double-claim → item dupe)
+  -- เงื่อนไขเวลาพักหลังให้อาหารครบ ใส่ไว้ใน UPDATE เดียวกับการ claim เลย
+  -- ถ้าแยกไปเช็คก่อนแล้วค่อย update จะมีช่องให้ยิงรัวตอนใกล้ครบเวลาแล้วผ่านสองครั้ง
+  local readyDelay = tonumber(Config.readyDelay) or 0
+  local readyBefore = now() - readyDelay
+
   MySQL.update(
-    'UPDATE animal_farm SET state="claiming" WHERE id=@id AND char_id=@cid AND zone_type=@zone AND state="receive"',
-    { id = animalId, cid = charId, zone = zoneType },
+    'UPDATE animal_farm SET state="claiming" WHERE id=@id AND char_id=@cid AND zone_type=@zone AND state="receive" AND last_fed <= @ready',
+    { id = animalId, cid = charId, zone = zoneType, ready = readyBefore },
     function(claimed)
       if not claimed or claimed == 0 then
-        notify(src, 'Animal not ready to collect')
+        -- แยกให้ออกว่า "ยังไม่ถึงเวลา" กับ "ยังไม่พร้อมเก็บ" — สองอย่างนี้คนละเรื่อง
+        -- ถ้าบอกรวมกันผู้เล่นจะเห็น UI ขึ้นว่าพร้อมแล้วแต่กดไม่ได้ โดยไม่รู้ว่าต้องรอ
+        MySQL.query(
+          'SELECT state, last_fed FROM animal_farm WHERE id=@id AND char_id=@cid LIMIT 1',
+          { id = animalId, cid = charId },
+          function(rows)
+            local row = rows and rows[1]
+            if row and row.state == 'receive' and readyDelay > 0 then
+              local left = math.max(0, (tonumber(row.last_fed) or 0) + readyDelay - now())
+              notify(src, ('ยังเก็บไม่ได้ รออีก %d วินาที'):format(left))
+            else
+              notify(src, 'Animal not ready to collect')
+            end
+          end
+        )
         return
       end
 

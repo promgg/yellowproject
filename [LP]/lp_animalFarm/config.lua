@@ -5,7 +5,7 @@ Config.zoneRadius  = 30.0          -- metres around zone coords
 Config.holdMs      = 900           -- กดค้าง E กี่ ms ถึงเปิด (เท่ากับ MJ-Lumberjack/MJ-Mining/MJ-Planting)
 
 -- ── ต้นทุนในการเพิ่มสัตว์ (money sink กัน item printer) ───────────────
-Config.addPrice    = 10           -- ราคาซื้อสัตว์ต่อ 1 ตัวตอน Add
+Config.addPrice    = 5            -- ราคาซื้อสัตว์ต่อ 1 ตัวตอน Add
 Config.moneyType   = 0            -- 0 = dollars, 1 = gold (VORP removeCurrency type)
 
 -- ped settings
@@ -16,6 +16,11 @@ Config.pedOffset   = { x = 0.0, y = 0.0, z = 0.0 }  -- spawn offset from player 
 Config.feedWindow  = 5 * 60      -- seconds player has to feed before animal dies (5 min)
 Config.hpDecayTime = 5 * 60      -- seconds for HP to drain from 100 → 0 (5 min)
                                  -- feedsRequired × hpDecayTime = เวลาต่อรอบ (5 × 5 นาที = 25 นาที)
+
+-- เวลาที่ต้องรอหลังให้อาหารครบ (exp ครบ 100) ถึงจะเก็บรางวัลได้
+-- นับจาก last_fed ในตาราง animal_farm — server บังคับในคำสั่ง UPDATE ตอน claim เลย
+-- ตั้ง 0 = เก็บได้ทันทีเหมือนเดิม
+Config.readyDelay  = 5 * 60      -- seconds (5 min)
 
 -- รูปไอเทม (อาหาร/ของรางวัล) ดึงจาก vorp_inventory อัตโนมัติจากชื่อ item:
 --   nui://vorp_inventory/html/img/items/<item_name>.png   (ตั้งใน app.js: ITEM_ICON_BASE)
@@ -34,7 +39,7 @@ Config.Zones = {
     feedsRequired = 1,
     nameTH    = 'เลี้ยงใบสัน',
     itemFeed  = { { name = 'job_animalfood', qty = 1 } },
-    itemReward = { { name = 'meat_large', qty = 2 } },
+    itemReward = { { name = 'meat_large', qty = 5 } },
     blip = {
       sprite = -1646261997,         -- sprite hash (int)
       scale  = 0.5,
@@ -49,7 +54,7 @@ Config.Zones = {
     feedsRequired = 1,
     nameTH    = 'เลี้ยงเสือ',
     itemFeed  = { { name = 'job_animalfood', qty = 1 } },
-    itemReward = { { name = 'meat_large', qty = 2 } },
+    itemReward = { { name = 'meat_large', qty = 5 } },
     blip = {
       sprite = -1646261997,
       scale  = 0.5,
@@ -57,14 +62,14 @@ Config.Zones = {
     },
   },
   ['croc'] = {
-    coords    = vector4(1377.7518, -843.0614, 69.9767, 25.9582),
+    coords    = vector4(1430.5101, -875.3314, 58.3869, 25.9582),
     pedModel  = 'a_c_alligator_01',
     image     = 'nui://vorp_inventory/html/img/items/animal_alligator.png',
     maxSlots  = 5,
     feedsRequired = 1,
     nameTH    = 'เลี้ยงจรเข้',
     itemFeed  = { { name = 'job_animalfood', qty = 1 } },
-    itemReward = { { name = 'meat_large', qty = 2 } },
+    itemReward = { { name = 'meat_large', qty = 5 } },
     blip = {
       sprite = -1646261997,
       scale  = 0.5,
