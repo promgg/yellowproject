@@ -211,7 +211,27 @@ RegisterNetEvent("!MJ-Lumberjack:itemAwarded", function(itemName)
 end)
 
 -- ── Tree scan (ทุก 500ms) ────────────────────────
-local cachedTree = nil  -- shared ระหว่าง loop กับ marker
+-- คืน "ทุกต้น" ที่ตัดได้ในรัศมี (GetTreeNearby เดิมคืนต้นใกล้สุดต้นเดียว)
+-- ใช้วาด marker ให้ครบทุกต้นในโซน ไม่ใช่แค่ต้นที่ใกล้ที่สุด
+local function GetTreesNearby(coords, radius, hash_filter)
+    local itemSet = CreateItemset(true)
+    local size = Citizen.InvokeNative(0x59B57C4B06531E1E, coords, radius, itemSet, 3, Citizen.ResultAsInteger())
+    local out = {}
+    if size > 0 then
+        for i = 0, size - 1 do
+            local entity = GetIndexedItemInItemset(i, itemSet)
+            local hash   = GetEntityModel(entity)
+            if hash_filter[hash] then
+                out[#out + 1] = { entity = entity, model_hash = hash, vector_coords = GetEntityCoords(entity) }
+            end
+        end
+    end
+    if IsItemsetValid(itemSet) then DestroyItemset(itemSet) end
+    return out
+end
+
+local cachedTree  = nil  -- ต้นใกล้สุด — ใช้ตอนกดตัดกับ hint
+local cachedTrees = {}   -- ทุกต้นในโซน — ใช้วาด marker
 
 Citizen.CreateThread(function()
     repeat Citizen.Wait(5000) until LocalPlayer.state.IsInSession
@@ -220,9 +240,17 @@ Citizen.CreateThread(function()
         if not isChopping then
             local pos = GetEntityCoords(PlayerPedId())
             if isPlayerInLumberZone(pos) then
-                cachedTree = GetTreeNearby(pos, Config.TreeScanRange or 25.0, ALLOWED_TREES)
-            else
+                -- สแกนครั้งเดียวได้ทั้งลิสต์ แล้วหาต้นใกล้สุดจากลิสต์นั้นเลย ไม่ต้องเรียก native ซ้ำ
+                cachedTrees = GetTreesNearby(pos, Config.TreeScanRange or 60.0, ALLOWED_TREES)
                 cachedTree = nil
+                local best
+                for _, t in ipairs(cachedTrees) do
+                    local d = #(pos - t.vector_coords)
+                    if not best or d < best then best = d; cachedTree = t end
+                end
+            else
+                cachedTree  = nil
+                cachedTrees = {}
             end
         end
     end
@@ -266,16 +294,24 @@ end
 Citizen.CreateThread(function()
     repeat Citizen.Wait(5000) until LocalPlayer.state.IsInSession
     while true do
-        if hasChoppableTree() then
-            local tc = cachedTree.vector_coords
-            Citizen.InvokeNative(0x2A32FAA57B937173,
-                0x94FDAE17,
-                tc.x, tc.y, tc.z,
-                0, 0, 0, 0, 0, 0,
-                0.3, 0.3, 1.0,
-                230, 230, 0, 155,
-                0, 0, 0, 2, 0, 0, 0, 0)
-            Citizen.Wait(0)
+        -- วาดทุกต้นที่ตัดได้ในรัศมีสแกน ไม่ใช่แค่ต้นที่ใกล้ที่สุด
+        -- (ต้นที่เพิ่งตัดไปจะไม่ขึ้น marker เพราะยังติด cooldown อยู่)
+        if not isChopping and #cachedTrees > 0 then
+            local drew = false
+            for _, t in ipairs(cachedTrees) do
+                if not isTreeAlreadyChopped(t.vector_coords) then
+                    local tc = t.vector_coords
+                    drew = true
+                    Citizen.InvokeNative(0x2A32FAA57B937173,
+                        0x94FDAE17,
+                        tc.x, tc.y, tc.z,
+                        0, 0, 0, 0, 0, 0,
+                        0.3, 0.3, 1.0,
+                        230, 230, 0, 155,
+                        0, 0, 0, 2, 0, 0, 0, 0)
+                end
+            end
+            Citizen.Wait(drew and 0 or 300)
         else
             Citizen.Wait(300)
         end
@@ -451,4 +487,63 @@ RegisterCommand('chopscenario_test', function()
 
     print('[chopscenario_test] started WORLD_HUMAN_TREE_CHOP_RAYFIRE')
     testScenarioActive = true
+end, false)
+
+-- ── /lumberscan — เครื่องมือ dev: นับต้นไม้ในพื้นที่ ────────────────────────
+-- ใช้สำรวจว่าโซนนี้มีต้นไม้ที่ตัดได้กี่ต้น แยกตามโมเดล และมีโมเดลอะไรบ้างที่ยังไม่ได้อนุญาต
+-- (โมเดลที่ไม่ได้อยู่ใน Config.Trees จะตัดไม่ได้ ถ้าเห็นว่ามีเยอะอาจอยากเพิ่มเข้า config)
+RegisterCommand('lumberscan', function(_, args)
+    local radius = tonumber(args[1]) or (Config.TreeScanRange or 60.0)
+    local pos = GetEntityCoords(PlayerPedId())
+
+    local itemSet = CreateItemset(true)
+    local size = Citizen.InvokeNative(0x59B57C4B06531E1E, pos, radius, itemSet, 3, Citizen.ResultAsInteger())
+
+    local allowed, allowedByModel = 0, {}
+    local other, otherByHash = 0, {}
+    local chopped = 0
+
+    if size > 0 then
+        for i = 0, size - 1 do
+            local ent  = GetIndexedItemInItemset(i, itemSet)
+            local hash = GetEntityModel(ent)
+            local name = ALLOWED_TREES[hash]
+            if name then
+                allowed = allowed + 1
+                allowedByModel[name] = (allowedByModel[name] or 0) + 1
+                if isTreeAlreadyChopped(GetEntityCoords(ent)) then chopped = chopped + 1 end
+            else
+                other = other + 1
+                otherByHash[hash] = (otherByHash[hash] or 0) + 1
+            end
+        end
+    end
+    if IsItemsetValid(itemSet) then DestroyItemset(itemSet) end
+
+    local zoneName = 'นอกโซน'
+    for _, z in pairs(Config.lumberZone) do
+        if #(pos - z.Coords) <= z.Radius then zoneName = z.Name break end
+    end
+
+    print('^3───────── /lumberscan ─────────^7')
+    print(('โซน: %s | รัศมีสแกน: %.0f m | object ทั้งหมดที่เจอ: %d'):format(zoneName, radius, size))
+    print(('^2ตัดได้: %d ต้น^7 (ติด cooldown อยู่ %d)'):format(allowed, chopped))
+    for name, n in pairs(allowedByModel) do
+        print(('   %-40s %d'):format(name, n))
+    end
+
+    -- โมเดลที่ไม่อยู่ใน config — เรียงจากมากไปน้อย เอาไปพิจารณาเพิ่มได้
+    local list = {}
+    for hash, n in pairs(otherByHash) do list[#list+1] = { hash = hash, n = n } end
+    table.sort(list, function(a, b) return a.n > b.n end)
+    print(('^3object อื่นที่ตัดไม่ได้: %d ชิ้น (%d โมเดล) — 10 อันดับแรก:^7'):format(other, #list))
+    for i = 1, math.min(10, #list) do
+        print(('   hash %-14s x%d'):format(tostring(list[i].hash), list[i].n))
+    end
+    print('^3────────────────────────────────^7')
+
+    exports.pNotify:SendNotification({
+        type = 'info',
+        text = ('%s — ตัดได้ %d ต้นในรัศมี %.0f m (ดูรายละเอียดใน F8)'):format(zoneName, allowed, radius),
+        timeout = 6000 })
 end, false)

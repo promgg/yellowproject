@@ -18,9 +18,9 @@ Config.RockCooldown   = 900000  -- 15 นาที (ms)
 -- ระยะกด E ขุดจริง (marker/scan หาไกลกว่านี้ได้เพื่อนำทาง แต่ hint+E ใช้รัศมีนี้เท่านั้น กันเห็น hint แต่กดไม่ติด)
 Config.MineRange = 3.0
 
--- ระยะที่ marker ขึ้นเหนือก้อนแร่ (ต้องกว้างกว่า MineRange เพื่อให้ผู้เล่นเห็นก่อนถึง)
--- เดิม hardcode 5.0 อยู่ในลูปวาด marker เลยโผล่ตอนยืนเกือบชิดแล้ว หาแร่ยาก
-Config.MarkerRange = 25.0
+-- ระยะที่ marker ขึ้นเหนือก้อนแร่ — ขึ้น "ทุกก้อน" ในระยะนี้ ไม่ใช่แค่ก้อนที่ใกล้สุด
+-- ตั้ง 80 ให้ครอบทั้งโซน (RocksZone รัศมี 50) ได้แม้ยืนริมขอบ
+Config.MarkerRange = 80.0
 
 -- ระยะสตรีมหิน (เมตร): สร้าง object หินเฉพาะก้อนที่อยู่ในรัศมีนี้รอบผู้เล่น ลบเมื่อออกไกล
 -- เพราะสร้างตอนผู้เล่นอยู่ใกล้ collision จะโหลดแล้ว หินตกพื้นถูก (กันหินลอยกลางอากาศ) + ไม่เปลือง object
@@ -69,8 +69,11 @@ Config.RocksZone = {
 --   mode = "random" : สุ่มกระจาย count ก้อนในรัศมี center รอบจุดศูนย์กลาง ไม่ต้องวางเองทีละก้อน
 --                      (minSpacing = ระยะห่างขั้นต่ำระหว่างก้อน กันวางทับกัน, default 7.0 เมตร)
 Config.MiningZones = {
-    { mode = "random", center = vector3(-60.8620, 173.0856, 98.3558), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Valentine
-    { mode = "random", center = vector3(1501.8263, -1848.4946, 57.7638), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Rhodes
+    -- count 6 -> 10 ก้อนต่อเมือง (radius 20 คงเดิม — จำลองอัลกอริทึม buildRockDefs 2000 รอบแล้ว
+    -- ใส่ 10 ก้อนที่ระยะห่าง 7 ม. ได้ครบทุกรอบ ไม่มีก้อนไหนตกไปใช้ fallback ที่วางทับกัน
+    -- ไม่ขยายรัศมีดีกว่า ก้อนจะได้ไม่กระจายออกไปโผล่บนภูมิประเทศที่ยังไม่ได้ตรวจ)
+    { mode = "random", center = vector3(-60.8620, 173.0856, 98.3558), radius = 20.0, count = 10, minSpacing = 7.0 }, -- Valentine
+    { mode = "random", center = vector3(1501.8263, -1848.4946, 57.7638), radius = 20.0, count = 10, minSpacing = 7.0 }, -- Rhodes
     -- { mode = "random", center = vector3(2354.3000, 1413.1196, 102.4316), radius = 20.0, count = 6, minSpacing = 7.0 }, -- Annesburg
 
     -- { mode = "manual", coords = vector3(-60.8620, 173.0856, 98.3558) }, -- Valentine
@@ -81,6 +84,8 @@ Config.MiningZones = {
     { mode = "manual", coords = vector3(2327.9375, 1433.3787, 89.2085) }, -- Annesburg
     { mode = "manual", coords = vector3(2329.3333, 1450.4409, 89.3269) }, -- Annesburg
     { mode = "manual", coords = vector3( 2356.1023, 1403.9558, 104.3499) }, -- Annesburg   
+    -- ⚠️ Annesburg เป็น manual (ภูมิประเทศเป็นเหมืองหลายระดับ สุ่มแล้วก้อนไปโผล่กลางอากาศ/ในหิน)
+    --    ตอนนี้มี 6 จุด รออีก 4 จุดจากพิกัดที่เดินเก็บในเกม
 }
 
 Config.MiningObject = "old_hen_rock_scree_sim_08"

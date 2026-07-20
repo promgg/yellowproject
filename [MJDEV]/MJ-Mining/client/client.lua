@@ -410,3 +410,58 @@ AddEventHandler('onResourceStop', function(name)
         if zone.BlipHandle then RemoveBlip(zone.BlipHandle) end
     end
 end)
+
+-- ── /miningscan — เครื่องมือ dev: นับก้อนแร่ในพื้นที่ ────────────────────────
+-- ดูว่าแต่ละโซนสร้างก้อนไปกี่ก้อน ก้อนไหน spawn ติดจริง ก้อนไหนติด cooldown อยู่
+-- ใช้ยืนยันว่า count ใน Config.MiningZones ได้ผลจริงกี่ก้อน (สุ่มอาจวางไม่ครบถ้าที่ไม่พอ)
+RegisterCommand('miningscan', function()
+    local pos = GetEntityCoords(PlayerPedId())
+    local now = GetGameTimer()
+
+    -- นับตาม def ที่คำนวณไว้ (rockDefs) เทียบกับ object ที่สร้างจริง (spawned)
+    local perZone = {}
+    for _, d in ipairs(rockDefs) do
+        local zi = tostring(d.key):match('^z(%d+)_') or '?'
+        perZone[zi] = perZone[zi] or { defs = 0, alive = 0, cooling = 0, town = d.town }
+        local z = perZone[zi]
+        z.defs = z.defs + 1
+        local obj = spawned[d.key]
+        if obj and DoesEntityExist(obj) then
+            z.alive = z.alive + 1
+            if usedUntil[d.key] and now < usedUntil[d.key] then z.cooling = z.cooling + 1 end
+        end
+    end
+
+    print('^3───────── /miningscan ─────────^7')
+    print(('อยู่ในโซน: %s'):format(tostring(isInZone)))
+
+    local totalDefs, totalAlive = 0, 0
+    for zi, z in pairs(perZone) do
+        local cfg  = Config.MiningZones[tonumber(zi)]
+        local mode = cfg and cfg.mode or '?'
+        local want = (cfg and cfg.mode == 'random') and (cfg.count or 0) or 1
+        totalDefs, totalAlive = totalDefs + z.defs, totalAlive + z.alive
+        print(('  โซน %-3s [%-6s] %-12s ตั้งไว้ %-3d สร้าง def %-3d spawn จริง %-3d ติด cooldown %d')
+            :format(zi, mode, tostring(z.town or '-'), want, z.defs, z.alive, z.cooling))
+    end
+
+    -- ก้อนที่อยู่ใกล้ตัวตอนนี้ (ในระยะ marker)
+    local near = 0
+    for key, obj in pairs(spawned) do
+        if DoesEntityExist(obj) and #(pos - GetEntityCoords(obj)) <= (Config.MarkerRange or 80.0) then
+            near = near + 1
+        end
+    end
+
+    print(('^2รวม: def %d ก้อน | spawn จริง %d ก้อน | อยู่ในระยะ marker ตอนนี้ %d ก้อน^7')
+        :format(totalDefs, totalAlive, near))
+    if totalAlive < totalDefs then
+        print('^3หมายเหตุ: spawn ไม่ครบ มักเกิดจากโมเดลโหลดไม่ทัน หรือจุดนั้นอยู่ไกลเกิน StreamRadius^7')
+    end
+    print('^3────────────────────────────────^7')
+
+    exports.pNotify:SendNotification({
+        type = 'info',
+        text = ('ก้อนแร่: spawn %d/%d | ใกล้ตัว %d (ดูรายละเอียดใน F8)'):format(totalAlive, totalDefs, near),
+        timeout = 6000 })
+end, false)
