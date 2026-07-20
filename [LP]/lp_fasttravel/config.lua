@@ -73,6 +73,17 @@ Config.BlipColors = {
 -- ─── สถานี ─────────────────────────────────────────────────────────────────
 -- พิกัดอ้างอิงจาก [BCC]/bcc-train/configs/stations.lua -> npc.coords (จุดขายตั๋ว)
 -- ใช้พิกัด NPC แทน train.coords เพราะพิกัดรถไฟอยู่บนราง ไม่ปลอดภัยที่จะวาร์ปคนไปยืน
+--
+-- ⚠️ `coords` กับ `arrival` คนละหน้าที่กัน แยกกันโดยตั้งใจ:
+--    coords  = จุดยืนของ NPC / ตำแหน่ง blip / รัศมีที่กด E เปิดเมนู / ระยะที่ใช้คิดราคา
+--    arrival = จุดที่วาร์ปคนไปโผล่จริง
+--    เดิมใช้ coords ทำทั้งสองอย่าง คนเลยวาร์ปไปโผล่ทับตัว NPC พอดี
+--    arrival เป็นพิกัดที่เดินเก็บจากในเกมจริง ห่างจาก NPC 2.8-16.9 ม. (Annesburg ไกลสุด)
+--    ทุกจุดยังอยู่ในรัศมี CurrentStationRadius (50 ม.) จึงยังนับเป็น "สถานีปัจจุบัน" หลังวาร์ปถึง
+--
+-- `airdropTeam` = id ทีมใน lp_airdropteam/config.lua -> Config.Team.teams
+--    สถานีที่ใส่ค่านี้จะมีปุ่มเข้าร่วมแอร์ดรอปโผล่ในเมนู (เข้าได้เฉพาะทีมของสถานีนั้น)
+--    เว้นเป็น nil = ไม่มีปุ่ม (Emerald / Riggs ไม่มีทีมของตัวเอง)
 Config.Stations = {
     {
         id            = 'valentine',
@@ -80,8 +91,11 @@ Config.Stations = {
         description   = 'เมืองปศุสัตว์คึกคักแห่งนิวแฮนโนเวอร์ ศูนย์กลางการค้าและปศุสัตว์',
         image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#b0453d',
-        coords        = vector3(-172.9, 629.79, 114.03),
-        heading       = 228.81,
+        coords        = vector3(-178.0618, 627.9431, 114.0896),
+        heading       = 154.0,
+        arrival       = vector3(-171.9251, 625.1652, 114.0820),
+        arrivalHeading = 232.9141,
+        airdropTeam   = 'A',
         priceOverride = nil, -- ใส่ตัวเลขถ้าอยากตั้งราคาคงที่แทนสูตรระยะทาง
         jobsEnabled   = false,
         jobs          = { -- ex. { name = 'conductor', grade = 0 }
@@ -93,8 +107,10 @@ Config.Stations = {
         description   = 'ฟาร์มปศุสัตว์เล็กๆ ริมทะเลสาบ Owanjila',
         image         = '',
         color         = '#4d7ab5',
-        coords        = vector3(1525.18, 442.51, 90.68),
-        heading       = 270.86,
+        coords        = vector3(1523.6372, 442.5369, 90.6785),
+        heading       = -89.1400,
+        arrival       = vector3(1526.3903, 442.3490, 90.7299),
+        arrivalHeading = 320.5089,
         priceOverride = nil,
         jobsEnabled   = false,
         jobs          = {},
@@ -105,8 +121,11 @@ Config.Stations = {
         description   = 'เมืองทางใต้แห่งเลมอยน์ ดินแดนของเกียรติยศและกฎหมาย',
         image         = '',
         color         = '#4d9e5c',
-        coords        = vector3(1227.89, -1300.21, 76.91),
-        heading       = 135.87,
+        coords        = vector3(1230.2825, -1298.4816, 76.9543),
+        heading       = -135.1912,
+        arrival       = vector3(1225.6819, -1303.8241, 76.9526),
+        arrivalHeading = 152.1019,
+        airdropTeam   = 'B',
         priceOverride = nil,
         jobsEnabled   = false,
         jobs          = {},
@@ -117,8 +136,11 @@ Config.Stations = {
         description   = 'เมืองเหมืองถ่านหินทางตะวันออกของนิวแฮนโนเวอร์ ริม Roanoke Ridge',
         image         = '',
         color         = '#8a5ac2',
-        coords        = vector3(2941.52, 1286.11, 44.64),
-        heading       = 242.69,
+        coords        = vector3(2930.8950, 1274.2233, 44.7028),
+        heading       = 5.9054,
+        arrival       = vector3(2947.0688, 1278.9983, 44.6819),
+        arrivalHeading = 236.9577,
+        airdropTeam   = 'C',
         priceOverride = nil,
         jobsEnabled   = false,
         jobs          = {},
@@ -129,8 +151,10 @@ Config.Stations = {
         description   = 'ป้ายรถไฟกลางทะเลทรายเวสต์เอลิซาเบธ',
         image         = '',
         color         = '#c2953c',
-        coords        = vector3(-1098.82, -575.78, 82.39),
-        heading       = 168.87,
+        coords        = vector3(-1094.4144, -577.5806, 82.4100),
+        heading       = 63.3,
+        arrival       = vector3(-1097.5092, -579.7670, 82.4579),
+        arrivalHeading = 141.2697,
         priceOverride = nil,
         jobsEnabled   = false,
         jobs          = {},

@@ -19,12 +19,101 @@
 
   function closeMenu() {
     post('closeMenu');
+    stopAirdropTimer();
     hideUI();
   }
 
   function confirmTravel(stationId) {
     post('confirmTravel', { stationId: stationId });
+    stopAirdropTimer();
     hideUI();
+  }
+
+  // ── ปุ่มแอร์ดรอปบนหัวเมนู ──
+  // ตัวจับเวลาเดินฝั่ง NUI จากค่าที่ server ส่งมาตอนเปิดเมนู ไม่ได้ถาม server ซ้ำทุกวินาที
+  // เมนูเปิดอยู่แค่ไม่กี่วินาที ความคลาดเคลื่อนจึงไม่มีนัยสำคัญ และ server ตรวจซ้ำตอนกดอยู่แล้ว
+  var _airdropTimer = null;
+
+  function stopAirdropTimer() {
+    if (_airdropTimer) { clearInterval(_airdropTimer); _airdropTimer = null; }
+  }
+
+  function fmtClock(ms) {
+    var total = Math.max(0, Math.floor(ms / 1000));
+    var m = Math.floor(total / 60);
+    var s = total % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function renderAirdrop(ad) {
+    var slot = document.getElementById('airdrop-slot');
+    stopAirdropTimer();
+    slot.innerHTML = '';
+
+    // สถานีนี้ไม่มีทีมแอร์ดรอป (Emerald / Riggs) — ไม่ต้องมีปุ่ม
+    if (!ad) { slot.classList.add('hidden'); return; }
+    slot.classList.remove('hidden');
+
+    var pill = document.createElement('div');
+    pill.className = 'airdrop-pill';
+
+    var label = document.createElement('div');
+    label.className = 'airdrop-label';
+    var strong = document.createElement('strong');
+    strong.textContent = 'แอร์ดรอป';
+    var sub = document.createElement('span');
+    sub.textContent = ad.teamLabel || '';
+    label.appendChild(strong);
+    label.appendChild(sub);
+    pill.appendChild(label);
+
+    var timer = null;
+    if (ad.state === 'open' && ad.remainingMs > 0) {
+      timer = document.createElement('div');
+      timer.className = 'airdrop-timer';
+      timer.textContent = fmtClock(ad.remainingMs);
+      pill.appendChild(timer);
+    }
+
+    var btn = document.createElement('button');
+    btn.className = 'airdrop-btn';
+
+    var texts = {
+      open:   'เข้าร่วม',
+      locked: 'หมดเวลาเข้าร่วม',
+      joined: 'เข้าร่วมแล้ว',
+      closed: 'ยังไม่เปิดรอบ'
+    };
+    btn.textContent = texts[ad.state] || texts.closed;
+
+    if (ad.state === 'open') {
+      btn.addEventListener('click', function () {
+        post('joinAirdrop', { stationId: ad.stationId });
+        hideUI();
+      });
+    } else {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+    }
+    pill.appendChild(btn);
+    slot.appendChild(pill);
+
+    if (timer) {
+      var endAt = Date.now() + ad.remainingMs;
+      _airdropTimer = setInterval(function () {
+        var left = endAt - Date.now();
+        if (left <= 0) {
+          // หมดเวลาระหว่างเมนูเปิดค้างอยู่ — ปิดปุ่มทันที ไม่ให้กดแล้วเจอ error เปล่าๆ
+          stopAirdropTimer();
+          timer.remove();
+          btn.textContent = texts.locked;
+          btn.disabled = true;
+          btn.classList.add('disabled');
+          return;
+        }
+        timer.textContent = fmtClock(left);
+      }, 1000);
+    }
   }
 
   function renderCooldown(seconds) {
@@ -109,10 +198,12 @@
     switch (data.type) {
       case 'openMenu':
         renderCooldown(data.cooldown || 0);
+        renderAirdrop(data.airdrop || null);
         renderStations(data.stations || [], data.cooldown || 0);
         showUI();
         break;
       case 'closeMenu':
+        stopAirdropTimer(); // ไม่ปล่อยให้ interval เดินต่อหลังปิดเมนู
         hideUI();
         break;
     }
