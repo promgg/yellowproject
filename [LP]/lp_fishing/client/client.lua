@@ -1233,11 +1233,34 @@ local function simpleCast()
     TriggerServerEvent('lp_fishing:stopFishing')
 end
 
+-- บอกทีละเงื่อนไขว่าทำไม prompt ไม่ขึ้น — เดาจากอาการ "ไม่มีอะไรเกิดขึ้น" ไม่ได้
+-- เพราะมีตั้ง 4 ประตูที่ปิดอยู่ได้ (config / เหยื่อ / เบ็ด / น้ำ)
+RegisterCommand('fishsimple', function()
+    local S = Config.SimpleMode
+    print('[lp_fishing] ── simple mode ──')
+    print('  Config.SimpleMode      = ' .. tostring(S ~= nil))
+    print('  .Enabled               = ' .. tostring(S and S.Enabled))
+    print('  currentLure (เหยื่อ)    = ' .. tostring(currentLure))
+    print('  isHoldingRod (ถือเบ็ด)  = ' .. tostring(isHoldingRod()))
+    print('  isNearWater (ใกล้น้ำ)   = ' .. tostring(isNearWater()))
+    print('  simpleBusy             = ' .. tostring(simpleBusy))
+    print('  minigame state         = ' .. tostring(FISHING_GET_MINIGAME_STATE()))
+    if S and S.Enabled and currentLure then
+        local f = findBaitedFish(S.SearchRadius or 60.0)
+        print('  ปลาที่เหยื่อนี้ล่อได้ใกล้สุด = ' .. tostring(f))
+    end
+end, false)
+
 CreateThread(function()
     local S = Config.SimpleMode
-    if not S or not S.Enabled then return end
+    if not S or not S.Enabled then
+        print('[lp_fishing] simple mode ปิดอยู่ (Config.SimpleMode.Enabled ไม่ใช่ true) — ใช้มินิเกมของเกมตามเดิม')
+        return
+    end
+    print('[lp_fishing] simple mode เปิดอยู่ — ถือเบ็ด + ใส่เหยื่อ แล้วยืนใกล้น้ำเพื่อให้ prompt ขึ้น')
 
     local promptShown = false
+    local warnedHoldBusy = false
 
     while true do
         local sleep = 500
@@ -1246,17 +1269,30 @@ CreateThread(function()
         if ready then
             sleep = 300
             if not promptShown then
-                promptShown = true
-                exports.lp_textui:TextUIHold(S.PromptText or 'เหวี่ยงเบ็ด', S.HoldMs or 200, function()
-                    promptShown = false
-                    if simpleBusy then return end
-                    simpleBusy = true
-                    CreateThread(function()
-                        local ok, err = pcall(simpleCast)
-                        if not ok then print('[lp_fishing] simpleCast error: ' .. tostring(err)) end
-                        simpleBusy = false
+                -- TextUIHold คืน false เงียบๆ ถ้า resource อื่นถือ prompt อยู่ หรือถูก suppress
+                -- (ไม่ throw) — ถ้าไม่เช็คค่าที่คืนมา อาการจะเป็น "ไม่มีอะไรเกิดขึ้น" โดยไม่มี error
+                local shown = exports.lp_textui:TextUIHold(
+                    S.PromptText or 'เหวี่ยงเบ็ด', S.HoldMs or 200,
+                    function()
+                        promptShown = false
+                        if simpleBusy then return end
+                        simpleBusy = true
+                        CreateThread(function()
+                            local ok, err = pcall(simpleCast)
+                            if not ok then print('[lp_fishing] simpleCast error: ' .. tostring(err)) end
+                            simpleBusy = false
+                        end)
                     end)
-                end)
+
+                if shown == false then
+                    if not warnedHoldBusy then
+                        warnedHoldBusy = true
+                        print('[lp_fishing] lp_textui ไม่ยอมให้แสดง prompt (resource อื่นถืออยู่ หรือถูก suppress) — จะลองใหม่เรื่อยๆ')
+                    end
+                else
+                    warnedHoldBusy = false
+                    promptShown = true
+                end
             end
         elseif promptShown then
             promptShown = false
