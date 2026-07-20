@@ -91,6 +91,27 @@ Config.SimpleMode = {
     },
 
     FailMsg = 'ปลาหลุด! เหยื่อหายไปด้วย',
+
+    -- ── อนิเมชัน ────────────────────────────────────────────────────────────
+    -- โหมดปกติไม่ต้องตั้งค่าพวกนี้เพราะ native fishing task ของเกมเล่นท่าให้เอง
+    -- (vorp_fishing ไม่มีโค้ดเล่น anim เลยสักบรรทัด) แต่โหมดง่ายไม่ได้สตาร์ท task
+    -- เลยต้องเล่นเอง — ชื่อ dict/clip ด้านล่างมาจาก megadictanims ของ femga/rdr3_discoveries
+    --
+    -- clip อื่นที่มีให้เลือกใน dict เดียวกัน (เผื่ออยากเปลี่ยนมุม/ท่า):
+    --   primed_sweep / cast_sweep : aim_med_0 | aim_med_l90 | aim_med_r90
+    --                               release_med_0 | release_med_l90 | release_med_r90
+    --   relaxed@idle              : idle_a_med_0 .. idle_f_med_0
+    --   hooked_med@struggle       : struggle_a | struggle_pullup
+    Anims = {
+        Enabled = true,
+
+        WindUp = { dict = 'mini_games@fishing@shore@primed_sweep',        clip = 'aim_med_0',       ms = 800 },
+        Cast   = { dict = 'mini_games@fishing@shore@cast_sweep',          clip = 'release_med_0',   ms = 1000 },
+        Wait   = { dict = 'mini_games@fishing@shore@relaxed@idle',        clip = 'idle_a_med_0',    loop = true },
+        Fight  = { dict = 'mini_games@fishing@shore@hooked_med@struggle', clip = 'struggle_a',      loop = true },
+        -- เกมไม่มี dict "ถือปลา" แยก — struggle_pullup คือท่าดึงปลาขึ้นมา ใกล้เคียงที่สุด
+        Land   = { dict = 'mini_games@fishing@shore@hooked_med@struggle', clip = 'struggle_pullup', ms = 1500 },
+    },
 }
 
 -- ปลากินเบ็ดแล้วได้ 100% — ปิดเงื่อนไข "เอ็นขาด" ตอนสู้กับปลา (state 7)

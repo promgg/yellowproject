@@ -1011,6 +1011,8 @@ AddEventHandler('onResourceStop', function(res)
     hideStartPrompt()
     -- panel เป็นของ resource อื่น ถ้าไม่สั่งซ่อนมันจะค้างบนจอหลัง lp_fishing หยุด
     pcall(function() exports.lp_rewardpanel:Hide() end)
+    -- anim ของโหมดง่ายเป็นแบบวนลูป ถ้า restart ตอนกำลังเล่นจะค้างท่าตกปลาไปตลอด
+    ClearPedTasks(PlayerPedId())
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1154,6 +1156,29 @@ end
 
 local simpleBusy = false
 
+-- เล่นท่าเดียว — คืน false ถ้าโหลด dict ไม่ได้ (ปล่อยให้ flow เดินต่อ ไม่ให้ anim พังทั้งรอบ)
+local function playFishAnim(a)
+    local A = Config.SimpleMode.Anims
+    if not A or not A.Enabled or not a or not a.dict or not a.clip then return false end
+
+    RequestAnimDict(a.dict)
+    local t = GetGameTimer()
+    while not HasAnimDictLoaded(a.dict) and (GetGameTimer() - t) < 2000 do Wait(10) end
+    if not HasAnimDictLoaded(a.dict) then
+        print('[lp_fishing] โหลด anim dict ไม่ได้: ' .. tostring(a.dict))
+        return false
+    end
+
+    -- flag 1 = วนลูป, 0 = เล่นจบแล้วหยุด
+    TaskPlayAnim(PlayerPedId(), a.dict, a.clip, 4.0, -4.0,
+        a.ms or -1, a.loop and 1 or 0, 0.0, false, false, false)
+    return true
+end
+
+local function stopFishAnim()
+    ClearPedTasks(PlayerPedId())
+end
+
 local function simpleCast()
     local S = Config.SimpleMode
     if not currentLure then return end
@@ -1168,6 +1193,12 @@ local function simpleCast()
     local ped = PlayerPedId()
     local pc, fc = GetEntityCoords(ped), GetEntityCoords(fish)
     SetEntityHeading(ped, GetHeadingFromVector_2d(fc.x - pc.x, fc.y - pc.y))
+
+    -- ท่าง้าง -> ท่าเหวี่ยง
+    local AN = Config.SimpleMode.Anims or {}
+    if playFishAnim(AN.WindUp) then Wait((AN.WindUp and AN.WindUp.ms) or 800) end
+    if playFishAnim(AN.Cast)   then Wait((AN.Cast   and AN.Cast.ms)   or 1000) end
+    playFishAnim(AN.Wait)   -- ยืนรอ (วนลูป จนกว่าจะสั่งท่าถัดไป)
 
     -- รอปลากินเหยื่อ — lp_progbar:Progress ไม่ block (spawn thread แล้ว return id)
     -- ต้องรอเองผ่าน callback ถึงจะรู้ว่าผู้เล่นกดยกเลิกกลางคันหรือเปล่า
@@ -1184,13 +1215,16 @@ local function simpleCast()
     else
         Wait(waitMs)
     end
-    if cancelled then return end
+    if cancelled then stopFishAnim() return end
 
     -- ปลาอาจว่ายหนีไปแล้วระหว่างรอ
     if not DoesEntityExist(fish) then
+        stopFishAnim()
         notify('ปลาว่ายหนีไปแล้ว')
         return
     end
+
+    playFishAnim(AN.Fight)   -- ปลากินเบ็ดแล้ว สู้กันระหว่างเล่น minigame
 
     -- แยก "แพ้" ออกจาก "เรียก minigame ไม่ได้" — ถ้า lp_minigame พังหรือไม่ได้รัน
     -- ต้องไม่นับเป็นแพ้ ไม่งั้นผู้เล่นเสียเหยื่อฟรีเพราะบั๊กที่ไม่ใช่ความผิดเขา
@@ -1198,17 +1232,23 @@ local function simpleCast()
         return exports.lp_minigame:Fishing(S.Minigame or {})
     end)
     if not called then
+        stopFishAnim()
         print('[lp_fishing] เรียก lp_minigame:Fishing ไม่ได้: ' .. tostring(passed))
         notify('ระบบมินิเกมมีปัญหา ลองใหม่อีกครั้ง')
         return
     end
 
     if not passed then
+        stopFishAnim()
         notify(S.FailMsg or 'ปลาหลุด! เหยื่อหายไปด้วย')
         currentLure = nil                                  -- เสียเหยื่อ ต้องใส่ใหม่
         TriggerServerEvent('lp_fishing:stopFishing')
         return
     end
+
+    -- ท่าดึงปลาขึ้นมา — เล่นให้จบก่อนค่อยแจกของ ไม่งั้นไอเทมเด้งก่อนท่าจบ
+    if playFishAnim(AN.Land) then Wait((AN.Land and AN.Land.ms) or 1500) end
+    stopFishAnim()
 
     -- ปลาที่ว่ายในน้ำเป็น entity ของ client ฝั่งเดียว server จะมองไม่เห็นถ้าไม่ register
     -- ก่อน — ไม่มี netid ที่ใช้ได้ = แจกของไม่ได้ ต้องเช็คซ้ำหลัง register แล้วยอมแพ้
@@ -1217,6 +1257,7 @@ local function simpleCast()
         NetworkRegisterEntityAsNetworked(fish)
     end
     if not NetworkGetEntityIsNetworked(fish) then
+        stopFishAnim()
         notify('จับปลาตัวนี้ไม่ได้ ลองตัวอื่น')
         return
     end
@@ -1279,7 +1320,11 @@ CreateThread(function()
                         simpleBusy = true
                         CreateThread(function()
                             local ok, err = pcall(simpleCast)
-                            if not ok then print('[lp_fishing] simpleCast error: ' .. tostring(err)) end
+                            if not ok then
+                                -- error กลางคันอาจทิ้ง anim ค้างวนลูปอยู่ ต้องเคลียร์เสมอ
+                                stopFishAnim()
+                                print('[lp_fishing] simpleCast error: ' .. tostring(err))
+                            end
                             simpleBusy = false
                         end)
                     end)
