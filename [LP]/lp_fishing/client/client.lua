@@ -286,8 +286,15 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                         FISHING_SET_ROD_WEIGHT(2)
                     end
 
-                    if fishForce >= 1.4 then
-                        FISHING_SET_F_(6, 11)
+                    -- เอ็นขาด = แรงสาวเกินเพดาน → f_6 = 11 (ปลาหลุด)
+                    -- Config.GuaranteedCatch = true จะไม่ยิง flag นี้เลย แค่ตรึงแรงไว้ที่เพดาน
+                    local maxForce = Config.MaxFishForce or 1.4
+                    if fishForce >= maxForce then
+                        if Config.GuaranteedCatch then
+                            fishForce = maxForce - 0.01
+                        else
+                            FISHING_SET_F_(6, 11)
+                        end
                     else
                         if fishForce < 0.8 then
                             fishForce = 0.8
@@ -907,6 +914,99 @@ CreateThread(function()
         elseif state == 0 then
             barShownFor = nil
         end
+    end
+end)
+
+-- ── marker พรีวิวจุดตกตอนง้างเบ็ด ────────────────────────────────────────────
+-- ตัวเกมเป็นคนคำนวณจุดตกจริง เราไม่ไปยุ่งกับ physics เลย แค่วาด marker "ประมาณ"
+-- ตามทิศกล้อง + เวลาที่ง้างค้าง เพื่อให้ผู้เล่นเห็นก่อนปล่อยว่าเบ็ดจะไปลงแถวไหน
+
+-- แปลงมุมกล้องเป็นเวกเตอร์ทิศทาง
+local function camForwardVec()
+    local rot = GetGameplayCamRot(2)
+    local rx, rz = math.rad(rot.x), math.rad(rot.z)
+    local cosRx = math.cos(rx)
+    return vector3(-math.sin(rz) * cosRx, math.cos(rz) * cosRx, math.sin(rx))
+end
+
+-- หาความสูงผิวน้ำที่พิกัด x,y — คืน nil ถ้าตรงนั้นไม่ใช่น้ำ
+local function waterZAt(x, y, fromZ)
+    local ok, res = pcall(function()
+        return exports['lp_fishing']:VERTICAL_PROBE(x, y, fromZ + 10.0, 1)
+    end)
+    if ok and type(res) == 'table' and res[1] then return res[2] end
+    return nil
+end
+
+CreateThread(function()
+    local M = Config.CastMarker
+    if not M or not M.Enabled then return end
+
+    local chargeStart = nil
+    -- cache ผล probe น้ำ ไม่ต้องยิงทุกเฟรม (VERTICAL_PROBE วิ่งผ่าน JS export)
+    local lastProbeAt, lastProbeZ = 0, nil
+
+    while true do
+        local sleep = 200
+        local state = FISHING_GET_MINIGAME_STATE()
+
+        -- ง้างได้เฉพาะตอนพร้อมตก (state 1) หรือกำลังเหวี่ยง (state 2)
+        if state == 1 or state == 2 then
+            sleep = 0
+
+            if IsControlPressed(0, GetHashKey('INPUT_AIM')) then
+                chargeStart = chargeStart or GetGameTimer()
+
+                -- แรงง้าง 0..1 ตามเวลาที่ค้างไว้
+                local held = GetGameTimer() - chargeStart
+                local t = math.min(held / (M.ChargeTimeMs or 1200), 1.0)
+
+                -- ระยะสูงสุด: เอาจากเกมก่อน ถ้าเกมยังไม่คืนค่าค่อยใช้ fallback
+                local maxDist = M.MaxDistance or 0.0
+                if maxDist <= 0.0 then
+                    local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
+                    maxDist = (type(fromGame) == 'number' and fromGame > 0.0)
+                        and fromGame or (M.FallbackMax or 30.0)
+                end
+
+                local minDist = M.MinDistance or 4.0
+                local dist = minDist + (maxDist - minDist) * t
+
+                local ped = PlayerPedId()
+                local c = GetEntityCoords(ped)
+                local dir = camForwardVec()
+                local tx, ty = c.x + dir.x * dist, c.y + dir.y * dist
+
+                local now = GetGameTimer()
+                if now - lastProbeAt >= 60 then
+                    lastProbeAt = now
+                    lastProbeZ = waterZAt(tx, ty, c.z)
+                end
+                local wz = lastProbeZ
+                local col = wz and M.OverWater or M.NoWater
+
+                if wz or M.ShowNoWater then
+                    -- ไม่ใช่น้ำก็วาดที่ระดับเท้าไปก่อน ให้เห็นว่าเล็งไปโดนพื้น
+                    local mz = wz or c.z
+                    local s = M.Scale or { x = 1.2, y = 1.2, z = 0.6 }
+                    DrawMarker(
+                        M.Type or 0x07DCE236,
+                        tx, ty, mz + 0.05,
+                        0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0,
+                        s.x, s.y, s.z,
+                        col.r, col.g, col.b, col.a,
+                        false, false, 2, false, nil, nil, false
+                    )
+                end
+            else
+                chargeStart, lastProbeZ, lastProbeAt = nil, nil, 0
+            end
+        else
+            chargeStart, lastProbeZ, lastProbeAt = nil, nil, 0
+        end
+
+        Wait(sleep)
     end
 end)
 
