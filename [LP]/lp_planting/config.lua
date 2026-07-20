@@ -39,8 +39,7 @@ Config.WaterRefill = {
 -- ── โซนปลูก ──────────────────────────────────────────────────────────────────
 -- waterPoints รองรับกี่จุดก็ได้ — เพิ่ม entry ในตารางของโซนนั้นได้เลย ไม่ต้องแก้โค้ด
 -- (prop สแนปลงพื้นเองตอน spawn แกน z จึงไม่ต้องเป๊ะ แต่ x/y ต้องไม่ชนสิ่งกีดขวาง)
---
--- ⚠️ Annesburg ยังมีจุดเดียว รอพิกัดอีก 3 จุด (Valentine/Rhodes ครบ 4 แล้ว)
+
 Config.Zones = {
     valentine_farm = {
         label  = 'Valentine Farm',
@@ -71,9 +70,12 @@ Config.Zones = {
         minDistance = 3.0,
         blip = { enabled = true, sprite = 669307703, scale = 1.2,
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Annesburg Farm' },
+        -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ล้อมรอบจุดกลางไร่ ไกลสุด 33 ม.
         waterPoints = {
-            { coords = vector3(2969.4299, 788.4561, 51.3998), heading = 5.5112 },
-            -- TODO: อีก 3 จุด
+            { coords = vector3(2969.4299, 788.4561, 51.3998), heading = 5.5112   },
+            { coords = vector3(2964.8826, 755.2872, 50.5314), heading = 179.2094 },
+            { coords = vector3(2935.0195, 770.1731, 50.4043), heading = 43.9894  },
+            { coords = vector3(2959.0801, 804.2598, 50.4299), heading = 101.5899 },
         },
         crops = {
             seed_mushroom = { label = 'เห็ดป่า', reward = { item = 'job_mushroom', count = 10 } },
