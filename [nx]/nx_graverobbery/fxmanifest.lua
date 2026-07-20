@@ -20,6 +20,7 @@ client_scripts {
     'client/animations.lua',
     'client/graveprops.lua',
     'client/targets.lua',
+    'client/zone.lua',
     'client/main.lua',
 }
 
@@ -30,6 +31,7 @@ server_scripts {
     'server/bridges/cityselect.lua',
     'server/security.lua',
     'server/schedule.lua',
+    'server/event.lua',
     'server/cooldowns.lua',
     'server/rewards.lua',
     'server/notifications.lua',

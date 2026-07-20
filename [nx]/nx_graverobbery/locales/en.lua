@@ -22,6 +22,11 @@ Locales.en = {
     village_not_ready = 'Village system is not ready.',
     digging = 'Digging grave...',
     praying = 'Paying respects...',
+    not_in_zone = 'You must be inside the graveyard event circle to dig.',
+    zone_sealed = 'The circle is sealed. You were not inside when it closed.',
+    zone_city_full = 'Your city already has the maximum number of people inside.',
+    zone_seal_in = 'The circle seals in %{seconds} seconds.',
+    zone_sealed_now = 'The graveyard circle is now sealed.',
     admin_denied = 'You do not have permission.',
     reset_done = 'Grave cooldown reset.',
 }

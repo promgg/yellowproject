@@ -110,6 +110,13 @@ local function validateStart(source, graveId)
         return nil, 'not_open_yet'
     end
 
+    -- ต้องอยู่ในวงอีเวนต์ของสุสานนั้นจริงๆ ถึงจะขุดได้ (เมืองที่ไม่มีอีเวนต์เช่นแดนใต้ผ่านตลอด)
+    -- ปิดช่องยิง requestStart จากนอกวงตรงๆ โดยไม่เคยเข้าวงเลย
+    if not NX_GR.Event.IsOccupant(source, grave.villageId) then
+        NX_GR.Security.Log(source, 'requestStart', 'not_in_zone', { character = character, graveId = grave.id, villageId = grave.villageId })
+        return nil, 'not_in_zone'
+    end
+
     if not NX_GR.Cooldowns.IsAvailable(grave.id) then
         local state = NX_GR.Cooldowns.Get(grave.id)
         return nil, state and state.state == 'reserved' and 'reserved' or 'cooldown'

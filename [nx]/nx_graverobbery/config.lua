@@ -57,6 +57,23 @@ Config.Pray = {
     },
 }
 
+-- ── อีเวนต์สุสานแดนบน (valentine/annesburg/rhodes เท่านั้น) ────────────────────
+-- ไทม์ไลน์ต่อเมือง เริ่มนับจากเวลาเปิดใน Config.Villages[id].schedule ของแต่ละวัน:
+--   T+0            เริ่มอีเวนต์ ประกาศทั้งเซิร์ฟ + วงโผล่ที่สุสาน
+--   T+0..window    ช่วงเข้าวงได้ (จำกัดจำนวนคนต่อเมืองต้นสังกัด)
+--   T+window       ปิดวง (seal) — ล็อกรายชื่อคนที่อยู่ในวง ณ วินาทีนั้น คนนอกเข้าไม่ได้อีก
+--   T+duration     จบอีเวนต์ วงหาย ขุดไม่ได้จนกว่าจะถึงรอบเปิดของพรุ่งนี้
+-- แดนใต้ไม่มี schedule จึงไม่โดนระบบนี้แตะเลย (ยังเปิดตลอด + คูลดาวน์รายหลุม 90 นาทีเหมือนเดิม)
+Config.GraveEvent = {
+    enabled = true,
+    windowMinutes   = 8,    -- ช่วงเวลาที่ยังเข้าวงได้
+    durationMinutes = 60,   -- อีเวนต์ทั้งหมดตั้งแต่เปิดจนจบ
+    maxPerCity      = 10,   -- จำนวนคนสูงสุดต่อเมืองต้นสังกัด ในหนึ่งวง
+    zoneRadius      = 40.0, -- รัศมีวง (คลัสเตอร์หลุมกระจาย 8m จึงครอบสบาย)
+    announceText    = 'มีสมบัติถูกฝังอยู่ที่สุสานเมือง %s',
+    marker = { hash = 0x94FDAE17, r = 200, g = 180, b = 60, a = 90, zOffset = -10.0 },
+}
+
 Config.Villages = {
     -- ── แดนบน — 10 หลุมต่อเมือง เปิดขุดตามเวลา (ซ้ำทุกวัน) แทนคูลดาวน์นับถอยหลัง มีแจ้งเตือน sheriff/guard ──
     valentine = {
@@ -194,6 +211,10 @@ Config.BlipColors = {
 -- client อ่านตารางนี้ไปสร้าง blip (เติมจากลูปสร้างคลัสเตอร์ด้านล่าง)
 Config.ClusterBlips = {}
 
+-- จุดกลางวงอีเวนต์ของแต่ละเมืองแดนบน — server/event.lua กับ client/zone.lua อ่านจากตารางนี้
+-- เติมเฉพาะในลูป northernAnchors ด้านล่าง แดนใต้จึงไม่มีคีย์ในนี้ = ไม่มีอีเวนต์
+Config.GraveZones = {}   -- [villageId] = { coords = vector3, label = string }
+
 -- ── แดนบน — 10 หลุม/เมือง เปิดขุดตามเวลาที่ตั้งไว้ใน Config.Villages[id].schedule (ซ้ำทุกวัน)
 -- ไม่มีคูลดาวน์นับถอยหลังแบบแดนใต้ — หลุมที่ขุดแล้วจะปิดจนกว่าจะถึงรอบเปิดของพรุ่งนี้ ──
 local northernAnchors = {
@@ -222,6 +243,12 @@ for _, anchor in ipairs(northernAnchors) do
         label  = ('สุสาน %s'):format(anchor.label),
         color  = Config.BlipColors[anchor.blipColor] or Config.BlipColors.WHITE,
     })
+
+    -- จุดยึดคลัสเตอร์ = จุดกลางวงอีเวนต์ (หลุมกระจายรอบมันอยู่แล้ว)
+    Config.GraveZones[anchor.villageId] = {
+        coords = anchor.coords,
+        label  = anchor.label,
+    }
 end
 
 -- ── แดนใต้ — คลัสเตอร์หลุมศพ 3 จุด จุดละ 10 หลุม ไม่มีแจ้งเตือน sheriff/guard,

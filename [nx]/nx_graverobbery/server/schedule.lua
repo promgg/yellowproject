@@ -10,9 +10,16 @@ local function getVillageSchedule(villageId)
 end
 
 -- ไม่มี schedule = เปิดตลอด (เช่น แดนใต้ คุมด้วยคูลดาวน์รายหลุมแทน)
+-- มี schedule = เปิดเฉพาะตอนอีเวนต์ของเมืองนั้นกำลังรันอยู่ (ไม่ใช่ "เลยเวลาเปิดแล้วเปิดยาวถึงเที่ยงคืน" แบบเดิม)
 function NX_GR.Schedule.IsVillageOpenNow(villageId)
     local schedule = getVillageSchedule(villageId)
     if not schedule then return true end
+
+    -- guard เผื่อ event.lua ยังไม่ถูกโหลด (หรือปิดสวิตช์ Config.GraveEvent.enabled)
+    -- กรณีนั้นถอยกลับไปใช้ตรรกะเวลาแบบเดิม ระบบจะไม่ล็อกตายทั้งเซิร์ฟ
+    if Config.GraveEvent and Config.GraveEvent.enabled and NX_GR.Event and NX_GR.Event.IsOpen then
+        return NX_GR.Event.IsOpen(villageId)
+    end
 
     local now = os.date('*t')
     local nowMinutes = now.hour * 60 + now.min
