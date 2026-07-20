@@ -173,6 +173,11 @@ local function refreshMyPlants()
     dbg('โหลดต้นของตัวเอง %d ต้น', #list)
 end
 
+-- vorp:SelectedCharacter ยิงมาจาก server (vorp_core/server/class/user.lua : TriggerClientEvent)
+-- ต้อง RegisterNetEvent ด้วย ไม่งั้น AddEventHandler เฉยๆ จะไม่ได้รับ net event เลย
+-- เดิมขาดบรรทัดนี้ handler จึงไม่เคยทำงานตอนเข้าเกม -> ไม่มีใครไปขอต้นไม้จาก server
+-- ผลคือล็อกอินใหม่แล้วต้นไม้หายทั้งที่ข้อมูลใน DB ยังอยู่ครบ
+RegisterNetEvent('vorp:SelectedCharacter')
 AddEventHandler('vorp:SelectedCharacter', function()
     -- เปลี่ยนตัวละคร: เก็บของตัวเก่าทิ้งก่อน ไม่งั้น prop ของอีกตัวละครค้างอยู่
     for id in pairs(Plants) do removePlant(id) end
@@ -185,6 +190,33 @@ AddEventHandler('onClientResourceStart', function(res)
 end)
 
 RegisterNetEvent('lp_planting:removePlant', function(id) removePlant(id) end)
+
+-- ── คอยดูแลให้ prop มีอยู่จริง ──────────────────────────────────────────────
+-- spawnProp ใช้ CreateObject = object ฝั่ง client ล้วน ถ้าตอนสร้างผู้เล่นอยู่ไกล
+-- (เข้าเกมมาคนละมุมแผนที่กับแปลงปลูก) object จะสร้างไม่ติดหรือโดนเกมเก็บทิ้ง
+-- เดิม refreshMyPlants เรียก spawnProp ครั้งเดียวแล้วจบ ไม่มีอะไรมาสร้างใหม่
+-- ผลคือต้นไม้หายทั้งที่ข้อมูลใน DB ยังอยู่ครบ
+CreateThread(function()
+    local K = Config.PropKeeper or {}
+    local spawnRange   = K.SpawnRange or 120.0
+    local despawnRange = K.DespawnRange or 160.0
+
+    while true do
+        Wait(K.IntervalMs or 3000)
+
+        local pos = GetEntityCoords(PlayerPedId())
+        for _, p in pairs(Plants) do
+            local dist  = #(pos - p.coords)
+            local alive = p.obj and DoesEntityExist(p.obj)
+
+            if dist <= spawnRange then
+                if not alive then spawnProp(p) end
+            elseif alive and dist > despawnRange then
+                despawnProp(p)
+            end
+        end
+    end
+end)
 
 -- ── สลับโมเดลตอนต้นโตครึ่งทาง ───────────────────────────────────────────────
 CreateThread(function()
