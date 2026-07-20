@@ -23,8 +23,12 @@ Config.DiscordFooterLogo = ""
 Config.RodWeapon = 'WEAPON_FISHINGROD'
 
 -- prompt lp_textui ตอนยืนใกล้น้ำแต่ยังไม่ได้หยิบเบ็ด
+-- ปิดไว้ — ผู้เล่นหยิบ WEAPON_FISHINGROD จาก weapon wheel เองได้อยู่แล้ว
+--
+-- อย่าลบตารางนี้ทิ้ง: WaterRange ยังถูกใช้โดย isNearWater() ซึ่งโหมดง่ายเรียกอยู่
+-- ปิดแค่ Enabled ก็พอ ตัว thread จะ return ออกไปเลยไม่กินอะไร
 Config.StartPrompt = {
-    Enabled   = true,
+    Enabled   = false,
     Text      = '[E] เริ่มตกปลา',
     HoldMs    = 500,   -- กด E ค้างกี่ ms
     -- ระยะที่ยิง probe ลงไปหาน้ำรอบตัว (เมตร) — ไกลกว่านี้ prompt จะโผล่ทั้งที่ยังไม่ถึงน้ำ
