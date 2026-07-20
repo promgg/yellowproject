@@ -1246,8 +1246,40 @@ local function simpleCast()
         return
     end
 
-    -- ท่าดึงปลาขึ้นมา — เล่นให้จบก่อนค่อยแจกของ ไม่งั้นไอเทมเด้งก่อนท่าจบ
-    if playFishAnim(AN.Land) then Wait((AN.Land and AN.Land.ms) or 1500) end
+    -- ท่าดึงปลาขึ้นมา + ลากตัวปลาจริงเข้ามาหาผู้เล่นพร้อมกัน
+    -- ถ้าเล่นแต่ท่าอย่างเดียวจะเห็นคนดึงเบ็ดบนอากาศเปล่าๆ เพราะ native task ไม่ได้ทำงาน
+    -- ไม่มีใครลากปลาให้ ต้องขยับ entity เอง
+    local landMs = (AN.Land and AN.Land.ms) or 1500
+    local playing = playFishAnim(AN.Land)
+
+    local reel = Config.SimpleMode.ReelIn
+    if reel == nil or reel.Enabled ~= false then
+        local from = GetEntityCoords(fish)
+        -- ปลายทาง: หน้าผู้เล่นระดับอก
+        local fwd  = GetEntityForwardVector(ped)
+        local pcNow = GetEntityCoords(ped)
+        local dist = (reel and reel.Distance) or 1.2
+        local rise = (reel and reel.Height) or 0.6
+        local to = vector3(pcNow.x + fwd.x * dist, pcNow.y + fwd.y * dist, pcNow.z + rise)
+
+        FreezeEntityPosition(fish, true)
+        SetEntityCollision(fish, false, false)
+
+        local t0 = GetGameTimer()
+        while GetGameTimer() - t0 < landMs do
+            if not DoesEntityExist(fish) then break end
+            local p = (GetGameTimer() - t0) / landMs
+            SetEntityCoords(fish,
+                from.x + (to.x - from.x) * p,
+                from.y + (to.y - from.y) * p,
+                from.z + (to.z - from.z) * p,
+                false, false, false, false)
+            Wait(0)
+        end
+    elseif playing then
+        Wait(landMs)
+    end
+
     stopFishAnim()
 
     -- ปลาที่ว่ายในน้ำเป็น entity ของ client ฝั่งเดียว server จะมองไม่เห็นถ้าไม่ register
