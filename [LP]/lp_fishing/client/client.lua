@@ -990,7 +990,6 @@ CreateThread(function()
     local hDown   = GetHashKey(A.ScrollDownControl or 'INPUT_CURSOR_SCROLL_DOWN')
 
     local aimDist, aimMax = 0.0, 0.0
-    local aimEnteredAt = 0
     local lastProbeAt, lastProbeZ = 0, nil
 
     -- ปุ่มที่ต้องปิดตลอดช่วงตกปลา (สกรอลล์ = ปุ่มสลับอาวุธ → เปิด weapon wheel → เกมเก็บเบ็ด)
@@ -1065,18 +1064,19 @@ CreateThread(function()
                     end
                     aimDist = math.min(aimMax, (M.MinDistance or 4.0) + (aimMax - (M.MinDistance or 4.0)) * 0.5)
                     lastProbeAt, lastProbeZ = 0, nil
-                    aimEnteredAt = GetGameTimer()
                 end
             else
-                -- กันไม่ให้ native เริ่มง้างเองซ้อนกับโหมดเรา
-                DisableControlAction(0, hToggle, true)
+                -- ห้ามปิด hToggle (คลิกขวา) เด็ดขาด — native ต้องมีการง้างค้างอยู่
+                -- คลิกซ้ายถึงจะเหวี่ยงได้ ถ้าปิดไปคือปิดการง้างของเกมด้วย แล้วเหวี่ยงไม่ออก
+                -- แทนที่จะปิด เราป้อนค่าค้างให้แทน เกมจะคิดว่ากำลังง้างอยู่ตลอด
+                -- ผู้เล่นเลยไม่ต้องกดค้างเอง
+                if A.KeepChargeHeld ~= false then
+                    SetControlValueNextFrame(0, hToggle, 1.0)
+                end
 
-                -- ออกจากโหมด
-                -- หน่วงสั้นๆ ก่อนรับปุ่ม toggle อีกครั้ง กันเคสที่ผู้เล่นกดคลิกขวาค้างไว้
-                -- แล้ว IsDisabledControlJustPressed มองว่าเป็นการกดใหม่ → เด้งออกทันที
-                local settled = (GetGameTimer() - aimEnteredAt) > (A.ToggleCooldownMs or 250)
-                if (settled and IsDisabledControlJustPressed(0, hToggle))
-                    or IsControlJustPressed(0, hCancel) then
+                -- ออกจากโหมดได้ทาง ESC เท่านั้น — คลิกขวาใช้ไม่ได้เพราะเราป้อนค่ามันอยู่
+                -- เกมจึงเห็นเป็น "กดค้าง" ตลอด ไม่มีจังหวะ just-pressed ให้จับ
+                if IsControlJustPressed(0, hCancel) then
                     aimActive = false
                     goto continue
                 end
@@ -1089,6 +1089,10 @@ CreateThread(function()
                 elseif IsDisabledControlJustPressed(0, hDown) then
                     aimDist = math.max(M.MinDistance or 4.0, aimDist - step)
                 end
+
+                -- ตรึง f_1 ทุกเฟรม — /fishwatch พบว่าเกมล้างค่ากลับเป็น 0 ภายใน ~20-135ms
+                -- เขียนครั้งเดียวตอนกดเหวี่ยงจึงไม่ทัน ต้องเขียนค้างไว้ตลอดที่เล็ง
+                FISHING_SET_F_(1, aimDist + 0.0)
 
                 local ped = PlayerPedId()
                 local c   = GetEntityCoords(ped)

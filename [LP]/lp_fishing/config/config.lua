@@ -72,7 +72,9 @@ Config.AimMode = {
     -- คลิกซ้าย: เหวี่ยง — ตรงกับ prompt "Cast Fishing Rod" ของเกมเอง
     -- (native เป็นคนเหวี่ยงจริง เราแค่ตั้งระยะให้ก่อน ไม่ได้ปลอม input)
     CastControl       = 'INPUT_ATTACK',
-    CancelControl     = 'INPUT_FRONTEND_CANCEL',      -- ESC: ออกโหมด
+    -- ESC: ออกโหมด — เป็นทางออกทางเดียว เพราะคลิกขวาถูกป้อนค่าค้างไว้ให้ native
+    -- เกมจึงเห็นเป็น "กดค้าง" ตลอด ไม่มีจังหวะ just-pressed ให้จับเป็นการกดครั้งที่สอง
+    CancelControl     = 'INPUT_FRONTEND_CANCEL',
     -- สกรอลล์เมาส์ใน RedM = ปุ่มสลับอาวุธ ไม่ใช่ INPUT_CURSOR_SCROLL_*
     -- (อ้างอิง jo_libs/modules/camera/client.lua ที่ระบุ mapping นี้ไว้)
     ScrollUpControl   = 'INPUT_SELECT_PREV_WEAPON',   -- สกรอลล์ขึ้น: ไกลขึ้น
@@ -90,8 +92,9 @@ Config.AimMode = {
     -- state ที่ถือว่า "กำลังตกปลาอยู่" และต้องปิดปุ่มข้างบน (13 = ช่วงเบ็ดกำลังออก)
     BlockDuringStates = { 1, 2, 6, 7, 12, 13 },
 
-    -- หน่วงก่อนรับปุ่ม toggle อีกครั้ง กันเคสกดคลิกขวาค้างแล้วเด้งออกจากโหมดทันที
-    ToggleCooldownMs = 250,
+    -- ป้อนค่า "กดคลิกขวาค้าง" ให้เกมตลอดที่อยู่ในโหมดเล็ง
+    -- native ต้องมีการง้างค้างอยู่ คลิกซ้ายถึงจะเหวี่ยงได้ — ถ้าปิดตัวนี้ผู้เล่นต้องกดค้างเอง
+    KeepChargeHeld = true,
 
     -- state ที่ถือว่า "เบ็ดกำลังลอยออกไป" — ต้องเขียน f_1 ซ้ำทุกเฟรมกันเกมคำนวณทับ
     -- /fishwatch พบว่าเกมใช้ 13 ไม่ใช่ 2 (เก็บ 2 ไว้เผื่อบางเคส)
