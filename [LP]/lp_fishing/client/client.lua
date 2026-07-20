@@ -993,6 +993,16 @@ CreateThread(function()
     local aimEnteredAt = 0
     local lastProbeAt, lastProbeZ = 0, nil
 
+    -- ปุ่มที่ต้องปิดตลอดช่วงตกปลา (สกรอลล์ = ปุ่มสลับอาวุธ → เปิด weapon wheel → เกมเก็บเบ็ด)
+    local blockHashes = {}
+    for _, name in ipairs(A.BlockControls or {}) do
+        blockHashes[#blockHashes + 1] = GetHashKey(name)
+    end
+    local blockStates = {}
+    for _, st in ipairs(A.BlockDuringStates or { 1, 2, 6, 7, 12 }) do
+        blockStates[st] = true
+    end
+
     -- ง้างแทนผู้เล่นแล้วปล่อย — เรียกตอนกด E
     local function doCast(dist)
         if aimCasting then return end
@@ -1038,6 +1048,15 @@ CreateThread(function()
         local sleep = 200
         local state = FISHING_GET_MINIGAME_STATE()
 
+        -- ปิด weapon wheel / สลับอาวุธ ตลอดช่วงตกปลา ไม่ใช่แค่ตอนเล็ง
+        -- เพราะสกรอลล์ผิดจังหวะทีเดียวเกมจะเก็บเบ็ดเองแล้วเหยื่อหายฟรี
+        if blockStates[state] then
+            sleep = 0
+            for i = 1, #blockHashes do
+                DisableControlAction(0, blockHashes[i], true)
+            end
+        end
+
         -- เล็งได้เฉพาะตอนพร้อมตก (state 1) และไม่ได้กำลังเหวี่ยงอยู่
         if state == 1 and not aimCasting then
             sleep = 0
@@ -1071,11 +1090,12 @@ CreateThread(function()
                     goto continue
                 end
 
-                -- สกรอลล์ปรับระยะ
+                -- สกรอลล์ปรับระยะ — ต้องอ่านผ่าน IsDisabledControl* เพราะปุ่มพวกนี้
+                -- ถูกปิดไปแล้วข้างบน (ไม่งั้นมันจะไปเปิด weapon wheel)
                 local step = A.ScrollStep or 1.5
-                if IsControlJustPressed(0, hUp) then
+                if IsDisabledControlJustPressed(0, hUp) then
                     aimDist = math.min(aimMax, aimDist + step)
-                elseif IsControlJustPressed(0, hDown) then
+                elseif IsDisabledControlJustPressed(0, hDown) then
                     aimDist = math.max(M.MinDistance or 4.0, aimDist - step)
                 end
 

@@ -68,13 +68,25 @@ Config.AimMode = {
     Enabled = true,
 
     -- ชื่อ control ของ RDR2 — ถ้าปุ่มไหนไม่ทำงานตอนทดสอบ เปลี่ยนชื่อตรงนี้ได้เลย
-    ToggleControl     = 'INPUT_AIM',                -- คลิกขวา: เข้า/ออกโหมด
-    CastControl       = 'INPUT_CONTEXT',            -- E: เหวี่ยง
-    CancelControl     = 'INPUT_FRONTEND_CANCEL',    -- ESC: ออกโหมด
-    ScrollUpControl   = 'INPUT_CURSOR_SCROLL_UP',   -- สกรอลล์ขึ้น: ไกลขึ้น
-    ScrollDownControl = 'INPUT_CURSOR_SCROLL_DOWN', -- สกรอลล์ลง: ใกล้ขึ้น
+    ToggleControl     = 'INPUT_AIM',                  -- คลิกขวา: เข้า/ออกโหมด
+    CastControl       = 'INPUT_CONTEXT',              -- E: เหวี่ยง
+    CancelControl     = 'INPUT_FRONTEND_CANCEL',      -- ESC: ออกโหมด
+    -- สกรอลล์เมาส์ใน RedM = ปุ่มสลับอาวุธ ไม่ใช่ INPUT_CURSOR_SCROLL_*
+    -- (อ้างอิง jo_libs/modules/camera/client.lua ที่ระบุ mapping นี้ไว้)
+    ScrollUpControl   = 'INPUT_SELECT_PREV_WEAPON',   -- สกรอลล์ขึ้น: ไกลขึ้น
+    ScrollDownControl = 'INPUT_SELECT_NEXT_WEAPON',   -- สกรอลล์ลง: ใกล้ขึ้น
 
     ScrollStep = 1.5,   -- สกรอลล์ 1 คลิก = กี่เมตร
+
+    -- ปุ่มที่ต้องปิดตลอดช่วงตกปลา — เพราะสกรอลล์/weapon wheel ทำให้เกมเก็บเบ็ดเอง
+    -- แล้วเหยื่อที่หักไปแล้วหายฟรี (ไม่ปิด INPUT_TOGGLE_HOLSTER เพราะเป็นปุ่มเลิกตกปลาโดยตั้งใจ)
+    BlockControls = {
+        'INPUT_OPEN_WHEEL_MENU',
+        'INPUT_SELECT_NEXT_WEAPON',
+        'INPUT_SELECT_PREV_WEAPON',
+    },
+    -- state ที่ถือว่า "กำลังตกปลาอยู่" และต้องปิดปุ่มข้างบน
+    BlockDuringStates = { 1, 2, 6, 7, 12 },
 
     -- หน่วงก่อนรับปุ่ม toggle อีกครั้ง กันเคสกดคลิกขวาค้างแล้วเด้งออกจากโหมดทันที
     ToggleCooldownMs = 250,
