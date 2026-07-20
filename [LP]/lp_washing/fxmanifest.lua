@@ -16,6 +16,8 @@ server_scripts {
 }
 
 client_scripts {
+    -- structs.js ต้องมาก่อน main.lua — main.lua ยิง event ไปหามันตอนอาบน้ำ
+    'client/structs.js',
     'client/main.lua',
 }
 

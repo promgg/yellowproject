@@ -36,6 +36,12 @@ local function cleanPed(ped)
     end
 end
 
+-- lp_textui โหมดกดค้างไม่รับพารามิเตอร์ปุ่ม — มันเรียก TextUI(message, nil, ...)
+-- ตายตัวอยู่ข้างใน (lp_textui/client/main.lua:248) เลยต้องบอกปุ่มในข้อความเอง
+local function withKey(label)
+    return ('[E] %s'):format(label)
+end
+
 local function clearPrompt()
     if promptOwner then
         exports.lp_textui:HideUI()
@@ -54,7 +60,13 @@ local function canWashInRiver(ped)
     if IsPedSwimming(ped) then return false end
     if IsPedDeadOrDying(ped, true) then return false end
     if IsPedOnMount(ped) or IsPedInAnyVehicle(ped, false) then return false end
-    return IsEntityInWater(ped)
+    if not IsEntityInWater(ped) then return false end
+
+    -- นั่งย่อก่อน — GetPedCrouchMovement (hash เดียวกับ MJ-Admin/client/client.lua:1359)
+    if Config.River.requireCrouch and not Citizen.InvokeNative(0xD5FE956C70FF370B, ped) then
+        return false
+    end
+    return true
 end
 
 -- ── หาจุดอาบน้ำที่ใกล้ที่สุดในระยะ ──────────────────────────────────────────
@@ -141,8 +153,37 @@ local function runAnimScene(loc, sceneName)
     return true
 end
 
--- intro -> แช่ -> outro
--- ไม่ได้ทำส่วนถอดเสื้อผ้า/ผ้าเช็ดตัว/มินิเกมถูตัวของต้นทาง เพราะผูกกับ
+-- ── ท่าค้างระหว่างอาบ ────────────────────────────────────────────────────────
+-- ฉาก intro จบแล้ว "ไม่มีอะไรค้างท่าไว้" ตัวละครจะเด้งกลับท่ายืนทันที
+-- ตัวที่ค้างท่าคือ move network ซึ่งต้องส่ง struct เข้า native — ทำใน Lua ไม่ได้
+-- เลยต้องผ่าน client/structs.js (ยกวิธีมาจาก rsg-bathing/client/structs.js)
+local BATH_MOVE_NET = 'Script_Mini_Game_Bathing_Regular'
+
+local function loadBathStreaming()
+    RequestAnimDict('MINI_GAMES@BATHING@REGULAR@ARTHUR')
+    RequestAnimDict('MINI_GAMES@BATHING@REGULAR@RAG')
+    RequestClipSet('CLIPSET@MINI_GAMES@BATHING@REGULAR@ARTHUR')
+    RequestClipSet('CLIPSET@MINI_GAMES@BATHING@REGULAR@RAG')
+    Citizen.InvokeNative(0x2B6529C54D29037A, BATH_MOVE_NET) -- RequestMoveNetworkDef
+    -- โหลดแค่ชุด regular ไม่เอา deluxe เพราะเราไม่ได้ทำโหมดอาบหรู
+    Wait(500)
+end
+
+local function unloadBathStreaming()
+    RemoveAnimDict('MINI_GAMES@BATHING@REGULAR@ARTHUR')
+    RemoveAnimDict('MINI_GAMES@BATHING@REGULAR@RAG')
+    RemoveClipSet('CLIPSET@MINI_GAMES@BATHING@REGULAR@ARTHUR')
+    RemoveClipSet('CLIPSET@MINI_GAMES@BATHING@REGULAR@RAG')
+    Citizen.InvokeNative(0x57A197AD83F66BBF, BATH_MOVE_NET)
+end
+
+local function taskBathing(entity, clipset)
+    TriggerEvent('lp_washing:TaskMoveNetworkWithInitParams',
+        { entity, BATH_MOVE_NET, clipset, `DEFAULT`, 'BATHING' })
+end
+
+-- intro -> ค้างท่าอาบ -> outro
+-- ไม่ได้ทำส่วนถอดเสื้อผ้า/มินิเกมถูตัวของต้นทาง เพราะผูกกับ
 -- rsg-appearance + rsg-wardrobe ที่เราไม่มี (ของเราอาบทั้งชุด)
 local function playBathScene(loc)
     if not Config.BathHouse.useAnimScene then return false end
@@ -150,21 +191,52 @@ local function playBathScene(loc)
 
     local ped = PlayerPedId()
     SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true, 0, true, true)
+    HolsterPedWeapons(ped, false, false, false, true)
+    loadBathStreaming()
+
     SetPedCanLegIk(ped, false)
     SetPedLegIkMode(ped, 0)
     ClearPedTasksImmediately(ped, true, true)
 
     if not runAnimScene(loc, 's_regular_intro') then
         SetPedCanLegIk(ped, true)
+        unloadBathStreaming()
         return false
     end
+
+    -- ผ้าถูตัว — move network ของ ARTHUR อ้างถึงผ้าผืนนี้ ถ้าไม่มีท่าจะไม่ครบ
+    local rag = nil
+    if IsModelValid(`P_CS_RAG02X`) then
+        RequestModel(`P_CS_RAG02X`)
+        local tries = 0
+        while not HasModelLoaded(`P_CS_RAG02X`) and tries < 100 do Wait(10); tries = tries + 1 end
+        if HasModelLoaded(`P_CS_RAG02X`) then
+            rag = CreateObject(`P_CS_RAG02X`, GetEntityCoords(ped), false, false, false, false, true)
+            SetModelAsNoLongerNeeded(`P_CS_RAG02X`)
+        end
+    end
+
+    ped = PlayerPedId()
+    taskBathing(ped, `CLIPSET@MINI_GAMES@BATHING@REGULAR@ARTHUR`)
+    if rag then
+        taskBathing(rag, `CLIPSET@MINI_GAMES@BATHING@REGULAR@RAG`)
+        ForceEntityAiAndAnimationUpdate(rag, true)
+    end
+    Citizen.InvokeNative(0x55546004A244302A, ped)
 
     Wait(Config.BathHouse.soakMs or 5000)
     cleanPed(PlayerPedId())
 
+    -- ผ้าต้องเก็บก่อนเล่น outro ไม่งั้นค้างลอยอยู่ข้างอ่างเป็นซาก
+    if rag and DoesEntityExist(rag) then DeleteEntity(rag) end
+
     -- intro ผ่านแล้วต้องพยายามเล่น outro ให้ได้ ไม่งั้นตัวละครค้างอยู่ในอ่าง
     runAnimScene(loc, 's_regular_outro')
-    SetPedCanLegIk(PlayerPedId(), true)
+
+    local finalPed = PlayerPedId()
+    SetPedCanLegIk(finalPed, true)
+    ClearPedTasks(finalPed)
+    unloadBathStreaming()
     return true
 end
 
@@ -240,7 +312,7 @@ CreateThread(function()
                 sleep = 200
                 if promptOwner ~= 'bath' then
                     clearPrompt()
-                    local label = ('%s ($%s)'):format(Config.BathHouse.label, Config.BathHouse.price)
+                    local label = withKey(('%s ($%s)'):format(Config.BathHouse.label, Config.BathHouse.price))
                     if exports.lp_textui:TextUIHold(label, Config.BathHouse.holdMs, function()
                             doBath(bath)
                         end) then
@@ -252,7 +324,7 @@ CreateThread(function()
                 sleep = 200
                 if promptOwner ~= 'river' then
                     clearPrompt()
-                    if exports.lp_textui:TextUIHold(Config.River.label, Config.River.holdMs, function()
+                    if exports.lp_textui:TextUIHold(withKey(Config.River.label), Config.River.holdMs, function()
                             doRiverWash()
                         end) then
                         promptOwner = 'river'
