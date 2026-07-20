@@ -122,6 +122,33 @@ function EndTeamRound()
     ResetTeamState()
 end
 
+-- ─── สถานะการเข้าร่วม สำหรับรีซอร์สอื่นเอาไปแสดงผล ─────────────────────────────
+-- lp_fasttravel เรียกตัวนี้ตอนสร้างรายการสถานี เพื่อรู้ว่าจะโชว์ปุ่มแอร์ดรอปแบบไหน
+-- state: 'open' = เข้าร่วมได้ | 'locked' = เปิดโซนแล้ว เข้าเพิ่มไม่ได้
+--        'joined' = เข้าร่วมไปแล้ว | 'closed' = ไม่มีรอบเปิดอยู่
+--
+-- เป็นข้อมูลอ่านอย่างเดียว ไม่เปลี่ยนสถานะอะไร การตัดสินใจจริงยังอยู่ที่ callback JoinTeam
+-- ด้านล่างเสมอ — ต่อให้ client โกหกว่าปุ่มกดได้ ก็ยังผ่านด่านเดิมทั้งหมด
+exports('GetJoinState', function(src)
+    if not (Config.Team and Config.Team.enabled) then
+        return { state = 'closed' }
+    end
+    if PlayerTeam[src] then
+        return { state = 'joined' }
+    end
+    if not RoundActive then
+        return { state = 'closed' }
+    end
+    if JoiningLocked then
+        return { state = 'locked' }
+    end
+
+    return {
+        state       = 'open',
+        remainingMs = math.max(0, ZoneOpenAt - GetGameTimer()),
+    }
+end)
+
 -- ─── เข้าร่วมทีม (client ยิงตอนกดค้าง prompt ที่จุด NPC สถานีไหนก็ได้) ─────────────────
 -- entryTeamId = สถานีที่กดค้างจริง (ใช้เป็นจุดกลับตอนออกจากรอบ)
 -- battle teamId = derive จากเมืองใน nx_cityselect เสมอ (ใช้เป็นโซนสู้กัน/เกิดใหม่ในรอบ)

@@ -94,6 +94,7 @@ local function OpenMenu()
             type     = 'openMenu',
             stations = result.stations,
             cooldown = result.cooldown,
+            airdrop  = result.airdrop, -- nil = สถานีนี้ไม่มีทีมแอร์ดรอป ปุ่มจะไม่โผล่
         })
     end)
 end
@@ -114,6 +115,33 @@ RegisterNUICallback('confirmTravel', function(data, cb)
         end
 
         TravelWithProgress(result.coords, result.heading)
+    end, data.stationId)
+end)
+
+-- ─── เข้าร่วมแอร์ดรอปจากปุ่มในเมนู ───────────────────────────────────────────
+-- สองด่าน: server ของ lp_fasttravel ยืนยันว่ายืนที่สถานีของทีมนั้นจริงก่อน แล้วค่อยส่งต่อให้
+-- lp_airdropteam ซึ่งตรวจรอบ/ล็อก/เข้าไปแล้ว/เมืองเต็ม ของมันเองอีกชั้น
+RegisterNUICallback('joinAirdrop', function(data, cb)
+    cb('ok')
+    CloseMenu()
+
+    VORPcore.Callback.TriggerAsync('lp_fasttravel:CanJoinAirdrop', function(result)
+        if not result or not result.ok then
+            local msg = result and result.reason == 'too_far'
+                and 'ต้องอยู่ที่สถานีถึงจะเข้าร่วมได้'
+                or 'เข้าร่วมแอร์ดรอปไม่ได้'
+            Notify(msg, 'error')
+            return
+        end
+
+        if GetResourceState('lp_airdropteam') ~= 'started' then
+            Notify('ระบบแอร์ดรอปยังไม่พร้อมใช้งาน', 'error')
+            return
+        end
+
+        -- ข้อความบอกเหตุผลตอนเข้าไม่ได้ (ยังไม่มีรอบ / หมดเวลา / เมืองเต็ม) lp_airdropteam
+        -- เด้งเองอยู่แล้ว ไม่ต้องซ้ำที่นี่
+        exports.lp_airdropteam:JoinTeamById(result.teamId)
     end, data.stationId)
 end)
 
