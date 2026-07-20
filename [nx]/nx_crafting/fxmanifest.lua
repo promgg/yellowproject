@@ -7,6 +7,7 @@ ui_page 'html/index.html'
 
 dependency 'vorp_inventory'
 dependency 'lp_textui'
+dependency 'lp_progbar'
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',

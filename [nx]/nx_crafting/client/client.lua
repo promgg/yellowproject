@@ -1271,49 +1271,46 @@ function StartEvent()
             end
         end)
 
-    local CrafystatusNoft = false
-    local persent = 0
+    -- แถบคราฟใช้ lp_progbar แทนของเดิม (ของเดิมวนนับ persent เองแล้ววาด DrawText3D)
+    --
+    -- ระยะเวลาห้ามต่ำกว่า 3 วินาที: server ตั้ง PendingCrafts.readyAt = now + 3
+    -- ถ้ายิง craftItem เร็วกว่านั้นจะโดนปฏิเสธด้วย "คราฟยังไม่เสร็จ"
+    -- และห้ามเกิน 20 วินาที (expiresAt) ไม่งั้นเซสชันหมดอายุ
+    local CRAFT_MIN_MS, CRAFT_MAX_MS = 3200, 19000
 
     AddEventHandler('nx_crafting:client:notificationCraft', function(position, cb)
-        persent = 0
-        CrafystatusNoft = true
-        isAnim = false
-        TriggerEvent('nx_crafting:client:notificationCraftShow', position)
-        while CrafystatusNoft do
-            Citizen.Wait(5)
-            if not isAnim then
-                local Player = PlayerPedId()
-                if (DoesEntityExist(Player) and not IsEntityDead(Player)) then
-                    loadAnimDict(Config["Animation"][1])
-                    TaskPlayAnim(Player, Config["Animation"][1], Config["Animation"][2], 3.0, 1.0, -1, 31, 0, 0, 0, 0)
-                end
-                isAnim = true
-            end
-            persent = persent + 0.15
-            if persent >= 100 then
-                CrafystatusNoft = false
-                ClearPedTasks(PlayerPedId())
-                cb(true)
-            end
-            if IsControlJustReleased(0, 0xCEFD9220) then
-                CrafystatusNoft = false
-                cb(false)
-            end
+        local ped = PlayerPedId()
+        if DoesEntityExist(ped) and not IsEntityDead(ped) then
+            loadAnimDict(Config["Animation"][1])
+            TaskPlayAnim(ped, Config["Animation"][1], Config["Animation"][2], 3.0, 1.0, -1, 31, 0, 0, 0, 0)
         end
-    end)
 
-    AddEventHandler('nx_crafting:client:notificationCraftShow', function(position)
-        local playerPed = PlayerPedId()
-        local coords = GetEntityCoords(playerPed)
-        local distance = GetDistanceBetweenCoords(coords, position.x, position.y, position.z, true)
-        while CrafystatusNoft do
-            Wait(5)
-            if distance < 5 then
-                DrawText3D(position.x, position.y, position.z + 0.1, 'Press ~g~[G] ~s~to Cancel.')
-                DrawText3D(position.x, position.y, position.z + 0.5, 'Crafting items')
-                DrawText3D(position.x, position.y, position.z + 0.25, string.format("%.2f", persent) .. '%')
-            end
+        local ms = tonumber(Config.CraftDurationMs) or 4000
+        if ms < CRAFT_MIN_MS then ms = CRAFT_MIN_MS end
+        if ms > CRAFT_MAX_MS then ms = CRAFT_MAX_MS end
+
+        local done, cancelled = false, false
+        local started = pcall(function()
+            exports.lp_progbar:Progress({
+                duration  = ms,
+                label     = Config.CraftLabel or 'กำลังคราฟ...',
+                canCancel = true,
+            }, function(wasCancelled)
+                cancelled = wasCancelled
+                done = true
+            end)
+        end)
+
+        if started then
+            while not done do Wait(50) end
+        else
+            -- lp_progbar เรียกไม่ได้ — ห้ามค้างรอตลอดกาล รอให้ครบเวลาขั้นต่ำแล้วไปต่อ
+            print('[nx_crafting] เรียก lp_progbar ไม่ได้ ใช้การรอเวลาแทน')
+            Wait(ms)
         end
+
+        ClearPedTasks(PlayerPedId())
+        cb(not cancelled)
     end)
 
     function loadAnimDict(dict)

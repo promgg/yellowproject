@@ -567,17 +567,17 @@ NODEX = {
             local categoryData, itemEntry, recipe, categoryKey, itemKey, recipeKey =
                 GetRecipeByIndex(categoryIndex, itemIndex, recipeIndex)
             if not recipe then
-                return false, 'Invalid crafting recipe'
+                return false, 'สูตรคราฟไม่ถูกต้อง'
             end
 
             local count = sanitizeAmount(amount)
             if not count then
-                return false, 'Invalid crafting amount'
+                return false, 'จำนวนที่จะคราฟไม่ถูกต้อง'
             end
 
             local outputItem = recipeOutputItem(itemEntry, recipe)
             if type(outputItem) ~= "string" or outputItem == "" then
-                return false, 'Invalid crafting result'
+                return false, 'ไอเทมผลลัพธ์ของสูตรนี้ไม่ถูกต้อง'
             end
 
             local outputType = recipeType(itemEntry, recipe)
@@ -586,24 +586,24 @@ NODEX = {
             end
 
             if not canUseCraftingTable(sourceId, xPlayer, categoryKey) then
-                return false, 'Crafting table access denied'
+                return false, 'โต๊ะนี้คราฟหมวดนี้ไม่ได้'
             end
 
             local jobRestriction = recipe.jobList or recipe.allowedJob or recipe.job
             if not isJobAllowed(jobRestriction, xPlayer.job) then
-                return false, 'Job not allowed'
+                return false, 'อาชีพของคุณคราฟสูตรนี้ไม่ได้'
             end
 
             if not hasRequiredTools(sourceId, recipeTools(recipe)) then
-                return false, 'Missing required tools'
+                return false, 'ไม่มีเครื่องมือที่ต้องใช้'
             end
 
             if not hasRequiredItems(sourceId, listFromRecipeMap(recipeBlueprint(recipe)), count) then
-                return false, 'Not enough crafting materials'
+                return false, 'วัตถุดิบไม่พอ'
             end
 
             if not hasRequiredCost(sourceId, xPlayer, recipeCost(recipe), count) then
-                return false, 'Not enough crafting cost'
+                return false, 'เงินไม่พอ'
             end
 
             local rewardCount = recipeOutputCount(recipe, count)
@@ -612,7 +612,7 @@ NODEX = {
             end
 
             if exceedsMaxStack(sourceId, outputType, outputItem, recipe, rewardCount) then
-                return false, 'Crafting limit reached'
+                return false, 'มีไอเทมนี้เต็มแล้ว คราฟเพิ่มไม่ได้'
             end
 
             return true, {
@@ -711,7 +711,7 @@ NODEX = {
                 local ok, selected = validateSelectedRecipe(_source, xPlayer, requestedCategory, requestedItemIndex,
                     requestedRecipeIndex, requestedAmount)
                 if not ok then
-                    notifyPlayer(_source, 'error', selected or 'Invalid crafting recipe')
+                    notifyPlayer(_source, 'error', selected or 'สูตรคราฟไม่ถูกต้อง')
                     return
                 end
 
@@ -721,12 +721,12 @@ NODEX = {
                     pendingCraft.itemIndex ~= selected.itemIndex or pendingCraft.recipeIndex ~= selected.recipeIndex or
                     pendingCraft.amount ~= selected.count then
                     PendingCrafts[_source] = nil
-                    notifyPlayer(_source, 'error', 'Invalid crafting session')
+                    notifyPlayer(_source, 'error', 'เซสชันคราฟหมดอายุ ลองใหม่อีกครั้ง')
                     return
                 end
 
                 if pendingCraft.readyAt > now then
-                    notifyPlayer(_source, 'error', 'Crafting is not finished')
+                    notifyPlayer(_source, 'error', 'คราฟยังไม่เสร็จ')
                     return
                 end
 
