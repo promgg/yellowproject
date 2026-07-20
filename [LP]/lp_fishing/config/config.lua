@@ -85,6 +85,10 @@ Config.AimMode = {
     ChargeFrames  = 30,
     ReleaseFrames = 3,
 
+    -- หลังปล่อยเบ็ด ยึด f_1 ไว้นานสุดกี่ ms ระหว่างที่ยังอยู่ state 2
+    -- (เกมคำนวณ f_1 ใหม่ตอนเข้า state 2 ถ้าไม่เขียนซ้ำค่าเราจะโดนทับ)
+    HoldMaxDistMs = 1500,
+
     -- เส้นโค้งบอกทางเหวี่ยง
     ShowArc     = true,
     ArcSegments = 14,

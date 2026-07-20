@@ -1015,7 +1015,21 @@ CreateThread(function()
                 Wait(0)
             end
 
-            Wait(500)
+            -- /fishdump บอกว่า f_1 = 0 ตอน state 1 และโค้ดเดิมอ่านค่านี้เฉพาะตอน
+            -- state 2 เท่านั้น → เกมน่าจะคำนวณ f_1 ใหม่ตอนเข้า state 2 แล้วทับของเรา
+            -- เลยเขียนซ้ำทุกเฟรมตลอดช่วง state 2 เพื่อให้ค่าเราเป็นตัวที่มันใช้จริง
+            local holdUntil = GetGameTimer() + (A.HoldMaxDistMs or 1500)
+            while GetGameTimer() < holdUntil do
+                local st = FISHING_GET_MINIGAME_STATE()
+                if st == 2 then
+                    FISHING_SET_F_(1, dist + 0.0)
+                elseif st == 6 or st == 7 or st == 12 then
+                    break -- เบ็ดลงน้ำแล้ว ไม่ต้องยึด f_1 ต่อ
+                end
+                Wait(0)
+            end
+
+            Wait(300)
             aimCasting = false
         end)
     end
@@ -1137,6 +1151,30 @@ CreateThread(function()
         for i = 0, 27 do
             print(('  f_%d = %s'):format(i, tostring(FISHING_GET_F_(i))))
         end
+    end, false)
+
+    -- ตามดู state + f_1 ทุกเฟรม พิมพ์เฉพาะตอนค่าเปลี่ยน
+    -- เหวี่ยง 1 ครั้งแล้วดู log จะตอบได้เลยว่า: เข้า state 2 ไหม / f_1 ที่เราเขียนอยู่รอดไหม
+    local watching = false
+    RegisterCommand('fishwatch', function()
+        watching = not watching
+        print('[lp_fishing] fishwatch = ' .. tostring(watching))
+        if not watching then return end
+
+        CreateThread(function()
+            local lastState, lastF1 = nil, nil
+            local t0 = GetGameTimer()
+            while watching do
+                local st = FISHING_GET_MINIGAME_STATE()
+                local f1 = FISHING_GET_MAX_THROWING_DISTANCE()
+                if st ~= lastState or f1 ~= lastF1 then
+                    print(('[lp_fishing] +%dms state=%s f_1=%s')
+                        :format(GetGameTimer() - t0, tostring(st), tostring(f1)))
+                    lastState, lastF1 = st, f1
+                end
+                Wait(0)
+            end
+        end)
     end, false)
 
     -- ยิง transition flag ทีละค่าเพื่อหาว่าเลขไหน = "เหวี่ยง"
