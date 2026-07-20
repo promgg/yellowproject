@@ -148,9 +148,12 @@ CreateThread(function()
                 -- type 1 ใช้ "เส้นผ่านศูนย์กลาง" เป็นสเกล x/y ไม่ใช่รัศมี
                 -- ถ้าใส่ radius ตรงๆ ผนังจะเล็กกว่ากำแพงจริงครึ่งหนึ่ง = หลอกผู้เล่นแทนที่จะช่วย
                 local diameter = radius * 2.0
-                DrawMarker(1, zoneSpawnPos.x, zoneSpawnPos.y, c.baseZ or -500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                    diameter, diameter, c.height or 1000.0,
-                    c.r or 255, c.g or 40, c.b or 40, c.a or 70, false, false, 2, nil, nil, false)
+                -- ฐานผนังอิงจากพื้นของโซน ไม่ใช่ค่า z สัมบูรณ์ — ผู้เล่นยืนอยู่ข้างในวง
+                -- ถ้าผนังสูงเกินไปจะเห็นผิวด้านในบังเต็มจอ แล้วมองไม่เห็นขอบเขตที่พื้นเลย
+                DrawMarker(1, zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z + (c.baseOffset or -1.0),
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    diameter, diameter, c.height or 4.0,
+                    c.r or 255, c.g or 40, c.b or 40, c.a or 110, false, false, 2, nil, nil, false)
             end
         end
 
