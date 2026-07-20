@@ -46,7 +46,10 @@ AddEventHandler("MJ-STATUS:setStatus", function(status)
 
     isLoggedIn = true
     PlayerStatus = decoded
-    print("Hunger: " .. PlayerStatus.Hunger .. ", Thirst: " .. PlayerStatus.Thirst .. ", Stress: " .. PlayerStatus.Stress)
+    if Config.Debug then
+        print(('[MJ-STATUS] โหลดสถานะ: Hunger=%s Thirst=%s Stress=%s')
+            :format(tostring(PlayerStatus.Hunger), tostring(PlayerStatus.Thirst), tostring(PlayerStatus.Stress)))
+    end
 end)
 
 RegisterNetEvent("MJ-STATUS:getStatus")
@@ -159,6 +162,26 @@ local function setStaminaCore(ped, value)
     Citizen.InvokeNative(SET_CORE_VALUE, ped, CORE_STAMINA, math.floor(value + 0.5))
 end
 
+-- /statusdebug — ดูค่าปัจจุบันทั้งหมดในบรรทัดเดียว ใช้ตอนเทียบว่าหลอดบนจอตรงกับค่าจริงไหม
+if Config.Debug then
+    RegisterCommand('statusdebug', function()
+        local ped = PlayerPedId()
+        print(('[MJ-STATUS] ===== ค่าปัจจุบัน ====='))
+        print(('  Hunger  %s / %s'):format(tostring(PlayerStatus and PlayerStatus.Hunger), tostring(Config.MaxHunger)))
+        print(('  Thirst  %s / %s'):format(tostring(PlayerStatus and PlayerStatus.Thirst), tostring(Config.MaxThirst)))
+        print(('  Stress  %s  (เริ่มหักเลือดที่ %d)'):format(tostring(PlayerStatus and PlayerStatus.Stress),
+            math.floor((Config.MaxStress or 0) * 0.02)))
+        print(('  stamina core  %s / 100'):format(tostring(getStaminaCore(ped))))
+
+        -- ห่อ pcall เพราะนี่คือ native ที่กำลังสงสัยว่ามีจริงไหม
+        -- ถ้ามันไม่มี ต้องให้บรรทัดที่เหลือพิมพ์ต่อได้ ไม่ใช่ทั้งคำสั่งตายไปด้วย
+        local ok, res = pcall(function() return GetPlayerStamina(PlayerId()) end)
+        print(('  GetPlayerStamina(PlayerId())  %s'):format(ok and tostring(res) or ('เรียกไม่ได้: ' .. tostring(res))))
+
+        print(('  เลือด  %s'):format(tostring(GetEntityHealth(ped))))
+    end, false)
+end
+
 CreateThread(function()
     if not (Config.Stamina and Config.Stamina.enabled) then return end
 
@@ -181,6 +204,9 @@ CreateThread(function()
                 if not startedAt then
                     startedAt    = GetGameTimer()
                     startedValue = getStaminaCore(ped)
+                    if Config.Debug then
+                        print(('[MJ-STATUS] เริ่มวิ่ง — stamina เริ่มต้น %s'):format(tostring(startedValue)))
+                    end
                 end
 
                 -- คิดจากค่าตอนเริ่มวิ่งเสมอ ไม่ลบสะสมทีละรอบ
@@ -190,11 +216,26 @@ CreateThread(function()
 
                 if target < 0 then target = 0 end
 
+                local before = getStaminaCore(ped)
+
                 -- เขียนเฉพาะตอนค่าน้อยลงจริง ไม่งั้นจะไปกันการฟื้นตัวปกติของเกม
-                if target < getStaminaCore(ped) then
+                if target < before then
                     setStaminaCore(ped, target)
+
+                    -- log ทุก 1 วินาที ไม่ใช่ทุกรอบ (รอบละ 100ms จะท่วมจอ)
+                    -- ถ้า "หลังเขียน" เด้งกลับสูงกว่าที่สั่ง = มีตัวอื่นฟื้นค่าสู้อยู่
+                    -- (ตัวที่ต้องสงสัย: vorp_core StaminaRecharge ใน config/config.lua:197)
+                    if Config.Debug and (elapsed % 1000) < tick then
+                        local after = getStaminaCore(ped)
+                        print(('[MJ-STATUS] วิ่งมา %.1f วิ | สั่งเป็น %d | ก่อนสั่ง %s | หลังสั่ง %s%s')
+                            :format(elapsed / 1000, math.floor(target + 0.5), tostring(before), tostring(after),
+                                    after > math.floor(target + 0.5) + 1 and '  <-- มีตัวอื่นดันค่ากลับขึ้น' or ''))
+                    end
                 end
             else
+                if Config.Debug and startedAt then
+                    print(('[MJ-STATUS] หยุดวิ่ง — stamina เหลือ %s'):format(tostring(getStaminaCore(ped))))
+                end
                 startedAt    = nil
                 startedValue = nil
             end
@@ -272,7 +313,10 @@ AddEventHandler("MJ-STATUS:useItem", function(index, hunger, thirst, stress, sta
     -- Retrieve the prop name from the Config based on itemType (bread, apple, etc.)
     local itemConfig = Config.FoodItems[index]
     if not itemConfig then
-        print("Invalid item type!")
+        -- ไม่ gate ด้วย Debug โดยตั้งใจ — นี่แปลว่ามีไอเทมกินได้ที่ยังไม่ได้ลงทะเบียนใน
+        -- Config.FoodItems ผู้เล่นกินแล้วจะไม่มีผลอะไรเลย ต้องเห็นเสมอ
+        print(('[MJ-STATUS] ^3ไอเทม "%s" ไม่มีใน Config.FoodItems^7 — กินแล้วไม่มีผล')
+            :format(tostring(index)))
         return
     end
     
@@ -290,7 +334,21 @@ AddEventHandler("MJ-STATUS:useItem", function(index, hunger, thirst, stress, sta
     local currentHunger = PlayerStatus.Hunger
     local currentThirst = PlayerStatus.Thirst
     local currentStress = PlayerStatus.Stress
+
+    -- log เป็นขั้นๆ เพื่อให้รู้ว่าถ้าฟังก์ชันตาย มันตายตรงไหน
+    -- ถ้าเห็น "จุดที่ 1" แล้วไม่เห็น "จุดที่ 2" = GetPlayerStamina พังจริง
+    -- (แล้ว TriggerServerEvent ข้างล่างจะไม่ถูกยิง = กินแล้วไม่ถูกบันทึกลง DB)
+    if Config.Debug then
+        print(('[MJ-STATUS] จุดที่ 1 — กิน %s | +hunger=%s +thirst=%s +stress=%s +stamina=%s')
+            :format(tostring(index), tostring(hunger), tostring(thirst), tostring(stress), tostring(stamina)))
+    end
+
     local currentStamina = GetPlayerStamina(playerPed)
+
+    if Config.Debug then
+        print(('[MJ-STATUS] จุดที่ 2 — GetPlayerStamina คืน %s (ชนิด %s)')
+            :format(tostring(currentStamina), type(currentStamina)))
+    end
 
     -- Calculate new values after using the item
     local newHunger = math.min(Config.MaxHunger, currentHunger + hunger)
@@ -304,6 +362,14 @@ AddEventHandler("MJ-STATUS:useItem", function(index, hunger, thirst, stress, sta
         ['Stress'] = newStress
     }
     Citizen.InvokeNative(0xFECA17CF3343694B, PlayerId, newStamina)
+
+    if Config.Debug then
+        print(('[MJ-STATUS] จุดที่ 3 — กำลังส่งไปบันทึก: Hunger %s->%s Thirst %s->%s Stress %s->%s')
+            :format(tostring(currentHunger), tostring(newHunger),
+                    tostring(currentThirst), tostring(newThirst),
+                    tostring(currentStress), tostring(newStress)))
+    end
+
     TriggerServerEvent("MJ-STATUS:saveStatus", status)
 end)
 

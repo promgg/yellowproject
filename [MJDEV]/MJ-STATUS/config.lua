@@ -8,6 +8,11 @@
 -- Discord: https://discord.gg/gHRNMDQKzb 
 
 Config = {}
+
+-- true = พิมพ์ log ลง F8 ตอนกินของ/ลด stamina — ใช้ตอนไล่หาสาเหตุ ปิดตอนขึ้นจริง
+-- (log จะบอกว่ากินแล้วค่าถูกบันทึกจริงไหม และ stamina โดนอะไรสู้อยู่หรือเปล่า)
+Config.Debug = true
+
 Config.ShowUI = false -- เปิดปิด UI
 ----------------------------------
 -- การตั้งค่าความเครียด (Stress Settings)
