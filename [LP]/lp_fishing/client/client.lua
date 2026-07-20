@@ -8,6 +8,13 @@ local nextAttTime = 0
 local horizontalMove = 0
 local status = nil
 local currentLure = nil
+
+-- โหมดผสม: ปล่อยให้ native task ทำงานเต็ม แล้วสลับเฉพาะช่วงสู้ปลา (state 7) เป็น lp_minigame
+local hybridRunning = false
+local function hybridEnabled()
+    local H = Config.HybridMinigame
+    return H ~= nil and H.Enabled == true
+end
 local Core = exports.vorp_core:GetCore()
 
 local T = Translation.Langs[Config.Lang]
@@ -58,6 +65,7 @@ AddEventHandler("lp_fishing:resetFishing", function()
     horizontalMove = 0
     status = nil
     currentLure = nil
+    hybridRunning = false
 end)
 
 Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
@@ -207,7 +215,47 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                 end
             end
 
-            if FISHING_GET_MINIGAME_STATE() == 7 then
+            if FISHING_GET_MINIGAME_STATE() == 7 and hybridEnabled() then
+                -- โหมดผสม: native task ทำงานเต็ม (เส้นเอ็น ทุ่น ท่า ปลา ครบของจริง)
+                -- ตัดเฉพาะ "การสู้กับปลา" ของเกมออก แล้วให้ lp_minigame เป็นตัวตัดสินแทน
+                -- ผ่าน  -> flag 12 = ได้ปลา (เกมเล่นท่าดึงขึ้น + ถือปลาให้เอง)
+                -- ไม่ผ่าน -> flag 11 = เอ็นขาด ปลาหลุด
+                -- สองค่านี้เป็นค่าที่โค้ดเดิมใช้อยู่แล้ว ไม่ได้เดา
+                fishing_data.fish.weight = FISHING_GET_F_(8)
+
+                if not hybridRunning then
+                    hybridRunning = true
+                    local H = Config.HybridMinigame
+                    CreateThread(function()
+                        local called, passed = pcall(function()
+                            return exports.lp_minigame:Fishing(H.Minigame or {})
+                        end)
+
+                        -- ผู้เล่นอาจเลิกตกปลา/ปลาหลุดเองระหว่างที่ minigame ค้างอยู่
+                        -- ถ้าไม่ได้อยู่ state 7 แล้วห้ามยิง flag ไม่งั้นไปสั่ง state อื่นมั่ว
+                        local stillFighting = FISHING_GET_MINIGAME_STATE() == 7
+
+                        if not called then
+                            -- minigame พังไม่ใช่ความผิดผู้เล่น — คืนให้ native สู้ต่อตามปกติ
+                            print('[lp_fishing] เรียก lp_minigame:Fishing ไม่ได้: ' .. tostring(passed))
+                        elseif not stillFighting then
+                            -- เงียบไว้ ไม่ต้องแจ้ง ผู้เล่นรู้อยู่แล้วว่าตัวเองเลิก
+                        elseif passed then
+                            FISHING_SET_F_(6, 12)
+                        else
+                            FISHING_SET_F_(6, 11)
+                            pcall(function()
+                                exports.pNotify:SendNotification({
+                                    text = (H and H.FailMsg) or 'ปลาหลุด!',
+                                    type = 'error', timeout = 3000,
+                                })
+                            end)
+                        end
+                        hybridRunning = false
+                    end)
+                end
+
+            elseif FISHING_GET_MINIGAME_STATE() == 7 then
                 fishing_data.fish.weight = FISHING_GET_F_(8)
 
                 if IsControlJustPressed(0, 0x8FFC75D6) then
@@ -406,6 +454,10 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                 -- เก็บเบ็ด = เหยื่อไม่ได้ติดอยู่แล้ว ต้องเคลียร์ด้วย ไม่งั้นค่าค้าง
                 -- แล้วรอบหน้าที่หยิบเบ็ดขึ้นมาเปล่าๆ ระบบจะคิดว่ายังมีเหยื่อติดอยู่
                 currentLure = nil
+                -- ถ้าเลิกตอน minigame ยังเปิดอยู่ ต้องปิดให้ ไม่งั้น NUI ค้างทั้งจอ
+                if hybridRunning then
+                    pcall(function() exports.lp_minigame:Cancel() end)
+                end
                 FISHING_SET_TRANSITION_FLAG(8)
                 Citizen.InvokeNative(0x9B0C7FA063E67629, PlayerPedId(), "", 0, 1)
             end
@@ -1325,9 +1377,18 @@ RegisterCommand('fishsimple', function()
 end, false)
 
 CreateThread(function()
+    -- สองโหมดนี้ทับกันไม่ได้ — โหมดง่ายบล็อก native task ทั้งหมด โหมดผสมต้องใช้ task
+    if hybridEnabled() and Config.SimpleMode and Config.SimpleMode.Enabled then
+        print('[lp_fishing] เปิดทั้ง HybridMinigame และ SimpleMode พร้อมกันไม่ได้ — จะใช้ SimpleMode อย่างเดียว')
+    end
+
     local S = Config.SimpleMode
     if not S or not S.Enabled then
-        print('[lp_fishing] simple mode ปิดอยู่ (Config.SimpleMode.Enabled ไม่ใช่ true) — ใช้มินิเกมของเกมตามเดิม')
+        if hybridEnabled() then
+            print('[lp_fishing] โหมดผสมเปิดอยู่ — เหวี่ยงเบ็ดตามปกติ ปลากินเบ็ดแล้วจะเข้า lp_minigame')
+        else
+            print('[lp_fishing] ใช้มินิเกมของเกมตามเดิม (ไม่ได้เปิด SimpleMode หรือ HybridMinigame)')
+        end
         return
     end
     print('[lp_fishing] simple mode เปิดอยู่ — ถือเบ็ด + ใส่เหยื่อ แล้วยืนใกล้น้ำเพื่อให้ prompt ขึ้น')
