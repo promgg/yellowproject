@@ -211,6 +211,10 @@ function openUI(zoneType)
     animals     = {},
     hpDecayTime = Config.hpDecayTime,
     feedWindow  = Config.feedWindow,
+    -- ส่งราคาจริงไปให้ NUI ทำป้ายปุ่มเอง จะได้ไม่ต้องไปแก้ข้อความใน index.html
+    -- ทุกครั้งที่เปลี่ยน Config.addPrice (เดิมปุ่มเขียนตายตัวว่า "Add Animals")
+    addPrice    = Config.addPrice,
+    moneyType   = Config.moneyType,
   }})
 
   -- peds spawn แล้วตั้งแต่ zoneEnter ไม่ต้อง spawn ซ้ำ

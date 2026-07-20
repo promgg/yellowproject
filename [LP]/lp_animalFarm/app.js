@@ -186,7 +186,26 @@ function renderAnimalList(animals) {
   });
 }
 
+// ป้ายปุ่มซื้อ — อ้างราคาจาก Config.addPrice ที่ client ส่งมา ไม่ฮาร์ดโค้ดตัวเลข
+// เปลี่ยนราคาใน config แล้วป้ายเปลี่ยนตาม ไม่ต้องแก้ที่นี่อีก
+function setAddButtonLabel(price, moneyType) {
+  var btn = document.getElementById('btn-add');
+  if (!btn) return;
+
+  // เช็ค null/undefined แยกต่างหาก: Number(null) ได้ 0 ซึ่งผ่านเงื่อนไขข้างล่างหมด
+  // แล้วจะขึ้นป้ายว่า "(0$)" = บอกผู้เล่นว่าฟรี ทั้งที่แค่ไม่รู้ราคา
+  var n = (price === null || price === undefined) ? NaN : Number(price);
+  if (!isFinite(n) || n < 0) {          // ไม่รู้ราคา = ไม่ใส่วงเล็บ ดีกว่าโชว์เลขมั่ว
+    btn.textContent = 'ซื้อตัวเลี้ยง';
+    return;
+  }
+
+  var unit = Number(moneyType) === 1 ? ' ทอง' : '$';   // 0 = dollars, 1 = gold
+  btn.textContent = 'ซื้อตัวเลี้ยง (' + n + unit + ')';
+}
+
 function renderUI(data) {
+  setAddButtonLabel(data.addPrice, data.moneyType);
   if (data.feedItems) {
     buildSlots(data.feedItems, document.getElementById('feed-slots'));
   }
