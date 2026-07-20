@@ -50,7 +50,8 @@ local generalCategories = {
     { id = 'food', label = 'อาหาร' },
     { id = 'drinks', label = 'เครื่องดื่ม' },
     { id = 'horse', label = 'อาหารม้า' },
-    { id = 'fishing', label = 'ตกปลา' }
+    { id = 'fishing', label = 'ตกปลา' },
+    { id = 'grooming', label = 'แต่งตัว' }
 }
 
 local generalItems = {
@@ -118,6 +119,9 @@ local generalItems = {
     { id = 'bait_fish_lure_leg', item = 'p_finisdfishlurelegendary01x',   label = 'เหยื่อพิเศษ: ปลา', category = 'fishing', price = 120, currency = 'cash', max = 20 },
     { id = 'bait_crawd_leg',     item = 'p_finishdcrawdlegendary01x',     label = 'เหยื่อพิเศษ: กุ้ง', category = 'fishing', price = 120, currency = 'cash', max = 20 },
 
+    -- ── แต่งตัว ───────────────────────────────────────────────────────────
+    -- โพเมดใส่ผม (jo_pomade) — กดใช้แล้วหักทิ้ง 1 ชิ้น พกได้สูงสุด 2 (limit ใน DB)
+    { id = 'pomade', item = 'pomade', label = 'โพเมด', category = 'grooming', price = 50, currency = 'cash', max = 2 },
 }
 
 -- ---------- ร้านปืน (Gunsmith) ----------
@@ -180,6 +184,19 @@ local doctorItems = {
     { id = 'bandage_xl', item = 'bandage_xl', label = 'ผ้าพันแผลใหญ่ (+เลือด 30%)', category = 'all', price = 25, currency = 'cash', max = 10 },
     { id = 'painkiller', item = 'painkiller', label = 'ยาแก้ปวด (+เลือด 80%)', category = 'all', price = 80, currency = 'cash', max = 10 },
     { id = 'stamina', item = 'stamina', label = 'ยาชูกำลัง (+สเตมิน่า 90%)', category = 'all', price = 60, currency = 'cash', max = 10 }
+}
+
+-- ---------- ร้านลึกลับ (ของผิดกฎหมาย) ----------
+-- ไม่มี blip บนแผนที่ ต้องรู้พิกัดเองถึงจะหาเจอ
+local mysteryCategories = {
+    { id = 'all', label = 'ALL' }
+}
+
+local mysteryItems = {
+    -- lockpick — ใช้กับ lp_railrobber / lp_robbery
+    { id = 'lockpick', item = 'lockpick', label = 'ชุดสะเดาะกุญแจ', category = 'all', price = 100, currency = 'cash', max = 5 },
+    -- พลั่วขุดหลุมศพ — nx_graverobbery ใช้เป็น requiredItem (ไม่ใช่ tool_shovel ที่เป็นพลั่วพรวนดินในร้านทั่วไป)
+    { id = 'tool_grave_shovel', item = 'tool_grave_shovel', label = 'พลั่วขุด', category = 'all', price = 100, currency = 'cash', max = 5 }
 }
 
 -- payment เริ่มต้นของร้านใหม่ทั้งหมด: เงินสดเท่านั้น, ไม่มี VAT
@@ -378,5 +395,24 @@ Config.Stores = {
         payment = defaultPayment,
         categories = doctorCategories,
         items = doctorItems
+    },
+
+    -- ================= ร้านลึกลับ =================
+    -- ไม่มี blip บนแผนที่ (blip.enabled = false) ต้องรู้พิกัดเองถึงจะหาเจอ
+    mystery_01 = {
+        enabled = true,
+        title = 'ร้านลึกลับ',
+        subtitle = 'MYSTERY TRADER',
+        promptName = 'Mystery Trader',
+        position = vector3(-2106.0713, 1841.0507, 255.3455),
+        heading = 45.6880,
+        openDistance = 3.0,
+        hours = { enabled = false, open = 7, close = 22 },
+        blip = { enabled = false, name = 'ร้านลึกลับ', sprite = BlipSprite.general },
+        npc = { enabled = true, model = Npc.general, position = vector4(-2106.0713, 1841.0507, 255.3455, 45.6880), spawnDistance = 35.0 },
+        jobs = {},
+        payment = defaultPayment,
+        categories = mysteryCategories,
+        items = mysteryItems
     }
 }
