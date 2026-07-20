@@ -13,7 +13,7 @@ Config.KEY_X   = 0x8CC9CD42  -- X
 
 -- เปลี่ยนจากระบบกด LMB ซ้ำหลายครั้งต่อก้อน เป็น auto-loop ครั้งเดียวเหมือน MJ-Lumberjack (กด E ครั้งเดียว เล่นจนจบ)
 Config.MiningDuration = 30    -- วินาที ต่อ 1 ก้อน (หลอดโหลดเต็ม = จบรอบ, สุ่มไอเทม 1 ครั้ง) ตามสเปกลูกค้าเดิม (6วิ x 5 ครั้ง)
-Config.RockCooldown   = 900000  -- 15 นาที (ms)
+Config.RockCooldown   = 60000   -- 1 นาที (ms) — ก้อนเดิมขุดซ้ำได้เมื่อครบเวลานี้ (แยกกันรายบุคคล)
 
 -- ระยะกด E ขุดจริง (marker/scan หาไกลกว่านี้ได้เพื่อนำทาง แต่ hint+E ใช้รัศมีนี้เท่านั้น กันเห็น hint แต่กดไม่ติด)
 Config.MineRange = 3.0
@@ -84,8 +84,14 @@ Config.MiningZones = {
     { mode = "manual", coords = vector3(2327.9375, 1433.3787, 89.2085) }, -- Annesburg
     { mode = "manual", coords = vector3(2329.3333, 1450.4409, 89.3269) }, -- Annesburg
     { mode = "manual", coords = vector3( 2356.1023, 1403.9558, 104.3499) }, -- Annesburg   
-    -- ⚠️ Annesburg เป็น manual (ภูมิประเทศเป็นเหมืองหลายระดับ สุ่มแล้วก้อนไปโผล่กลางอากาศ/ในหิน)
-    --    ตอนนี้มี 6 จุด รออีก 4 จุดจากพิกัดที่เดินเก็บในเกม
+    -- เพิ่มอีก 5 จุด (พิกัดเดินเก็บในเกม) — Annesburg รวมเป็น 11 จุด
+    -- manual ไม่มีระบบเว้นระยะเหมือน random: 3 คู่นี้ห่างกันแค่ 4.6-5.7 m (ต่ำกว่า minSpacing 7 ของ random)
+    -- ยังขุดได้ปกติ แค่ก้อนจะดูชิดกัน — ถ้าเห็นแล้วเบียดไปบอกได้ ขยับจุดได้ทีละจุด
+    { mode = "manual", coords = vector3(2345.1482, 1397.5557, 104.4244) }, -- Annesburg
+    { mode = "manual", coords = vector3(2338.9031, 1405.9114, 102.5099) }, -- Annesburg
+    { mode = "manual", coords = vector3(2337.7500, 1410.6438, 100.1080) }, -- Annesburg (ใกล้จุดที่ 3 เดิม 5.7 m)
+    { mode = "manual", coords = vector3(2356.0933, 1399.3822, 105.7895) }, -- Annesburg (ใกล้จุดที่ 6 เดิม 4.6 m)
+    { mode = "manual", coords = vector3(2347.6687, 1407.3798, 101.3167) }, -- Annesburg
 }
 
 Config.MiningObject = "old_hen_rock_scree_sim_08"

@@ -124,7 +124,7 @@ AddEventHandler("mining:addItem", function(rockKey)
         local now = GetGameTimer()
         rockCd[_source] = rockCd[_source] or {}
         local last = rockCd[_source][rockKey]
-        if last and (now - last) < (Config.RockCooldown or 900000) then
+        if last and (now - last) < (Config.RockCooldown or 60000) then
             notify(_source, 'info', 'ก้อนนี้เพิ่งขุดไป รอสักครู่', 3000)
             return
         end

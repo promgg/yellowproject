@@ -125,7 +125,7 @@ RegisterServerEvent('!MJ-Lumberjack:addItem', function(treeCoords)
         local now = GetGameTimer()
         posCd[_source] = posCd[_source] or {}
         local last = posCd[_source][key]
-        if last and (now - last) < 900000 then -- 15 นาที (เท่า RockCooldown ของ Mining)
+        if last and (now - last) < (Config.TreeCooldown or 60000) then
             notify(_source, 'info', 'ต้นนี้เพิ่งตัดไป รอสักครู่', 3000)
             return
         end

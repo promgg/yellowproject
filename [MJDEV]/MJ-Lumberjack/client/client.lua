@@ -157,7 +157,9 @@ local function onChopFinished(cancelled)
     if coords then
         rememberTreeAsChopped(coords)
         Citizen.CreateThread(function()
-            Citizen.Wait(900000)
+            -- ต้องตรงกับ Config.TreeCooldown ที่ server ใช้บังคับจริง ไม่งั้น marker
+            -- กลับมาก่อน/หลังเวลาที่ตัดได้จริง
+            Citizen.Wait(Config.TreeCooldown or 60000)
             forgetTreeAsChopped(coords)
         end)
     end
