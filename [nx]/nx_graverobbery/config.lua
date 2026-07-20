@@ -174,12 +174,32 @@ end
 
 Config.Graves = {}
 
+-- ── blip ประจำคลัสเตอร์หลุมศพ ───────────────────────────────────────────────
+-- แยกสีตามแดน/เมือง ให้ดูแผนที่แล้วรู้ว่าเป็นหลุมของที่ไหน
+-- (blip แจ้งเตือน sheriff ตอนมีคนขุดเป็นคนละตัว อยู่ใน client/animations.lua — อันนั้นชั่วคราว)
+Config.ClusterBlip = {
+    enabled = true,
+    sprite  = -428972082,  -- blip_region_hideout
+    scale   = 0.2,
+}
+
+-- ชื่อสี -> BLIP_MODIFIER (ตารางเดียวกับที่ bcc-nazar ใช้)
+Config.BlipColors = {
+    RED   = 'BLIP_MODIFIER_MP_COLOR_10',
+    BLUE  = 'BLIP_MODIFIER_MP_COLOR_13',
+    GREEN = 'BLIP_MODIFIER_MP_COLOR_8',
+    WHITE = 'BLIP_MODIFIER_MP_COLOR_32',
+}
+
+-- client อ่านตารางนี้ไปสร้าง blip (เติมจากลูปสร้างคลัสเตอร์ด้านล่าง)
+Config.ClusterBlips = {}
+
 -- ── แดนบน — 10 หลุม/เมือง เปิดขุดตามเวลาที่ตั้งไว้ใน Config.Villages[id].schedule (ซ้ำทุกวัน)
 -- ไม่มีคูลดาวน์นับถอยหลังแบบแดนใต้ — หลุมที่ขุดแล้วจะปิดจนกว่าจะถึงรอบเปิดของพรุ่งนี้ ──
 local northernAnchors = {
-    { clusterId = 'valentine_grave', villageId = 'valentine', label = 'Valentine', coords = vector3(-104.2654, 259.4358, 103.5259), heading = 299.9986 },
-    { clusterId = 'rhodes_grave', villageId = 'rhodes', label = 'Rhodes', coords = vector3(1728.1279, -431.4838, 48.6842), heading = 267.5973 },
-    { clusterId = 'annesburg_grave', villageId = 'annesburg', label = 'Annesburg', coords = vector3(2889.3147, 487.5027, 66.5826), heading = 155.8634 },
+    { clusterId = 'valentine_grave', villageId = 'valentine', label = 'Valentine', coords = vector3(268.8308, 839.0826, 190.4310), heading = 202.5470, blipColor = 'RED' },
+    { clusterId = 'rhodes_grave', villageId = 'rhodes', label = 'Rhodes', coords = vector3(1728.1279, -431.4838, 48.6842), heading = 267.5973, blipColor = 'BLUE' },
+    { clusterId = 'annesburg_grave', villageId = 'annesburg', label = 'Annesburg', coords = vector3(2889.3147, 487.5027, 66.5826), heading = 155.8634, blipColor = 'GREEN' },
 }
 
 for _, anchor in ipairs(northernAnchors) do
@@ -196,6 +216,12 @@ for _, anchor in ipairs(northernAnchors) do
     })) do
         table.insert(Config.Graves, grave)
     end
+
+    table.insert(Config.ClusterBlips, {
+        coords = anchor.coords,
+        label  = ('สุสาน %s'):format(anchor.label),
+        color  = Config.BlipColors[anchor.blipColor] or Config.BlipColors.WHITE,
+    })
 end
 
 -- ── แดนใต้ — คลัสเตอร์หลุมศพ 3 จุด จุดละ 10 หลุม ไม่มีแจ้งเตือน sheriff/guard,
@@ -221,6 +247,12 @@ for _, anchor in ipairs(southernAnchors) do
     })) do
         table.insert(Config.Graves, grave)
     end
+
+    table.insert(Config.ClusterBlips, {
+        coords = anchor.coords,
+        label  = 'สุสานแดนใต้',
+        color  = Config.BlipColors.WHITE,
+    })
 end
 
 function Config.CustomAlertRecipients(context)
