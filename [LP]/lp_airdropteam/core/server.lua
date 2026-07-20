@@ -494,6 +494,19 @@ end
         return
     end
 
+    -- ต้องมี lockpick ถึงจะไขได้ — หักตรงนี้เลย (จังหวะ "เริ่มไข") ไม่ใช่ตอนได้ของ
+    -- เช็คว่ายังไม่ได้ถือสิทธิ์อยู่ก่อนหัก: event นี้ถูกเรียกซ้ำเพื่อ refresh lock ได้
+    -- ถ้าไม่กันไว้ เจ้าของสิทธิ์เดิมจะโดนหัก lockpick ทุกครั้งที่เรียกซ้ำ
+    if (Config and Config["RequireLockpick"]) and not (lock and lock.src == src) then
+        local item = (Config and Config["LockpickItem"]) or 'lockpick'
+        local have = exports.vorp_inventory:getItemCount(src, nil, item) or 0
+        if have < 1 then
+            TriggerClientEvent(script_name .. ":CL:LootLockResult", src, airdropId, false, 0, "no_lockpick")
+            return
+        end
+        exports.vorp_inventory:subItem(src, item, 1)
+    end
+
     -- acquire / refresh lock
     LootLocks[airdropId] = { src = src, since = GetGameTimer(), name = getDisplayNameBySrc(src) }
     broadcastLootBusy(airdropId, src, true)

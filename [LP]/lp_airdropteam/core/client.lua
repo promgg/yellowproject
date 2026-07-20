@@ -1390,6 +1390,9 @@ if not ok then
         )
     elseif reason == "eliminated" then
         nuiLootHint(true, airdropId, "คุณออกจากวงแล้ว", "ห้ามกลับเข้า (ตายอย่างเดียว)", "", "is-error")
+    elseif reason == "no_lockpick" then
+        -- ถ้าไม่ดักไว้ตรงนี้จะตกไป else แล้วขึ้นว่า "มีคนกำลังเปิดอยู่" ซึ่งคนละเรื่องกัน
+        notify((Config and Config["NoLockpickMsg"]) or "ต้องมีชุดสะเดาะกุญแจถึงจะไขกล่องได้", "error")
     else
         notify("มีคนกำลังเปิด Airdrop อยู่", "error")
     end

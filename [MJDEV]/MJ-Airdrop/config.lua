@@ -46,7 +46,14 @@ Config["TimeToRemove"] = 30 * 60 * 1000        -- เวลาก่อนลบ
 -- 2 phase แบบ nx_event: phase 1 = lp_textui:TextUIHold (จับ/grip ลอยเหนือกล่อง)
 -- -> ขอ lock จาก server -> phase 2 = lp_progbar (แถบเปิดกล่อง + ท่าอนิเมชั่น)
 Config["LootGripHoldTime"] = 800              -- ms, phase 1: lp_textui:TextUIHold
-Config["TimeToPickingAirdrop"] = 40 * 1000     -- ms, phase 2: lp_progbar (ปรับได้)
+Config["TimeToPickingAirdrop"] = 100 * 1000    -- ms, phase 2: lp_progbar (ปรับได้)
+-- === Lockpick ===
+-- ต้องมี lockpick ถึงจะไขกล่องได้ หักตอน "เริ่มไข" (ตอนจองสิทธิ์เก็บของ)
+-- ไม่ใช่ตอนได้ของ — โดนขัดจังหวะกลางคันก็เสียไปแล้ว
+Config["RequireLockpick"] = true
+Config["LockpickItem"]    = 'lockpick'
+Config["NoLockpickMsg"]   = 'ต้องมีชุดสะเดาะกุญแจถึงจะไขกล่องได้'
+
 Config["LabelToPickingAirdrop"] = "กำลังเปิดแอร์ดรอป"
 
 -- lockpick minigame ก่อนเข้า phase 2 (lp_progbar) — พลาดได้ ล็อกกล่องยังอยู่กับผู้เล่นคนเดิม
