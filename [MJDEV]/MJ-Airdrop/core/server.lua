@@ -622,19 +622,44 @@ end)
 -- เดิม: VORPcore.getUser(source).getUsedCharacter ตรงๆ -> พังทันทีถ้าสั่งจาก console (source=0
 -- ไม่มี user) และเทียบ group แบบ case-sensitive ตรงๆ ทำให้ group ที่ DB เก็บเป็น "Admin"/มีช่องว่าง
 -- หลุดเงียบๆ โดยไม่มี feedback ว่าไม่ผ่านสิทธิ์ (บั๊กชุดเดียวกับที่เจอใน MJ-Admin)
+-- ⚠️ VORP มี "group" อยู่สองที่คนละตารางกัน และไม่จำเป็นต้องมีค่าตรงกัน:
+--      user.getGroup      -> ตาราง users      (ระดับบัญชี)  <- ตัวที่ vorp_core ใช้เองในคำสั่งของมัน
+--      character.group    -> ตาราง characters (ระดับตัวละคร)
+--
+-- เดิมอ่านแค่ character.group ทำให้แอดมินที่ตั้งสิทธิ์ไว้ที่ระดับบัญชี (users.group = admin)
+-- ใช้คำสั่งนี้ไม่ได้เลย ทั้งที่คำสั่งของรีซอร์สอื่นที่อ่าน user.getGroup ใช้ได้ปกติ
+--
+-- เรียงลำดับตามที่ lp_deathmatch/server/bridges/vorp.lua ทำ: console -> ACE -> group
+-- ACE มาก่อนเพราะให้สิทธิ์เฉพาะคำสั่งนี้ได้โดยไม่ต้องยกคนขึ้นเป็น admin ทั้งระบบ
+--   add_ace group.admin MJ-Airdrop.admin allow
+local ADMIN_ACE    = 'MJ-Airdrop.admin'
 local ADMIN_GROUPS = { superadmin = true, admin = true }
+
+local function normalizeGroup(value)
+    return tostring(value or ''):lower():gsub('%s+', '')
+end
 
 local function isAdmin(src)
     if src == 0 then return true end -- server console / txAdmin สั่งได้เสมอ
 
+    if IsPlayerAceAllowed(src, ADMIN_ACE) then return true end
+
     local user = VORPcore.getUser(src)
     if not user then return false end
 
-    local character = user.getUsedCharacter
-    if not character then return false end
+    -- อ่านทั้งสองที่ ตั้งไว้ที่ไหนก็ผ่าน — ไม่ต้องมานั่งเดาว่าเซิร์ฟนี้เก็บสิทธิ์ไว้ระดับไหน
+    if ADMIN_GROUPS[normalizeGroup(user.getGroup)] then return true end
 
-    local group = tostring(character.group or ''):lower():gsub('%s+', '')
-    return ADMIN_GROUPS[group] == true
+    local character = user.getUsedCharacter
+    if character and ADMIN_GROUPS[normalizeGroup(character.group)] then return true end
+
+    -- บอกไปเลยว่าเห็นค่าอะไรตอนปฏิเสธ — ไม่งั้นเวลาแอดมินใช้คำสั่งไม่ได้จะไล่หาสาเหตุไม่เจอ
+    -- ว่าติดที่ ACE, ที่ users.group หรือที่ characters.group
+    print(('[%s] ปฏิเสธคำสั่ง: src=%s ace=%s users.group=%s characters.group=%s'):format(
+        script_name, tostring(src), tostring(IsPlayerAceAllowed(src, ADMIN_ACE)),
+        tostring(user.getGroup), tostring(character and character.group)))
+
+    return false
 end
 
 -- แจ้งผลกลับ ไม่ให้คำสั่งเงียบหายเหมือนเดิม (console ใช้ print, ในเกมใช้ notify)
@@ -648,7 +673,11 @@ end
 
 if Config['Command'] then
     RegisterCommand(Config['Command'], function(source, args, rawCommand)
-        if not isAdmin(source) then return end
+        -- เดิม return เฉยๆ ไม่บอกอะไรเลย คนสั่งแยกไม่ออกระหว่าง "ไม่มีสิทธิ์" กับ "รีซอร์สพัง"
+        if not isAdmin(source) then
+            adminFeedback(source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้')
+            return
+        end
 
         if IsAirdropStarted then
             adminFeedback(source, 'Airdrop กำลังทำงานอยู่แล้ว')
@@ -663,7 +692,11 @@ if Config['Command'] then
     -- (prop, zone lock, loot lock) และ broadcast CL:DeleteAirdrop/Revive ให้ client เก็บ blip+prop ด้วย
     -- (GameFinish ล้างเฉพาะ state ฝั่ง server ไม่ยิงให้ client -> blip ค้างบนแมพ)
     RegisterCommand('del' .. Config['Command'], function(source, args, rawCommand)
-        if not isAdmin(source) then return end
+        -- เดิม return เฉยๆ ไม่บอกอะไรเลย คนสั่งแยกไม่ออกระหว่าง "ไม่มีสิทธิ์" กับ "รีซอร์สพัง"
+        if not isAdmin(source) then
+            adminFeedback(source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้')
+            return
+        end
 
         if not IsAirdropStarted then
             adminFeedback(source, 'ยังไม่มี Airdrop ที่กำลังทำงานอยู่')
