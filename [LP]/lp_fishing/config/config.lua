@@ -60,6 +60,39 @@ Config.FishingGuard = {
 -- /fishdump (ดูค่า struct) และ /fishwatch (ตามดู state) ไว้ debug ตอนทดสอบ
 Config.DebugCommands = true
 
+-- ── โหมดง่าย (แยกจากมินิเกมของเกม) ──────────────────────────────────────────
+-- Enabled = true  -> ปิดมินิเกมของเกมทั้งหมด ใช้ flow นี้แทน:
+--                   ถือเบ็ด -> ใส่เหยื่อ -> กด E -> เบ็ดพุ่งไปหาปลาที่เหยื่อล่อได้
+--                   -> รอปลากิน -> เล่น lp_minigame -> ผ่าน = ได้ปลา / ไม่ผ่าน = ปลาหลุด
+-- Enabled = false -> ใช้มินิเกมของเกมตามเดิม (ค่าเริ่มต้น)
+--
+-- ปลาที่จับได้เป็น entity จริงในน้ำเหมือนโหมดปกติ ไม่ได้สุ่มจากตาราง
+-- server ยังตรวจทุกอย่างเหมือนเดิม (playersFishing + entity มีจริง + canCarryItem)
+Config.SimpleMode = {
+    Enabled = false,
+
+    Key        = 'INPUT_CONTEXT',       -- E
+    PromptText = 'เหวี่ยงเบ็ด',
+    HoldMs     = 200,
+
+    -- รัศมีที่ค้นหาปลา — ต้องเป็นปลาที่เหยื่อชิ้นนี้ล่อได้เท่านั้น (BaitsPerFish)
+    SearchRadius = 60.0,
+    NoFishMsg    = 'แถวนี้ไม่มีปลาที่เหยื่อนี้ล่อได้',
+
+    -- รอปลากินเหยื่อ (สุ่มระหว่างสองค่านี้)
+    BiteDelayMin = 3000,
+    BiteDelayMax = 8000,
+    WaitLabel    = 'รอปลากินเหยื่อ...',
+
+    -- ส่งต่อให้ exports.lp_minigame:Fishing() — ดู lp_minigame/config.lua
+    Minigame = {
+        duration = 12000,
+        zoneSize = 15,
+    },
+
+    FailMsg = 'ปลาหลุด! เหยื่อหายไปด้วย',
+}
+
 -- ปลากินเบ็ดแล้วได้ 100% — ปิดเงื่อนไข "เอ็นขาด" ตอนสู้กับปลา (state 7)
 -- true  = สาวแรงเกินไปเอ็นก็ไม่ขาด ยังไงก็ได้ปลา (ยังกดยกเลิกเองได้อยู่)
 -- false = ใช้กติกาเดิมของเกม เอ็นขาดถ้าแรงเกิน MaxFishForce

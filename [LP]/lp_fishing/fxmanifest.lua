@@ -31,6 +31,7 @@ dependencies {
 	'lp_textui',
 	'lp_progbar',
 	'lp_rewardpanel',
+	'lp_minigame',
 	'pNotify'
 }
 

@@ -86,6 +86,10 @@ end)
 RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
     if fishing then return end
 
+    -- โหมดง่ายไม่ใช้มินิเกมของเกมเลย — currentLure ถูกตั้งไว้แล้วตอน checkRodAndBait
+    -- ปล่อยให้ thread ของโหมดง่ายรับช่วงต่อ (รอผู้เล่นกดปุ่มเหวี่ยง)
+    if Config.SimpleMode and Config.SimpleMode.Enabled then return end
+
     local playerPed = PlayerPedId()
     if Citizen.InvokeNative(0xDC88D06719070C39,playerPed) and not IsPedSwimming(playerPed) then
         Core.NotifyRightTip(T.StandNearSide, 4000)
@@ -483,16 +487,27 @@ function GET_TASK_FISHING_DATA()
     }
 end
 
-function isFishInterested(fishModel)
-    local baitedFish = BaitsPerFish[currentLure]
-    if baitedFish ~= nil then
-        for _, fish in pairs(baitedFish) do
-            if fishs[fishModel] == fish then
-                return true
-            end
-        end
+-- BaitsPerFish เก็บ "ชื่อโมเดล" เป็น string ("A_C_FISHBLUEGIL_01_MS") แต่ตาราง fishs
+-- ใช้ hash เป็น key และเก็บ "ชื่อที่โชว์" เป็น value ("Blue Gil (Medium)")
+-- โค้ดเดิมเทียบ fishs[hash] == "A_C_FISH..." ซึ่งเป็นคนละอย่าง ไม่มีทางตรงกันได้เลย
+-- ผลคือ isFishInterested คืน false ตลอด ปลาไม่เคยถูกล่อเข้าหาทุ่น (TaskGoToEntity ไม่เคยทำงาน)
+-- แปลงเป็นตาราง hash ไว้ล่วงหน้าแล้วเทียบ hash ตรงๆ แทน
+local baitFishHashes = {}
+function baitAttracts(bait, fishModelHash)
+    if not bait then return false end
+    local set = baitFishHashes[bait]
+    if not set then
+        local list = BaitsPerFish[bait]
+        if not list then return false end
+        set = {}
+        for _, name in ipairs(list) do set[GetHashKey(name)] = true end
+        baitFishHashes[bait] = set
     end
-    return false
+    return set[fishModelHash] == true
+end
+
+function isFishInterested(fishModel)
+    return baitAttracts(currentLure, fishModel)
 end
 
 function SET_TASK_FISHING_DATA()
@@ -1068,7 +1083,12 @@ CreateThread(function()
             -- ตอนเลิกตกปลา ถ้าไม่ refresh state จะค้างค่าเก่า
             pcall(GET_TASK_FISHING_DATA)
             local holding = isHoldingRod()
-            local active  = (FISHING_GET_MINIGAME_STATE() or 0) ~= 0
+
+            -- โหมดง่ายไม่ได้สตาร์ท native task เลย state จึงเชื่อไม่ได้ (อาจเป็น 0 ตลอด)
+            -- ใช้แค่ "ถือเบ็ดอยู่ไหม" เป็นตัวตัดสิน ไม่งั้นจะไปล้าง currentLure ทิ้ง
+            -- ตั้งแต่ยังไม่ได้เหวี่ยง แล้วโหมดง่ายจะใช้ไม่ได้เลย
+            local simple = Config.SimpleMode and Config.SimpleMode.Enabled
+            local active = simple or (FISHING_GET_MINIGAME_STATE() or 0) ~= 0
 
             if not holding or not active then
                 -- มินิเกมจบไปแล้วไม่ว่าด้วยเหตุใด (ตาย เดินหนี เก็บเบ็ดทางอื่น)
@@ -1095,4 +1115,154 @@ end)
 -- flash ช่องปลาที่เพิ่งได้ (server ยืนยันแล้วว่าเข้ากระเป๋าจริง)
 RegisterNetEvent('lp_fishing:fishAwarded', function(itemName)
     pcall(function() exports.lp_rewardpanel:Highlight(itemName) end)
+end)
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  โหมดง่าย — แยกจากมินิเกมของเกมทั้งหมด (Config.SimpleMode.Enabled)
+--
+--  ถือเบ็ด -> ใส่เหยื่อ -> กด E -> เล็งไปที่ปลาที่เหยื่อล่อได้ตัวใกล้สุด
+--  -> รอปลากิน -> เล่น lp_minigame -> ผ่าน = ได้ปลา / ไม่ผ่าน = ปลาหลุด + เสียเหยื่อ
+--
+--  ปลาที่จับเป็น entity จริงในน้ำ ไม่ได้สุ่มจากตาราง จึงส่งเข้า server event เดิมได้
+--  และได้ด่านตรวจเดิมครบ (playersFishing + DoesEntityExist + canCarryItem)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+local function notify(text, kind)
+    pcall(function()
+        exports.pNotify:SendNotification({ text = text, type = kind or 'error', timeout = 4000 })
+    end)
+end
+
+-- ปลาที่เหยื่อชิ้นนี้ล่อได้ ตัวที่ใกล้ที่สุด
+local function findBaitedFish(radius)
+    local ped    = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local best, bestDist
+
+    for _, f in pairs(GetNearbyFishs(coords, radius)) do
+        if DoesEntityExist(f) then
+            local model = GetEntityModel(f)
+            -- ต้องอยู่ในตาราง fishs ด้วย ไม่งั้น server จะหา fishEntity ไม่เจอแล้วทิ้งทั้งรอบ
+            if fishs[model] and baitAttracts(currentLure, model) then
+                local d = #(coords - GetEntityCoords(f))
+                if not bestDist or d < bestDist then best, bestDist = f, d end
+            end
+        end
+    end
+    return best
+end
+
+local simpleBusy = false
+
+local function simpleCast()
+    local S = Config.SimpleMode
+    if not currentLure then return end
+
+    local fish = findBaitedFish(S.SearchRadius or 60.0)
+    if not fish then
+        notify(S.NoFishMsg or 'แถวนี้ไม่มีปลาที่เหยื่อนี้ล่อได้')
+        return
+    end
+
+    -- หันหน้าไปทางปลาให้ดูเหมือนเหวี่ยงไปหามัน
+    local ped = PlayerPedId()
+    local pc, fc = GetEntityCoords(ped), GetEntityCoords(fish)
+    SetEntityHeading(ped, GetHeadingFromVector_2d(fc.x - pc.x, fc.y - pc.y))
+
+    -- รอปลากินเหยื่อ — lp_progbar:Progress ไม่ block (spawn thread แล้ว return id)
+    -- ต้องรอเองผ่าน callback ถึงจะรู้ว่าผู้เล่นกดยกเลิกกลางคันหรือเปล่า
+    local waitMs = math.random(S.BiteDelayMin or 3000, S.BiteDelayMax or 8000)
+    local done, cancelled = false, false
+    local started = pcall(function()
+        exports.lp_progbar:Progress(
+            { duration = waitMs, label = S.WaitLabel or 'รอปลากินเหยื่อ...', canCancel = true },
+            function(wasCancelled) cancelled = wasCancelled; done = true end
+        )
+    end)
+    if started then
+        while not done do Wait(50) end
+    else
+        Wait(waitMs)
+    end
+    if cancelled then return end
+
+    -- ปลาอาจว่ายหนีไปแล้วระหว่างรอ
+    if not DoesEntityExist(fish) then
+        notify('ปลาว่ายหนีไปแล้ว')
+        return
+    end
+
+    -- แยก "แพ้" ออกจาก "เรียก minigame ไม่ได้" — ถ้า lp_minigame พังหรือไม่ได้รัน
+    -- ต้องไม่นับเป็นแพ้ ไม่งั้นผู้เล่นเสียเหยื่อฟรีเพราะบั๊กที่ไม่ใช่ความผิดเขา
+    local called, passed = pcall(function()
+        return exports.lp_minigame:Fishing(S.Minigame or {})
+    end)
+    if not called then
+        print('[lp_fishing] เรียก lp_minigame:Fishing ไม่ได้: ' .. tostring(passed))
+        notify('ระบบมินิเกมมีปัญหา ลองใหม่อีกครั้ง')
+        return
+    end
+
+    if not passed then
+        notify(S.FailMsg or 'ปลาหลุด! เหยื่อหายไปด้วย')
+        currentLure = nil                                  -- เสียเหยื่อ ต้องใส่ใหม่
+        TriggerServerEvent('lp_fishing:stopFishing')
+        return
+    end
+
+    -- ปลาที่ว่ายในน้ำเป็น entity ของ client ฝั่งเดียว server จะมองไม่เห็นถ้าไม่ register
+    -- ก่อน — ไม่มี netid ที่ใช้ได้ = แจกของไม่ได้ ต้องเช็คซ้ำหลัง register แล้วยอมแพ้
+    -- แบบไม่แจกของ ดีกว่าส่ง netid มั่วไปให้ server
+    if not NetworkGetEntityIsNetworked(fish) then
+        NetworkRegisterEntityAsNetworked(fish)
+    end
+    if not NetworkGetEntityIsNetworked(fish) then
+        notify('จับปลาตัวนี้ไม่ได้ ลองตัวอื่น')
+        return
+    end
+
+    SetEntityAsMissionEntity(fish, true, true)
+    TriggerServerEvent('lp_fishing:FishToInventory',
+        NetworkGetNetworkIdFromEntity(fish),
+        GetEntityModel(fish),
+        math.random(30, 90) / 100,
+        'keep')
+
+    currentLure = nil
+    Wait(500)   -- ให้ FishToInventory ถึง server ก่อนค่อยเคลียร์สถานะกำลังตกปลา
+    TriggerServerEvent('lp_fishing:stopFishing')
+end
+
+CreateThread(function()
+    local S = Config.SimpleMode
+    if not S or not S.Enabled then return end
+
+    local promptShown = false
+
+    while true do
+        local sleep = 500
+        local ready = (not simpleBusy) and currentLure and isHoldingRod() and isNearWater()
+
+        if ready then
+            sleep = 300
+            if not promptShown then
+                promptShown = true
+                exports.lp_textui:TextUIHold(S.PromptText or 'เหวี่ยงเบ็ด', S.HoldMs or 200, function()
+                    promptShown = false
+                    if simpleBusy then return end
+                    simpleBusy = true
+                    CreateThread(function()
+                        local ok, err = pcall(simpleCast)
+                        if not ok then print('[lp_fishing] simpleCast error: ' .. tostring(err)) end
+                        simpleBusy = false
+                    end)
+                end)
+            end
+        elseif promptShown then
+            promptShown = false
+            pcall(function() exports.lp_textui:CancelHold() end)
+        end
+
+        Wait(sleep)
+    end
 end)
