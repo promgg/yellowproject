@@ -1259,6 +1259,15 @@ function StartEvent()
                         TriggerServerEvent("nx_crafting:server:cancelCraft")
                     end
                 end)
+            else
+                -- เดิมไม่มี else เลย: server ปฏิเสธ = กดแล้วเงียบสนิท ไม่มีอะไรเกิดขึ้น
+                -- ตอนนี้ server ส่ง pNotify บอกเหตุผลมาเองแล้ว ตรงนี้เหลือไว้กันเคสที่
+                -- callback ไม่ตอบ/หมดเวลา ซึ่ง server จะไม่ได้ส่งอะไรมาให้เลย
+                if Config.Debug then
+                    print(('[nx_crafting] checkItems คืน false — cat=%s item=%s recipe=%s count=%s')
+                        :format(tostring(recipeCategory), tostring(recipeItemIndex),
+                            tostring(recipeIndex), tostring(count)))
+                end
             end
         end)
 

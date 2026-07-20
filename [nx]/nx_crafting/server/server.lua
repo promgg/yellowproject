@@ -667,6 +667,16 @@ NODEX = {
             local ok, selected = validateSelectedRecipe(_source, xPlayer, requestedCategory, requestedItemIndex,
                 requestedRecipeIndex, requestedAmount)
             if not ok then
+                -- เดิมทิ้งเหตุผลแล้ว cb(false) เปล่าๆ ส่วน client ก็ไม่มี else รองรับ
+                -- (ดู client.lua "if status then ... end") ผลคือกดคราฟแล้วเงียบสนิท
+                -- ไม่มีข้อความ ไม่มี log ทั้งที่ validateSelectedRecipe ปฏิเสธได้ตั้ง 9 สาเหตุ
+                -- ตอนนี้บอกเหตุผลที่มันคืนมาตรงๆ ให้ผู้เล่นรู้ว่าติดตรงไหน
+                notifyPlayer(_source, 'error', selected or 'คราฟไม่ได้ (ไม่ทราบสาเหตุ)')
+                if ConfigSv["Debug"] then
+                    print(('[nx_crafting] checkItems ปฏิเสธ src=%s cat=%s item=%s recipe=%s -> %s')
+                        :format(tostring(_source), tostring(requestedCategory), tostring(requestedItemIndex),
+                            tostring(requestedRecipeIndex), tostring(selected)))
+                end
                 cb(false)
                 return
             end

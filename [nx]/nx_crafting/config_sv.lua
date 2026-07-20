@@ -7,6 +7,10 @@ ConfigSv["Routers"] = {
 
 ConfigSv["License_Key"] = ""
 
+-- print เหตุผลลง server console ทุกครั้งที่ checkItems ปฏิเสธการคราฟ
+-- (ผู้เล่นเห็นข้อความอยู่แล้ว อันนี้ไว้ให้แอดมินไล่ว่าติดเงื่อนไขไหนของสูตร)
+ConfigSv["Debug"] = true
+
 ConfigSv["NoItemLimit"] = false
 
 ConfigSv["Craft_Table_Sound_Distance"] = 5.0
