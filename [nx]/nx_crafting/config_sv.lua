@@ -505,8 +505,11 @@ ConfigSv["Category"] = {
                 recipe = {
                     [1] = {
                         label = "กล่องปฐมพยาบาล",
-                        fail_chance = 70,
-                        success_rate = 30,
+                        -- ต้องแก้คู่กันเสมอ: server สุ่มจาก success_rate (server.lua:551)
+                        -- ส่วน client เอา fail_chance ไปโชว์บน UI (client.lua:907)
+                        -- ตั้งไม่ตรงกันแล้ว UI จะบอกโอกาสคนละเลขกับที่สุ่มจริง
+                        fail_chance = 50,
+                        success_rate = 50,
                         max_stack = 5,
                         cost = {
                             ["Money"] = 0,
