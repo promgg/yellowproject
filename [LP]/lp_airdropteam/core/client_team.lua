@@ -127,12 +127,32 @@ CreateThread(function()
         local pos  = GetEntityCoords(ped)
         local dist = #(pos - zoneSpawnPos)
 
-        -- วง marker สีแดงคลุมขอบเขต safe zone ให้เห็นชัดว่าห้ามออกไปไหน (ก่อนหน้านี้มีแต่กำแพง
-        -- มองไม่เห็น ผู้เล่นไม่มีทางรู้ขอบเขตล่วงหน้าเลย) type 28 = ring แบนราบ ยืนยันแล้วว่าใช้จริง
-        -- ในโปรเจกต์นี้ที่ PolyZone/CircleZone.lua
-        DrawMarker(28, zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            Config.Team.safeZoneRadius, Config.Team.safeZoneRadius, Config.Team.safeZoneRadius,
-            255, 0, 0, 80, false, false, 2, nil, nil, false)
+        -- แสดงขอบเขต safe zone สองชั้น (แพตเทิร์นเดียวกับ PolyZone/CircleZone.lua)
+        --   ring = วงแบนบนพื้น บอกขอบเขตแม่นยำตอนอยู่ใกล้
+        --   wall = ทรงกระบอกสูง คือตัวที่ทำให้ "เห็นเป็นกำแพง" จากระยะไกล
+        -- เดิมมีแต่ ring อย่างเดียว ที่รัศมี 30m เป็นเส้นบางๆ บนพื้น มองแทบไม่เห็น
+        -- ผู้เล่นเลยเดินไปชนกำแพงมองไม่เห็นแล้วงงว่าทำไมเดินต่อไม่ได้
+        local M = Config.Team.safeZoneMarker
+        if M and M.enabled ~= false then
+            local radius = Config.Team.safeZoneRadius
+
+            if not M.ring or M.ring.enabled ~= false then
+                local c = M.ring or {}
+                DrawMarker(28, zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    radius, radius, radius,
+                    c.r or 255, c.g or 40, c.b or 40, c.a or 90, false, false, 2, nil, nil, false)
+            end
+
+            if M.wall and M.wall.enabled ~= false then
+                local c = M.wall
+                -- type 1 ใช้ "เส้นผ่านศูนย์กลาง" เป็นสเกล x/y ไม่ใช่รัศมี
+                -- ถ้าใส่ radius ตรงๆ ผนังจะเล็กกว่ากำแพงจริงครึ่งหนึ่ง = หลอกผู้เล่นแทนที่จะช่วย
+                local diameter = radius * 2.0
+                DrawMarker(1, zoneSpawnPos.x, zoneSpawnPos.y, c.baseZ or -500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    diameter, diameter, c.height or 1000.0,
+                    c.r or 255, c.g or 40, c.b or 40, c.a or 70, false, false, 2, nil, nil, false)
+            end
+        end
 
         if dist > Config.Team.safeZoneRadius then
             -- ดันกลับเข้าขอบวงตรงๆ ตามทิศที่เดินออกมา (เหมือนกำแพงมองไม่เห็น)
