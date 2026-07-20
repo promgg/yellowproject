@@ -14,6 +14,9 @@ Config.Schedule = {
     startHour = 20,
     startMinute = 0,
     durationMinutes = 20,
+    -- ช่วงผ่อนผันหลังเวลาเริ่ม (นาที) — เซิร์ฟที่บูตอยู่จะจับได้ในรอบ poll ถัดไป (ทุก 30 วิ)
+    -- ส่วนเซิร์ฟที่รีสตาร์ทหลังพ้นช่วงนี้ไปแล้วจะไม่จัดอีเว้นท์ย้อนหลัง
+    graceMinutes = 10,
 }
 
 Config.Security = {
@@ -27,24 +30,31 @@ Config.Security = {
     adminGroups = { 'admin', 'superadmin' },
 }
 
--- ── อาวุธที่นับแต้มได้ — ปืน/มีด/ระเบิด เท่านั้น ไม่นับรถชน (รถชนไม่ได้อยู่ในกลุ่มไหนเลยด้านล่าง จึงตกไปเอง) ──
--- ตรวจผ่าน native GetWeapontypeGroup(weaponHash) แทนไล่ชื่ออาวุธทีละตัว (ครอบคลุมกว่า ไม่ต้องอัปเดตทุกครั้งที่เพิ่มอาวุธใหม่)
--- หมายเหตุ: ชื่อกลุ่ม/hash ด้านล่างอ้างอิงจากรูปแบบ WEAPONTYPE_GROUP_* ของ RDR3 — ยังไม่ได้ทดสอบกับ native จริงในเกม
--- ถ้าเจอกรณีนับแต้มผิด (เช่น มีดไม่นับ, หรือชกมือเปล่ากลับนับ) ให้ปรับ allowedGroups/deniedWeapons ตรงนี้
-Config.Weapons = {
-    allowedGroups = {
-        `GROUP_MELEE`,
-        `GROUP_PISTOL`,
-        `GROUP_RIFLE`,
-        `GROUP_SHOTGUN`,
-        `GROUP_SNIPER`,
-        `GROUP_THROWN`,
-        `GROUP_HEAVY`,
-    },
-    -- อาวุธที่ห้ามนับแม้จะอยู่ใน allowedGroups ด้านบน (เช่น ชกมือเปล่ามักถูกจัดกลุ่มเดียวกับมีด/มีดสั้นใน GROUP_MELEE)
-    deniedWeapons = {
-        `WEAPON_UNARMED`,
-    },
+-- ── สาเหตุการตายที่ "ไม่" นับแต้ม ──
+--
+-- เดิมตรงนี้เช็คด้วย GetWeapontypeGroup() ซึ่งเป็น native ฝั่ง client เท่านั้น เรียกจาก server
+-- ไม่ได้ (ตัวแปรเป็น nil -> pcall คืน false -> ทุกคิลตกด่าน weapon_not_allowed) อีก 3 ที่ใน
+-- โปรเจกต์ที่เรียก native ตัวนี้อยู่ใน client/ ทั้งหมด — vorp_cleangun, vorp_inventory x2
+--
+-- เปลี่ยนมาเป็น denylist ด้วย hash ตรงๆ แทน: joaat ใช้ได้ทั้งสองฝั่ง ไม่พึ่ง native ของเกม
+-- กลับด้านจาก allowlist เพราะ RDR3 มีอาวุธเยอะและเพิ่มเรื่อยๆ การไล่แบนสิ่งที่ "ไม่ใช่การต่อสู้"
+-- สั้นและพลาดยากกว่าการไล่อนุญาตอาวุธทุกชิ้น
+--
+-- ปลอดภัยที่จะใส่ชื่อเผื่อไว้: ถ้าชื่อไหนไม่มีจริงใน RDR3 joaat จะได้ hash ที่ไม่ตรงกับอะไรเลย
+-- = ไม่มีผลข้างเคียง ไม่ error
+--
+-- ด่านนี้ไม่ได้ทำงานลำพัง — ผู้ฆ่าต้องเป็นผู้เล่นที่ออนไลน์จริงและไม่ใช่ตัวเอง (ตายเองจาก
+-- สิ่งแวดล้อมได้ killerServerId = 0 ตกตั้งแต่ด่านแรก) บวกระยะ ≤80m + คูลดาวน์คู่ + ต้องคนละเมือง
+Config.DeniedDeathCauses = {
+    'WEAPON_UNARMED',
+    'WEAPON_FALL',
+    'WEAPON_DROWNING',
+    'WEAPON_DROWNING_IN_VEHICLE',
+    'WEAPON_FIRE',
+    'WEAPON_EXPLOSION',
+    'WEAPON_RAMMED_BY_CAR',
+    'WEAPON_RUN_OVER_BY_CAR',
+    'WEAPON_ANIMAL',
 }
 
 -- ── รางวัลตามอันดับ — ตั๋วกาชาโปรโมทเซิร์ฟเท่านั้น (ไม่มีเงิน/ไอเทมอื่นแล้ว) ──

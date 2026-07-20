@@ -20,7 +20,12 @@ function LP_DM.Schedule.ShouldStartNow()
     local nowMinutes = now.hour * 60 + now.min
     local startMinutes = (Config.Schedule.startHour or 0) * 60 + (Config.Schedule.startMinute or 0)
 
-    if nowMinutes >= startMinutes then
+    -- ต้องมีขอบบนด้วย ไม่ใช่แค่ >= เวลาเริ่ม
+    -- เดิมใช้ nowMinutes >= startMinutes เฉยๆ ผลคือรีสตาร์ทเซิร์ฟตอนไหนก็ตามหลังเวลาเริ่ม
+    -- (เช่นตี 2) อีเว้นท์จะเด้งขึ้นทันที เพราะ lastTriggeredDate เก็บใน memory อย่างเดียว
+    -- รีสตาร์ททีก็ลืมว่าวันนี้จัดไปแล้ว
+    local graceMinutes = Config.Schedule.graceMinutes or 10
+    if nowMinutes >= startMinutes and nowMinutes <= (startMinutes + graceMinutes) then
         lastTriggeredDate = key
         return true
     end

@@ -26,17 +26,24 @@ arbitrary defaults.
 
 ## Scoring rules
 
-- **Valid kill methods**: firearms, melee, explosives — checked via `GetWeapontypeGroup`
-  against `Config.Weapons.allowedGroups`, with `WEAPON_UNARMED` explicitly denied (fists are
-  in the same native group as knives in this engine, so a plain allowlist can't exclude them
-  alone). Vehicle-ramming isn't in any allowed group, so it's excluded by omission rather than
-  a special case.
-- **Reporting**: the *victim's* client detects its own death via `gameEventTriggered` /
-  `CEventNetworkEntityDamage` and reports the killer's server id + weapon hash. The server
-  still verifies everything — killer must be a currently-connected player, distance between
-  the two must be plausible (`Config.Security.maxKillDistance`), weapon must be allowed, and
-  a per-pair cooldown (`Config.Security.pairCooldownMinutes`, default 10) blocks two players
-  from trading kills back and forth for infinite points.
+- **Where deaths come from**: this resource does no death detection of its own. It listens to
+  `vorp_core:Server:OnPlayerDeath`, which `vorp_core/client/respawnsystem.lua` fires after
+  polling `IsPlayerDead()` and reading `GetPedSourceOfDeath` / `GetPedCauseOfDeath`. `source`
+  is the victim, arg 1 is the killer's server id, arg 2 is the death-cause hash. Same event
+  `lp_leaderboard` and `lp_airdropteam` already use.
+- **Valid kill methods**: everything except the causes listed in `Config.DeniedDeathCauses`
+  (fists, falling, drowning, fire, explosion, being run over, animals). A denylist rather than
+  an allowlist — RDR3 keeps adding weapons, and listing what *isn't* a fight is shorter and
+  harder to get wrong than enumerating every gun. Names that don't exist in RDR3 are harmless:
+  `joaat` just produces a hash nothing matches.
+- **Verification**: the killer must be a currently-connected player and not the victim,
+  distance between the two must be plausible (`Config.Security.maxKillDistance`), and a
+  per-pair cooldown (`Config.Security.pairCooldownMinutes`, default 10) blocks two players from
+  trading kills back and forth for infinite points.
+- **Duplicate deaths**: `MJ-Respwan/core/client.lua:476` fires the same event as vorp_core
+  does, so one death can arrive twice. A 1-second per-victim guard drops the repeat. The pair
+  cooldown would mask it too, but relying on that alone makes a doubled event indistinguishable
+  from a real kill that hit the cooldown.
 - Same-city or unassigned-city kills: no-op, no error shown, no cooldown consumed.
 - No penalty to the victim's city — only the killer's city gains.
 
@@ -53,19 +60,26 @@ arbitrary defaults.
   These are guaranteed grants, not a random loot roll — winning shouldn't be gated on top of
   already winning.
 
-## Known uncertainty — please verify in-game
+## History — the GTA5 mix-up that made v1.0 do nothing
 
-`CEventNetworkEntityDamage`'s argument layout isn't officially documented by Rockstar/CFX.
-`args[1]`=victim, `args[2]`=culprit, `args[4]`=isDead are confirmed against this project's
-own `[gameplay]/[examples]/ped-money-drops/client.lua`. The weapon hash at `args[6]`
-(`client/main.lua`) is a common convention **but has not been verified against this specific
-RDR3 build**. Turn on `Config.Debug` and check the printed `args` array in-game; if points
-aren't landing (or the wrong weapons are/aren't counting), adjust that index.
+The first version detected deaths with `AddEventHandler('gameEventTriggered', ...)` watching
+for `CEventNetworkEntityDamage`, and filtered weapons with `GetWeapontypeGroup` on the server.
+Both are wrong here, and together they meant the resource never scored a single point:
 
-Similarly, `Config.Weapons.allowedGroups` in `server/config_server.lua` uses `GROUP_MELEE`,
-`GROUP_PISTOL`, `GROUP_RIFLE`, `GROUP_SHOTGUN`, `GROUP_SNIPER`, `GROUP_THROWN`, `GROUP_HEAVY`
-by name-hash convention — also not live-tested. If a valid weapon isn't scoring, log the
-`weapon_not_allowed` security line (has the raw weapon hash) and add its group.
+- `gameEventTriggered` / `CEventNetworkEntityDamage` are **GTA5** game events. They don't fire
+  on RDR3, so the client handler never ran and the server never received anything — no errors,
+  no logs, nothing on either side.
+- The two things that looked like proof it was fine were both GTA5 code:
+  `[gameplay]/[examples]/ped-money-drops` declares `game 'gta5'`, and
+  `[standalone]/PolyZone/EntityZone.lua` is unported dead weight from PolyZone's GTA5 original
+  that nothing in this repo references.
+- `GetWeapontypeGroup` is client-only. Called from a server script the global is `nil`, so
+  `pcall` returned false and every kill would have been rejected as `weapon_not_allowed` even
+  if a report had arrived. Every other call to it in this repo is in a `client/` file.
+
+Worth remembering when adding anything else: check the `game` field in the fxmanifest of
+whatever you're copying from, and check that the file you're citing is actually loaded and
+referenced. Prefer `vorp_core` and `vorp_inventory` as the reference for what works here.
 
 ## Admin commands
 
@@ -90,17 +104,18 @@ Setup once: at least 2 test characters assigned to *different* cities via `nx_ci
 **Scoring — the core validation chain**
 - [ ] Player A (city 1) kills player B (city 2) with an allowed weapon (gun/knife/dynamite), both on foot, close range → A's city score +1 within ~1s on **everyone's** scoreboard, A gets a "kill confirmed" pNotify, score number pulses green.
 - [ ] Same kill, but A and B are in the **same city** → no score change, no notify, no error (silent no-op) — check server console (`Config.Debug`) for `reason=no_op`.
-- [ ] A kills B by **running B over with a vehicle** → no score change (`reason=weapon_not_allowed` or the weapon check simply doesn't match an allowed group — check console).
-- [ ] A punches B to death bare-fisted → no score change (`WEAPON_UNARMED` explicitly denied even though it may share `GROUP_MELEE` with knives).
-- [ ] A kills B with a knife → **does** count (confirms melee-minus-unarmed distinction actually works, not just theoretical).
+- [ ] A punches B to death bare-fisted → no score change (`reason=cause_denied`).
+- [ ] A kills B with a knife → **does** count (confirms the denylist isn't swallowing melee wholesale).
+- [ ] B dies by falling / drowning right after A shoots at them → no score change (`reason=cause_denied`).
 - [ ] A kills B from a **wildly implausible distance** (e.g. via some desync/teleport) → rejected (`reason=too_far`) — hard to force naturally, but worth a sanity check if you have any teleport/noclip admin tool.
 - [ ] A kills B, then **immediately** kills B again → 2nd kill does **not** score (`reason=pair_cooldown`); confirm B killing A right after *also* doesn't score (cooldown is per unordered pair, not per direction).
 - [ ] Wait out `pairCooldownMinutes` (or lower it temporarily in config for testing) → same pair can score again.
 - [ ] A player with **no city assigned** (never ran nx_cityselect) kills someone → no score, no crash.
 
-**Weapon-hash sanity (the flagged uncertainty)**
-- [ ] With `Config.Debug` on, check the client console (F8) after a death for the printed `args` array — confirm `args[4]` is really 1/0 for isDead in your build, and that `args[6]` looks like a plausible weapon hash (not nil, not victim/culprit's own ped handle repeated).
-- [ ] Confirm server console's `weapon_not_allowed` log (if any legit gun/knife kill gets rejected) shows the raw hash — cross-check against `GetWeapontypeGroup` expectations and adjust `Config.Weapons.allowedGroups` if needed.
+**Death event actually arrives (check this first — v1.0 failed here)**
+- [ ] With `Config.Debug` on, kill someone during an active event and confirm the server console prints `[lp_deathmatch] death victim=... killer=... cause=...`. If nothing prints at all, `vorp_core:Server:OnPlayerDeath` isn't reaching this resource and nothing downstream matters.
+- [ ] Confirm the printed `cause` is a plausible weapon hash and that legitimate gun kills aren't landing on `reason=cause_denied`. If a real weapon is being denied, its hash collides with a name in `Config.DeniedDeathCauses` — remove that entry.
+- [ ] Kill someone twice in quick succession and confirm only one `death` line prints per actual death (the `MJ-Respwan` duplicate-event guard).
 
 **Event end / rewards**
 - [ ] Let the countdown hit 0 (or `/dmforceend`) with a clear single winner → scoreboard freezes, results overlay shows correct ranking, only players from the **winning city who are online right now** get a reward + `reward_won` notify; a same-city player who logged off mid-event gets nothing.

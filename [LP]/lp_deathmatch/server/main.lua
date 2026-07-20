@@ -1,22 +1,42 @@
 LP_DM = LP_DM or {}
 
--- ── ผู้ตาย (client ที่โดนฆ่า) เป็นคนรายงาน ไม่ใช่ผู้ฆ่า ──
--- gameEventTriggered เห็น entity death ของ ped ตัวเองเชื่อถือได้สุดจากฝั่งเหยื่อเอง (เห็นชัวร์ว่าตัวเองตายจริง)
--- server ยัง verify ต่อทุกจุดอยู่ดี (killerServerId ต้องออนไลน์จริง, ระยะสมเหตุสมผล, อาวุธที่อนุญาต, คูลดาวน์คู่)
-RegisterNetEvent('lp_deathmatch:server:reportDeath', function(killerServerId, weaponHash)
+-- ── ฟังการตายจาก vorp_core โดยตรง ──
+--
+-- vorp_core/client/respawnsystem.lua:218-236 poll IsPlayerDead() แล้วยิง event นี้ให้พร้อมใช้
+-- (killerServerId มาจาก GetPedSourceOfDeath + IsPedAPlayer, deathCause มาจาก GetPedCauseOfDeath)
+-- source = เหยื่อ — เป็นเส้นทางที่ทำงานจริงบน RDR3 และมี lp_leaderboard/lp_airdropteam ใช้อยู่แล้ว
+--
+-- เดิมไฟล์นี้รับ event ของตัวเองจาก client ที่ดักด้วย gameEventTriggered ซึ่งเป็นของ GTA5
+-- ไม่เคยยิงบน RDR3 = ไม่เคยมีอะไรมาถึงตรงนี้เลย
+--
+-- ⚠️ MJ-Respwan/core/client.lua:476 ยิง event เดียวกันนี้ซ้ำอีกตัวนอกเหนือจาก vorp_core เอง
+--    ถ้าทั้งคู่ทำงานพร้อมกัน หนึ่งการตายจะมาถึงสองครั้ง ต้องกันซ้ำต่อเหยื่อที่นี่
+--    (คูลดาวน์คู่ผู้ฆ่า-เหยื่อ 10 นาทีกันได้อยู่แล้วก็จริง แต่พึ่งมันอย่างเดียวไม่ได้ —
+--     มันจะกลืน event ซ้ำไปเงียบๆ ทำให้แยกไม่ออกว่าเป็นการยิงซ้ำหรือเป็นคิลจริงที่โดนคูลดาวน์)
+local lastDeathAt = {} -- [victimSource] = os.clock() ครั้งล่าสุดที่รับการตายของคนนี้
+local DEATH_DEDUPE_SECONDS = 1.0
+
+RegisterNetEvent('vorp_core:Server:OnPlayerDeath', function(killerServerId, deathCause)
     local victimSource = source
-    if not LP_DM.Security.CheckRateLimit(victimSource, 'reportDeath') then return end
+    if not LP_DM.Event.IsActive() then return end
+
+    local currentClock = os.clock()
+    if lastDeathAt[victimSource] and (currentClock - lastDeathAt[victimSource]) < DEATH_DEDUPE_SECONDS then
+        return
+    end
+    lastDeathAt[victimSource] = currentClock
 
     killerServerId = tonumber(killerServerId)
-    weaponHash = tonumber(weaponHash)
-    if not killerServerId or not weaponHash then return end
+    deathCause = tonumber(deathCause)
+    if not killerServerId or killerServerId == 0 then return end -- ตายเองจากสิ่งแวดล้อม/NPC
+    if not deathCause then return end
     if killerServerId == victimSource then return end
     if not GetPlayerName(killerServerId) then return end -- ต้องเป็นผู้เล่นที่ต่ออยู่จริงตอนนี้เท่านั้น
 
-    local ok, reason = LP_DM.Event.ReportKill(killerServerId, victimSource, weaponHash)
+    local ok, reason = LP_DM.Event.ReportKill(killerServerId, victimSource, deathCause)
     if Config.Debug then
-        print(('[lp_deathmatch] reportDeath victim=%s killer=%s weapon=%s ok=%s reason=%s'):format(
-            victimSource, killerServerId, tostring(weaponHash), tostring(ok), tostring(reason)
+        print(('[lp_deathmatch] death victim=%s killer=%s cause=%s ok=%s reason=%s'):format(
+            victimSource, killerServerId, tostring(deathCause), tostring(ok), tostring(reason)
         ))
     end
 end)
@@ -70,6 +90,7 @@ AddEventHandler('playerDropped', function()
     local droppedSource = source
     LP_DM.Security.ClearPlayer(droppedSource)
     LP_DM.CitySelect.InvalidatePlayer(droppedSource)
+    lastDeathAt[droppedSource] = nil
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)

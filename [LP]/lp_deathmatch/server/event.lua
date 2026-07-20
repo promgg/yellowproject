@@ -7,6 +7,13 @@ local scores = {}          -- [cityId] = number
 local pairCooldowns = {}    -- [canonicalPairKey] = expiresAt (os.time())
 local endTimerRef = 0       -- generation counter — กัน timer เก่าค้างยิง End() ซ้ำถ้ามีคน forcestart ทับ
 
+-- แปลงชื่อเป็น hash ครั้งเดียวตอนโหลด แล้วเก็บเป็น set เพื่อเช็คด้วยการ index ตรงๆ
+-- (deathCause ที่ได้จาก GetPedCauseOfDeath เป็น hash อยู่แล้ว)
+local deniedCauses = {}
+for _, name in ipairs(Config.DeniedDeathCauses or {}) do
+    deniedCauses[joaat(name)] = true
+end
+
 local function pairKey(sourceA, sourceB)
     local a, b = tonumber(sourceA), tonumber(sourceB)
     if a > b then a, b = b, a end
@@ -147,14 +154,9 @@ function LP_DM.Event.ReportKill(killerSource, victimSource, weaponHash)
     local victimChar = LP_DM.VORP.GetCharacter(victimSource)
     if not killerChar or not victimChar then return false, 'invalid_player' end
 
-    -- อาวุธต้องอยู่ใน allowedGroups และไม่ใช่ deniedWeapons (กันชกมือเปล่า/รถชนนับแต้ม)
-    if LP_DM.TableContains(Config.Weapons.deniedWeapons, weaponHash) then
-        return false, 'weapon_denied'
-    end
-    local okGroup, group = pcall(GetWeapontypeGroup, weaponHash)
-    if not okGroup or not LP_DM.TableContains(Config.Weapons.allowedGroups, group) then
-        LP_DM.Security.Log(killerSource, 'reportKill', 'weapon_not_allowed', { weaponHash = weaponHash })
-        return false, 'weapon_not_allowed'
+    -- สาเหตุการตายต้องไม่อยู่ใน denylist (ชกมือเปล่า/ตกที่สูง/จมน้ำ/ไฟ/สัตว์ ไม่นับแต้ม)
+    if deniedCauses[weaponHash] then
+        return false, 'cause_denied'
     end
 
     if not LP_DM.Security.ArePlausiblyNear(killerSource, victimSource) then
