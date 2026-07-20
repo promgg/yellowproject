@@ -235,13 +235,19 @@ body {
     transition: width 160ms ease;
 }
 
-/* Three compact circular cores */
+/* แถววงกลมสถานะ (7 วง: food / water / core / mic / horse*)
+   เดิมวางแต่ละวงด้วย :nth-child + position:absolute ที่ left 230/267/305 ซึ่งรองรับได้แค่ 3 วง
+   เปลี่ยนมาเป็น flex row anchor ที่ left 230px แทน: gap 4px + วงกว้าง 33px = ระยะห่าง 37px
+   เท่าของเดิมเป๊ะ และเวลาวงม้าถูก display:none วงข้างหน้า (4 วงแรก) จะไม่ขยับเลย
+   เพราะมันเรียงจากซ้ายไปขวา */
 .nx-status-icons {
     position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 340px;
-    height: 50px;
+    left: 230px;
+    bottom: 8px;
+    display: flex;
+    height: 33px;
+    align-items: center;
+    gap: 4px;
 }
 
 .nx-status-icon {
@@ -250,6 +256,7 @@ body {
     display: flex;
     width: 33px;
     height: 33px;
+    flex: 0 0 33px;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
@@ -258,9 +265,9 @@ body {
     box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.64);
 }
 
-.nx-status-icon:nth-child(1) { position: absolute; left: 230px; bottom: 8px; }
-.nx-status-icon:nth-child(2) { position: absolute; left: 267px; bottom: 9px; width: 32px; height: 32px; }
-.nx-status-icon:nth-child(3) { position: absolute; left: 305px; bottom: 8px; }
+/* วงที่ถูกซ่อน (ม้าตอนไม่ได้ขี่ / condition ที่ไม่มีค่า) ต้อง display:none ไม่ใช่ opacity
+   ไม่งั้นจะเหลือช่องว่างค้างอยู่ในแถว */
+.nx-status-icon.is-hidden { display: none; }
 
 .nx-status-icon::before {
     content: "";
@@ -277,84 +284,37 @@ body {
     z-index: 1;
 }
 
-.nx-status-icon:nth-child(1) .nx-svg-icon { width: 11px; height: 11px; transform: translateX(-1px); }
-.nx-status-icon:nth-child(2) .nx-svg-icon { width: 6px; height: 10px; }
-.nx-status-icon:nth-child(3) .nx-svg-icon { width: 15px; height: 15px; transform: translateX(-1px); }
+/* ขนาดไอคอนผูกกับ data-status-key แทน :nth-child เพราะลำดับวงไม่คงที่แล้ว
+   (วงม้าโผล่/หายตามการขี่ม้า) ค่าของ food/water/core คงเท่าเดิมทุกตัว */
+.nx-status-icon .nx-svg-icon { width: 13px; height: 13px; }
+.nx-status-icon[data-status-key="food"] .nx-svg-icon { width: 11px; height: 11px; transform: translateX(-1px); }
+.nx-status-icon[data-status-key="water"] .nx-svg-icon { width: 6px; height: 10px; }
+.nx-status-icon[data-status-key="core"] .nx-svg-icon { width: 15px; height: 15px; transform: translateX(-1px); }
+.nx-status-icon[data-status-key="mic"] .nx-svg-icon { width: 12px; height: 13.64px; }
+.nx-status-icon[data-status-key="horseHealth"] .nx-svg-icon { width: 13px; height: 13px; }
+.nx-status-icon[data-status-key="horseStamina"] .nx-svg-icon { width: 8px; height: 14.67px; }
+.nx-status-icon[data-status-key="horseCondition"] .nx-svg-icon { width: 15px; height: 13.5px; }
 
 .nx-status-icon.is-muted { color: #777; filter: grayscale(0.8); }
 .nx-status-icon.is-warning { color: var(--gold-light); }
 .nx-status-icon.is-critical { color: #fff; box-shadow: 0 0 7px rgba(216, 0, 4, 0.7); }
 
-/* Mounted horse panel */
-.nx-horse-panel {
-    position: absolute;
-    left: var(--horse-left);
-    bottom: var(--horse-bottom);
-    width: 64px;
-    height: 56px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 120ms linear, visibility 120ms linear;
+/* วง mic ไม่มีค่าเปอร์เซ็นต์ ใช้ริงเต็มวงตลอดแล้วสลับ "สว่าง/หรี่" แทน
+   ตอนไม่พูด = ริงทองหม่น ไอคอนหรี่ / ตอนพูด = ทองสว่าง + เรืองแสง
+   (ใช้เฉดเดียวกับ .nx-mic-box.is-talking เพื่อให้ภาษาภาพตรงกับกล่องไมค์ในแถบบน) */
+.nx-status-icon[data-status-key="mic"] {
+    color: var(--gold);
+    background: conic-gradient(#5c4a2c var(--value), #312b17 0);
 }
 
-.nx-horse-panel.is-visible { opacity: 1; visibility: visible; }
-
-.nx-horse-divider {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 2px;
-    height: 56px;
-    border-radius: 2px;
-    background: linear-gradient(var(--gold-bright), var(--gold-dark));
+.nx-status-icon[data-status-key="mic"].is-talking {
+    color: var(--gold-bright);
+    background: conic-gradient(var(--gold-light) var(--value), #312b17 0);
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.64), 0 0 7px rgba(240, 202, 120, 0.5);
 }
 
-.nx-horse-row {
-    position: absolute;
-    left: 10px;
-    display: flex;
-    width: 54px;
-    height: 17px;
-    align-items: flex-end;
-}
-
-.nx-horse-row[data-horse-key="health"] { top: -1px; }
-.nx-horse-row[data-horse-key="stamina"] { top: 19px; }
-.nx-horse-row[data-horse-key="condition"] { top: 39px; }
-.nx-horse-row.is-hidden { display: none; }
-
-.nx-horse-icon {
-    z-index: 1;
-    display: flex;
-    width: 17px;
-    height: 17px;
-    flex: 0 0 17px;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--gold);
-    border-radius: 4px 4px 0 4px;
-    background: rgba(0, 0, 0, 0.62);
-}
-
-.nx-horse-row[data-horse-key="health"] .nx-svg-icon { width: 9px; height: 9px; }
-.nx-horse-row[data-horse-key="stamina"] .nx-svg-icon { width: 6px; height: 11px; }
-.nx-horse-row[data-horse-key="condition"] .nx-svg-icon { width: 10px; height: 9px; }
-
-.nx-horse-meter {
-    width: 17px;
-    height: 9px;
-    margin-left: -1px;
-    overflow: hidden;
-    border: 1px solid var(--gold);
-    background: rgba(59, 59, 59, 0.62);
-}
-
-.nx-horse-fill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(180deg, var(--gold-light) 32.212%, #be893b);
-    transition: width 160ms ease;
-}
+/* แผงม้าแบบแถบนอน (.nx-horse-panel / .nx-horse-row / .nx-horse-meter) ถูกถอดออก
+   ตอนย้ายค่าม้าไปเป็นวงกลมในแถว .nx-status-icons แล้ว */
 
 /* Integrated circular tile radar */
 .nx-radar-map {

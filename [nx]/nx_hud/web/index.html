@@ -65,23 +65,10 @@
                 <div id="nxSecondaryFill" class="nx-secondary-fill"></div>
             </div>
 
+            <!-- วงกลมสถานะทั้งหมดอยู่ในแถวเดียวกันหมด: food / water / core / mic / ม้า 3 วง
+                 วงม้าถูกสร้างจาก app.js (EXTRA_STATUS_ICONS) และซ่อนไว้จนกว่าจะขี่ม้า
+                 แผงม้าแบบแถบนอน (nx-horse-panel) เดิมถูกถอดออกแล้ว -->
             <div id="nxStatusIcons" class="nx-status-icons"></div>
-
-            <aside id="nxHorsePanel" class="nx-horse-panel" aria-hidden="true">
-                <div class="nx-horse-divider"></div>
-                <div class="nx-horse-row" data-horse-key="health">
-                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="heartPulse"></span></div>
-                    <div class="nx-horse-meter"><div id="nxHorseHealthFill" class="nx-horse-fill"></div></div>
-                </div>
-                <div class="nx-horse-row" data-horse-key="stamina">
-                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="bolt"></span></div>
-                    <div class="nx-horse-meter"><div id="nxHorseStaminaFill" class="nx-horse-fill"></div></div>
-                </div>
-                <div class="nx-horse-row" data-horse-key="condition">
-                    <div class="nx-horse-icon"><span class="nx-svg-icon" data-icon="saddle"></span></div>
-                    <div class="nx-horse-meter"><div id="nxHorseConditionFill" class="nx-horse-fill"></div></div>
-                </div>
-            </aside>
         </section>
     </main>
 

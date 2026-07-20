@@ -92,7 +92,9 @@ Config.Layout = {
         Left = 18,
         Bottom = 28,
         Top = 24,
-        Width = 410,
+        -- ขยายจาก 410 เป็น 520 เพราะแถววงกลมสถานะยาวขึ้นเป็น 7 วง (เริ่มที่ x=230
+        -- ยาวถึง ~503px) ทุกอย่างใน HUD ยึด left/bottom หมด การขยายความกว้างจึงไม่ขยับอะไร
+        Width = 520,
         Height = 300,
     },
     Horse = {
@@ -104,7 +106,9 @@ Config.Layout = {
 }
 
 Config.RadarMap = {
-    Enabled = true,
+    -- ปิดแผนที่ radar แบบ custom ของ HUD แล้วกลับไปใช้ minimap ของเกมแทน
+    -- โค้ด/markup/CSS ของ radar ยังอยู่ครบ (แค่ไม่ทำงาน) เผื่ออยากเปิดกลับมาใช้ทีหลัง
+    Enabled = false,
 
     -- always = show whenever the HUD is visible
     -- horse  = show only while mounted
@@ -113,7 +117,9 @@ Config.RadarMap = {
     SavePlayerPreference = true,
     PreferenceKey = 'nx_hud:radarMode',
 
-    HideNativeRadar = true,
+    -- ต้องเป็น false ตอน Enabled = false ไม่งั้นเราจะไปซ่อน minimap ของเกมทิ้ง
+    -- ทั้งที่ไม่มี radar ของเราขึ้นมาแทน = ผู้เล่นไม่เหลือแผนที่เลย
+    HideNativeRadar = false,
     RestoreNativeRadarOnStop = true,
     RestoreNativeRadarType = 2,
 

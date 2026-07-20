@@ -23,6 +23,28 @@
         { key: 'core', icon: 'brain' }
     ];
 
+    // วงกลมที่ "ไม่ได้" มาจาก Config.StatusIcons ฝั่ง client — client ส่งค่าพวกนี้มาคนละ payload
+    // (mic มากับ hud:update.voice.talking, horse* มากับ horse:update) ถ้าเอาไปใส่ Config.StatusIcons
+    // ค่าจะโดน item.default ทับ เลยต้อง append เองที่นี่ และการ append ท้ายเสมอคือสิ่งที่การันตี
+    // ลำดับซ้าย→ขวา: food, water, core, mic, แล้วค่อย 3 วงม้า
+    const EXTRA_STATUS_ICONS = [
+        { key: 'mic', icon: 'mic' },
+        { key: 'horseHealth', icon: 'heartPulse' },
+        { key: 'horseStamina', icon: 'bolt' },
+        { key: 'horseCondition', icon: 'saddle' }
+    ];
+
+    // เดิม hard-code เลข 3 กระจายอยู่หลายที่ (normalizeStatusMeta / ensureStatusNode /
+    // updateStatusIcons) ทำให้วงที่ 4 ขึ้นไปถูกตัดทิ้งเงียบ ๆ รวบมาเป็นค่าเดียวเผื่อขยายอีก
+    const MAX_STATUS_ICONS = 12;
+
+    // map ชื่อ field ใน payload horse:update -> key ของวงกลม
+    const HORSE_STATUS_KEYS = {
+        health: 'horseHealth',
+        stamina: 'horseStamina',
+        condition: 'horseCondition'
+    };
+
     const state = {
         visible: true,
         secondaryEnabled: true,
@@ -34,6 +56,8 @@
             bottom: 28
         },
         horseVisible: false,
+        horseHasCondition: true,
+        micActive: false,
         radarVisible: false,
         radarDebug: false,
         radarMode: 'horse',
@@ -66,16 +90,7 @@
         healthFill: document.getElementById('nxHealthFill'),
         secondaryBar: document.getElementById('nxSecondaryBar'),
         secondaryFill: document.getElementById('nxSecondaryFill'),
-        statusIcons: document.getElementById('nxStatusIcons'),
-        horsePanel: document.getElementById('nxHorsePanel'),
-        horseRows: {
-            condition: document.querySelector('[data-horse-key="condition"]')
-        },
-        horseBars: {
-            health: document.getElementById('nxHorseHealthFill'),
-            stamina: document.getElementById('nxHorseStaminaFill'),
-            condition: document.getElementById('nxHorseConditionFill')
-        }
+        statusIcons: document.getElementById('nxStatusIcons')
     };
 
     const statusNodes = new Map();
@@ -245,7 +260,7 @@
 
         return items
             .filter((item) => isObject(item) && item.key)
-            .slice(0, 3)
+            .slice(0, MAX_STATUS_ICONS)
             .map((item) => ({
                 key: cleanText(item.key, 'core'),
                 icon: iconName(item.icon || item.key)
@@ -273,13 +288,23 @@
 
         statusNodes.clear();
         els.statusIcons.innerHTML = '';
-        state.statusIcons = normalizeStatusMeta(items);
+
+        // ต่อท้ายด้วย EXTRA_STATUS_ICONS เสมอ และ dedupe เผื่อ config ฝั่ง server
+        // ส่ง key ซ้ำมา (จะได้ไม่เกิดวงซ้อนกันสองวง)
+        const configured = normalizeStatusMeta(items);
+        const seen = new Set(configured.map((item) => item.key));
+        state.statusIcons = configured.concat(EXTRA_STATUS_ICONS.filter((item) => !seen.has(item.key)));
 
         state.statusIcons.forEach((item) => {
             const node = createStatusNode(item);
             statusNodes.set(item.key, node);
             els.statusIcons.appendChild(node);
         });
+
+        // config อาจถูกส่งมาใหม่ระหว่างเกม (เช่น restart NUI) — ต้อง reapply สถานะปัจจุบัน
+        // ไม่งั้นวงม้าจะโผล่ทั้งที่ลงจากม้าแล้ว
+        applyHorseVisibility();
+        applyMicActive(state.micActive);
     }
 
     function statusListFromPayload(icons) {
@@ -315,15 +340,29 @@
 
         statusNodes.set(key, node);
 
-        if (els.statusIcons && statusNodes.size <= 3) {
+        if (els.statusIcons && statusNodes.size <= MAX_STATUS_ICONS) {
             els.statusIcons.appendChild(node);
         }
 
         return node;
     }
 
+    function applyStatusValue(node, value) {
+        if (!node) {
+            return;
+        }
+
+        const missing = value === null || value === undefined;
+        const percent = clampPercent(value, 0);
+
+        node.style.setProperty('--value', `${percent}%`);
+        node.classList.toggle('is-muted', missing);
+        node.classList.toggle('is-warning', !missing && percent <= 35 && percent > 15);
+        node.classList.toggle('is-critical', !missing && percent <= 15);
+    }
+
     function updateStatusIcons(icons) {
-        statusListFromPayload(icons).slice(0, 3).forEach((item) => {
+        statusListFromPayload(icons).slice(0, MAX_STATUS_ICONS).forEach((item) => {
             const node = ensureStatusNode(item);
 
             if (!node) {
@@ -334,13 +373,34 @@
                 setIcon(node.querySelector('.nx-svg-icon'), item.icon);
             }
 
-            const missing = item.value === null || item.value === undefined;
-            const value = clampPercent(item.value, 0);
+            applyStatusValue(node, item.value);
+        });
+    }
 
-            node.style.setProperty('--value', `${value}%`);
-            node.classList.toggle('is-muted', missing);
-            node.classList.toggle('is-warning', !missing && value <= 35 && value > 15);
-            node.classList.toggle('is-critical', !missing && value <= 15);
+    // mic ไม่มีค่าเปอร์เซ็นต์ ริงเต็มวงตลอด ใช้แค่คลาส is-talking สลับสว่าง/หรี่
+    function applyMicActive(active) {
+        state.micActive = active === true;
+
+        const node = statusNodes.get('mic');
+
+        if (node) {
+            node.style.setProperty('--value', '100%');
+            node.classList.toggle('is-talking', state.micActive);
+        }
+    }
+
+    function applyHorseVisibility() {
+        // ซ่อนวงม้าทั้งสามเมื่อไม่ได้ขี่ม้า และซ่อน condition แยกอีกชั้นถ้า client ไม่ส่งค่ามา
+        // (Config.Horse.ThirdStatEnabled = false) ใช้ is-hidden = display:none วงข้างหน้าจึงไม่ขยับ
+        Object.keys(HORSE_STATUS_KEYS).forEach((field) => {
+            const node = statusNodes.get(HORSE_STATUS_KEYS[field]);
+
+            if (!node) {
+                return;
+            }
+
+            const hidden = !state.horseVisible || (field === 'condition' && !state.horseHasCondition);
+            node.classList.toggle('is-hidden', hidden);
         });
     }
 
@@ -352,13 +412,11 @@
         }
     }
 
+    // ขับด้วยสัญญาณเดิมทุกอย่าง: horse:setVisible (client sendHorseVisibility)
+    // และ horse:update.horse.mounted — ไม่ได้เพิ่ม signal ใหม่
     function setHorseVisible(visible) {
-        state.horseVisible = visible;
-
-        if (els.horsePanel) {
-            els.horsePanel.classList.toggle('is-visible', visible);
-            els.horsePanel.setAttribute('aria-hidden', visible ? 'false' : 'true');
-        }
+        state.horseVisible = visible === true;
+        applyHorseVisibility();
     }
 
     function updateHud(data) {
@@ -374,8 +432,14 @@
             setText(els.voiceMode, cleanText(voice.mode, 'NORMAL').toUpperCase().slice(0, 10));
         }
 
-        if (els.micBox && voice.talking !== undefined) {
-            els.micBox.classList.toggle('is-talking', boolFromPayload(voice.talking));
+        if (voice.talking !== undefined) {
+            const talking = boolFromPayload(voice.talking);
+
+            if (els.micBox) {
+                els.micBox.classList.toggle('is-talking', talking);
+            }
+
+            applyMicActive(talking);
         }
 
         if (status.health !== undefined) {
@@ -409,26 +473,25 @@
             return;
         }
 
-        if (horse.mounted !== undefined) {
-            setHorseVisible(boolFromPayload(horse.mounted));
-        }
-
         if (horse.health !== undefined) {
-            setBar(els.horseBars.health, horse.health);
+            applyStatusValue(statusNodes.get(HORSE_STATUS_KEYS.health), horse.health);
         }
 
         if (horse.stamina !== undefined) {
-            setBar(els.horseBars.stamina, horse.stamina);
+            applyStatusValue(statusNodes.get(HORSE_STATUS_KEYS.stamina), horse.stamina);
         }
 
-        const hasCondition = horse.condition !== null && horse.condition !== undefined;
+        state.horseHasCondition = horse.condition !== null && horse.condition !== undefined;
 
-        if (els.horseRows.condition) {
-            els.horseRows.condition.classList.toggle('is-hidden', !hasCondition);
+        if (state.horseHasCondition) {
+            applyStatusValue(statusNodes.get(HORSE_STATUS_KEYS.condition), horse.condition);
         }
 
-        if (hasCondition) {
-            setBar(els.horseBars.condition, horse.condition);
+        // ตั้งค่าตัวเลขให้เสร็จก่อนค่อยสั่งโชว์ ไม่งั้นวงจะแวบขึ้นมาพร้อมค่าเก่าของม้าตัวก่อน
+        if (horse.mounted !== undefined) {
+            setHorseVisible(boolFromPayload(horse.mounted));
+        } else {
+            applyHorseVisibility();
         }
     }
 

@@ -1076,11 +1076,18 @@ end
 
 CreateThread(function()
     Wait(getConfiguredInterval('StartupDelay', 1000, 0))
-    previousRadarType = getNativeRadarType()
-    if previousRadarType < 0 then
-        previousRadarType = tonumber(RADAR_CONFIG.RestoreNativeRadarType) or 2
+
+    -- จำ/ยึดค่า minimap ของเกมเฉพาะตอนที่เราจะเข้าไปคุมมันจริง ๆ เท่านั้น
+    -- ถ้า RadarMap.Enabled = false เราต้อง "ไม่แตะ" native radar เลย: ไม่อ่าน ไม่เซ็ต และไม่ตั้ง
+    -- radarInitialized เพื่อไม่ให้ onResourceStop ไปเรียก SetMinimapType คืนค่าทับของเกม
+    -- (เดิม flag นี้ถูกตั้งเสมอ ทำให้ตอน stop resource ยังไปยัด RestoreNativeRadarType ทับอยู่ดี)
+    if RADAR_CONFIG.Enabled == true then
+        previousRadarType = getNativeRadarType()
+        if previousRadarType < 0 then
+            previousRadarType = tonumber(RADAR_CONFIG.RestoreNativeRadarType) or 2
+        end
+        radarInitialized = true
     end
-    radarInitialized = true
 
     applyNativeHudVisibility()
     applyNativeRadarVisibility()
@@ -1164,6 +1171,11 @@ CreateThread(function()
 end)
 
 CreateThread(function()
+    -- radar ปิดอยู่ = ไม่ต้องเปิด loop 75ms ที่วิ่ง getMountEntity ทิ้งเปล่า ๆ
+    if RADAR_CONFIG.Enabled ~= true then
+        return
+    end
+
     Wait(getConfiguredInterval('StartupDelay', 1000, 0))
 
     while true do
