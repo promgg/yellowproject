@@ -138,15 +138,15 @@ Config["Craft_Table"] = {
 	-- ตอนนี้ได้พิกัดที่วัดในเกมแล้ว 3 จุด ใช้ prop p_sawhorse04x เป็นตัวมาร์ก
 	{
 		Position = {x = -32.0531, y = 1234.1144, z = 171.8039, h = -177.0000},
-		Table_Name = "Wood Crafting 1",
+		Table_Name = "Wood Crafting - Valentine",
 		Max_Distance = 2.5,
 		Disable_Model = false,
 		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
 		Name = "~y~Wood Crafting",
-		Desc = "โต๊ะงานไม้",
+		Desc = "โต๊ะงานไม้ Valentine",
 
 		Map_blip = true,
-		Blip_name = "WoodCraftingTable1",
+		Blip_name = "WoodCraftingTableValentine",
 		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
@@ -156,15 +156,15 @@ Config["Craft_Table"] = {
 
 	{
 		Position = {x = 3021.0964, y = 1755.0084, z = 82.7649, h = 113.0000},
-		Table_Name = "Wood Crafting 2",
+		Table_Name = "Wood Crafting - Annesburg",
 		Max_Distance = 2.5,
 		Disable_Model = false,
 		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
 		Name = "~y~Wood Crafting",
-		Desc = "โต๊ะงานไม้",
+		Desc = "โต๊ะงานไม้ Annesburg",
 
 		Map_blip = true,
-		Blip_name = "WoodCraftingTable2",
+		Blip_name = "WoodCraftingTableAnnesburg",
 		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
@@ -174,15 +174,15 @@ Config["Craft_Table"] = {
 
 	{
 		Position = {x = 674.1143, y = -1253.0436, z = 43.0176, h = -111.0000},
-		Table_Name = "Wood Crafting 3",
+		Table_Name = "Wood Crafting - Rhodes",
 		Max_Distance = 2.5,
 		Disable_Model = false,
 		Model = GetHashKey and GetHashKey("p_sawhorse04x") or "p_sawhorse04x",
 		Name = "~y~Wood Crafting",
-		Desc = "โต๊ะงานไม้",
+		Desc = "โต๊ะงานไม้ Rhodes",
 
 		Map_blip = true,
-		Blip_name = "WoodCraftingTable3",
+		Blip_name = "WoodCraftingTableRhodes",
 		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
