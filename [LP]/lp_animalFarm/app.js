@@ -196,12 +196,12 @@ function setAddButtonLabel(price, moneyType) {
   // แล้วจะขึ้นป้ายว่า "(0$)" = บอกผู้เล่นว่าฟรี ทั้งที่แค่ไม่รู้ราคา
   var n = (price === null || price === undefined) ? NaN : Number(price);
   if (!isFinite(n) || n < 0) {          // ไม่รู้ราคา = ไม่ใส่วงเล็บ ดีกว่าโชว์เลขมั่ว
-    btn.textContent = 'ซื้อตัวเลี้ยง';
+    btn.textContent = 'ซื้อสัตว์เลี้ยง';
     return;
   }
 
   var unit = Number(moneyType) === 1 ? ' ทอง' : '$';   // 0 = dollars, 1 = gold
-  btn.textContent = 'ซื้อตัวเลี้ยง (' + n + unit + ')';
+  btn.textContent = 'ซื้อสัตว์เลี้ยง(' + n + unit + ')';
 }
 
 function renderUI(data) {
