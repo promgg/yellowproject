@@ -399,6 +399,9 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
 
             if IsControlJustPressed(0, GetHashKey("INPUT_TOGGLE_HOLSTER")) then
                 fishing = false
+                -- เก็บเบ็ด = เหยื่อไม่ได้ติดอยู่แล้ว ต้องเคลียร์ด้วย ไม่งั้นค่าค้าง
+                -- แล้วรอบหน้าที่หยิบเบ็ดขึ้นมาเปล่าๆ ระบบจะคิดว่ายังมีเหยื่อติดอยู่
+                currentLure = nil
                 FISHING_SET_TRANSITION_FLAG(8)
                 Citizen.InvokeNative(0x9B0C7FA063E67629, PlayerPedId(), "", 0, 1)
             end
@@ -991,6 +994,8 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     hideStartPrompt()
+    -- panel เป็นของ resource อื่น ถ้าไม่สั่งซ่อนมันจะค้างบนจอหลัง lp_fishing หยุด
+    pcall(function() exports.lp_rewardpanel:Hide() end)
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1046,14 +1051,43 @@ local function hideBaitPanel()
     pcall(function() exports.lp_rewardpanel:Hide() end)
 end
 
--- ตามสถานะเหยื่อ: ติดเหยื่อ -> โชว์ panel, เลิกตก/ปลดเหยื่อ -> ซ่อน
+-- ตามสถานะเหยื่อ: เบ็ดอยู่ในมือ + มีเหยื่อติดอยู่จริง -> โชว์ panel, นอกนั้นซ่อน
+--
+-- เชื่อ currentLure อย่างเดียวไม่ได้ เพราะไม่มีจุดไหนเคลียร์มันตอนผู้เล่นเก็บเบ็ด
+-- (INPUT_TOGGLE_HOLSTER ตั้งแค่ fishing = false) panel เลยค้างทั้งที่เบ็ดเก็บไปแล้ว
+-- จึงเช็คสถานะจริงของเกมด้วย: ถือเบ็ดอยู่ไหม + มินิเกมยังทำงานอยู่ไหม
 CreateThread(function()
-    local lastLure = nil
+    local shownFor = nil
     while true do
         Wait(300)
-        if currentLure ~= lastLure then
-            lastLure = currentLure
-            if currentLure then showBaitPanel(currentLure) else hideBaitPanel() end
+
+        local ok = false
+        local lure = currentLure
+        if lure then
+            -- refresh struct เอง — ตัวที่อัปเดตให้อยู่ในลูป UseBait ซึ่งหยุดไปแล้ว
+            -- ตอนเลิกตกปลา ถ้าไม่ refresh state จะค้างค่าเก่า
+            pcall(GET_TASK_FISHING_DATA)
+            local holding = isHoldingRod()
+            local active  = (FISHING_GET_MINIGAME_STATE() or 0) ~= 0
+
+            if not holding or not active then
+                -- มินิเกมจบไปแล้วไม่ว่าด้วยเหตุใด (ตาย เดินหนี เก็บเบ็ดทางอื่น)
+                -- เหยื่อไม่ได้ติดอยู่แล้ว เคลียร์ทิ้งกันค่าค้างไปโผล่รอบหน้า
+                currentLure = nil
+                lure = nil
+            else
+                ok = true
+            end
+        end
+
+        if ok then
+            if shownFor ~= lure then
+                shownFor = lure
+                showBaitPanel(lure)
+            end
+        elseif shownFor then
+            shownFor = nil
+            hideBaitPanel()
         end
     end
 end)
