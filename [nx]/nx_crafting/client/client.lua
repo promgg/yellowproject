@@ -53,7 +53,6 @@ local Routers = nil
 local CraftingTable = {}
 local PlayerData = nil
 local CraftingType = {}
-local ListObject = {}
 local CategoryListCl = {}
 local Nametable = "โต๊ะคราฟไอเทม"
 local MenuOn = false
@@ -81,25 +80,46 @@ AddEventHandler('nx_crafting:client:setConfigData', function(cfg, re)
     print("^7[^1CLP^7][^4" .. GetCurrentResourceName() .. "^7] - Loading resources success.")
 end)
 
--- Display object
-Citizen.CreateThread(function()
-    for k, v in pairs(Config["Craft_Table"]) do
-        if v.Disable_Model == false and v.Disable_Model ~= nil then
-            local model = v.Model
-            local Objects = vector3(v.Position.x, v.Position.y, v.Position.z - 1)
-            RequestModel(model)
-            while not HasModelLoaded(model) do
-                Wait(10)
-            end
-            local obj = CreateObject(model, Objects, false, false, false)
-            SetEntityHeading(obj, v.Position.h)
-            SetEntityVelocity(obj, 0.0, 0.0, -2.0)
-            PlaceObjectOnGroundProperly(obj)
-            FreezeEntityPosition(obj, true)
-            table.insert(ListObject, obj)
-        end
+-- ── prop ของโต๊ะคราฟ: สร้าง/เก็บตามระยะ (แพตเทิร์นเดียวกับ nx_shop) ─────────────
+--
+-- ของเดิมสร้าง prop ของทุกโต๊ะพร้อมกันครั้งเดียวตอน resource start แล้วทิ้งไว้ตลอด
+-- ปัญหา: ตอนบูตผู้เล่นยืนอยู่จุดเดียว โต๊ะที่เหลืออยู่คนละมุมแผนที่ CreateObject
+-- ตรงนั้นอาจไม่ติดหรือโดนเกมเก็บทิ้ง แล้วไม่มีอะไรมาสร้างใหม่ = โต๊ะไม่มี prop ถาวร
+-- (บั๊กแบบเดียวกับที่เจอใน lp_planting)
+--
+-- เก็บ handle ไว้บน entry ของโต๊ะเอง (v._prop) เหมือน nx_shop เก็บ store._npc
+local function spawnTableProp(v)
+    if v.Disable_Model ~= false or v._prop then return end
+
+    local model = v.Model
+    RequestModel(model)
+    local timeout = GetGameTimer() + 3000
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do Wait(10) end
+    if not HasModelLoaded(model) then
+        print(('[nx_crafting] โหลดโมเดลไม่สำเร็จ: %s'):format(tostring(v.Table_Name)))
+        return
     end
-end)
+
+    local obj = CreateObject(model, v.Position.x, v.Position.y, v.Position.z - 1, false, false, false)
+    if not DoesEntityExist(obj) then return end
+
+    SetEntityHeading(obj, v.Position.h)
+    SetEntityVelocity(obj, 0.0, 0.0, -2.0)
+    PlaceObjectOnGroundProperly(obj)
+    FreezeEntityPosition(obj, true)
+    SetModelAsNoLongerNeeded(model)
+
+    v._prop = obj
+end
+
+local function removeTableProp(v)
+    if not v._prop then return end
+    if DoesEntityExist(v._prop) then
+        DeleteObject(v._prop)
+        DeleteEntity(v._prop)
+    end
+    v._prop = nil
+end
 
 function StartEvent()
     -- print(DumpTable(LocalPlayer))
@@ -676,6 +696,23 @@ function StartEvent()
                 for k, v in pairs(Config["Craft_Table"]) do
                     local distance = GetDistanceBetweenCoords(coords, v.Position.x, v.Position.y, v.Position.z, true)
                     distances[k] = distance
+
+                    -- สร้าง prop เมื่อเข้าใกล้ เก็บเมื่อออกไกล — ระยะเก็บมากกว่าระยะสร้าง
+                    -- เพื่อไม่ให้ prop กะพริบตอนเดินไปมาตรงขอบพอดี
+                    -- เช็คทุกรอบด้วย ไม่ใช่แค่ตอนข้ามเส้น: ถ้า object โดนเกมเก็บทิ้งเอง
+                    -- v._prop จะยังชี้ไปที่ entity ที่ตายแล้ว รอบถัดไปจะสร้างใหม่ให้
+                    local spawnDist  = tonumber(v.PropSpawnDistance) or Config.PropSpawnDistance or 60.0
+                    local removeDist = tonumber(v.PropRemoveDistance) or Config.PropRemoveDistance or 80.0
+                    if v.Disable_Model == false then
+                        if distance <= spawnDist then
+                            if not (v._prop and DoesEntityExist(v._prop)) then
+                                v._prop = nil
+                                spawnTableProp(v)
+                            end
+                        elseif distance > removeDist then
+                            removeTableProp(v)
+                        end
+                    end
 
                     if distance < 10 then
                         if v.Marker == true and v.Marker ~= nil then
@@ -1323,9 +1360,10 @@ function StartEvent()
     AddEventHandler("onResourceStop", function(resource)
         if resource == GetCurrentResourceName() then
             exports.lp_textui:CancelHold(CRAFT_TEXTUI_OWNER)
-            for k, v in pairs(ListObject) do
-                DeleteObject(v)
-                DeleteEntity(v)
+            -- prop เก็บ handle ไว้บน entry ของโต๊ะเองแล้ว (v._prop) ไม่ใช่ ListObject
+            -- ถ้าไม่ลบตรงนี้ prop จะค้างในโลกหลัง restart resource
+            for _, v in pairs(Config["Craft_Table"] or {}) do
+                removeTableProp(v)
             end
         end
     end)

@@ -29,6 +29,15 @@ Config.Show3DText = false
 -- โค้ดบีบค่าให้อยู่ในช่วง 3200-19000ms ให้อยู่แล้ว ตั้งเกินไปก็จะถูกหนีบ
 Config.CraftDurationMs = 4000
 Config.CraftLabel      = 'กำลังคราฟ...'
+
+-- ระยะสร้าง/เก็บ prop ของโต๊ะ (แพตเทิร์นเดียวกับ nx_shop ที่ใช้ spawnDistance ต่อร้าน)
+-- ของเดิมสร้าง prop ทุกโต๊ะพร้อมกันตอนบูตแล้วทิ้งไว้ตลอด — โต๊ะที่อยู่ไกลตอนบูต
+-- อาจสร้างไม่ติดหรือโดนเกมเก็บทิ้ง แล้วไม่มีอะไรมาสร้างใหม่
+--
+-- ระยะเก็บต้องมากกว่าระยะสร้าง ไม่งั้น prop จะกะพริบตอนเดินไปมาตรงขอบพอดี
+-- ตั้งรายโต๊ะได้ด้วย ใส่ PropSpawnDistance / PropRemoveDistance ในบล็อกโต๊ะนั้น
+Config.PropSpawnDistance  = 60.0
+Config.PropRemoveDistance = 80.0
 Config["Font"] = "font4thai"	-- รูปแบบตัวอักษร
 Config["Keys"] = 'G'
 Config["Image_Source"] = "nui://vorp_inventory/html/img/items/" -- ตำแหน่งรูปภาพ
