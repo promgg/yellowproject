@@ -91,7 +91,9 @@ RegisterServerEvent("lp_fishing:FishToInventory", function(netid, fishModel, fis
     end
 
     exports.vorp_inventory:addItem(_source, fish.entity, 1)
-    VORPcore.NotifyAvanced(_source, T.YourGot .. " " .. fish_name, "inventory_items", fish_texture, "COLOR_PURE_WHITE", 4000)
+    -- ปิดแจ้งเตือน "You got a <ชื่อปลา>" ของ vorp — ชื่อปลายังเป็นอังกฤษจาก fishData.lua
+    -- และซ้ำกับ notification ที่ผู้เล่นเห็นอยู่แล้วตอนได้ไอเทม
+    -- VORPcore.NotifyAvanced(_source, T.YourGot .. " " .. fish_name, "inventory_items", fish_texture, "COLOR_PURE_WHITE", 4000)
 
     -- ลบ prop ปลาจากฝั่ง server ทันทีหลังแจกของ (pattern เดียวกับ lp_hunting)
     -- เดิมพึ่ง client ที่ Wait(3000) ก่อนลบ — ถ้าผู้เล่นหลุด/resource restart ในช่วงนั้น prop จะค้างในโลก
