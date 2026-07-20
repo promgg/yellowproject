@@ -55,7 +55,10 @@ end
 
 CreateThread(function()
     for _, team in ipairs(Config.Team.teams) do
-        AddTeamNPC(team)
+        -- blip ยังขึ้นเสมอ (มันชี้จุดเกิดในสนาม ไม่ใช่จุดเข้าร่วม) แต่ NPC ขึ้นตาม npc.enabled
+        if Config.Team.npc.enabled then
+            AddTeamNPC(team)
+        end
         AddTeamBlip(team)
     end
 end)
@@ -202,8 +205,34 @@ end
 -- ─── กดค้างเข้าร่วมทีม ผ่าน lp_textui:TextUIHold ลอยติดพิกัดจุด NPC ────────────────
 -- เข้าร่วมได้ที่ NPC จุดไหนก็ได้ ไม่ผูกกับเมืองของผู้เล่น — teamId ที่ join ขึ้นกับ NPC ที่กดจริง
 -- (server เชื่อ teamId ที่ client ส่งมาตรงๆ) ดังนั้นจุดที่กดเข้าร่วมคือจุดที่จะถูกส่งกลับไปเสมอ
+-- เรียกจากรีซอร์สอื่นได้ (ตอนนี้คือปุ่มในเมนู Fast Travel ของ lp_fasttravel)
+-- ต้องผ่านทางนี้เท่านั้น ห้ามยิง callback 'lp_airdropteam:JoinTeam' เอง — งานหลังเข้าร่วมสำเร็จ
+-- (ตั้ง joinedTeamId, วาร์ปเข้า safe zone, เริ่มนับถอยหลัง) อยู่ใน closure ของ JoinTeam ทั้งหมด
+exports('JoinTeamById', function(teamId)
+    if joinedTeamId then
+        Notify('คุณเข้าร่วมทีมไปแล้ว', 'error')
+        return false
+    end
+
+    for _, team in ipairs(Config.Team.teams) do
+        if team.id == teamId then
+            JoinTeam(team)
+            return true
+        end
+    end
+
+    return false
+end)
+
+exports('IsJoined', function()
+    return joinedTeamId ~= nil
+end)
+
 CreateThread(function()
     local heldId = nil
+
+    -- ปิด prompt ที่ NPC ทั้งเส้นเมื่อ npc.enabled = false — ทางเข้าย้ายไปอยู่ในเมนู Fast Travel
+    if not Config.Team.npc.enabled then return end
 
     while true do
         Wait(500)
