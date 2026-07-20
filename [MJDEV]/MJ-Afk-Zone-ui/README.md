@@ -1,142 +1,66 @@
--- ███╗░░░███╗░░░░░██╗██████╗░███████╗██╗░░░██╗
--- ████╗░████║░░░░░██║██╔══██╗██╔════╝██║░░░██║
--- ██╔████╔██║░░░░░██║██║░░██║█████╗░░╚██╗░██╔╝
--- ██║╚██╔╝██║██╗░░██║██║░░██║██╔══╝░░░╚████╔╝░
--- ██║░╚═╝░██║╚█████╔╝██████╔╝███████╗░░╚██╔╝░░
--- ╚═╝░░░░░╚═╝░╚════╝░╚═════╝░╚══════╝░░░╚═╝░░░
--- Discord: https://discord.gg/gHRNMDQKzb 
+# MJ-Afk-Zone-ui — ระบบพักผ่อน (AFK) ใน saloon
 
+ผู้เล่นเข้าไปพักผ่อนในมิติแยกของ saloon เพื่อสะสมเวลาแลกเหรียญ AFK
+มิติแยกทำให้คนที่นอน AFK ไม่รกร้านที่คนอื่นกำลัง RP กันอยู่
 
-# AFK Zone UI สำหรับ RedM (VORP Framework)
+## วิธีเล่น
 
-ระบบนี้ช่วยให้ผู้เล่นสามารถเข้าสู่พื้นที่ AFK เพื่อสะสมเวลาแลกรางวัล พร้อม UI ที่แสดงสถานะความคืบหน้าอย่างสวยงาม พร้อมระบบกดปุ่มเพื่อเริ่ม/ยกเลิก AFK
+1. เดินเข้า saloon — `lp_interior` ย้ายมิติให้อัตโนมัติ (bucket ปกติของร้าน)
+2. เดินไปหา **NPC บาร์เทนเดอร์** แล้วค้าง `E` → เข้ามิติพักผ่อน (ค้าง `E` ซ้ำ = กลับเข้าร้าน)
+3. ค้าง `G` → เริ่มนอนพัก (นับเวลา)
+4. ครบ 15 นาที → ได้รางวัลอัตโนมัติ แล้วเริ่มนับรอบใหม่ทันที นอนต่อได้เรื่อยๆ
+5. ค้าง `X` เพื่อลุก หรือ **เดินออกนอกร้าน** = ออกจาก AFK + กลับมิติหลักเอง
 
-## ✅ คุณสมบัติหลัก
+## จุดที่รองรับ
 
-- ตรวจจับพื้นที่ AFK ด้วยตำแหน่ง (radius-based zone)
-- UI แสดง progress bar สำหรับแต่ละโซน
-- แจ้งเตือนเมื่อสามารถรับรางวัลได้
-- ปุ่มกด `E` เพื่อเริ่มพักผ่อน, `X` เพื่อยกเลิก
-- UI แสดงรายการรางวัล พร้อมปุ่มรับ
-- บันทึกเวลาสะสมลงฐานข้อมูล
-- รองรับหลายโซนพร้อมกัน
-- ปรับแต่งง่ายผ่าน `config.js`
+| โซน | saloon | รางวัลต่อ 15 นาที |
+|---|---|---|
+| valentine | Saloon Valentine | 5x `afk_coin` |
+| annesburg | Saloon Annesburg | 5x `afk_coin` |
+| rhodes    | Saloon Rhodes    | 5x `afk_coin` |
 
----
+## ความสัมพันธ์กับ lp_interior
 
-## 📦 การติดตั้ง
+**รีซอร์สนี้ไม่แตะ routing bucket เอง** — `lp_interior` เป็นเจ้าของคนเดียว
+ถ้าสองรีซอร์สเรียก `SetPlayerRoutingBucket` ทั้งคู่ จะเขียนทับกันจนผู้เล่นหลุดมิติมั่ว
 
-1. วางโฟลเดอร์ `MJ-Afk-Zone-ui` ลงใน `resources`
-2. เพิ่มลงใน `server.cfg`:
-   ```
-   ensure MJ-Afk-Zone-ui
-   ```
-3. ตรวจสอบว่าเซิร์ฟเวอร์คุณใช้ VORP Framework
+สิ่งที่ใช้จาก `lp_interior`:
 
----
+| ฝั่ง | ชื่อ | ใช้ทำอะไร |
+|---|---|---|
+| client | `GetCurrentZone()` | รู้ว่าอยู่ saloon ไหน |
+| client | `IsInAfk()` | อยู่ในมิติพักผ่อนหรือยัง |
+| client | `ToggleAfk()` | สลับเข้า/ออกมิติพักผ่อน (กด E ที่ NPC) |
+| client | event `lp_interior:onLeave` | เดินออกนอกร้าน → ตัด AFK ทันที |
+| server | `IsPlayerInAfkBucket(src, key)` | ตรวจก่อนจ่ายรางวัล |
 
-## 🛠️ การตั้งค่า
+`zoneKey` ใน `config.lua` ของไฟล์นี้ **ต้องตรงกับ `key` ใน `lp_interior/config.lua` เป๊ะๆ**
+ถ้าไม่ตรง ระบบจะหาโซนไม่เจอและ AFK จะเริ่มไม่ได้เลย
 
-### 🔹 `config.js` (สำหรับ Frontend UI)
+## การตรวจสอบฝั่ง server
 
-แก้ไข `html/config.js` เพื่อปรับแต่ง:
+ทั้ง `startAFK` และ `claimReward` ตรวจซ้ำทุกครั้งว่า:
 
-```js
-window.AFKConfig = {
-  titleText: "คุณกำลังพักผ่อนอยู่ในสถานที่อันสงบ (AFK Zone)",
-  promptText: "กด <strong>E</strong> เพื่อเริ่มพักผ่อน",
-  barColor: "#daa520",
-  barBackground: "#333",
-  rewardSound: "reward.mp3"
-};
-```
+- ผู้เล่นอยู่ใน **afkBucket ของร้านนั้นจริง** (ผ่าน `lp_interior`) — ปลอมไม่ได้เพราะ server เป็นคนตั้ง bucket เอง
+- อยู่ในระยะ `Config.RewardDistance` (40 ม.) จาก NPC
+- เวลาสะสมครบ `duration` จริง โดยนับจาก `os.time()` ฝั่ง server ไม่ใช่ตัวเลขที่ client ส่งมา
 
----
+ยิง event เองจากนอกร้านจึงไม่ได้อะไร
 
-### 🔹 `config.lua` (สำหรับโซนและรางวัล)
+## ตั้งค่า
 
-```lua
-Config.AFKZones = {
-    ["valentine"] = {
-        label = "แคมป์พักผ่อน Valentine",
-        coords = vector3(-435.36, 509.8, 97.92),
-        radius = 50.0,
-        duration = 300,  -- ต้องอยู่นานเท่าไหร่ (วินาที)
-        rewards = {
-            { item = "apple", label = "Apple", count = 5, image = "nui://vorp_inventory/html/img/items/apple.png" },
-            { item = "money", label = "Money", count = 10, image = "nui://vorp_inventory/html/img/items/money.png" }
-        }
-    },
+`config.lua`:
 
-    ["strawberry"] = {
-        label = "แคมป์พักผ่อน Strawberry",
-        coords = vector3(-1810.0, -350.0, 165.0),
-        radius = 30.0,
-        duration = 600,
-        rewards = {
-            { item = "goldbar", label = "Gold Bar", count = 1, image = "nui://vorp_inventory/html/img/items/goldbar.png" },
-            { item = "cooked_meat", label = "Cooked Meat", count = 2, image = "nui://vorp_inventory/html/img/items/meat.png" }
-        }
-    },
+- `Config.AFKZones[*].duration` — วินาทีที่ต้องนอนครบถึงได้รางวัล
+- `Config.AFKZones[*].rewards` — ไอเทมที่ได้ (ใส่หลายชิ้นได้)
+- `Config.AFKZones[*].npc` — พิกัด/หันหน้าของ NPC (ใส่พิกัดที่ยืนเก็บได้ตรงๆ โค้ดลบ 1.0 ให้เองตอนสร้าง ped)
+- `Config.NPC.spawnRange` / `despawnRange` — ระยะสร้าง/เก็บ ped
+- `Config.RewardDistance` — ระยะผ่อนผันที่ server ยอมรับตอนจ่าย
 
-    ["rhodes"] = {
-        label = "แคมป์พักผ่อน Rhodes",
-        coords = vector3(1345.0, -1375.0, 80.0),
-        radius = 20.0,
-        duration = 900,
-        rewards = {
-            { item = "weapon_bow", label = "Bow", count = 1, image = "nui://vorp_inventory/html/img/items/bow.png" },
-            { item = "arrow", label = "Arrow", count = 10, image = "nui://vorp_inventory/html/img/items/arrow.png" }
-        }
-    }
-}
-```
+Discord log: `set mj_afkzone_discord_webhook "https://discord.com/api/webhooks/..."` ใน `server.cfg`
 
----
+## หมายเหตุ
 
-## 🎮 วิธีใช้งาน
-
-- เดินเข้าเขต AFK → UI จะแสดง prompt
-- กด `E` → เริ่มพักผ่อน
-- อยู่ครบเวลากำหนด → สามารถกด `G` เพื่อรับรางวัล
-- เดินออกนอกเขต / กด `X` → ยกเลิกการพัก
-
-## 🎨 UI Style
-
-- Font: Kanit (รองรับภาษาไทย)
-- ใช้ไอคอนจาก Font Awesome
-- Responsive UI เหมาะกับ RedM NUI
-
----
-
-## 📁 โครงสร้างไฟล์
-
-```
-MJ-Afk-Zone-ui/
-├── fxmanifest.lua
-├── client.lua
-├── server.lua
-├── config.lua
-└── html/
-    ├── index.html
-    ├── script.js
-    ├── config.js
-    ├── style.css
-    ├── images/
-    │   └── goldnugget.png
-    └── reward.mp3
-```
-
----
-
-## 📝 เครดิต
-
-- พัฒนาโดย: [ชื่อของคุณหรือ Discord]
-- ใช้ร่วมกับ: VORP Framework (RedM)
-
----
-
-## ❗ หมายเหตุ
-
-- ควรมีระบบ Inventory/Reward ที่สามารถให้ไอเท็มผ่าน Server Side
-- อย่าลืม preload ไฟล์ UI ทั้งหมดใน `fxmanifest.lua`
+- เวลาสะสมเก็บใน `user_afk.json` (ไม่ใช่ฐานข้อมูล) แยกตาม identifier ของผู้เล่น
+- NPC ใช้โมเดล `u_f_m_vhtbartender_01` และ **ต้องเรียก `SetRandomOutfitVariation` หลัง `CreatePed`**
+  ไม่งั้น ped จะโผล่มาล่องหน — โมเดลนี้ไม่มีชุดติดมา

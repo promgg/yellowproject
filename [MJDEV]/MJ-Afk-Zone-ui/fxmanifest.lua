@@ -32,6 +32,8 @@ files {
 	'html/fonts/*.*',
 }
 
-dependencies { 'vorp_core', 'lp_textui', 'pNotify', 'lp_progbar' }
+-- lp_interior เป็นเจ้าของ routing bucket ทั้งหมด รีซอร์สนี้แค่ขอให้มันสลับมิติให้
+-- ถ้าไม่ start ระบบ AFK จะไม่ทำงานเลย (และ server จะปฏิเสธการจ่ายรางวัลทุกครั้ง)
+dependencies { 'vorp_core', 'lp_textui', 'pNotify', 'lp_progbar', 'lp_interior' }
 
 lua54 'yes'
