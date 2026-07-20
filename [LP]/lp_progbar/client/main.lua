@@ -403,6 +403,54 @@ end)
 
 -- ── maintenance loop: anim ownership hand-off + OR'd control disables ─────
 
+-- ⚠️ RDR3 ใช้ "hash ของชื่อ INPUT_*" เป็น control id ไม่ใช่เลข index เล็กๆ แบบ GTA5
+--
+-- เดิมไฟล์นี้ใช้เลข 1, 2, 106, 30, 31, 36, 21, 63, 64, 71, 72, 75, 25 ซึ่งเป็น index ของ GTA5
+-- ล้วนๆ — ยืนยันได้จาก ox_lib/resource/interface/client/progress.lua:62-76 ที่เก็บทั้งสองเกม
+-- ไว้ในตารางเดียวกัน (`isFivem and 1 or 0xA987235F`) แล้วเลขทุกตัวที่เคยใช้ที่นี่ตรงกับคอลัมน์
+-- FiveM ของตารางนั้นพอดีหมด ไม่เหลือตัวไหนเป็นของ RDR3 เลย
+--
+-- ผลที่ผ่านมา: controlDisables ไม่เคยกันอะไรได้จริง ผู้เล่นเดิน/ต่อยได้ระหว่าง progress
+-- ทั้งที่ทุก resource ที่เรียกใช้ (lp_fasttravel, lp_planting, lp_gunsmith, lp_herbs,
+-- lp_airdropteam) ส่ง flag มาโดยคาดหวังว่ามันจะล็อกจริง
+-- ยกเว้น DisablePlayerFiring ที่ยังกันการยิงได้ เพราะเป็น native ที่มีจริงใน RDR3
+local CONTROLS = {
+    -- ── มุมกล้อง ── (ox_lib:63-64, 75)
+    LOOK_LR        = 0xA987235F,
+    LOOK_UD        = 0xD2047988,
+    MOUSE_OVERRIDE = 0x39CCABD5,
+
+    -- ── เดิน/วิ่ง/หมอบ ── (ox_lib:65, 67-69)
+    SPRINT  = 0x8FFC75D6,
+    MOVE_LR = 0x4D8FB4C1,
+    MOVE_UD = 0xFDA83190,
+    DUCK    = 0xDB096B85,
+
+    -- ── พาหนะ (เกวียน/รถไฟ — RDR3 ไม่มีรถยนต์) ── (ox_lib:70-74)
+    VEH_MOVE_LEFT  = 0x9DF54706,
+    VEH_MOVE_RIGHT = 0x97A8FD98,
+    VEH_ACCELERATE = 0x5B9FD4E2,
+    VEH_BRAKE      = 0x6E1F639B,
+    VEH_EXIT       = 0xFEFAB9B4,
+
+    AIM = 0xF84FA74F, -- (ox_lib:66)
+}
+
+-- ปุ่มโจมตี/ประชิด ox_lib ไม่ได้ครอบไว้ (มันกันแค่ AIM + DisablePlayerFiring)
+-- ยกมาจาก nx_util/client/cl_anti_combat.lua:57-68 ซึ่งใช้งานจริงบนเซิร์ฟนี้อยู่แล้ว
+-- จำเป็นเพราะ DisablePlayerFiring กันได้แค่การยิง ไม่กันการชกต่อย/จับล็อก
+local COMBAT_CONTROLS = {
+    0x07CE1E61, -- INPUT_ATTACK
+    0x0283C582, -- INPUT_ATTACK2
+    0xB2F377E8, -- INPUT_MELEE_ATTACK
+    0x1E7D7275, -- INPUT_MELEE_MODIFIER
+    0xB5EEEFB7, -- INPUT_MELEE_BLOCK
+    0x2277FAE9, -- INPUT_MELEE_GRAPPLE
+    0xADEAF48C, -- INPUT_MELEE_GRAPPLE_ATTACK
+    0x018C47CF, -- INPUT_MELEE_GRAPPLE_CHOKE
+    0xD9C50532, -- INPUT_HOGTIE
+}
+
 local function applyControlDisables()
     local mouse, move, carMove, combat = false, false, false, false
     for _, data in pairs(actions) do
@@ -414,36 +462,31 @@ local function applyControlDisables()
     end
 
     if mouse then
-        DisableControlAction(0, 1, true)
-        DisableControlAction(0, 2, true)
-        DisableControlAction(0, 106, true)
+        DisableControlAction(0, CONTROLS.LOOK_LR, true)
+        DisableControlAction(0, CONTROLS.LOOK_UD, true)
+        DisableControlAction(0, CONTROLS.MOUSE_OVERRIDE, true)
     end
     if move then
-        DisableControlAction(0, 30, true)
-        DisableControlAction(0, 31, true)
-        DisableControlAction(0, 36, true)
-        DisableControlAction(0, 21, true)
+        DisableControlAction(0, CONTROLS.MOVE_LR, true)
+        DisableControlAction(0, CONTROLS.MOVE_UD, true)
+        DisableControlAction(0, CONTROLS.DUCK, true)
+        DisableControlAction(0, CONTROLS.SPRINT, true)
     end
     if carMove then
-        DisableControlAction(0, 63, true)
-        DisableControlAction(0, 64, true)
-        DisableControlAction(0, 71, true)
-        DisableControlAction(0, 72, true)
-        DisableControlAction(0, 75, true)
+        DisableControlAction(0, CONTROLS.VEH_MOVE_LEFT, true)
+        DisableControlAction(0, CONTROLS.VEH_MOVE_RIGHT, true)
+        DisableControlAction(0, CONTROLS.VEH_ACCELERATE, true)
+        DisableControlAction(0, CONTROLS.VEH_BRAKE, true)
+        DisableControlAction(0, CONTROLS.VEH_EXIT, true)
     end
     if combat then
-        DisablePlayerFiring(PlayerPedId(), true)
-        DisableControlAction(0, 24, true)
-        DisableControlAction(0, 25, true)
-        DisableControlAction(0, 47, true)
-        DisableControlAction(0, 58, true)
-        DisableControlAction(0, 140, true)
-        DisableControlAction(0, 141, true)
-        DisableControlAction(0, 142, true)
-        DisableControlAction(0, 143, true)
-        DisableControlAction(0, 263, true)
-        DisableControlAction(0, 264, true)
-        DisableControlAction(0, 257, true)
+        -- native ตัวนี้รับ player id ไม่ใช่ ped — เดิมส่ง PlayerPedId() เข้าไปซึ่งผิดชนิด
+        -- (ox_lib:132 ส่ง cache.playerId ซึ่งก็คือ PlayerId())
+        DisablePlayerFiring(PlayerId(), true)
+        DisableControlAction(0, CONTROLS.AIM, true)
+        for i = 1, #COMBAT_CONTROLS do
+            DisableControlAction(0, COMBAT_CONTROLS[i], true)
+        end
     end
 end
 
