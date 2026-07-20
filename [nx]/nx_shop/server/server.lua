@@ -2,27 +2,33 @@ local Core = exports.vorp_core:GetCore()
 local Purchasing = {}
 
 -- ── เพดานจำนวนจาก limit ของไอเทมใน DB ──────────────────────────────────────
--- ปุ่ม MAX ใน NUI ใช้ค่า item.max ที่ส่งไปจากที่นี่ ถ้าดึงจาก limit ในตาราง items
--- ผู้เล่นกด MAX แล้วจะได้จำนวนเท่าที่กระเป๋ารับไหวจริง ไม่ต้องมาไล่ตั้ง max มือทีละตัว
+-- ปุ่ม MAX ใน NUI ใช้ค่า item.max ที่ส่งไปจากที่นี่ ถ้าดึงจาก limit ของไอเทมจริง
+-- ผู้เล่นกด MAX แล้วจะได้จำนวนเท่าที่กระเป๋ารับไหวจริง ไม่ต้องไล่ตั้ง max มือทีละตัว
 --
--- limit ไม่เปลี่ยนตอนรันไทม์ เลย query ครั้งเดียวแล้ว cache ไว้ — ไม่งั้นร้านทั่วไป
--- ที่มี ~60 ไอเทมจะยิง SELECT 60 ครั้งทุกครั้งที่มีคนเปิดร้าน
+-- ต้องใช้ getItemDB(itemName) เท่านั้น — getDBItem(target, itemName) มีอยู่แค่ใน
+-- ตาราง vorp_inventoryApi ที่ deprecated ไม่ได้ถูก register เป็น export จริง
+-- (export จริงอยู่ใน vorp_inventory/server/services/inventoryApiService.lua)
+-- เรียกผิดตัวแล้วห่อ pcall ไว้ = error โดนกลืน แล้ว fallback ไปใช้ max จาก config เงียบๆ
+--
+-- limit = -1 คือไม่จำกัด -> ปล่อยให้ใช้ max จาก config ตามเดิม
 local dbLimitCache = {}
 
-local function getDBLimit(source, itemName)
+local function getDBLimit(itemName)
     local cached = dbLimitCache[itemName]
     if cached ~= nil then
-        return cached or nil     -- false = เคยหาแล้วไม่เจอ อย่า query ซ้ำ
+        return cached or nil     -- false = เคยหาแล้วไม่เจอ/ไม่จำกัด อย่าถามซ้ำ
     end
 
     local ok, row = pcall(function()
-        return exports.vorp_inventory:getDBItem(source, itemName)
+        return exports.vorp_inventory:getItemDB(itemName)
     end)
 
     local limit = false
     if ok and type(row) == 'table' then
         local n = tonumber(row.limit)
         if n and n > 0 then limit = n end
+    elseif not ok then
+        print(('[nx_shop] getItemDB("%s") ล้มเหลว: %s'):format(tostring(itemName), tostring(row)))
     end
 
     dbLimitCache[itemName] = limit
@@ -154,7 +160,7 @@ local function buildClientStore(storeId, store, source)
 
         -- อาวุธไม่มีแถวในตาราง items (สร้างผ่าน createWeapon) -> ใช้ max จาก config ต่อไป
         if Config.MaxFromItemLimit and not item.weapon then
-            local dbLimit = getDBLimit(source, item.item)
+            local dbLimit = getDBLimit(item.item)
             if dbLimit then
                 -- เหลือที่ว่างเท่าไหร่ = limit ลบของที่ถืออยู่ (0 = เต็มแล้ว ซื้อไม่ได้)
                 local room = dbLimit - (held[item.item] or 0)
@@ -212,7 +218,7 @@ local function buildOrder(store, cart, source)
         if cfg and qty > 0 then
             local max = tonumber(cfg.max) or Config.MaxCartQuantityPerItem
             if Config.MaxFromItemLimit and not cfg.weapon then
-                local dbLimit = getDBLimit(source, cfg.item)
+                local dbLimit = getDBLimit(cfg.item)
                 if dbLimit then
                     local room = dbLimit - (held[cfg.item] or 0)
                     max = room > 0 and room or 0
