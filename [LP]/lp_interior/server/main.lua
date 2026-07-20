@@ -7,6 +7,8 @@
 local RESOURCE = GetCurrentResourceName()
 
 local playerBucket = {} -- [src] = bucket id ที่เราตั้งให้ (nil = อยู่มิติหลัก)
+local playerZone = {}   -- [src] = index ใน Config.Interiors ที่ผู้เล่นอยู่ (nil = อยู่มิติหลัก)
+local playerAfk = {}    -- [src] = true เมื่ออยู่ในมิติ AFK ของโซนนั้น
 local populationDone = {} -- [bucket] = true เมื่อตั้งค่า population แล้ว
 
 -- บรรทัดแรกสุด ยังไม่แตะ Config เลย — ถ้าไม่เห็นบรรทัดนี้ใน console เซิร์ฟหลัง ensure
@@ -34,13 +36,33 @@ end
 print(('[%s] ^2พร้อมทำงาน^7 — interior ใน config: %d จุด, Dimension.Enabled=%s')
     :format(RESOURCE, #Config.Interiors, tostring(Config.Dimension and Config.Dimension.Enabled)))
 
-local function bucketFor(entry, src)
+-- afk = true -> ใช้ afkBucket ของ entry แทน bucket ปกติ (อาคารเดียวกัน คนละมิติ)
+local function bucketFor(entry, src, afk)
+    local base = entry.bucket
+    if afk and entry.afkBucket then
+        base = entry.afkBucket
+    end
+
     -- PerPlayer: ให้แต่ละคนได้มิติของตัวเอง โดยบวก src เข้ากับ bucket ฐาน
     -- (ยังคงอยู่ในช่วง 7100+ ที่กันไว้ ไม่ชนกับ bucket ที่ resource อื่นใช้)
     if Config.Dimension.PerPlayer then
-        return entry.bucket + (src * 1000)
+        return base + (src * 1000)
     end
-    return entry.bucket
+    return base
+end
+
+-- ตรวจซ้ำฝั่ง server ว่าผู้เล่นอยู่ใกล้จุดนั้นจริง (pattern เดียวกับ nx_shop/lp_gunsmith)
+-- กันคนยิง event เองจากอีกฝั่งแผนที่เพื่อเข้ามิติที่ไม่ควรเข้า
+-- คืน ระยะ หรือ nil ถ้าไกลเกิน/หา ped ไม่เจอ
+local function distanceToEntry(src, entry)
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return nil end
+
+    local dist = #(GetEntityCoords(ped) - entry.coords)
+    if dist > (Config.Dimension.ServerDistanceCheck or 60.0) then
+        return nil, dist
+    end
+    return dist
 end
 
 local function ensurePopulation(bucket)
@@ -59,6 +81,8 @@ local function ensurePopulation(bucket)
 end
 
 local function resetPlayer(src)
+    playerZone[src] = nil
+    playerAfk[src] = nil
     if not playerBucket[src] then return end
     SetPlayerRoutingBucket(src, 0)
     playerBucket[src] = nil
@@ -90,25 +114,57 @@ RegisterNetEvent('lp_interior:enter', function(index)
     local entry = Config.Interiors[index]
     if not entry then return end
 
-    -- ตรวจซ้ำฝั่ง server ว่าผู้เล่นอยู่ใกล้จุดนั้นจริง (pattern เดียวกับ nx_shop/lp_gunsmith)
-    -- กันคนยิง event เองจากอีกฝั่งแผนที่เพื่อเข้ามิติที่ไม่ควรเข้า
-    local ped = GetPlayerPed(src)
-    if not ped or ped == 0 then return end
-
-    local coords = GetEntityCoords(ped)
-    local dist = #(coords - entry.coords)
-    if dist > (Config.Dimension.ServerDistanceCheck or 60.0) then
-        print(('[%s] ปฏิเสธ enter: src=%s อยู่ห่างจาก "%s" %.1fm (เกิน %.1fm)'):format(
-            RESOURCE, tostring(src), entry.key, dist, Config.Dimension.ServerDistanceCheck or 60.0))
+    local dist, tooFar = distanceToEntry(src, entry)
+    if not dist then
+        if tooFar then
+            print(('[%s] ปฏิเสธ enter: src=%s อยู่ห่างจาก "%s" %.1fm (เกิน %.1fm)'):format(
+                RESOURCE, tostring(src), entry.key, tooFar, Config.Dimension.ServerDistanceCheck or 60.0))
+        end
         return
     end
 
-    local bucket = bucketFor(entry, src)
+    local bucket = bucketFor(entry, src, false)
     ensurePopulation(bucket)
     SetPlayerRoutingBucket(src, bucket)
     playerBucket[src] = bucket
+    playerZone[src] = index
+    playerAfk[src] = nil
 
     reportBucket(src, ('เข้า "%s" (ระยะ %.1fm)'):format(entry.key, dist))
+end)
+
+-- ── สลับเข้า/ออกมิติ AFK ─────────────────────────────────────────────────
+-- MJ-Afk-Zone-ui เรียกผ่าน export ToggleAfk() ฝั่ง client ซึ่งยิง event นี้มา
+-- ตรวจซ้ำทุกอย่างเองเหมือน enter: client บอกได้แค่ "โซนไหน" ไม่ได้บอกเลข bucket
+RegisterNetEvent('lp_interior:setAfk', function(index, on)
+    local src = source
+    if not Config.Dimension.Enabled or not Config.Afk or not Config.Afk.Enabled then return end
+
+    index = tonumber(index)
+    if not index then return end
+
+    -- ต้องอยู่ในโซนนั้นจริงตามที่ server จำไว้ ไม่ใช่แค่ที่ client อ้าง
+    -- กันคนยิง event เองเพื่อกระโดดเข้ามิติ AFK ของร้านที่ตัวเองไม่ได้อยู่
+    if playerZone[src] ~= index then
+        print(('[%s] ปฏิเสธ setAfk: src=%s อ้างโซน index=%s แต่ server จำไว้ว่า %s'):format(
+            RESOURCE, tostring(src), tostring(index), tostring(playerZone[src])))
+        return
+    end
+
+    local entry = Config.Interiors[index]
+    if not entry or not entry.afkBucket then return end
+
+    local dist = distanceToEntry(src, entry)
+    if not dist then return end
+
+    on = on == true
+    local bucket = bucketFor(entry, src, on)
+    ensurePopulation(bucket)
+    SetPlayerRoutingBucket(src, bucket)
+    playerBucket[src] = bucket
+    playerAfk[src] = on or nil
+
+    reportBucket(src, ('%s มิติ AFK ของ "%s"'):format(on and 'เข้า' or 'ออกจาก', entry.key))
 end)
 
 RegisterNetEvent('lp_interior:leave', function()
@@ -138,6 +194,33 @@ end, false)
 AddEventHandler('playerDropped', function()
     local src = source
     playerBucket[src] = nil
+    playerZone[src] = nil
+    playerAfk[src] = nil
+end)
+
+-- ── exports ให้ resource อื่นใช้ต่อ (ฝั่ง server) ────────────────────────
+-- MJ-Afk-Zone-ui ใช้ตรวจก่อนจ่ายรางวัลว่าคนนี้อยู่ในมิติ AFK ของร้านนั้นจริง
+-- ไม่ใช่แค่ยิง event มาเฉยๆ
+exports('IsPlayerInAfkBucket', function(src, key)
+    if not playerAfk[src] then return false end
+
+    local index = playerZone[src]
+    if not index then return false end
+
+    local entry = Config.Interiors[index]
+    if not entry then return false end
+
+    -- ไม่ระบุ key = ถามแค่ว่า "อยู่มิติ AFK ที่ไหนสักแห่งไหม"
+    if key and entry.key ~= key then return false end
+    return true
+end)
+
+-- คืน key ของโซนที่ผู้เล่นอยู่ หรือ nil ถ้าอยู่มิติหลัก
+exports('GetPlayerZoneKey', function(src)
+    local index = playerZone[src]
+    if not index then return nil end
+    local entry = Config.Interiors[index]
+    return entry and entry.key or nil
 end)
 
 -- resource ถูกหยุดขณะมีคนอยู่ในมิติแยก — ดึงทุกคนกลับมิติหลัก ไม่งั้นค้างอยู่มิติเปล่าจนกว่าจะ relog
@@ -147,4 +230,6 @@ AddEventHandler('onResourceStop', function(res)
         SetPlayerRoutingBucket(src, 0)
     end
     playerBucket = {}
+    playerZone = {}
+    playerAfk = {}
 end)
