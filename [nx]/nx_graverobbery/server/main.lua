@@ -348,6 +348,91 @@ RegisterCommand('graveresetvillage', function(source, args)
     adminReply(source, NX_GR.Locale('reset_done'))
 end, false)
 
+-- ── เปิด/ปิดอีเวนต์สุสานด้วยมือ (เฉพาะเมืองแดนบนที่มี Config.GraveZones) ──────
+-- แดนใต้ไม่มีอีเวนต์ให้เปิดปิด ขุดได้ตลอดอยู่แล้ว คุมด้วยคูลดาวน์รายหลุมแทน
+--
+-- /graveopen  <เมือง|all>
+-- /graveclose <เมือง|all>
+-- /gravevillages            ดูรายชื่อเมืองที่สั่งได้ + สถานะตอนนี้
+local FORCE_FAIL_MSG = {
+    disabled        = 'ระบบอีเวนต์สุสานถูกปิดอยู่ (Config.GraveEvent.enabled = false)',
+    no_zone         = 'เมืองนี้ไม่มีอีเวนต์สุสาน (มีเฉพาะเมืองแดนบน)',
+    already_running = 'อีเวนต์ของเมืองนี้กำลังทำงานอยู่แล้ว',
+    not_running     = 'เมืองนี้ไม่มีอีเวนต์ที่กำลังทำงานอยู่',
+}
+
+-- คืนรายชื่อเมืองที่จะสั่ง — รองรับ 'all' และตรวจว่าชื่อที่พิมพ์มามีจริง
+local function resolveVillageArg(source, arg)
+    local all = NX_GR.Event.ListVillages()
+
+    if not arg or arg == '' then
+        adminReply(source, ('ต้องระบุเมือง: %s หรือ all'):format(table.concat(all, ', ')))
+        return nil
+    end
+
+    arg = tostring(arg):lower()
+    if arg == 'all' then return all end
+
+    for _, id in ipairs(all) do
+        if id == arg then return { id } end
+    end
+
+    adminReply(source, ('ไม่รู้จักเมือง "%s" — ที่สั่งได้: %s'):format(arg, table.concat(all, ', ')))
+    return nil
+end
+
+RegisterCommand('graveopen', function(source, args)
+    if not requireAdmin(source) then return end
+
+    local targets = resolveVillageArg(source, args[1])
+    if not targets then return end
+
+    for _, villageId in ipairs(targets) do
+        local ok, reason = NX_GR.Event.ForceStart(villageId)
+        if ok then
+            NX_GR.EventNotify.Refresh(villageId)
+            logAdminAction(source, 'graveopen', { villageId = villageId })
+            adminReply(source, ('เปิดอีเวนต์สุสาน %s แล้ว'):format(villageId))
+        else
+            adminReply(source, ('%s: %s'):format(villageId, FORCE_FAIL_MSG[reason] or reason))
+        end
+    end
+end, false)
+
+RegisterCommand('graveclose', function(source, args)
+    if not requireAdmin(source) then return end
+
+    local targets = resolveVillageArg(source, args[1])
+    if not targets then return end
+
+    for _, villageId in ipairs(targets) do
+        local ok, reason = NX_GR.Event.ForceEnd(villageId)
+        if ok then
+            NX_GR.EventNotify.Refresh(villageId)
+            logAdminAction(source, 'graveclose', { villageId = villageId })
+            adminReply(source, ('ปิดอีเวนต์สุสาน %s แล้ว'):format(villageId))
+        else
+            adminReply(source, ('%s: %s'):format(villageId, FORCE_FAIL_MSG[reason] or reason))
+        end
+    end
+end, false)
+
+RegisterCommand('gravevillages', function(source)
+    if not requireAdmin(source) then return end
+
+    for _, villageId in ipairs(NX_GR.Event.ListVillages()) do
+        local state = NX_GR.Event.GetState(villageId)
+        if state then
+            adminReply(source, ('%s: กำลังทำงาน (%s, เหลือ %d นาที)'):format(
+                villageId,
+                state.sealed and 'ปิดรับคนเพิ่มแล้ว' or 'ยังเข้าร่วมได้',
+                math.max(0, math.floor((state.endsAt - os.time()) / 60))))
+        else
+            adminReply(source, ('%s: ปิดอยู่'):format(villageId))
+        end
+    end
+end, false)
+
 RegisterCommand('graveresetall', function(source)
     if not requireAdmin(source) then return end
     NX_GR.Cooldowns.ResetAll()

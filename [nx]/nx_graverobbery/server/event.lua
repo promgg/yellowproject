@@ -64,13 +64,17 @@ local function scheduledOpenEpoch(villageId)
     })
 end
 
-local function startEvent(villageId, zone, dayKey)
+-- forced = แอดมินสั่งเปิดเอง ไม่ใช่รอบตามตาราง
+local function startEvent(villageId, zone, dayKey, forced)
     local cfg = eventConfig()
 
     -- ยึดเวลาเปิดตามตารางเป็นจุดตั้งต้น ไม่ใช่ os.time() ตอนที่ thread เพิ่งเห็น
     -- ถ้าเซิร์ฟบูต 13:30 ของรอบ 13:00 อีเวนต์ต้องจบ 14:00 ตามรอบเดิม (และเลยจุด seal ไปแล้ว)
     -- ไม่ใช่เริ่มนับใหม่แล้วลากไปถึง 14:30 ซึ่งกลายเป็นแถมเวลาให้ฟรีทุกครั้งที่รีสตาร์ท
-    local base = scheduledOpenEpoch(villageId) or os.time()
+    --
+    -- แต่ตอนแอดมินสั่งเปิดเองต้องนับจาก "ตอนนี้" เท่านั้น ไม่งั้นสั่งเปิดตอน 20:00 ของรอบ 13:00
+    -- จะได้ sealAt/endsAt ที่ผ่านไปแล้วทั้งคู่ อีเวนต์จะปิดตัวเองทันทีในลูปถัดไป
+    local base = (not forced and scheduledOpenEpoch(villageId)) or os.time()
 
     active[villageId] = {
         villageId = villageId,
@@ -195,6 +199,38 @@ end
 
 function NX_GR.Event.GetState(villageId)
     return active[villageId]
+end
+
+-- ── สั่งเปิด/ปิดด้วยมือ (คำสั่งแอดมินใน main.lua) ─────────────────────────────
+-- ใช้ได้เฉพาะเมืองแดนบนที่มี Config.GraveZones — แดนใต้ไม่มีอีเวนต์ให้เปิดปิด
+-- คุมด้วยคูลดาวน์รายหลุมแทน ขุดได้ตลอดเวลาอยู่แล้ว
+function NX_GR.Event.ListVillages()
+    local ids = {}
+    for villageId in pairs(Config.GraveZones or {}) do
+        ids[#ids + 1] = villageId
+    end
+    table.sort(ids)
+    return ids
+end
+
+-- คืน ok, เหตุผลที่ไม่สำเร็จ
+function NX_GR.Event.ForceStart(villageId)
+    if not isEnabled() then return false, 'disabled' end
+
+    local zone = (Config.GraveZones or {})[villageId]
+    if not zone then return false, 'no_zone' end
+    if active[villageId] then return false, 'already_running' end
+
+    -- ตั้ง lastStartedDay เป็นวันนี้ด้วย เพื่อไม่ให้ตัวจับเวลาอัตโนมัติเปิดซ้ำอีกรอบในวันเดียวกัน
+    -- หลังจากที่แอดมินสั่งเปิดเองไปแล้ว
+    startEvent(villageId, zone, os.date('%Y-%m-%d'), true)
+    return true
+end
+
+function NX_GR.Event.ForceEnd(villageId)
+    if not active[villageId] then return false, 'not_running' end
+    endEvent(villageId)
+    return true
 end
 
 -- ── presence จาก client (server ตรวจระยะเองเสมอ ไม่เชื่อค่า inside ที่ส่งมา) ──
