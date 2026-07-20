@@ -37,26 +37,24 @@ Config.WaterRefill = {
 }
 
 -- ── โซนปลูก ──────────────────────────────────────────────────────────────────
--- waterPoints รองรับกี่จุดก็ได้ ตอนนี้มีเมืองละ 1 จุด (ยกมาจาก MJ-Planting)
+-- waterPoints รองรับกี่จุดก็ได้ — เพิ่ม entry ในตารางของโซนนั้นได้เลย ไม่ต้องแก้โค้ด
+-- (prop สแนปลงพื้นเองตอน spawn แกน z จึงไม่ต้องเป๊ะ แต่ x/y ต้องไม่ชนสิ่งกีดขวาง)
 --
--- ⚠️ TODO: ผู้ว่าจ้างขอเมืองละ 4 จุด — รอพิกัดที่เดินเก็บในเกม
---    เพิ่มได้เลยโดยต่อ entry ในตาราง waterPoints ของโซนนั้น ไม่ต้องแก้โค้ด
---    (prop สแนปลงพื้นเองตอน spawn แกน z จึงไม่ต้องเป๊ะ แต่ x/y ต้องไม่ชนสิ่งกีดขวาง)
+-- ⚠️ Annesburg ยังมีจุดเดียว รอพิกัดอีก 3 จุด (Valentine/Rhodes ครบ 4 แล้ว)
 Config.Zones = {
     valentine_farm = {
         label  = 'Valentine Farm',
         coords = vector3(-847.4569, 320.4838, 95.5757),
-        range  = 40.0,   -- รัศมีโซนที่ใช้เมล็ดได้
+        range  = 60.0,   -- รัศมีโซนที่ใช้เมล็ดได้
         minDistance = 3.0, -- ระยะห่างขั้นต่ำระหว่างต้น
         blip = { enabled = true, sprite = 669307703, scale = 1.2,
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Valentine Farm' },
-        -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ตรวจแล้วอยู่ในรัศมี 40 ม. ทุกจุด
-        -- และห่างกันอย่างน้อย 6.6 ม. ไม่มีจุดไหนซ้อนทับกัน
+        -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ไกลสุดจากจุดกลาง 29 ม. ห่างกันอย่างน้อย 6.6 ม.
         waterPoints = {
             { coords = vector3(-855.6186, 331.2108, 96.1075), heading = 77.0 },
             { coords = vector3(-854.6676, 337.7260, 95.2925), heading = 77.0 },
             { coords = vector3(-854.6491, 318.7562, 94.6704), heading = 178.9988 },
-            { coords = vector3(-865.9594, 342.7844, 95.4351), heading = 99.0007 },
+            { coords = vector3(-865.9594, 342.7844, 95.4351), heading = -102.0 },
         },
         crops = {
             seed_corn      = { label = 'ข้าวโพด',  reward = { item = 'job_corn',      count = 10 } },
@@ -69,7 +67,7 @@ Config.Zones = {
     annesburg_farm = {
         label  = 'Annesburg Farm',
         coords = vector3(2967.7837, 773.5686, 51.3994),
-        range  = 40.0,
+        range  = 60.0,
         minDistance = 3.0,
         blip = { enabled = true, sprite = 669307703, scale = 1.2,
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Annesburg Farm' },
@@ -87,14 +85,19 @@ Config.Zones = {
 
     rhodes_farm = {
         label  = 'Rhodes Farm',
-        coords = vector3(968.0037, -1996.9865, 45.885),
-        range  = 40.0,
+        -- ไร่นี้เป็นแถบยาวตามแกน y (~107 m) ไม่ใช่วงกลม จุดกลางเดิมอยู่ปลายแถบพอดี
+        -- ทำให้จุดเติมน้ำอีก 3 จุดหลุดออกนอกเขต — ย้ายมากึ่งกลางแถบแทน
+        coords = vector3(973.5873, -1943.3114, 45.8566),
+        range  = 60.0,
         minDistance = 3.0,
         blip = { enabled = true, sprite = 669307703, scale = 1.2,
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Rhodes Farm' },
+        -- 4 จุด เดินเก็บพิกัดจากในเกมจริง เรียงตามแถบยาวของไร่
         waterPoints = {
-            { coords = vector3(968.0037, -1996.9865, 45.885), heading = 176.6739 },
-            -- TODO: อีก 3 จุด (จุดนี้ทับจุดปลูกพอดี ควรย้ายออกด้วย)
+            { coords = vector3(968.0037, -1996.9865, 45.8850), heading = 176.6739 },
+            { coords = vector3(955.1717, -1969.6906, 45.4171), heading = 94.7748 },
+            { coords = vector3(992.0030, -1940.3483, 46.5500), heading = -76.2256 },
+            { coords = vector3(977.3839, -1889.6364, 45.5741), heading = 3.8747 },
         },
         crops = {
             seed_tobacco_plant = { label = 'ยาสูบ',        reward = { item = 'job_tobacco_plant', count = 10 } },
