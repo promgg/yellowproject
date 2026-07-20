@@ -917,238 +917,42 @@ CreateThread(function()
     end
 end)
 
--- ── โหมดเล็งเหวี่ยงเบ็ด ─────────────────────────────────────────────────────
--- คลิกขวา 1 ครั้ง = เข้า/ออกโหมดเล็ง | เมาส์ = ทิศ | สกรอลล์ = ระยะ | E = เหวี่ยง
---
--- ไม่ได้เทเลพอร์ตเบ็ดและไม่ได้ปลอม input — native เป็นคนเหวี่ยงเองตอนผู้เล่นคลิก
--- (prompt "Cast Fishing Rod" ของเกม) เราแค่เซ็ต f_1 (ระยะเหวี่ยงสูงสุด) = ระยะถึง
--- marker ก่อน แล้วยึดค่านั้นไว้ระหว่างที่เบ็ดลอยออกไป physics ยังเป็นของเกมทั้งหมด
-
--- แปลงมุมกล้องเป็นเวกเตอร์ทิศทาง
-local function camForwardVec()
-    local rot = GetGameplayCamRot(2)
-    local rx, rz = math.rad(rot.x), math.rad(rot.z)
-    local cosRx = math.cos(rx)
-    return vector3(-math.sin(rz) * cosRx, math.cos(rz) * cosRx, math.sin(rx))
-end
-
--- หาความสูงผิวน้ำที่พิกัด x,y — คืน nil ถ้าตรงนั้นไม่ใช่น้ำ
-local function waterZAt(x, y, fromZ)
-    local ok, res = pcall(function()
-        return exports['lp_fishing']:VERTICAL_PROBE(x, y, fromZ + 10.0, 1)
-    end)
-    if ok and type(res) == 'table' and res[1] then return res[2] end
-    return nil
-end
-
-local function drawText3D(x, y, z, text)
-    local onScreen, sx, sy = GetScreenCoordFromWorldCoord(x, y, z)
-    if not onScreen then return end
-    local str = CreateVarString(10, 'LITERAL_STRING', tostring(text))
-    SetTextScale(0.35, 0.35)
-    SetTextColor(255, 235, 190, 235)
-    SetTextCentre(true)
-    SetTextDropshadow(1, 0, 0, 0, 255)
-    -- RedM บางบิลด์ไม่มี SetTextOutline — กันไว้ไม่ให้สคริปต์พัง
-    if SetTextOutline then SetTextOutline() end
-    DisplayText(str, sx, sy)
-end
-
--- เส้นโค้งพาราโบลาจากปลายคันเบ็ดถึง marker
-local function drawCastArc(fx, fy, fz, tx, ty, tz, A)
-    local segs = A.ArcSegments or 14
-    local col  = A.ArcColor or { r = 235, g = 200, b = 120, a = 200 }
-    local dx, dy = tx - fx, ty - fy
-    local flat = math.sqrt(dx * dx + dy * dy)
-    local peak = flat * (A.ArcHeight or 0.25)
-
-    local px, py, pz = fx, fy, fz
-    for i = 1, segs do
-        local t = i / segs
-        local nx = fx + dx * t
-        local ny = fy + dy * t
-        -- ยกโค้ง: สูงสุดกลางทาง (4t(1-t) = 1 ที่ t=0.5)
-        local nz = fz + (tz - fz) * t + peak * 4.0 * t * (1.0 - t)
-        DrawLine(px, py, pz, nx, ny, nz, col.r, col.g, col.b, col.a)
-        px, py, pz = nx, ny, nz
-    end
-end
-
-local aimActive  = false
-local aimCasting = false
-
+-- ── กันเหยื่อหายฟรีระหว่างตกปลา ──────────────────────────────────────────────
+-- สกรอลล์เมาส์ใน RedM คือปุ่มสลับอาวุธ (INPUT_SELECT_PREV/NEXT_WEAPON) ไม่ใช่
+-- ปุ่มเคอร์เซอร์ — เผลอสกรอลล์ทีเดียวระหว่างตกปลาจะเปิด weapon wheel แล้วเกม
+-- เก็บเบ็ดให้เอง จบการตกปลาโดยที่เหยื่อถูกหักไปแล้ว (server หัก subItem ตอนใช้
+-- ไอเทม ไม่ใช่ตอนได้ปลา) เลยปิดปุ่มพวกนี้ไว้ตลอดช่วงตกปลา
+-- ไม่ปิด INPUT_TOGGLE_HOLSTER เพราะเป็นปุ่มเลิกตกปลาโดยตั้งใจ
 CreateThread(function()
-    local A = Config.AimMode
-    local M = Config.CastMarker
-    if not A or not A.Enabled then return end
-    if not M or not M.Enabled then return end
+    local G = Config.FishingGuard
+    if not G or not G.Enabled then return end
 
-    -- เหลือแค่ปุ่มสกรอลล์ — ปุ่มเข้าโหมด/เหวี่ยง/ยกเลิก เป็นของ native ทั้งหมดแล้ว
-    local hUp   = GetHashKey(A.ScrollUpControl or 'INPUT_SELECT_PREV_WEAPON')
-    local hDown = GetHashKey(A.ScrollDownControl or 'INPUT_SELECT_NEXT_WEAPON')
-
-    -- state ที่ผู้เล่นอยู่ในท่าง้างเบ็ด (กดคลิกซ้ายค้าง) = ช่วงที่ marker ต้องขึ้น
-    local aimStates = {}
-    for _, st in ipairs(A.AimDuringStates or { 13 }) do aimStates[st] = true end
-
-    local aimDist, aimMax = 0.0, 0.0
-    local gameMaxSeen = 0.0
-    local lastProbeAt, lastProbeZ = 0, nil
-
-    -- ปุ่มที่ต้องปิดตลอดช่วงตกปลา (สกรอลล์ = ปุ่มสลับอาวุธ → เปิด weapon wheel → เกมเก็บเบ็ด)
     local blockHashes = {}
-    for _, name in ipairs(A.BlockControls or {}) do
+    for _, name in ipairs(G.BlockControls or {}) do
         blockHashes[#blockHashes + 1] = GetHashKey(name)
     end
     local blockStates = {}
-    for _, st in ipairs(A.BlockDuringStates or { 1, 2, 6, 7, 12 }) do
+    for _, st in ipairs(G.BlockDuringStates or {}) do
         blockStates[st] = true
-    end
-
-    -- เกมเหวี่ยงเองอยู่แล้วเมื่อผู้เล่นคลิก (prompt "Cast Fishing Rod" ของ native)
-    -- เราจึงไม่ปลอม input แค่ตั้ง f_1 = ระยะถึง marker แล้วยึดค่านั้นไว้ตลอด
-    -- ช่วงที่เบ็ดกำลังลอยออกไป ให้เกมใช้ค่าของเราเป็นระยะจริง
-    local function holdCastDistance(dist)
-        if aimCasting then return end
-        aimCasting = true
-        aimActive  = false
-
-        CreateThread(function()
-            -- ช่วงระหว่าง "ปล่อยคลิกซ้าย" กับ "เบ็ดลงน้ำ" ยังไม่รู้ว่าเกมใช้ state อะไร
-            -- เลยไม่กรองด้วย state — เขียน f_1 รัวไปเลยจนกว่าเบ็ดจะลงน้ำหรือหมดเวลา
-            local holdUntil = GetGameTimer() + (A.HoldMaxDistMs or 1500)
-            while GetGameTimer() < holdUntil do
-                local st = FISHING_GET_MINIGAME_STATE()
-                if st == 6 or st == 7 or st == 12 or st == 0 then
-                    break -- เบ็ดลงน้ำแล้ว (หรือเลิกตกปลา) ไม่ต้องยึดต่อ
-                end
-                FISHING_SET_F_(1, dist + 0.0)
-                Wait(0)
-            end
-
-            aimCasting = false
-        end)
     end
 
     while true do
         local sleep = 200
-        local state = FISHING_GET_MINIGAME_STATE()
-
-        -- ปิด weapon wheel / สลับอาวุธ ตลอดช่วงตกปลา ไม่ใช่แค่ตอนเล็ง
-        -- เพราะสกรอลล์ผิดจังหวะทีเดียวเกมจะเก็บเบ็ดเองแล้วเหยื่อหายฟรี
-        if blockStates[state] then
+        if blockStates[FISHING_GET_MINIGAME_STATE()] then
             sleep = 0
             for i = 1, #blockHashes do
                 DisableControlAction(0, blockHashes[i], true)
             end
         end
-
-        -- เล็งตอนอยู่ในท่าง้างเบ็ด (คันพาดบ่า) = state 13
-        -- ผู้เล่นทำเองทั้งหมด: คลิกขวา -> กดคลิกซ้ายค้าง (เข้า state 13) -> เล็ง+สกรอลล์
-        -- -> ปล่อยคลิกซ้าย = โยน  เราไม่แย่งปุ่มอะไรกับ native เลย เป็นแค่ภาพซ้อน + ตั้ง f_1
-        if aimStates[state] then
-            sleep = 0
-
-            if not aimActive then
-                aimActive = true
-                aimMax = M.MaxDistance or 0.0
-                if aimMax <= 0.0 then
-                    local fromGame = FISHING_GET_MAX_THROWING_DISTANCE()
-                    if type(fromGame) ~= 'number' or fromGame <= 0.0 then
-                        fromGame = M.FallbackMax or 30.0
-                    end
-                    -- เก็บค่าสูงสุดที่เคยเห็น ไม่ใช่ค่าล่าสุด — กันเคสอ่านไปเจอ f_1 ที่
-                    -- เราเขียนเองค้างอยู่จากการเหวี่ยงครั้งก่อน แล้วเพดานจะถูกล็อกต่ำถาวร
-                    gameMaxSeen = math.max(gameMaxSeen, fromGame)
-                    aimMax = gameMaxSeen
-                end
-                -- ครั้งแรกเริ่มที่กลางช่วง ครั้งต่อไปจำระยะเดิมที่ผู้เล่นตั้งไว้
-                if aimDist <= 0.0 then
-                    aimDist = (M.MinDistance or 4.0) + (aimMax - (M.MinDistance or 4.0)) * 0.5
-                end
-                aimDist = math.min(aimDist, aimMax)
-                lastProbeAt, lastProbeZ = 0, nil
-            end
-
-            local minDist = M.MinDistance or 4.0
-            local step    = A.ScrollStep or 1.5
-
-            local ped = PlayerPedId()
-            local c   = GetEntityCoords(ped)
-            local dir = camForwardVec()
-
-            -- สกรอลล์ปรับระยะ — อ่านผ่าน IsDisabledControl* เพราะปุ่มสกรอลล์ถูกปิดไว้
-            -- ข้างบนแล้ว (ไม่งั้นมันไปเปิด weapon wheel)
-            local want = aimDist
-            if IsDisabledControlJustPressed(0, hUp) then
-                want = math.min(aimMax, aimDist + step)
-            elseif IsDisabledControlJustPressed(0, hDown) then
-                want = math.max(minDist, aimDist - step)
-            end
-
-            -- ไม่ให้เลื่อน marker ออกไปนอกน้ำ — ถ้าระยะใหม่ตกบนพื้นก็คงระยะเดิมไว้
-            -- (บังคับทิศไม่ได้เพราะเป็นกล้อง แต่กันเรื่องระยะได้)
-            if want ~= aimDist then
-                if A.ClampToWater == false
-                    or waterZAt(c.x + dir.x * want, c.y + dir.y * want, c.z) then
-                    aimDist = want
-                    lastProbeAt = 0 -- บังคับ probe ใหม่ทันที ไม่ใช้ค่าเก่าค้าง
-                end
-            end
-
-            local tx, ty = c.x + dir.x * aimDist, c.y + dir.y * aimDist
-
-            -- ตรึง f_1 ทุกเฟรม — /fishwatch พบว่าเกมล้างค่ากลับเป็น 0 ภายใน ~20-135ms
-            -- เขียนครั้งเดียวไม่พอ ต้องเขียนค้างไว้ตลอดที่ยังง้างอยู่
-            FISHING_SET_F_(1, aimDist + 0.0)
-
-            -- probe น้ำแบบ throttle (VERTICAL_PROBE วิ่งผ่าน JS export)
-            local now = GetGameTimer()
-            if now - lastProbeAt >= 60 then
-                lastProbeAt = now
-                lastProbeZ = waterZAt(tx, ty, c.z)
-            end
-
-            local wz  = lastProbeZ
-            local col = wz and M.OverWater or M.NoWater
-            local mz  = wz or c.z
-
-            if wz or M.ShowNoWater then
-                local s = M.Scale or { x = 1.2, y = 1.2, z = 0.6 }
-                DrawMarker(
-                    M.Type or 0x07DCE236,
-                    tx, ty, mz + 0.05,
-                    0.0, 0.0, 0.0,
-                    0.0, 0.0, 0.0,
-                    s.x, s.y, s.z,
-                    col.r, col.g, col.b, col.a,
-                    false, false, 2, false, nil, nil, false
-                )
-
-                if A.ShowArc then
-                    -- ออกจากปลายคันเบ็ดโดยประมาณ (สูงจากเท้าราวหนึ่งช่วงตัว)
-                    drawCastArc(c.x, c.y, c.z + 1.0, tx, ty, mz, A)
-                end
-
-                if A.ShowDistanceText then
-                    drawText3D(tx, ty, mz + 1.2, string.format('%.0f ม.', aimDist))
-                end
-            end
-        elseif aimActive then
-            aimActive = false
-            -- ปล่อยคลิกซ้ายแล้ว native กำลังโยน — ยึด f_1 ต่ออีกพักกันเกมคำนวณทับ
-            holdCastDistance(aimDist)
-        end
-
         Wait(sleep)
     end
 end)
 
 -- ── debug ไว้ไล่หาค่าตอนทดสอบในเกม ──────────────────────────────────────────
 CreateThread(function()
-    if not Config.AimMode or not Config.AimMode.DebugCommands then return end
+    if not Config.DebugCommands then return end
 
-    -- ดูค่าทั้ง struct — ใช้ตอบว่า "เซ็ต f_1 แล้วเกมเคารพไหม" ได้ทันที
+    -- ดูค่าทั้ง struct ของมินิเกมตกปลา
     RegisterCommand('fishdump', function()
         print('[lp_fishing] state=' .. tostring(FISHING_GET_MINIGAME_STATE()) ..
               ' maxThrow(f_1)=' .. tostring(FISHING_GET_MAX_THROWING_DISTANCE()) ..
@@ -1159,7 +963,7 @@ CreateThread(function()
     end, false)
 
     -- ตามดู state + f_1 ทุกเฟรม พิมพ์เฉพาะตอนค่าเปลี่ยน
-    -- เหวี่ยง 1 ครั้งแล้วดู log จะตอบได้เลยว่า: เข้า state 2 ไหม / f_1 ที่เราเขียนอยู่รอดไหม
+    -- ใช้ไล่ดูว่าการตกปลา 1 รอบวิ่งผ่าน state ไหนบ้าง
     local watching = false
     RegisterCommand('fishwatch', function()
         watching = not watching
@@ -1182,21 +986,6 @@ CreateThread(function()
         end)
     end, false)
 
-    -- ยิง transition flag ทีละค่าเพื่อหาว่าเลขไหน = "เหวี่ยง"
-    -- ที่รู้แล้ว: 4=ปลาติดเบ็ด 8=ออกจากโหมด 11=เอ็นขาด 12=ได้ปลา 32=เก็บ 64=ปล่อย 128=(state 6)
-    RegisterCommand('fishflag', function(_, args)
-        local n = tonumber(args[1])
-        if not n then
-            print('[lp_fishing] ใช้: /fishflag <เลข>')
-            return
-        end
-        print(('[lp_fishing] ก่อนยิง flag %d -> state=%s'):format(n, tostring(FISHING_GET_MINIGAME_STATE())))
-        FISHING_SET_TRANSITION_FLAG(n)
-        CreateThread(function()
-            Wait(400)
-            print(('[lp_fishing] หลังยิง flag %d -> state=%s'):format(n, tostring(FISHING_GET_MINIGAME_STATE())))
-        end)
-    end, false)
 end)
 
 AddEventHandler('onResourceStop', function(res)
