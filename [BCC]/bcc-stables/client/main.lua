@@ -1046,7 +1046,9 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
 
         sleep = 0
 
-        if Citizen.InvokeNative(0x91AEF906BCA88877, 0, `INPUT_OPEN_SATCHEL_HORSE_MENU`) then -- IsDisabledControlJustPressed
+        -- ใช้ IsDisabledControlJustPressed (ไม่ใช่ตัวปกติ) เพราะเกมปิดอินพุตบางตัวตอนขี่ม้าอยู่
+        -- ตัวนี้อ่านได้ทั้งกรณีที่ control ถูกปิดและไม่ถูกปิด
+        if Citizen.InvokeNative(0x91AEF906BCA88877, 0, Config.keys.inventory) then -- IsDisabledControlJustPressed
             if LocalPlayer.state.IsInvActive then
                 exports.vorp_inventory:closeInventory()
             else

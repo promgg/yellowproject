@@ -34,6 +34,9 @@ Config.keys = {
     sleep = 0x43CDA5B0,   --[Z] Horse Sleep
     wallow = 0x9959A6F0,  --[C] Horse Wallow
     loot = 0x27D1C284,    --[R] Loot Horse
+    -- เปิดกระเป๋าม้าตัวเอง — เดิมฮาร์ดโค้ดเป็น INPUT_OPEN_SATCHEL_HORSE_MENU (ปุ่ม B)
+    -- ในโค้ด ย้ายมาไว้ตรงนี้ให้เปลี่ยนได้เหมือนปุ่มอื่น (hash จาก bcc-utils/shared/data/keys.lua)
+    inventory = 0xC7B5340A, --[ENTER] Open Horse Inventory
 }
 -----------------------------------------------------
 
