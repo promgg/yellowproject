@@ -127,34 +127,21 @@ CreateThread(function()
         local pos  = GetEntityCoords(ped)
         local dist = #(pos - zoneSpawnPos)
 
-        -- แสดงขอบเขต safe zone สองชั้น (แพตเทิร์นเดียวกับ PolyZone/CircleZone.lua)
-        --   ring = วงแบนบนพื้น บอกขอบเขตแม่นยำตอนอยู่ใกล้
-        --   wall = ทรงกระบอกสูง คือตัวที่ทำให้ "เห็นเป็นกำแพง" จากระยะไกล
-        -- เดิมมีแต่ ring อย่างเดียว ที่รัศมี 30m เป็นเส้นบางๆ บนพื้น มองแทบไม่เห็น
-        -- ผู้เล่นเลยเดินไปชนกำแพงมองไม่เห็นแล้วงงว่าทำไมเดินต่อไม่ได้
+        -- โดมขอบเขต safe zone — ใช้ native call ชุดเดียวกับ "โดมหลัก" ของโซนแอร์ดอป
+        -- (core/client.lua ตรง "Draw ring when near") ต่างแค่พิกัด/รัศมี/สี
+        --
+        -- marker ของ RedM ระบุด้วย hash (0x94FDAE17) ไม่ใช่เลข type แบบ GTA — ที่เคยลองใช้
+        -- DrawMarker(28) และ DrawMarker(1) มาก่อนหน้านี้จึงไม่ขึ้น/ขึ้นเพี้ยน
+        -- ยึดตามโดมหลักที่พิสูจน์แล้วว่าเห็นจริงในเกม ดีกว่าเดา type เอง
         local M = Config.Team.safeZoneMarker
         if M and M.enabled ~= false then
             local radius = Config.Team.safeZoneRadius
-
-            if not M.ring or M.ring.enabled ~= false then
-                local c = M.ring or {}
-                DrawMarker(28, zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                    radius, radius, radius,
-                    c.r or 255, c.g or 40, c.b or 40, c.a or 90, false, false, 2, nil, nil, false)
-            end
-
-            if M.wall and M.wall.enabled ~= false then
-                local c = M.wall
-                -- type 1 ใช้ "เส้นผ่านศูนย์กลาง" เป็นสเกล x/y ไม่ใช่รัศมี
-                -- ถ้าใส่ radius ตรงๆ ผนังจะเล็กกว่ากำแพงจริงครึ่งหนึ่ง = หลอกผู้เล่นแทนที่จะช่วย
-                local diameter = radius * 2.0
-                -- ฐานผนังอิงจากพื้นของโซน ไม่ใช่ค่า z สัมบูรณ์ — ผู้เล่นยืนอยู่ข้างในวง
-                -- ถ้าผนังสูงเกินไปจะเห็นผิวด้านในบังเต็มจอ แล้วมองไม่เห็นขอบเขตที่พื้นเลย
-                DrawMarker(1, zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z + (c.baseOffset or -1.0),
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                    diameter, diameter, c.height or 4.0,
-                    c.r or 255, c.g or 40, c.b or 40, c.a or 110, false, false, 2, nil, nil, false)
-            end
+            Citizen.InvokeNative(0x2A32FAA57B937173, M.hash or 0x94FDAE17,
+                zoneSpawnPos.x, zoneSpawnPos.y, zoneSpawnPos.z + (M.zOffset or -10.0),
+                0.0, 0.0, 0.0, 0, 0.0, 0.0,
+                radius * 2, radius * 2, radius,
+                M.r or 255, M.g or 40, M.b or 40, M.a or 100,
+                true, true, 2, false, false, false, false)
         end
 
         if dist > Config.Team.safeZoneRadius then
