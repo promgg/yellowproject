@@ -409,7 +409,7 @@ Config.Stores = {
         openDistance = 3.0,
         hours = { enabled = false, open = 7, close = 22 },
         blip = { enabled = false, name = 'ร้านลึกลับ', sprite = BlipSprite.general },
-        npc = { enabled = true, model = Npc.general, position = vector4(-2106.0713, 1841.0507, 255.3455, 45.6880), spawnDistance = 35.0 },
+        npc = { enabled = true, model = Npc.general, position = vector4(-2106.8115, 1842.9688, 255.4097, 133.4132), spawnDistance = 35.0 },
         jobs = {},
         payment = defaultPayment,
         categories = mysteryCategories,
