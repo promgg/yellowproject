@@ -350,17 +350,44 @@ exports('GetEventSnapshot', function()
 end)
 
 -- ─── Helper: ตรวจสอบว่า source มีสิทธิ์ admin ────────────────────────────────
+-- ⚠️ VORP เก็บ group ไว้สองที่คนละตาราง และไม่จำเป็นต้องมีค่าตรงกัน:
+--      user.getGroup   -> ตาราง users      (ระดับบัญชี)  <- ตัวที่ vorp_core ใช้เองในคำสั่งของมัน
+--      char.group      -> ตาราง characters (ระดับตัวละคร)
+--
+-- เดิมอ่านแค่ char.group ทำให้แอดมินที่ตั้งสิทธิ์ไว้ระดับบัญชีใช้คำสั่งนี้ไม่ได้
+-- ทั้งที่คำสั่งของรีซอร์สอื่นที่อ่าน user.getGroup ใช้ได้ปกติ
+--
+-- ลำดับตาม lp_deathmatch/server/bridges/vorp.lua: console -> ACE -> group (อ่านทั้งสองที่)
+--   add_ace group.admin nx_event.admin allow
+local ADMIN_ACE = 'nx_event.admin'
+
+local function normalizeGroup(value)
+    return tostring(value or ''):lower():gsub('%s+', '')
+end
+
 local function IsAdmin(source)
     -- console always allowed
     if source == 0 then return true end
+
+    if IsPlayerAceAllowed(source, ADMIN_ACE) then return true end
+
     local user = Core.getUser(source)
     if not user then return false end
+
     local char = user.getUsedCharacter
-    if not char then return false end
-    local group = char.group or "user"
+    local accountGroup   = normalizeGroup(user.getGroup)
+    local characterGroup = normalizeGroup(char and char.group)
+
     for _, g in ipairs(Config.AdminGroups) do
-        if group == g then return true end
+        local want = normalizeGroup(g)
+        if accountGroup == want or characterGroup == want then return true end
     end
+
+    -- บอกไปเลยว่าเห็นค่าอะไรตอนปฏิเสธ ไม่งั้นไล่หาสาเหตุไม่เจอว่าติดที่ ACE หรือที่ group ไหน
+    print(('[nx_event] ปฏิเสธคำสั่ง: src=%s ace=%s users.group=%s characters.group=%s'):format(
+        tostring(source), tostring(IsPlayerAceAllowed(source, ADMIN_ACE)),
+        tostring(user.getGroup), tostring(char and char.group)))
+
     return false
 end
 
