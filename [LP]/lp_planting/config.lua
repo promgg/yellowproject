@@ -50,9 +50,13 @@ Config.Zones = {
         minDistance = 3.0, -- ระยะห่างขั้นต่ำระหว่างต้น
         blip = { enabled = true, sprite = 669307703, scale = 1.2,
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Valentine Farm' },
+        -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ตรวจแล้วอยู่ในรัศมี 40 ม. ทุกจุด
+        -- และห่างกันอย่างน้อย 6.6 ม. ไม่มีจุดไหนซ้อนทับกัน
         waterPoints = {
             { coords = vector3(-855.6186, 331.2108, 96.1075), heading = 77.0 },
-            -- TODO: อีก 3 จุด
+            { coords = vector3(-854.6676, 337.7260, 95.2925), heading = 77.0 },
+            { coords = vector3(-854.6491, 318.7562, 94.6704), heading = 178.9988 },
+            { coords = vector3(-865.9594, 342.7844, 95.4351), heading = 99.0007 },
         },
         crops = {
             seed_corn      = { label = 'ข้าวโพด',  reward = { item = 'job_corn',      count = 10 } },
