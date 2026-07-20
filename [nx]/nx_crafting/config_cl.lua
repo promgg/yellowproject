@@ -211,24 +211,6 @@ Config["Craft_Table"] = {
 
 	{
 		Position = {x = 2873.5984, y = 1359.5076, z = 62.4794, h = 315.3127},
-		Table_Name = "General Crafting - Rhodes",
-		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
-		Name = "~y~General Crafting",
-		Desc = "โต๊ะคราฟทั่วไป Rhodes",
-
-		Map_blip = true,
-		Blip_name = "GeneralCraftingTableRhodes",
-		Blip_sprite = -758970771, -- blip_shop_blacksmith
-		Blip_scale = 1.2,
-		Blip_color = 47,
-
-		Category = { 8 } -- โต๊ะคราฟทั่วไป
-	},
-
-	{
-		Position = {x = 1259.0687, y = -1323.2338, z = 76.8877, h = 161.0100},
 		Table_Name = "General Crafting - Annesburg",
 		Max_Distance = 2.5,
 		Disable_Model = true,
@@ -238,6 +220,24 @@ Config["Craft_Table"] = {
 
 		Map_blip = true,
 		Blip_name = "GeneralCraftingTableAnnesburg",
+		Blip_sprite = -758970771, -- blip_shop_blacksmith
+		Blip_scale = 1.2,
+		Blip_color = 47,
+
+		Category = { 8 } -- โต๊ะคราฟทั่วไป
+	},
+
+	{
+		Position = {x = 1259.0687, y = -1323.2338, z = 76.8877, h = 161.0100},
+		Table_Name = "General Crafting - Rhodes",
+		Max_Distance = 2.5,
+		Disable_Model = true,
+		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		Name = "~y~General Crafting",
+		Desc = "โต๊ะคราฟทั่วไป Rhodes",
+
+		Map_blip = true,
+		Blip_name = "GeneralCraftingTableRhodes",
 		Blip_sprite = -758970771, -- blip_shop_blacksmith
 		Blip_scale = 1.2,
 		Blip_color = 47,
