@@ -220,7 +220,7 @@ Citizen.CreateThread(function()
         if not isChopping then
             local pos = GetEntityCoords(PlayerPedId())
             if isPlayerInLumberZone(pos) then
-                cachedTree = GetTreeNearby(pos, 5.0, ALLOWED_TREES)
+                cachedTree = GetTreeNearby(pos, Config.TreeScanRange or 25.0, ALLOWED_TREES)
             else
                 cachedTree = nil
             end

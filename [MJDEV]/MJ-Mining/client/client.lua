@@ -279,7 +279,7 @@ CreateThread(function()
             for key, obj in pairs(spawned) do
                 if DoesEntityExist(obj) and (not usedUntil[key] or now >= usedUntil[key]) then
                     local oc = GetEntityCoords(obj)
-                    if #(pos - oc) <= 5.0 then
+                    if #(pos - oc) <= (Config.MarkerRange or 25.0) then
                         drewAny = true
                         Citizen.InvokeNative(0x2A32FAA57B937173,
                             0x94FDAE17,
