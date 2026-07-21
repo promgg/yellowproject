@@ -41,6 +41,13 @@ local function toggleAfkDimension()
     return ok and res or nil
 end
 
+-- ── สะพานไป MJ-STATUS ────────────────────────────────────────────────────
+-- ห่อ pcall เผื่อ MJ-STATUS ยังไม่ start/ถูกปิด จะได้ไม่ error ทั้งไฟล์ (เหมือน lp_interior ด้านบน)
+local function setNeedsFrozen(frozen)
+    if GetResourceState('MJ-STATUS') ~= 'started' then return end
+    pcall(function() exports['MJ-STATUS']:SetNeedsFrozen(frozen) end)
+end
+
 -- ── prompt ───────────────────────────────────────────────────────────────
 local function clearPrompt()
     if not promptState then return end
@@ -84,6 +91,7 @@ local function exitAfk(instant)
     -- หยุดนับเวลาทันที ไม่ใช่รอ callback ของ progbar เดิมตั้ง false ใน callback หลังแอนิเมชัน
     -- ยืนจบ (9 วิ) ทำให้ลูปนับเวลายังเห็น true แล้วบวกต่อไปอีก ~9 วิหลังกดออก
     isAFKActive = false
+    setNeedsFrozen(false) -- ปล่อย Hunger/Thirst กลับมาลดตามปกติทันที เหมือนหยุดนับเวลา
     ClearPedTasks(PlayerPedId())
 
     if instant then
@@ -133,6 +141,7 @@ local function beginAfk()
         end
 
         isAFKActive = true
+        setNeedsFrozen(true) -- อยู่ในโหมดพักผ่อน — หยุดลด Hunger/Thirst ผ่าน MJ-STATUS
         SendNUIMessage({ action = "startAFKMode", afkIconPath = Config.UI.afkIcon })
     end)
 end
@@ -321,6 +330,10 @@ end)
 -- ── Cleanup ──────────────────────────────────────────────────────────────
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
+
+    -- กันเหนื่อยฟรี: ถ้ารีซอร์สนี้ถูกปิด/รีสตาร์ทระหว่างที่ผู้เล่นกำลังพักผ่อนอยู่
+    -- ต้องปล่อย Hunger/Thirst กลับมาลดปกติ ไม่งั้น needsFrozen ค้าง true อยู่ฝั่ง MJ-STATUS ตลอดไป
+    if isAFKActive then setNeedsFrozen(false) end
 
     clearPrompt()
     SendNUIMessage({ action = "hideAFK" })

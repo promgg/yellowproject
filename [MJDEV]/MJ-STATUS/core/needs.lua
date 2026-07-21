@@ -1,9 +1,12 @@
 PlayerStatus = {}
-isdead = false 
+isdead = false
 starve = false
 notifstarve = false
 notifthirst = false
-notifstress = false  
+notifstress = false
+-- ให้ resource อื่น (เช่น MJ-Afk-Zone-ui ตอนเข้าโหมดพักผ่อน) หยุดการลด Hunger/Thirst ชั่วคราวได้
+-- ผ่าน export ด้านล่างของไฟล์นี้ — ไม่กระทบ Stress/stamina/เลือดจากความหิว (จงใจ ไม่ได้ขอ)
+local needsFrozen = false
 -- ค่าที่ต้องลดต่อ 1 รอบ คำนวณจาก "กี่นาทีถึงหมด" ใน config
 -- (เดิมบรรทัดนี้เป็น foodtime/thirsttime ที่อ่าน Config.HungerTickInterval มาแล้วไม่มีใครใช้ต่อ
 --  ส่วนการลดจริง hardcode ไว้ที่ -10 ต่อรอบ ปรับ config เท่าไหร่ก็ไม่มีผล)
@@ -131,8 +134,11 @@ CreateThread(function()
             --  ลดหลอด แล้วจำกัดไม่ให้เกิน Max / ต่ำกว่า 0
             -- floor ไว้เพราะค่าที่ลดต่อรอบอาจเป็นทศนิยม (เช่น 166.67) — ถ้าไม่ปัด สถานะจะถูก
             -- json.encode ลง DB เป็นทศนิยมยาวๆ อ่านไม่รู้เรื่องเวลาไปเปิดดูในตาราง characters
-            PlayerStatus.Hunger = math.max(math.min(math.floor(PlayerStatus.Hunger - HUNGER_DRAIN), Config.MaxHunger), 0)
-            PlayerStatus.Thirst = math.max(math.min(math.floor(PlayerStatus.Thirst - THIRST_DRAIN), Config.MaxThirst), 0)
+            -- ข้ามการลดทั้งคู่ถ้า needsFrozen (เช่นตอนพักผ่อนใน MJ-Afk-Zone-ui)
+            if not needsFrozen then
+                PlayerStatus.Hunger = math.max(math.min(math.floor(PlayerStatus.Hunger - HUNGER_DRAIN), Config.MaxHunger), 0)
+                PlayerStatus.Thirst = math.max(math.min(math.floor(PlayerStatus.Thirst - THIRST_DRAIN), Config.MaxThirst), 0)
+            end
 
             -- จำกัดค่า Hunger/Thirst ไม่ให้เกิน Max
             if PlayerStatus.Hunger > Config.MaxHunger then
@@ -479,6 +485,13 @@ exports('setTemp', function() return temperature end)
 ------------------------------------------------
 exports("AddStress", function(amount)
     PlayerStatus.Stress = math.min(Config.MaxStress, PlayerStatus.Stress + amount)
+end)
+
+------------------------------------------------
+-- Export หยุด/ปล่อยการลด Hunger/Thirst ชั่วคราว (เช่นตอนพักผ่อน)
+------------------------------------------------
+exports("SetNeedsFrozen", function(frozen)
+    needsFrozen = frozen and true or false
 end)
 
 AddEventHandler("onResourceStart", function(resourceName)
