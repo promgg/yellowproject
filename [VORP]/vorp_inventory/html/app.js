@@ -77,6 +77,15 @@ const groupCategories = {
     11: "herbs",
 };
 const categoryOrder = ["medical", "foods", "weapons", "ammo", "tools", "animals", "documents", "valuables", "horse", "herbs", "other"];
+// หมวดที่โชว์เป็น pill จริงบน UI (7 อันตามที่ลูกค้ากำหนด) — หมวดอื่นดูรวมใน "ทั้งหมด"
+const pillCategories = ["all", "foods", "weapons", "ammo", "medical", "tools", "valuables"];
+
+function setActiveCategoryPill(cat) {
+    if (!els.inventoryCategory) return;
+    els.inventoryCategory.querySelectorAll(".cat-pill").forEach((pill) => {
+        pill.classList.toggle("is-active", pill.dataset.cat === cat);
+    });
+}
 
 function cacheElements() {
     els.root = document.getElementById("inventory-root");
@@ -91,6 +100,7 @@ function cacheElements() {
     els.weightFill = document.getElementById("weight-fill");
     els.weightText = document.getElementById("weight-text");
     els.moneyValue = document.getElementById("money-value");
+    els.giveMoney = document.getElementById("give-money-btn");
     els.playerId = document.getElementById("player-id");
     els.selectedPanel = document.getElementById("selected-panel");
     els.selectedName = document.getElementById("selected-name");
@@ -854,6 +864,29 @@ function requestNearPlayers(item, qty) {
     postNui("GetNearPlayers", state.pendingGive);
 }
 
+// มอบเงินให้ผู้เล่นใกล้ๆ — reuse pipeline เดิม (GetNearPlayers -> showPlayerModal -> GiveItem)
+// ทำเงินเป็น "ไอเทม" ชนิด item_money แล้วส่งผ่านท่อเดียวกับการมอบไอเทม
+// ฝั่ง Lua (NUIService.NUIGiveItem) เห็น type === "item_money" จะยิง giveMoneyToPlayer เอง — ไม่ต้องแก้ server
+function beginGiveMoney() {
+    const max = Math.floor(numberOrZero(state.money));
+    if (max <= 0) return;
+    const title = (state.language && state.language.givemoney) || "มอบเงิน";
+    openQuantityModal(title, max, (qty) => {
+        const amount = Math.floor(numberOrZero(qty));
+        if (amount <= 0 || amount > max) return;
+        requestNearPlayers({
+            name: "money",
+            item: "money",
+            type: "item_money",
+            id: 0,
+            hash: 0,
+            count: amount,
+            metadata: null,
+            degradation: null,
+        }, amount);
+    }, { ignoreTransferLimit: true });
+}
+
 function beginDrop(item) {
     const normalized = normalizeItem(item);
     const confirmDrop = (qty) => {
@@ -1049,8 +1082,15 @@ function closePlayerModal() {
     els.playerList.innerHTML = "";
 }
 
-function openQuantityModal(title, max, onSubmit) {
-    const cappedMax = Math.max(1, Math.min(numberOrZero(max) || 1, numberOrZero(state.config.MaxItemTransferAmount) || numberOrZero(max) || 1));
+function openQuantityModal(title, max, onSubmit, options) {
+    const opts = options || {};
+    const hardMax = numberOrZero(max) || 1;
+    // เงิน (ignoreTransferLimit) ไม่ควรโดน cap ของ "การโอนไอเทม" (MaxItemTransferAmount=200)
+    // เพราะเงินหลักพัน — ให้ cap ด้วยยอดที่มีจริงเท่านั้น (server ตรวจซ้ำอีกชั้น)
+    const limit = opts.ignoreTransferLimit
+        ? hardMax
+        : Math.min(hardMax, numberOrZero(state.config.MaxItemTransferAmount) || hardMax);
+    const cappedMax = Math.max(1, limit);
     state.pendingQuantity = onSubmit;
     els.quantityTitle.textContent = title;
     els.quantityInput.max = String(cappedMax);
@@ -1392,7 +1432,9 @@ function applyInventoryPreferences(preferences) {
     const source = preferences && typeof preferences === "object" ? preferences : {};
     const favorites = Array.isArray(source.favorites) ? source.favorites : [];
     state.sortMode = ["category", "name", "count"].includes(source.sortMode) ? source.sortMode : "category";
-    state.categoryFilter = ["all", ...categoryOrder].includes(source.categoryFilter) ? source.categoryFilter : "all";
+    // จำกัดให้เหลือเฉพาะหมวดที่มี pill จริง (7 อัน) — ค่าที่ saved ไว้เป็นหมวดเก่าที่ตัดออก
+    // (animals/documents/horse/herbs/other) ให้ตกเป็น "all" ไม่งั้นจะกรองค้างโดยไม่มี pill ไฮไลต์
+    state.categoryFilter = pillCategories.includes(source.categoryFilter) ? source.categoryFilter : "all";
     state.favorites = {};
     favorites.forEach((name) => {
         const key = String(name || "").trim().toLowerCase();
@@ -1400,7 +1442,7 @@ function applyInventoryPreferences(preferences) {
     });
 
     els.inventorySort.value = state.sortMode;
-    els.inventoryCategory.value = state.categoryFilter;
+    setActiveCategoryPill(state.categoryFilter);
     renderInventory();
     renderSecondaryInventory();
     renderActions();
@@ -1673,8 +1715,13 @@ function bindEvents() {
         state.searchText = els.inventorySearch.value;
         renderInventory();
     });
-    els.inventoryCategory.addEventListener("change", () => {
-        state.categoryFilter = els.inventoryCategory.value;
+    els.inventoryCategory.addEventListener("click", (event) => {
+        const pill = event.target.closest(".cat-pill");
+        if (!pill) return;
+        const cat = pill.dataset.cat || "all";
+        if (cat === state.categoryFilter) return;
+        state.categoryFilter = cat;
+        setActiveCategoryPill(cat);
         saveInventoryPreferences();
         renderInventory();
     });
@@ -1684,6 +1731,9 @@ function bindEvents() {
         renderInventory();
         renderSecondaryInventory();
     });
+    if (els.giveMoney) {
+        els.giveMoney.addEventListener("click", beginGiveMoney);
+    }
     els.playerModalClose.addEventListener("click", closePlayerModal);
     els.quantityClose.addEventListener("click", closeQuantityModal);
     els.quantityMin.addEventListener("click", () => setQuantityPreset(false));

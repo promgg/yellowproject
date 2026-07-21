@@ -212,8 +212,19 @@ function InventoryService.getLoadout(loadout)
 			UserWeapons[newWeapon:getId()] = newWeapon
 
 			if newWeapon:getUsed() then
-				local restoreList = newWeapon:getUsed2() and secondaryWeapons or primaryWeapons
-				restoreList[#restoreList + 1] = newWeapon
+				if Config.RestoreEquippedWeaponsOnLoad then
+					local restoreList = newWeapon:getUsed2() and secondaryWeapons or primaryWeapons
+					restoreList[#restoreList + 1] = newWeapon
+				else
+					-- ลูกค้าขอ: relog แล้วเข้ามาแบบมือเปล่า ไม่เด้งอาวุธขึ้นมือ
+					-- อาวุธยังลงทะเบียนอยู่ในกระเป๋าปกติ (หยิบใช้เองได้) แค่เคลียร์สถานะ "ถืออยู่"
+					-- เฉพาะ client cache ให้ตรงกับความจริงว่ามือว่าง
+					-- เซ็ต field ตรงๆ ไม่เรียก setUsed() เพราะตัวนั้นยิง server event เขียน DB
+					-- (จะกลายเป็นเขียน DB ทุก relog + race กับตอนโหลด) พอผู้เล่นหยิบใช้เอง
+					-- equipwep จะตั้ง used ใหม่ผ่าน DB ตามปกติ
+					newWeapon.used = false
+					newWeapon.used2 = false
+				end
 			end
 		end
 	end

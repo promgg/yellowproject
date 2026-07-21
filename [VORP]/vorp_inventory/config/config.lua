@@ -6,6 +6,11 @@ Config = {
 
 	InventoryOrder             = "weapons", -- Items or weapons what should should first in inventory
 
+	-- relog เข้ามาแล้วให้เด้งอาวุธที่ถืออยู่ตอนออก กลับขึ้นมือเองอัตโนมัติไหม
+	--   false = เข้ามาแบบมือเปล่า (อาวุธยังอยู่ในกระเป๋าปกติ หยิบใช้เองได้) — ตามที่ลูกค้าขอ
+	--   true  = พฤติกรรมเดิม (re-equip อาวุธที่เคยถือให้อัตโนมัติ)
+	RestoreEquippedWeaponsOnLoad = false,
+
 	DevMode                    = false, -- If your server is live set this to false.  to true only if you are testing things (auto load inventory when script restart and before character selection. Alos add /getInv command)
 
 	dbupdater                  = true,

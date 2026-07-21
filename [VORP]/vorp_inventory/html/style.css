@@ -342,7 +342,7 @@ body.is-dragging .context-menu {
 
 .inventory-tools {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 118px 100px;
+    grid-template-columns: minmax(0, 1fr) 118px;
     gap: 8px;
     align-items: center;
     padding: 6px 10px 5px;
@@ -368,6 +368,41 @@ body.is-dragging .context-menu {
 .inventory-tools select:focus {
     border-color: var(--gold-bright);
     color: var(--text);
+}
+
+/* ── category pills (แทน dropdown หมวดหมู่เดิม) ─────────────────────────── */
+.category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(196, 153, 107, 0.22);
+    background: rgba(0, 0, 0, 0.24);
+}
+
+.cat-pill {
+    flex: 0 0 auto;
+    height: 30px;
+    padding: 0 14px;
+    border: 1px solid rgba(172, 132, 86, 0.55);
+    border-radius: 16px;
+    background: rgba(8, 7, 6, 0.9);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.cat-pill:hover {
+    border-color: var(--gold-bright);
+    color: var(--gold);
+}
+
+.cat-pill.is-active {
+    border-color: var(--gold-bright);
+    color: #17120d;
+    background: linear-gradient(180deg, var(--gold-bright), #9a754c);
 }
 
 .inventory-grid,
@@ -604,6 +639,30 @@ body.is-dragging .context-menu {
 
 .money-icon path {
     fill: currentColor;
+}
+
+/* ปุ่มมอบเงิน (footer ข้างยอดเงิน) — reset ฟอนต์ serif/24px ที่สืบจาก .money-display */
+.give-money-btn {
+    height: 30px;
+    padding: 0 16px;
+    border: 1px solid var(--gold-bright);
+    border-radius: 15px;
+    background: linear-gradient(180deg, var(--gold-bright), #9a754c);
+    color: #17120d;
+    font-family: Tahoma, "Noto Sans Thai", Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: none;
+    white-space: nowrap;
+}
+
+.give-money-btn:hover {
+    filter: brightness(1.08);
+}
+
+.give-money-btn:active {
+    filter: brightness(0.92);
 }
 
 .secondary-panel {
