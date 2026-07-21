@@ -496,7 +496,7 @@ p {
     justify-content: center;
     gap: 8px;
     width: 100%;
-    margin: 0 0 14px;
+    margin: 0 0 80px;
     /* จองพื้นที่แถวการ์ดไว้เสมอ = ความสูงการ์ด 1 แถว ถึงไอเทมนี้จะมีสูตรเดียว (ไม่มีการ์ด)
        วงแหวน/ชื่อ/Success ก็ไม่เด้งขึ้น-ลงตอนสลับไอเทม (ดู renderRecipeVariants ที่ปล่อยให้ว่างไว้) */
     min-height: 61px;
