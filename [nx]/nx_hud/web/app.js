@@ -84,7 +84,6 @@
         radarPlayer: document.getElementById('nxMapPlayer'),
         radarDebug: document.getElementById('nxRadarDebug'),
         playerId: document.getElementById('nxPlayerId'),
-        micBox: document.getElementById('nxMicBox'),
         clockTime: document.getElementById('nxClockTime'),
         clockDate: document.getElementById('nxClockDate'),
         healthRow: document.querySelector('.nx-health-row'),
@@ -433,13 +432,8 @@
         // voice.talking ยังใช้ต่อ (คุมไฟกล่องไมค์ + ริงไมค์) เลยคงบล็อกด้านล่างไว้
 
         if (voice.talking !== undefined) {
-            const talking = boolFromPayload(voice.talking);
-
-            if (els.micBox) {
-                els.micBox.classList.toggle('is-talking', talking);
-            }
-
-            applyMicActive(talking);
+            // กล่องไมค์บนแถบถูกลบแล้ว เหลือแค่ริงไมค์ในแถววงสถานะ (applyMicActive)
+            applyMicActive(boolFromPayload(voice.talking));
         }
 
         if (status.health !== undefined) {

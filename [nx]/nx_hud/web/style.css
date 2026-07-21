@@ -116,6 +116,7 @@ body {
     left: 24px;
     bottom: 43px;
     display: flex;
+    width: 197px;   /* ให้แถบบน (ID + นาฬิกา) ยาวเท่าแถบเลือด .nx-health-row พอดี */
     height: 20px;
 }
 
@@ -147,33 +148,36 @@ body {
     box-shadow: 0 0 7px rgba(240, 202, 120, 0.5), inset 0 0 5px rgba(240, 202, 120, 0.18);
 }
 
-/* กล่องเวลา/วันที่ (แทนที่กล่องสถานะเสียงเดิม) — เวลาไทย UTC+7 อัปเดตทุกวินาทีจาก app.js */
+/* กล่องเวลา/วันที่ (แทนที่กล่องสถานะเสียงเดิม) — เวลาไทย UTC+7 อัปเดตทุกวินาทีจาก app.js
+   เติมเต็มพื้นที่ที่เหลือหลังกล่อง ID แล้ววาง 3 ช่องแบบ วันที่ | TIME | เวลา (space-between) */
 .nx-clock-box {
     display: flex;
-    flex-direction: column;
-    width: 80px;
+    flex-direction: row;
+    flex: 1;
     height: 20px;
     margin-left: -1px;
-    padding: 0 6px;
+    padding: 0 9px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     border-radius: 0 5px 5px 0;
     color: #e9e2d8;
+    font-size: 9px;
+    line-height: 18px;
     white-space: nowrap;
 }
 
+/* ทั้งสามช่องขนาด + น้ำหนักเท่ากันหมด (ต่างแค่สี/ระยะห่างตัวอักษร ไม่กระทบขนาด) */
+.nx-clock-box #nxClockDate,
+.nx-clock-box .nx-clock-label,
 .nx-clock-box #nxClockTime {
-    font-size: 10px;
-    line-height: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 18px;
 }
 
-.nx-clock-box #nxClockDate {
-    font-size: 7px;
-    line-height: 8px;
-    color: #b8ae9c;
-}
+.nx-clock-box #nxClockTime { color: #e9e2d8; letter-spacing: 0.5px; }
+.nx-clock-box .nx-clock-label { color: #b8ae9c; letter-spacing: 1.5px; }
+.nx-clock-box #nxClockDate { color: #b8ae9c; }
 
 /* Health and stamina */
 .nx-health-row {
