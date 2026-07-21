@@ -42,7 +42,7 @@ Citizen.CreateThread(function()
                 -- และขับวงแหวนเอง ยิง callback เมื่อกดค้างครบ (เหมือน lp_planting/lp_washing)
                 if not nearMailboard then
                     exports.lp_textui:TextUIHold(
-                        "เปิดกระดานจดหมาย",
+                        "[E] ค้างเพื่อเปิดกระดานจดหมาย",
                         Config.InteractHoldMs,
                         openMailboard,
                         nil, -- ปุ่ม default = E
