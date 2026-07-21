@@ -183,6 +183,17 @@ exports('SetClothingTag', function(category, data)
     IsPedReadyToRender(ped)
 end)
 
+-- ถอดชิ้นในหมวดนั้นออกไปเลย (ไม่มีชิ้นไหนมาแทน) — ใช้ตอนผู้เล่นเดิม "ไม่ได้ใส่" ชิ้นนั้น
+-- SetClothingTag(nil) ทำแบบนี้ไม่ได้ เพราะ apply nil = ไม่ทำอะไร ชิ้นเก่าค้าง
+exports('RemoveClothingTag', function(category)
+    local ped = PlayerPedId()
+    local hash = Config.ComponentCategories[category]
+    if not hash then return end
+    RemoveTagFromMetaPed(hash, ped)
+    UpdatePedVariation(ped)
+    IsPedReadyToRender(ped)
+end)
+
 function SetTextureOutfitTints(ped, category, data)
     Citizen.InvokeNative(0x4EFC1F8FF1AD94DE, ped, joaat(category), data.palette, data.tint0, data.tint1, data.tint2)
 end

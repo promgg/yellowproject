@@ -20,7 +20,13 @@ local function ApplyOutfitWithFade(tag, notifyText)
     DoScreenFadeOut(fadeTime)
     Wait(fadeTime + 100)
 
-    exports.vorp_character:SetClothingTag(OUTFIT_CATEGORY, tag)
+    -- tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ต้องถอด component ออก ไม่ใช่ apply nil
+    -- (apply nil ไม่ทำอะไร โค้ทเมืองจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
+    if tag then
+        exports.vorp_character:SetClothingTag(OUTFIT_CATEGORY, tag)
+    else
+        exports.vorp_character:RemoveClothingTag(OUTFIT_CATEGORY)
+    end
 
     Wait(200)
     DoScreenFadeIn(fadeTime)
@@ -47,16 +53,7 @@ end
 
 RegisterNetEvent("nx_cityselect:Client:ApplyOutfit")
 AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
-    -- DEBUG ไล่หาจุดที่หยุด — ลบออกเมื่อแก้เสร็จ
-    print(('^3[nx_cityselect DBG]^7 รับ ApplyOutfit: outfitData=%s outfitTag=%s cityId=%s')
-        :format(tostring(outfitData ~= nil),
-                tostring(outfitData and outfitData.outfitTag ~= nil),
-                tostring(outfitData and outfitData.cityId)))
-
-    if not outfitData or not outfitData.outfitTag then
-        print('^1[nx_cityselect DBG]^7 หยุด: ไม่มี outfitTag (server ส่ง key เก่า shirtTag? = ยังไม่ restart server)')
-        return
-    end
+    if not outfitData or not outfitData.outfitTag then return end
 
     CreateThread(function()
         if wearingCityId == outfitData.cityId then
@@ -68,9 +65,6 @@ AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
         end
 
         local tag = pickTag(outfitData.outfitTag)
-        print(('^3[nx_cityselect DBG]^7 เพศ=%s tag=%s drawable=%s')
-            :format(IsPedMale(PlayerPedId()) and 'ชาย' or 'หญิง',
-                    tostring(tag ~= nil), tostring(tag and tag.drawable)))
         if not tag then return end
 
         if wearingCityId == nil then
