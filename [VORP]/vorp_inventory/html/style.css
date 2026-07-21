@@ -373,17 +373,19 @@ body.is-dragging .context-menu {
 /* ── category pills (แทน dropdown หมวดหมู่เดิม) ─────────────────────────── */
 .category-pills {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;        /* อยู่แถวเดียวเสมอ ไม่ตกลงมากินพื้นที่แนวตั้ง */
+    gap: 5px;
     padding: 8px 10px;
+    overflow-x: auto;         /* ถ้ากว้างเกินจริง (เช่นจอเล็ก/ฟอนต์กว้าง) ให้เลื่อนแนวนอนแทนการตกแถว */
+    overflow-y: hidden;
     border-bottom: 1px solid rgba(196, 153, 107, 0.22);
     background: rgba(0, 0, 0, 0.24);
 }
 
 .cat-pill {
     flex: 0 0 auto;
-    height: 30px;
-    padding: 0 14px;
+    height: 28px;
+    padding: 0 10px;
     border: 1px solid rgba(172, 132, 86, 0.55);
     border-radius: 16px;
     background: rgba(8, 7, 6, 0.9);
