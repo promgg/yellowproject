@@ -39,12 +39,13 @@ Config.Integration = {
         PollInterval = 2000,
         MaxHunger = 100000,
         MaxThirst = 100000,
-        -- ความเครียดใน MJ-STATUS แม้เก็บใน PlayerStatus.Stress (0..100000) แต่ระดับที่มีผล
-        -- จริงคือ "ตายจากเครียด" ที่ Config.MaxStress*0.02 = 2000 (item ขยับทีละหลักร้อย)
-        -- ถ้าใช้ 100000 หลอดจะขยับแค่ 100%->98% ตั้งแต่สงบจนตาย = ค้างเต็มตลอด ไม่ตรงจริง
-        -- ตั้งเป็น 2000 ให้หลอด (invert) ไล่ 100%->0% ตามความเครียดจริงจนถึงจุดตาย
-        MaxStress = 2000,
-        InvertStress = true,
+        -- ความเครียดจริงใน MJ-STATUS ทำงานบนสเกล 0..100 (log โหลดค่าจริง ~1.2, คอมเมนต์อ้าง
+        -- "เกิน 90/ถึง 100", MinimumStress=50, ตาราง shake 50..100) — ไม่ใช่ 0..100000 อย่างชื่อ
+        -- Config.MaxStress ทำให้เข้าใจผิด. ตั้ง MaxStress=100 ให้ statusPercent map ตรง 1:1
+        -- (stress 1.2 -> 1.2%, 90 -> 90%). InvertStress=false: หลอด "เติมตาม" ความเครียดจริง
+        -- (สงบ=ว่าง, เครียด=เต็ม) เดิม invert ทำให้สงบแล้วหลอดเต็มตลอด = ไม่ตรงจริง
+        MaxStress = 100,
+        InvertStress = false,
         Exports = {
             Hunger = 'setHunger',
             Thirst = 'setThirst',

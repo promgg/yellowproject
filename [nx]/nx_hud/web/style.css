@@ -147,21 +147,33 @@ body {
     box-shadow: 0 0 7px rgba(240, 202, 120, 0.5), inset 0 0 5px rgba(240, 202, 120, 0.18);
 }
 
-.nx-voice-box {
+/* กล่องเวลา/วันที่ (แทนที่กล่องสถานะเสียงเดิม) — เวลาไทย UTC+7 อัปเดตทุกวินาทีจาก app.js */
+.nx-clock-box {
     display: flex;
-    width: 65px;
+    flex-direction: column;
+    width: 80px;
     height: 20px;
     margin-left: -1px;
-    padding: 0 6px 0 8px;
+    padding: 0 6px;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
     border-radius: 0 5px 5px 0;
-    font-size: 9px;
-    line-height: 18px;
+    color: #e9e2d8;
     white-space: nowrap;
 }
 
-.nx-speaker-icon { width: 6px; height: 10px; }
+.nx-clock-box #nxClockTime {
+    font-size: 10px;
+    line-height: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.nx-clock-box #nxClockDate {
+    font-size: 7px;
+    line-height: 8px;
+    color: #b8ae9c;
+}
 
 /* Health and stamina */
 .nx-health-row {

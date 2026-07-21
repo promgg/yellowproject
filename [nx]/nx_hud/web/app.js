@@ -85,7 +85,8 @@
         radarDebug: document.getElementById('nxRadarDebug'),
         playerId: document.getElementById('nxPlayerId'),
         micBox: document.getElementById('nxMicBox'),
-        voiceMode: document.getElementById('nxVoiceMode'),
+        clockTime: document.getElementById('nxClockTime'),
+        clockDate: document.getElementById('nxClockDate'),
         healthRow: document.querySelector('.nx-health-row'),
         healthFill: document.getElementById('nxHealthFill'),
         secondaryBar: document.getElementById('nxSecondaryBar'),
@@ -428,9 +429,8 @@
             setText(els.playerId, `ID: ${cleanText(player.id, '--')}`);
         }
 
-        if (voice.mode !== undefined) {
-            setText(els.voiceMode, cleanText(voice.mode, 'NORMAL').toUpperCase().slice(0, 10));
-        }
+        // ตัวแสดงโหมดเสียง (NORMAL/WHISPER/SHOUT) ถูกถอดออกแล้ว เปลี่ยนเป็นกล่องเวลา/วันที่
+        // voice.talking ยังใช้ต่อ (คุมไฟกล่องไมค์ + ริงไมค์) เลยคงบล็อกด้านล่างไว้
 
         if (voice.talking !== undefined) {
             const talking = boolFromPayload(voice.talking);
@@ -679,6 +679,25 @@
             renderStatusIcons(data.statusIcons);
         }
     }
+
+    // ── นาฬิกาเวลาไทย (UTC+7) ────────────────────────────────────────────────
+    // คำนวณเองใน NUI ไม่ต้องพึ่ง client.lua — แปลงเป็น UTC ก่อนแล้วบวก 7 ชม.
+    // เพื่อให้ได้เวลาไทยเสมอไม่ว่าเครื่องผู้เล่นตั้ง timezone อะไร
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function updateClock() {
+        const now = new Date();
+        const thai = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 7 * 3600000);
+        if (els.clockTime) {
+            els.clockTime.textContent = pad2(thai.getHours()) + ':' + pad2(thai.getMinutes()) + ':' + pad2(thai.getSeconds());
+        }
+        if (els.clockDate) {
+            els.clockDate.textContent = pad2(thai.getDate()) + '/' + pad2(thai.getMonth() + 1) + '/' + thai.getFullYear();
+        }
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
 
     window.addEventListener('message', (event) => {
         const data = event && event.data;
