@@ -332,7 +332,9 @@ body.is-dragging .context-menu {
     width: 469px;
     height: 486px;
     display: grid;
-    grid-template-rows: 40px minmax(0, 1fr);
+    /* 3 แถว: tools(40) | pills(auto=สูงตามเนื้อหา) | grid(1fr=ที่เหลือ)
+       เดิมมี 2 แถว พอเพิ่ม .category-pills เข้ามา pill ไปนั่งแถว 1fr แล้วยืดเต็ม = ช่องว่าง+ดันไอเทมตก */
+    grid-template-rows: 40px auto minmax(0, 1fr);
     min-height: 0;
     overflow: hidden;
     border: 2px solid #886f52;
@@ -380,6 +382,12 @@ body.is-dragging .context-menu {
     overflow-y: hidden;
     border-bottom: 1px solid rgba(196, 153, 107, 0.22);
     background: rgba(0, 0, 0, 0.24);
+}
+
+/* ซ่อนแถบ scrollbar ของแถว pill (ยังเลื่อนได้ด้วย wheel/drag ถ้าล้นจริง) ไม่ให้มีเส้นบางๆ กวนตา */
+.category-pills::-webkit-scrollbar {
+    height: 0;
+    display: none;
 }
 
 .cat-pill {
@@ -513,7 +521,7 @@ body.is-dragging .context-menu {
 }
 
 .inventory-grid-wrap > .empty-state {
-    top: 40px;
+    top: 86px;
 }
 
 .selected-panel {
