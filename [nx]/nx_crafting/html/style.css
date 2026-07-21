@@ -423,7 +423,7 @@ p {
 
 .preview-backplate {
     position: relative;
-    width: min(74%, 240px);
+    width: min(87%, 285px);
     aspect-ratio: 1;
     flex: 0 0 auto;
     background: url("./assets/itemselect-bg.png") center / 100% 100% no-repeat;
@@ -496,7 +496,7 @@ p {
     justify-content: center;
     gap: 8px;
     width: 100%;
-    margin-top: 16px;
+    margin: 0 0 14px;
 }
 
 .variant-card {
