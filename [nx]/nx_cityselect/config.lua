@@ -45,9 +45,8 @@ Config.Cities = {
         minZ   = 90.0,
         maxZ   = 160.0,
         outfitTag = {
-            -- ⚠️ ทั้งคู่ยังเป็น hash เสื้อเชิ้ตเก่า ต้อง /nxcapture โค้ทของแต่ละเพศมาแทน
-            male   = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = 1064202495, tint0 = 0, tint1 = 0, tint2 = 0 },
-            female = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = 1064202495, tint0 = 0, tint1 = 0, tint2 = 0 },
+            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 1669565057, tint0 = 19, tint1 = 6, tint2 = 108 },
+            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 1669565057, tint0 = 19, tint1 = 6, tint2 = 108 },
         },
         outfitProps = {},
     },
@@ -68,9 +67,8 @@ Config.Cities = {
         minZ   = 55.0,
         maxZ   = 110.0,
         outfitTag = {
-            -- ⚠️ ทั้งคู่ยังเป็น hash เสื้อเชิ้ตเก่า ต้อง /nxcapture โค้ทของแต่ละเพศมาแทน
-            male   = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 183, tint1 = 47, tint2 = 208 },
-            female = { drawable = -677619227, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 183, tint1 = 47, tint2 = 208 },
+            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 864404955, tint0 = 77, tint1 = 248, tint2 = 249 },
+            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 864404955, tint0 = 77, tint1 = 248, tint2 = 249 },
         },
         outfitProps = {},
     },
@@ -91,9 +89,8 @@ Config.Cities = {
         minZ   = 20.0,
         maxZ   = 90.0,
         outfitTag = {
-            -- ⚠️ ทั้งคู่ยังเป็น hash เสื้อเชิ้ตเก่า ต้อง /nxcapture โค้ทของแต่ละเพศมาแทน
-            male   = { drawable = -631954077, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 139, tint1 = 18, tint2 = 15 },
-            female = { drawable = -631954077, albedo = -1749786428, normal = -551064659, material = 547019181, palette = -113397560, tint0 = 139, tint1 = 18, tint2 = 15 },
+            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 8 },
+            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 8 },
         },
         outfitProps = {},
     },
