@@ -480,18 +480,15 @@ exports('setHunger', function() return tonumber(PlayerStatus.Hunger) or Config.M
 exports('setStress', function() return tonumber(PlayerStatus.Stress) or Config.MinStress or 0 end)
 exports('setTemp', function() return temperature end)
 
--- MJ_stress() คืนความเครียดเป็น 0..100 (% ของระดับที่ "ตายจากเครียด" = Config.MaxStress*0.02)
--- ระบบสั่นจอใน core/client.lua + ตาราง Config.Intensity['shake']/Config.EffectInterval ใช้สเกล
--- 0..100 นี้ (สั่นเริ่มที่ 50 แรงสุดที่ 100) — อ้าง reference จุดตายเดียวกับ needs loop
+-- MJ_stress() คืนความเครียดเป็น 0..100 (สเกลจริงของ PlayerStatus.Stress — log โหลดค่าจริง ~1.2,
+-- คอมเมนต์อ้าง "เกิน 90/ถึง 100", ตาราง shake 50..100 ใน config ก็ใช้สเกลนี้)
+-- ระบบจอแดง+สั่นจอ (core/client.lua) เทียบค่านี้กับ Config.StressEffectThreshold (90)
 --
--- ⚠️ เดิม export นี้ "ไม่เคยถูกนิยาม" แต่ core/client.lua:316 เรียก exports['MJ-STATUS']:MJ_stress()
--- → call nil ทำให้เธรดสั่นจอ error ตายทั้งเธรดตั้งแต่รอบแรก (screen effect ตอนเครียดไม่ทำงานเลย)
--- ห้ามคืน nil เด็ดขาด ผู้เรียกเอาไปเทียบค่าต่อทันที (stress >= 100)
+-- ⚠️ เดิม export นี้ "ไม่เคยถูกนิยาม" แต่ core/client.lua เรียก exports['MJ-STATUS']:MJ_stress()
+-- → call nil ทำให้เธรดจอแดง/สั่นจอ error ตายทั้งเธรดตั้งแต่รอบแรก (effect ตอนเครียดไม่ทำงานเลย)
+-- ห้ามคืน nil เด็ดขาด ผู้เรียกเอาไปเทียบค่าต่อทันที
 exports('MJ_stress', function()
-    local deathAt = (tonumber(Config.MaxStress) or 100000) * 0.02   -- ระดับ raw ที่ตายจากเครียด (=2000)
-    if deathAt <= 0 then return 0 end
-    local pct = (tonumber(PlayerStatus.Stress) or Config.MinStress or 0) / deathAt * 100
-    return math.max(0, math.min(100, pct))
+    return math.max(0, math.min(100, tonumber(PlayerStatus.Stress) or Config.MinStress or 0))
 end)
 
 ------------------------------------------------

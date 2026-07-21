@@ -17,7 +17,9 @@ Config.ShowUI = false -- เปิดปิด UI
 ----------------------------------
 -- การตั้งค่าความเครียด (Stress Settings)
 ----------------------------------
-Config.MinimumStress = 50 -- กำหนดค่าความเครียดขั้นต่ำที่ทำให้เกิดอาการสั่นของหน้าจอ
+Config.MinimumStress = 50 -- กำหนดค่าความเครียดขั้นต่ำที่ทำให้เกิดอาการสั่นของหน้าจอ (ตาราง shake)
+-- เริ่มแสดง "จอแดง + สั่นจอ" เมื่อความเครียด (0..100) ถึงค่านี้ — ผู้เล่นเห็นชัดว่าเครียดหนัก
+Config.StressEffectThreshold = 90
 
 ----------------------------------
 -- การตั้งค่าการแสดงผล HUD (Heads-Up Display)
@@ -206,7 +208,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 40000, -- เพิ่มค่าความหิว
         thirst = 0, -- ไม่เพิ่มค่ากระหาย
-        stress = -400, -- ลดค่าความเครียด
+        stress = -20, -- ลดค่าความเครียด
         stamina = 10 -- เพิ่มค่า Stamina
     },
     ["water"] = {
@@ -216,7 +218,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 55000,
-        stress = -400,
+        stress = -20,
         stamina = 10
     },
     ["burger"] = {
@@ -236,7 +238,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 70000,
         thirst = 28000,
-        stress = -600,
+        stress = -30,
         stamina = 1000
     },
 
@@ -271,7 +273,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 10000,
-        stress = -400,
+        stress = -20,
         stamina = 10
     },
 
@@ -299,7 +301,7 @@ Config.FoodItems = {
         EffectDuration = 1,
         hunger = 0,
         thirst = 20000,
-        stress = 200,
+        stress = 10,
         stamina = 10
     },
     ["food_brandy"] = { -- บรั่นดี - เพิ่มน้ำ 20% | เพิ่มเครียด 10%
@@ -309,7 +311,7 @@ Config.FoodItems = {
         EffectDuration = 1,
         hunger = 0,
         thirst = 20000,
-        stress = 200,
+        stress = 10,
         stamina = 10
     },
     ["food_vodka"] = { -- วิสกี้ - เพิ่มน้ำ 20% | เพิ่มเครียด 10%
@@ -319,7 +321,7 @@ Config.FoodItems = {
         EffectDuration = 1,
         hunger = 0,
         thirst = 20000,
-        stress = 200,
+        stress = 10,
         stamina = 10
     },
     ["cigarette"] = { -- บุหรี่ - ลดเครียด 20% | ไม่อิ่ม ไม่แก้กระหาย
@@ -331,7 +333,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 0,
-        stress = -400,
+        stress = -20,
         stamina = 0
     },
 
@@ -344,7 +346,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 70000,
-        stress = -400,
+        stress = -20,
         stamina = 10
     },
     ["food_oxtail_soup"] = { -- ซุปหางวัว (Valentine) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -354,7 +356,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 70000,
         thirst = 40000,
-        stress = -600,
+        stress = -30,
         stamina = 50
     },
     ["food_braised_ribs"] = { -- ตุ๋นซี่โครง (Valentine) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -364,7 +366,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 50000,
         thirst = 20000,
-        stress = -400,
+        stress = -20,
         stamina = 30
     },
     ["food_taco"] = { -- ทาโก้ (Valentine) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -374,7 +376,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 40000,
         thirst = 10000,
-        stress = -200,
+        stress = -10,
         stamina = 20
     },
 
@@ -385,7 +387,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 70000,
-        stress = -400,
+        stress = -20,
         stamina = 10
     },
     ["food_beef_stew"] = { -- สตูเนื้อ (Rhodes) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -395,7 +397,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 70000,
         thirst = 40000,
-        stress = -600,
+        stress = -30,
         stamina = 50
     },
     ["food_salted_meat_stew"] = { -- เนื้อตุ๋นเกลือ (Rhodes) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -405,7 +407,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 50000,
         thirst = 20000,
-        stress = -400,
+        stress = -20,
         stamina = 30
     },
     ["food_pasta_sauce"] = { -- พาสต้าซอส (Rhodes) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -415,7 +417,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 40000,
         thirst = 10000,
-        stress = -200,
+        stress = -10,
         stamina = 20
     },
 
@@ -426,7 +428,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 0,
         thirst = 70000,
-        stress = -400,
+        stress = -20,
         stamina = 10
     },
     ["food_herb_roasted_meat"] = { -- เนื้อย่างสมุนไพร (Annesburg) - เพิ่มข้าว70% เพิ่มน้ำ40% ลดเครียด30%
@@ -436,7 +438,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 70000,
         thirst = 40000,
-        stress = -600,
+        stress = -30,
         stamina = 50
     },
     ["food_mushroom_rib_soup"] = { -- ต้มซี่โครงเห็ด (Annesburg) - เพิ่มข้าว50% เพิ่มน้ำ20% ลดเครียด20%
@@ -446,7 +448,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 50000,
         thirst = 20000,
-        stress = -400,
+        stress = -20,
         stamina = 30
     },
     ["food_spaghetti"] = { -- สปาเก็ตตี้ (Annesburg) - เพิ่มข้าว40% เพิ่มน้ำ10% ลดเครียด10%
@@ -456,7 +458,7 @@ Config.FoodItems = {
         EffectDuration = "",
         hunger = 40000,
         thirst = 10000,
-        stress = -200,
+        stress = -10,
         stamina = 20
     }
 }

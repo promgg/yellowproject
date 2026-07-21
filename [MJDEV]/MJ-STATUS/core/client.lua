@@ -309,39 +309,43 @@ end
 ------------------------------------------------
 -- stress screen effects
 ------------------------------------------------
+-- flag ที่เธรดวาดจอแดงอ่าน — เปิดเมื่อความเครียดถึง Config.StressEffectThreshold (90)
+local stressRedActive = false
+
+-- เธรดวาด "จอแดง" — DrawRect ต้องเรียกทุกเฟรม (วาด overlay สีแดงเต็มจอ อัลฟาเต้นเป็นจังหวะ)
+-- ใช้ DrawRect แทน AnimpostfxPlay เพราะไม่มี postfx สีแดงชัวร์ๆ ใน RDR3 (มีแต่เบลอ/จอดำ)
 CreateThread(function()
     while true do
+        if stressRedActive then
+            -- อัลฟาเต้น ~50..110 (จาก 255) ให้รู้สึกเหมือนเลือดสูบ ไม่ใช่แดงตายตัว
+            local pulse = 80 + math.floor(30 * math.sin(GetGameTimer() / 220.0))
+            DrawRect(0.5, 0.5, 1.0, 1.0, 170, 20, 20, pulse)
+            Wait(0)
+        else
+            Wait(200)
+        end
+    end
+end)
+
+-- เธรดตรวจความเครียด: ถึง threshold (90) -> เปิดจอแดง + สั่นจอเป็นระยะ, ต่ำกว่านั้น -> ดับ
+CreateThread(function()
+    while true do
+        local sleep = 1000
         if isLoggedIn and Config.DoHealthEffects then
-            local ped = PlayerPedId()
             local stress = exports['MJ-STATUS']:MJ_stress()
-            local sleep = GetEffectInterval(stress)
 
-            if stress >= 100 then
-                local ShakeIntensity = GetShakeIntensity(stress)
-                local FallRepeat = math.random(2, 4)
-                local RagdollTimeout = (FallRepeat * 1750)
-                ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', ShakeIntensity)
-
-                if not IsPedRagdoll(ped) and IsPedOnFoot(ped) and not IsPedSwimming(ped) then
-                    local player = PlayerPedId()
-                    SetPedToRagdollWithFall(player, RagdollTimeout, RagdollTimeout, 1, GetEntityForwardVector(player), 1.0,0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-                end
-
-                Wait(500)
-                for i = 1, FallRepeat, 1 do
-                    Wait(750)
-                    DoScreenFadeOut(200)
-                    Wait(1000)
-                    DoScreenFadeIn(200)
-                    ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', ShakeIntensity)
-                end
-            elseif stress >= Config.MinimumStress then
-                local ShakeIntensity = GetShakeIntensity(stress)
-                ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', ShakeIntensity)
+            if stress >= (Config.StressEffectThreshold or 90) then
+                stressRedActive = true
+                ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', GetShakeIntensity(stress))
+                sleep = 2000   -- สั่นซ้ำทุก 2 วิระหว่างที่ยังเครียดหนัก (จอแดงติดต่อเนื่องอยู่แล้ว)
+            else
+                stressRedActive = false
+                sleep = 1000
             end
-            Wait(sleep)
+        else
+            stressRedActive = false
         end
 
-        Wait(1000)
+        Wait(sleep)
     end
 end)
