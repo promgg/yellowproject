@@ -157,7 +157,10 @@ Config.MinStress = 0
 Config.MinStamina = 0
 
 Config.SavePlayersStatus      = true        -- Future deprecated. Advised not to use, as it will be removed.
-Config.SaveStatusTickInterval = 300000 -- 5 minutes
+-- ทุกกี่ ms ที่ server ดึงค่าสดจาก client มาเซฟลง DB (+อัปเดต object)
+-- ยิ่งถี่ ค่าตอน "ออก" ยิ่งใกล้ค่าจริง (playerDropped เซฟได้แค่ค่าล่าสุดที่ดึงมา ไม่ใช่ค่า ณ วินาทีออก)
+-- ลดจาก 5 นาที -> 1 นาที ให้ "ออกเท่าไหนเข้าก็เท่านั้น" คลาดเคลื่อนไม่เกิน ~1 นาที
+Config.SaveStatusTickInterval = 60000 -- 1 minute
 
 -- ── อัตราลดของหลอดหิว/กระหาย ────────────────────────────────────────────────
 -- ตั้งเป็น "กี่นาทีจากเต็มถึงศูนย์" ตรงๆ อ่านแล้วรู้เลยว่าผู้เล่นมีเวลาเท่าไหร่

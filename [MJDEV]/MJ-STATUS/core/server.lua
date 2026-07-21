@@ -129,6 +129,15 @@ AddEventHandler("MJ-STATUS:saveStatus", function(status)
 
     local statusJSON = json.encode(status)
 
+    -- อัปเดต "ค่าใน object ของ vorp" ด้วย ไม่ใช่แค่เขียน DB ตรงๆ
+    -- ต้นตอบั๊ก "ออกเข้าใหม่รีเซ็ตเป็นเต็ม": เดิม save เขียนแค่ DB แต่ playerDropped กับ
+    -- SelectedCharacter อ่านจาก Character.status (ค่าใน object) ซึ่งค้างที่ค่าตอน login
+    -- ตลอดทั้ง session ตอนออก playerDropped จึงเอาค่าเก่า (มักเต็ม) เขียนทับค่าจริงใน DB
+    -- อัปเดต object ทุกครั้งที่ save ค่าใน object จึงตรงกับค่าล่าสุดเสมอ
+    if Character.setStatus then
+        Character.setStatus(statusJSON)
+    end
+
     MySQL.Async.execute(
         'UPDATE characters SET status = @status WHERE identifier = @identifier',
         {
@@ -192,10 +201,17 @@ end)
 
 
 -- เมื่อผู้เล่นออกจากเซิร์ฟเวอร์
+-- หลักการ: "ออกเท่าไหนเข้าก็เท่านั้น" — บันทึกค่าล่าสุดที่มี ห้าม reset เป็นเต็มเด็ดขาด
+--
+-- บั๊กเดิม: มี 3 สาขาที่เขียน default (เต็ม) ทับ DB เมื่อ Character.status ว่าง/คีย์ไม่ครบ
+-- ซึ่งเกิดบ่อยเพราะ save เดิมไม่อัปเดต object (ค้างค่า login มักเต็ม) = ออกเข้าใหม่เต็มทุกครั้ง
+-- ตอนนี้ save อัปเดต Character.status ให้สดแล้ว ค่านี้จึงเป็นค่าล่าสุดที่เซฟจริง
+-- ถ้าค่าไม่สมบูรณ์ให้ "ไม่ทำอะไร" — ปล่อยให้ค่าที่ save รอบก่อนใน DB คงอยู่ ดีกว่าเขียนเต็มทับ
 AddEventHandler('playerDropped', function(reason)
+    if not Config.SavePlayersStatus then return end
+
     local _source = source
     local User = VORPcore.getUser(_source)
-    
     if not User then return end
 
     local Character = User.getUsedCharacter
@@ -203,64 +219,23 @@ AddEventHandler('playerDropped', function(reason)
 
     local identifier = Character.identifier
     local s_status = Character.status
-    -- If the status is not empty or hasn't been reset
-    if s_status and s_status ~= '{}' then
-        local statusData = json.decode(s_status)
-        if statusData.Hunger and statusData.Thirst and statusData.Stress and Config.SavePlayersStatus then
-            -- Save the status to the database before the player leaves
-            MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier', {
-                ['@status'] = json.encode(statusData),
-                ['@identifier'] = identifier
-            }, function(rowsChanged)
-                if rowsChanged > 0 then
-                    print("Successfully saved status for character: " .. identifier)
-                else
-                    print("Failed to save status for character: " .. identifier)
-                end
-            end)
+
+    -- ไม่มีค่าจริง = ไม่แตะ DB (กันเขียนเต็มทับ) — ค่าจาก save รอบก่อนยังอยู่ครบ
+    if type(s_status) ~= "string" or #s_status <= 5 then return end
+    local ok, statusData = pcall(json.decode, s_status)
+    if not ok or type(statusData) ~= "table" then return end
+    if not (statusData.Hunger and statusData.Thirst and statusData.Stress) then return end
+
+    MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier', {
+        ['@status'] = json.encode(statusData),
+        ['@identifier'] = identifier
+    }, function(rowsChanged)
+        if rowsChanged and rowsChanged > 0 then
+            print("Successfully saved status for character: " .. tostring(identifier))
         else
-            -- Reset to default status if invalid
-            if Config.SavePlayersStatus then
-                local defaultStatus = {
-                    Hunger = Config.MaxHunger or 1000,
-                    Thirst = Config.MaxThirst or 1000,
-                    Stress = Config.MinStress or 0
-                }
-                MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier', {
-                    ['@status'] = json.encode(defaultStatus),
-                    ['@identifier'] = identifier
-                }, function(rowsChanged)
-                    if rowsChanged > 0 then
-                        print("Successfully saved default status for character: " .. identifier)
-                    else
-                        print("Failed to save default status for character: " .. identifier)
-                    end
-                end)
-            end
+            print("Failed to save status for character: " .. tostring(identifier))
         end
-    else
-        -- Use default config if no status exists in the database
-        if Config.SavePlayersStatus then
-            local defaultStatus = {
-                Hunger = Config.MaxHunger or 1000,
-                Thirst = Config.MaxThirst or 1000,
-                Stress = Config.MinStress or 0
-            }
-            -- Save default status to the database
-            MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier', {
-                ['@status'] = json.encode(defaultStatus),
-                ['@identifier'] = identifier
-            }, function(rowsChanged)
-                if identifier ~= nil then
-                    if rowsChanged > 0 then
-                        print("Successfully saved default status for character: " .. identifier)
-                    else
-                        print("Failed to save default status for character: " .. identifier)
-                    end
-                end
-            end)
-        end
-    end
+    end)
 end)
 
 AddEventHandler("vorp:SelectedCharacter",function(source)
