@@ -210,18 +210,41 @@ function Character(data)
         return self.coords
     end
 
+    -- write-through: เซฟ money/gold/rol ลง DB ทันทีที่เปลี่ยน — คิวรีนี้ "ไม่มีคอลัมน์ชื่อ"
+    -- จึงพังจากชื่อยาวไม่ได้ (ต่างจาก SaveCharacterInDb ที่รวมชื่อ) กันบั๊กโรลแบคปั้มเงิน:
+    -- ต่อให้ save ตัวใหญ่พัง เงินก็ถูกบันทึกไปแล้ว ออกเกม/รีล็อกจึงไม่โรลแบค
+    self.SaveCurrency = function()
+        MySQL.update("UPDATE characters SET `money` = @money, `gold` = @gold, `rol` = @rol WHERE `identifier` = @identifier AND `charidentifier` = @charidentifier",
+            {
+                money = self.money,
+                gold = self.gold,
+                rol = self.rol,
+                identifier = self.identifier,
+                charidentifier = self.charIdentifier
+            })
+    end
+
     self.Money = function(value)
-        if value then self.money = value end
+        if value then
+            self.money = value
+            self.SaveCurrency()
+        end
         return self.money
     end
 
     self.Gold = function(value)
-        if value then self.gold = value end
+        if value then
+            self.gold = value
+            self.SaveCurrency()
+        end
         return self.gold
     end
 
     self.Rol = function(value)
-        if value then self.rol = value end
+        if value then
+            self.rol = value
+            self.SaveCurrency()
+        end
         return self.rol
     end
 
@@ -375,6 +398,7 @@ function Character(data)
             SetState(self.source, "Character", "Rol", self.rol)
         end
         self.updateCharUi()
+        self.SaveCurrency() -- write-through ทันที กันโรลแบคปั้มเงิน
     end
 
     self.removeCurrency = function(currency, quantity)
@@ -390,6 +414,7 @@ function Character(data)
         end
 
         self.updateCharUi()
+        self.SaveCurrency() -- write-through ทันที กันโรลแบคปั้มเงิน
     end
 
     self.addXp = function(quantity)
@@ -495,6 +520,20 @@ function Character(data)
     end
 
     self.SaveCharacterInDb = function()
+        -- ── backstop กัน long-name money-dupe ──────────────────────────────
+        -- คิวรีนี้เซฟ money/gold "พร้อมกับ" firstname/lastname/nickname/steamname
+        -- ถ้าฟิลด์ชื่อยาวเกินขนาดคอลัมน์ MySQL จะปฏิเสธ UPDATE ทั้งก้อน = เงินไม่เซฟ
+        -- (ต้นเหตุบั๊กโรลแบคปั้มเงิน: ชื่อ client/Steam ยาว -> save พัง -> ฝากแบงก์แล้ว
+        --  ออกเกมทำให้เงินสดโรลแบค). clamp ตรงนี้การันตีว่าคิวรี money เซฟผ่านเสมอ
+        -- ตัดเป็น "ตัวอักษร" UTF-8 (ไม่ใช่ byte) ไม่งั้นตัวอักษรไทยตัวสุดท้ายจะขาดครึ่ง
+        local function clampChars(s, maxChars)
+            if type(s) ~= 'string' then return s end
+            if (utf8.len(s) or #s) <= maxChars then return s end
+            local ok, off = pcall(utf8.offset, s, maxChars + 1)
+            if ok and off then return s:sub(1, off - 1) end
+            return s:sub(1, maxChars) -- fallback: สตริงไม่ใช่ UTF-8 ตัด byte ตรงๆ
+        end
+
         MySQL.update("UPDATE characters SET `group` =@group ,`money` =@money ,`gold` =@gold ,`rol` =@rol ,`xp` =@xp ,`healthouter` =@healthouter ,`healthinner` =@healthinner ,`staminaouter` =@staminaouter ,`staminainner` =@staminainner ,`job` =@job , `status` =@status ,`firstname` =@firstname , `lastname` =@lastname , `jobgrade` =@jobgrade , `coords` =@coords , `isdead` =@isdead , `joblabel` =@joblabel, `age` =@age, `gender`=@gender, `character_desc`=@charDescription,`nickname`=@nickname,`steamname`=@steamname, `slots` =@slots, `skills`=@skills, `multijobs`=@multijobs  WHERE `identifier` =@identifier AND `charidentifier` =@charidentifier",
             {
                 group = self.group,
@@ -508,8 +547,8 @@ function Character(data)
                 staminainner = self.staminaInner,
                 job = self.job,
                 status = self.status,
-                firstname = self.firstname,
-                lastname = self.lastname,
+                firstname = clampChars(self.firstname, 40),
+                lastname = clampChars(self.lastname, 40),
                 jobgrade = self.jobgrade,
                 coords = self.coords,
                 isdead = self.isdead,
@@ -519,8 +558,8 @@ function Character(data)
                 age = self.age,
                 gender = self.gender,
                 charDescription = self.charDescription,
-                nickname = self.nickname,
-                steamname = self.steamname,
+                nickname = clampChars(self.nickname, 40),
+                steamname = clampChars(self.steamname, 40),
                 slots = self.slots,
                 skills = json.encode(self.skills),
                 multijobs = json.encode(self.multiJobs)
