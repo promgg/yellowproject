@@ -39,7 +39,11 @@ Config.Integration = {
         PollInterval = 2000,
         MaxHunger = 100000,
         MaxThirst = 100000,
-        MaxStress = 100000,
+        -- ความเครียดใน MJ-STATUS แม้เก็บใน PlayerStatus.Stress (0..100000) แต่ระดับที่มีผล
+        -- จริงคือ "ตายจากเครียด" ที่ Config.MaxStress*0.02 = 2000 (item ขยับทีละหลักร้อย)
+        -- ถ้าใช้ 100000 หลอดจะขยับแค่ 100%->98% ตั้งแต่สงบจนตาย = ค้างเต็มตลอด ไม่ตรงจริง
+        -- ตั้งเป็น 2000 ให้หลอด (invert) ไล่ 100%->0% ตามความเครียดจริงจนถึงจุดตาย
+        MaxStress = 2000,
         InvertStress = true,
         Exports = {
             Hunger = 'setHunger',
