@@ -84,6 +84,7 @@ Config["Perms"] = {
 		CanNoClip = true,
 		CanSpawnVehicle = true,
 		CanAnnounce = true,
+		CanMJAnnounce = true,
 		CanSetJob = true,
 		CanSetTime = true,
 		CanRevive = true,

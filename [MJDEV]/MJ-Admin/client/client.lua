@@ -495,6 +495,11 @@ RegisterNUICallback("announce", function(data)
     TriggerServerEvent("admin:Announcement", data.inputData)
 end)
 
+-- ป้ายประกาศเต็มจอของ MJ-Announcement (คนละอันกับ "announce" ด้านบนที่ยิงลงแชทธรรมดา)
+RegisterNUICallback("mjannounce", function(data)
+    TriggerServerEvent("admin:MJAnnounce", data.inputData)
+end)
+
 RegisterNUICallback("setJob", function(data)
     -- print(DumpTable(data))
     TriggerServerEvent("admin:setJob", data.playerid, data.job, data.rank, data.label)

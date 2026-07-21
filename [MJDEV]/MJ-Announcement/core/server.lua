@@ -2,31 +2,53 @@ local VorpCore = exports.vorp_core:GetCore()
 
 local currentAnnouceID = 1
 
+-- ── ACE permission สำหรับคำสั่งประกาศ ────────────────────────────────────────
+-- เรียงลำดับตามที่ MJ-Airdrop/core/server.lua ทำ: console -> ACE -> group
+-- ACE มาก่อนเพราะให้สิทธิ์เฉพาะคำสั่งนี้ได้โดยไม่ต้องยกคนขึ้นเป็น admin ทั้งระบบ
+--   add_ace group.admin MJ-Announcement.admin allow   (ตั้งไว้ใน server.cfg แล้ว)
+local ADMIN_ACE    = 'MJ-Announcement.admin'
+local ADMIN_GROUPS = { superadmin = true, admin = true }
+
+local function normalizeGroup(value)
+    return tostring(value or ''):lower():gsub('%s+', '')
+end
+
+local function isAdmin(source)
+    if source == 0 then return true end -- server console / txAdmin สั่งได้เสมอ
+
+    if IsPlayerAceAllowed(source, ADMIN_ACE) then return true end
+
+    local xUser = VorpCore.getUser(source)
+    if not xUser then return false end
+
+    -- VORP มี "group" อยู่สองที่คนละตารางกัน (users ระดับบัญชี / characters ระดับตัวละคร)
+    -- อ่านทั้งสองที่ ตั้งไว้ที่ไหนก็ผ่าน — เดิมเช็คแค่ xPlayer.group (characters) จุดเดียว
+    if ADMIN_GROUPS[normalizeGroup(xUser.getGroup)] then return true end
+
+    local xPlayer = xUser.getUsedCharacter
+    if xPlayer and ADMIN_GROUPS[normalizeGroup(xPlayer.group)] then return true end
+
+    return false
+end
+
 -- เปลี่ยนคำสั่ง 'ac' ให้ใช้ RegisterCommand แทน
 RegisterCommand('ac', function(source, args, rawCommand)
-    if source == 0 then
-        -- server console / txAdmin — เชื่อถือได้อยู่แล้ว ไม่มี xPlayer ให้เช็ค group
-        if #args == 0 then return end
-        TriggerClientEvent('JKL-annoucement_nui:annouce', -1, table.concat(args, ' '))
+    if not isAdmin(source) then
+        if source ~= 0 then
+            TriggerClientEvent('esx:showNotification', source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้.')
+        end
         return
     end
 
-    local xUser = VorpCore.getUser(source)
-    local xPlayer = xUser and xUser.getUsedCharacter
-
-    -- ตรวจสอบสิทธิ์ผู้ใช้
-    if xPlayer and xPlayer.group == 'admin' then
-        if #args == 0 then
+    if #args == 0 then
+        if source ~= 0 then
             TriggerClientEvent('esx:showNotification', source, 'กรุณาใส่ข้อความประกาศ.')
-            return
         end
-        
-        local message = table.concat(args, ' ')
-        TriggerClientEvent('JKL-annoucement_nui:annouce', -1, message)
-    else
-        -- ส่งข้อความแจ้งเตือนเมื่อผู้ใช้ไม่มีสิทธิ์
-        TriggerClientEvent('esx:showNotification', source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้.')
+        return
     end
+
+    local message = table.concat(args, ' ')
+    TriggerClientEvent('JKL-annoucement_nui:annouce', -1, message)
 end, false)
 
 

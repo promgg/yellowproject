@@ -438,6 +438,22 @@ AddEventHandler("admin:Announcement", function(message)
     end
 end)
 
+-- ป้ายประกาศเต็มจอผ่าน MJ-Announcement (soft integration — ยิง event ตรงไปที่ client ของ
+-- MJ-Announcement เลย ไม่ผ่านคำสั่ง /ac เพื่อไม่ต้องพึ่งพา resource นั้นเป็น dependency ตายตัว)
+-- คนละอันกับ "admin:Announcement" ด้านบนที่ยิงลงแชทธรรมดา (chat:addMessage)
+RegisterNetEvent("admin:MJAnnounce")
+AddEventHandler("admin:MJAnnounce", function(message)
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
+    if Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanMJAnnounce then
+        TriggerClientEvent('JKL-annoucement_nui:annouce', -1, message)
+    else
+        TriggerClientEvent("chat:addMessage", source, {
+            args = {"^1ระบบ",
+                    " : คุณไม่มีสิทเข้าถึงเเผงควบคุมผู้ดูเเลระบบ"}
+        })
+    end
+end)
+
 RegisterNetEvent("admin:Notification")
 AddEventHandler("admin:Notification", function(playerID, message)
     local _source = playerID

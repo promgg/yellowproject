@@ -165,6 +165,10 @@ $(function () {
 				t(a = "ประกาศ " + 'ทุกคน' + "", e = "ใส่ข้อความ", n = "text", s);
 				break;
 
+			case "mjannounce":
+				t(a = "ประกาศหน้าจอ (MJ-Announcement)", e = "ใส่ข้อความ", n = "text", s);
+				break;
+
 			case "setmodel":
 				t(a = "เปลี่ยนโมเดล : " + playerData[id].name, e = "ใส่ชื่อโมเดล", n = "text", s);
 				break;
