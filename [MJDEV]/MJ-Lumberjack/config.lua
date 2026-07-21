@@ -48,7 +48,7 @@ Config.lumberZone = {
     },
     {
         Name = "Annesburg Wood",
-        Coords = vector3(3024.0906, 1766.6837, 83.6999), -- heading 152.3525
+        Coords = vector3(2460.5527, 868.6317, 74.8205), -- ย้ายจุดใหม่ตามที่แจ้ง
         Radius = 50.0,
         Blips = {
             Color = "COLOR_RED",
@@ -95,10 +95,10 @@ Config.TownRestrictions = {
 -- chance เป็น % ตรงๆ (รวมกันในลิสต์ไม่เกิน 100) ที่เหลือจาก 100 = โอกาสไม่ได้ของ
 -- server.lua สุ่ม roll 1-100 แล้วไล่เรียง cumulative ตามลำดับด้านล่าง
 Config.Items = {
-    { name = "met_log",   label = "ท่อนไม้",   chance = 10, amount = 1 },
-    { name = "met_resin", label = "ยางไม้",    chance = 10, amount = 1 },
-    { name = "met_bark",  label = "เปลือกไม้",  chance = 30, amount = 1 },
-    { name = "met_stick", label = "กิ่งไม้",    chance = 50, amount = 1 },
+    { name = "met_log",   label = "ท่อนไม้",   chance = 35, amount = 1 },
+    { name = "met_stick", label = "กิ่งไม้",    chance = 35, amount = 1 },
+    { name = "met_bark",  label = "เปลือกไม้",  chance = 15, amount = 1 },
+    { name = "met_resin", label = "ยางไม้",    chance = 15, amount = 1 },
     -- รวม 100% พอดี ไม่มีโอกาส "ไม่ได้ของ" อีกต่อไป
 }
 
