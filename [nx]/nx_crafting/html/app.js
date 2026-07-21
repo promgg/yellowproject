@@ -733,12 +733,11 @@
         const item = getSelectedItem();
         const recipes = getSelectedRecipes();
 
-        // มีสูตรเดียว (หรือไม่มี) -> ไม่ต้องโชว์การ์ดเลือกสูตร ซ่อนแถวไปเลย
+        // มีสูตรเดียว (หรือไม่มี) -> ไม่โชว์การ์ด แต่ปล่อย container ว่างไว้ในผัง
+        // (min-height ใน CSS จองพื้นที่ไว้แล้ว) วงแหวน/ชื่อจะได้ไม่เด้งตอนสลับไอเทม
         if (!item || recipes.length <= 1) {
-            els.variantCards.style.display = "none";
             return;
         }
-        els.variantCards.style.display = "";
 
         recipes.forEach(function (recipe) {
             const card = document.createElement("button");
