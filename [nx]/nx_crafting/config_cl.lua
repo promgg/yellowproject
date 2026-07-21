@@ -178,7 +178,9 @@ Config["Craft_Table"] = {
 	},
 
 	{
-		Position = {x = 3021.0964, y = 1755.0084, z = 82.7649, h = 113.0000},
+		-- ย้ายมาใกล้โซนต้นไม้ Annesburg จุดใหม่ (MJ-Lumberjack/config.lua) — ใช้พิกัดโซนไปก่อน
+		-- ถ้าอยากวางโต๊ะจุดเฉพาะ ค่อยเก็บพิกัดโต๊ะแยกมาแก้ตรงนี้
+		Position = {x = 2460.5527, y = 868.6317, z = 74.8205, h = 113.0000},
 		Table_Name = "Wood Crafting - Annesburg",
 		Max_Distance = 2.5,
 		Disable_Model = false,

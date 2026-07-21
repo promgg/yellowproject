@@ -3892,7 +3892,7 @@ ConfigSv["Category"] = {
                             ["Money"] = 0,
                         },
                         blueprint = {
-                            ["met_stick"] = 10,
+                            ["met_stick"] = 3, -- ไม้เหลา 3:1 (กิ่งไม้ 3 -> ไม้เหลา 1)
                         },
                     },
                 },
@@ -3911,7 +3911,7 @@ ConfigSv["Category"] = {
                             ["Money"] = 0,
                         },
                         blueprint = {
-                            ["met_log"] = 5,
+                            ["met_log"] = 3, -- ไม้แผ่น 3:1 (ท่อนไม้ 3 -> ไม้แผ่น 1)
                         },
                     },
                 },
