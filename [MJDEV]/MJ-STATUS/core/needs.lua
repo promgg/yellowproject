@@ -197,13 +197,20 @@ CreateThread(function()
     local drainMs = (Config.Stamina.drainSeconds or 8.0) * 1000
 
     local startedAt    = nil -- เวลาที่เริ่มวิ่งรอบนี้
-    local startedValue = nil -- สเตมิน่าตอนเริ่มวิ่งรอบนี้
+    local startedValue = nil   -- สเตมิน่าตอนเริ่มวิ่งรอบนี้
+    local maxStamina   = 100.0 -- ค่าเต็มจริง จับจากค่าสูงสุดที่เคยเห็น (skill/perk ดันเกิน 100 ได้)
 
     while true do
         Wait(tick)
 
         if isLoggedIn then
             local ped = PlayerPedId()
+
+            -- จับ "หลอดเต็มจริง" ตลอด ไม่ใช่แค่ตอนวิ่ง — เซิร์ฟนี้มี skill ดัน stamina เกิน 100
+            -- (เห็นค่า 112 ใน log จริง) ถ้า hardcode 100 จะได้อัตราลดผิด วิ่ง 9 วิแทน 8
+            local cur = getStamina()
+            if cur > maxStamina then maxStamina = cur end
+
             local moving = Config.Stamina.sprintOnly
                 and IsPedSprinting(ped)
                 or (IsPedSprinting(ped) or IsPedRunning(ped))
@@ -211,16 +218,17 @@ CreateThread(function()
             if moving and not IsPedDeadOrDying(ped, true) then
                 if not startedAt then
                     startedAt    = GetGameTimer()
-                    startedValue = getStamina()
+                    startedValue = cur
                     if Config.Debug then
-                        print(('[MJ-STATUS] เริ่มวิ่ง — stamina เริ่มต้น %.1f'):format(startedValue))
+                        print(('[MJ-STATUS] เริ่มวิ่ง — stamina เริ่มต้น %.1f (เต็ม %.0f)'):format(startedValue, maxStamina))
                     end
                 end
 
-                -- คิดจากค่าตอนเริ่มวิ่งเสมอ ไม่ลบสะสมทีละรอบ
-                -- (ลบสะสมจะไปทบกับการลดตามธรรมชาติของเกม เวลาจริงเลยสั้นกว่าที่ตั้ง)
+                -- อัตราลดคิดจาก "หลอดเต็มจริง / drainSeconds" ไม่ใช่จาก 100 ตายตัว
+                -- เต็ม 112 -> ลด 14/วิ -> วิ่งจากเต็มหมดใน 8 วิพอดี
+                -- เริ่มครึ่งหลอด (56) -> หมดใน 4 วิ (ครึ่งเวลา ตามที่ตกลง)
                 local elapsed = GetGameTimer() - startedAt
-                local target  = startedValue - (elapsed / drainMs) * 100.0
+                local target  = startedValue - (elapsed / drainMs) * maxStamina
                 if target < 0 then target = 0 end
 
                 local before = drainStaminaTo(ped, target)
