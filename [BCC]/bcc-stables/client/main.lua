@@ -14,6 +14,8 @@ local TradeGroup = GetRandomIntInRange(0, 0xffffff)
 local LootHorse
 local LootGroup = GetRandomIntInRange(0, 0xffffff)
 
+local invHoldStart = nil -- เวลาเริ่มกดค้างเปิดกระเป๋าม้า (Config.inventoryHoldMs)
+
 -- Target Prompts
 local HorseDrink, HorseRest, HorseSleep, HorseWallow = 0, 0, 0, 0
 
@@ -131,6 +133,7 @@ local function RemoveHorsePrompts()
     UiPromptDelete(HorseSleep)
     UiPromptDelete(HorseWallow)
     PromptsStarted = false
+    invHoldStart = nil -- เดินออกจากระยะ = ล้างการกดค้างที่ค้างอยู่ กันเปิดเองตอนกลับเข้าระยะ
 end
 
 CreateThread(function()
@@ -1046,13 +1049,41 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
 
         sleep = 0
 
-        -- ใช้ IsDisabledControlJustPressed (ไม่ใช่ตัวปกติ) เพราะเกมปิดอินพุตบางตัวตอนขี่ม้าอยู่
-        -- ตัวนี้อ่านได้ทั้งกรณีที่ control ถูกปิดและไม่ถูกปิด
-        if Citizen.InvokeNative(0x91AEF906BCA88877, 0, Config.keys.inventory) then -- IsDisabledControlJustPressed
-            if LocalPlayer.state.IsInvActive then
-                exports.vorp_inventory:closeInventory()
+        -- ซ่อน prompt "Horse Cargo [B]" ของตัวเกม: ปิด control ปุ่ม B ทุกเฟรมตอนอยู่ในระยะ
+        -- prompt native ผูกกับ control ตัวนี้ พอถูก disable ทั้ง prompt หายและกด B เปิดเมนู
+        -- default ไม่ได้ เหลือแต่ทางของ resource (ปุ่ม inventory ด้านล่าง)
+        if Config.hideGameCargoPrompt then
+            DisableControlAction(0, `INPUT_OPEN_SATCHEL_HORSE_MENU`, true)
+        end
+
+        -- เปิดกระเป๋าม้า — รองรับทั้ง "กดทีเดียว" และ "กดค้าง" ตาม Config.inventoryHoldMs
+        -- ใช้ IsDisabledControl* (ไม่ใช่ตัวปกติ) เพราะเกมปิดอินพุตบางตัวตอนขี่ม้าอยู่
+        -- ห่อ do...end กัน 'goto END' ด้านล่างกระโดดข้าม local เข้ามาในขอบเขต (Lua ห้าม)
+        do
+            local holdMs = Config.inventoryHoldMs or 0
+            local openNow = false
+
+            if holdMs > 0 then
+                -- กดค้าง: นับเวลาตั้งแต่เริ่มกด ครบ holdMs = เปิด ปล่อยก่อน = รีเซ็ต
+                if Citizen.InvokeNative(0xE2587F8CBBD87B1D, 0, Config.keys.inventory) then -- IsDisabledControlPressed
+                    if not invHoldStart then invHoldStart = GetGameTimer() end
+                    if (GetGameTimer() - invHoldStart) >= holdMs then
+                        openNow = true
+                        invHoldStart = nil
+                    end
+                else
+                    invHoldStart = nil
+                end
             else
-                OpenInventory(MyHorse, MyHorseId, false)
+                openNow = Citizen.InvokeNative(0x91AEF906BCA88877, 0, Config.keys.inventory) -- IsDisabledControlJustPressed
+            end
+
+            if openNow then
+                if LocalPlayer.state.IsInvActive then
+                    exports.vorp_inventory:closeInventory()
+                else
+                    OpenInventory(MyHorse, MyHorseId, false)
+                end
             end
         end
 

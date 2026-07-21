@@ -38,6 +38,14 @@ Config.keys = {
     -- ในโค้ด ย้ายมาไว้ตรงนี้ให้เปลี่ยนได้เหมือนปุ่มอื่น (hash จาก bcc-utils/shared/data/keys.lua)
     inventory = 0xC7B5340A, --[ENTER] Open Horse Inventory
 }
+
+-- เปิดกระเป๋าม้าแบบ "กดค้าง" กี่ ms (0 = กดทีเดียวเหมือนเดิม)
+Config.inventoryHoldMs = 500
+
+-- ซ่อน prompt "Horse Cargo [B]" ของตัวเกมที่โผล่ตอนอยู่ใกล้ม้าตัวเอง
+-- (prompt นั้นเป็นของ native เกม ไม่ใช่ของ resource นี้ — ปิด control ปุ่ม B ทุกเฟรม
+--  ตอนอยู่ในระยะ ทำให้ทั้ง prompt หายและกด B เปิดเมนู default ไม่ได้ เหลือแต่ทางของ resource)
+Config.hideGameCargoPrompt = true
 -----------------------------------------------------
 
 -- Horse Items
