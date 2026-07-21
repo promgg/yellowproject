@@ -17,7 +17,10 @@
         search: "",
         craftLocked: false,
         mockIcons: false,
-        activeAudio: null
+        activeAudio: null,
+        // สถานะพับ/ขยายของกลุ่มไอเทมในลิสต์ซ้าย (group = ชื่อรุ่นปืน) — key ต่อ category
+        // รีเซ็ตทุกครั้งที่เปลี่ยนหมวด/เปิดเมนูใหม่ ให้กลุ่มของไอเทมที่เลือกอยู่กางเองอัตโนมัติ
+        expandedGroups: {}
     };
 
     const els = {
@@ -512,6 +515,8 @@
 
     function selectCategory(categoryIndex) {
         state.selectedCategoryIndex = categoryIndex;
+        // เปลี่ยนหมวด -> ล้างสถานะพับกลุ่มเดิม ให้กลุ่มของไอเทมแรกในหมวดใหม่กางเองอัตโนมัติ
+        state.expandedGroups = {};
         const category = getSelectedCategory();
         const firstItem = category && category.items[0];
         state.selectedItemIndex = firstItem ? firstItem.itemIndex : 1;
@@ -562,6 +567,7 @@
             state.imageBase = normalizeImageBase(payload.image);
         }
         state.mockIcons = payload.mockIcons === true;
+        state.expandedGroups = {};
         state.categories = normalizePayload(payload);
         state.tableName = payload.nametable || state.tableName || "Craft Table";
         state.amount = Math.max(1, numeric(payload.number ?? payload.amount, state.amount));
@@ -609,6 +615,68 @@
         });
     }
 
+    // ชื่อกลุ่มของไอเทม = คำแรกของ label (เช่น "Mauser Frame"/"Mauser Pistol" -> "Mauser")
+    // รองรับ field group ที่ config ส่งมาตรงๆ ก่อน (ถ้ามีในอนาคต) — ตอนนี้ยังไม่มี ใช้ label แทน
+    // ไม่ต้องแตะ server: จัดกลุ่มฝั่ง UI ล้วน ปลอดภัยกับ payload เดิม
+    function groupKeyOf(item) {
+        if (item && item.group) {
+            return String(item.group).trim();
+        }
+        const label = String((item && (item.label || item.item)) || "").trim();
+        const firstWord = label.split(/\s+/)[0];
+        return firstWord || null;
+    }
+
+    function itemRowElement(item) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "recipe-row";
+        if (sameIndex(item.itemIndex, state.selectedItemIndex)) {
+            button.classList.add("is-active");
+        }
+        button.appendChild(createIcon(item.item, item.label, "", item.image));
+        const copy = document.createElement("div");
+        copy.appendChild(textElement("div", "recipe-name", item.label || item.item || "Unknown Item"));
+        copy.appendChild(textElement("div", "recipe-meta", isWeapon(item) ? "WEAPON" : "ITEM"));
+        button.appendChild(copy);
+        button.addEventListener("click", function () {
+            selectItem(item.itemIndex);
+        });
+        return button;
+    }
+
+    function groupElement(key, groupItems) {
+        const wrap = document.createElement("div");
+        wrap.className = "recipe-group";
+        const expanded = state.expandedGroups[key] === true;
+
+        const head = document.createElement("button");
+        head.type = "button";
+        head.className = "group-head" + (expanded ? " is-open" : "");
+
+        const badge = textElement("div", "group-badge", String(key).trim().charAt(0).toUpperCase());
+        head.appendChild(badge);
+        head.appendChild(textElement("div", "group-name", key));
+        head.appendChild(textElement("div", "group-count", `${groupItems.length} ไอเทม`));
+        head.appendChild(textElement("div", "group-chevron", "▾"));
+        head.title = key;
+        head.addEventListener("click", function () {
+            state.expandedGroups[key] = !state.expandedGroups[key];
+            renderItemList();
+        });
+        wrap.appendChild(head);
+
+        if (expanded) {
+            const body = document.createElement("div");
+            body.className = "group-body";
+            groupItems.forEach(function (item) {
+                body.appendChild(itemRowElement(item));
+            });
+            wrap.appendChild(body);
+        }
+        return wrap;
+    }
+
     function renderItemList() {
         clear(els.recipeList);
 
@@ -618,25 +686,44 @@
             return;
         }
 
-        items.forEach(function (item) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "recipe-row";
-            if (sameIndex(item.itemIndex, state.selectedItemIndex)) {
-                button.classList.add("is-active");
-            }
+        // ระหว่างค้นหา -> แสดงแบบแบน (แฟลต) ไม่จัดกลุ่ม เพื่อให้เห็นผลลัพธ์ตรงๆ
+        const searching = state.search.trim().length > 0;
 
-            button.appendChild(createIcon(item.item, item.label, "", item.image));
-
-            const copy = document.createElement("div");
-            copy.appendChild(textElement("div", "recipe-name", item.label || item.item || "Unknown Item"));
-            copy.appendChild(textElement("div", "recipe-meta", isWeapon(item) ? "WEAPON" : "ITEM"));
-            button.appendChild(copy);
-
-            button.addEventListener("click", function () {
-                selectItem(item.itemIndex);
+        if (!searching) {
+            const order = [];
+            const groups = {};
+            items.forEach(function (item) {
+                const key = groupKeyOf(item) || "อื่นๆ";
+                if (!groups[key]) {
+                    groups[key] = [];
+                    order.push(key);
+                }
+                groups[key].push(item);
             });
-            els.recipeList.appendChild(button);
+
+            // จัดกลุ่มก็ต่อเมื่อมีประโยชน์จริง: มีอย่างน้อย 1 กลุ่มที่มีสมาชิก >= 2 และมีมากกว่า 1 กลุ่ม
+            // (หมวดที่ไอเทมชื่อไม่ซ้ำคำแรกกันเลย เช่น ยา/อาหาร จะตกมาเป็นลิสต์แบนเหมือนเดิม)
+            const useGroups = order.length >= 2 && order.some(function (key) {
+                return groups[key].length >= 2;
+            });
+
+            if (useGroups) {
+                const selected = getSelectedItem();
+                const selectedKey = selected ? (groupKeyOf(selected) || "อื่นๆ") : null;
+                order.forEach(function (key) {
+                    if (state.expandedGroups[key] === undefined) {
+                        state.expandedGroups[key] = (key === selectedKey);
+                    }
+                });
+                order.forEach(function (key) {
+                    els.recipeList.appendChild(groupElement(key, groups[key]));
+                });
+                return;
+            }
+        }
+
+        items.forEach(function (item) {
+            els.recipeList.appendChild(itemRowElement(item));
         });
     }
 
@@ -645,10 +732,13 @@
 
         const item = getSelectedItem();
         const recipes = getSelectedRecipes();
-        if (!item || !recipes.length) {
-            els.variantCards.appendChild(emptyState("No recipes"));
+
+        // มีสูตรเดียว (หรือไม่มี) -> ไม่ต้องโชว์การ์ดเลือกสูตร ซ่อนแถวไปเลย
+        if (!item || recipes.length <= 1) {
+            els.variantCards.style.display = "none";
             return;
         }
+        els.variantCards.style.display = "";
 
         recipes.forEach(function (recipe) {
             const card = document.createElement("button");
@@ -691,6 +781,13 @@
         return chip;
     }
 
+    function toggleBlock(listEl, show) {
+        const block = listEl.closest(".req-block");
+        if (block) {
+            block.style.display = show ? "" : "none";
+        }
+    }
+
     function renderRequirements() {
         const recipe = getSelectedRecipe();
         clear(els.materialsList);
@@ -699,12 +796,15 @@
 
         if (!recipe) {
             els.materialsList.appendChild(emptyState("No material data"));
-            els.toolsList.appendChild(emptyState("No required tools"));
-            els.failedList.appendChild(emptyState("No failed result"));
+            toggleBlock(els.materialsList, true);
+            toggleBlock(els.toolsList, false);
+            toggleBlock(els.failedList, false);
             return;
         }
 
         const materials = (recipe.cost || []).concat(recipe.blueprint || []);
+        // บล็อกวัตถุดิบแสดงเสมอ (เป็นข้อมูลหลักของทุกสูตร)
+        toggleBlock(els.materialsList, true);
         if (!materials.length) {
             els.materialsList.appendChild(emptyState("No materials required"));
         } else {
@@ -718,23 +818,20 @@
             });
         }
 
+        // ไอเทมที่ต้องมี / ได้รับเมื่อไม่สำเร็จ -> โชว์เฉพาะเมื่อสูตรนี้มีจริง (ตามที่ผู้เล่นขอ)
         const tools = recipe.toolsList || [];
-        if (!tools.length) {
-            els.toolsList.appendChild(emptyState("No tools required"));
-        } else {
-            tools.forEach(function (row) {
-                els.toolsList.appendChild(requirementRow(row, {
-                    optional: row.status === false,
-                    multiply: false,
-                    subtext: row.status === false ? "Optional" : "Required"
-                }));
-            });
-        }
+        toggleBlock(els.toolsList, tools.length > 0);
+        tools.forEach(function (row) {
+            els.toolsList.appendChild(requirementRow(row, {
+                optional: row.status === false,
+                multiply: false,
+                subtext: row.status === false ? "Optional" : "Required"
+            }));
+        });
 
         const failed = recipe.failedList || [];
-        if (!failed.length) {
-            els.failedList.appendChild(emptyState("No failed return"));
-        } else {
+        toggleBlock(els.failedList, failed.length > 0);
+        if (failed.length) {
             failed.forEach(function (row) {
                 els.failedList.appendChild(requirementRow(row, {
                     multiply: false,
@@ -916,6 +1013,7 @@
             recipeIndex: 1,
             datatype: [
                 { Category: 1, categoryname: "Weapons" },
+                { Category: 5, categoryname: "อาวุธ Tier 1" },
                 { Category: 2, categoryname: "Medicine" },
                 { Category: 3, categoryname: "Food" },
                 { Category: 4, categoryname: "Materials" }
@@ -997,6 +1095,76 @@
                             ]
                         }
                     ]
+                },
+                mockPart(5, 1, "part_mauser_frame", "Mauser Frame", 60, [
+                    { name: "loot_necklace", amox: 7 }, { name: "loot_ring", amox: 10 },
+                    { name: "mat_diamond", amox: 5 }, { name: "mat_iron", amox: 10 }, { name: "misc_toolbox", amox: 1 }
+                ]),
+                mockPart(5, 2, "part_mauser_barrel", "Mauser Barrel", 70, [
+                    { name: "loot_silver_tooth", amox: 6 }, { name: "mat_ruby", amox: 5 },
+                    { name: "mat_copper", amox: 10 }, { name: "misc_toolbox", amox: 1 }
+                ]),
+                mockPart(5, 3, "part_mauser_stock", "Mauser Stock", 60, [
+                    { name: "loot_earring", amox: 7 }, { name: "mat_emerald", amox: 5 },
+                    { name: "met_wood_planks", amox: 10 }, { name: "misc_toolbox", amox: 1 }
+                ]),
+                mockPart(5, 4, "part_mauser_molds", "Mauser Molds", 60, [
+                    { name: "blueprint_low", amox: 5 }
+                ]),
+                {
+                    Category: 5,
+                    categoryname: "อาวุธ Tier 1",
+                    position: position,
+                    id: 5,
+                    itemIndex: 5,
+                    type: "item_weapon",
+                    item: "WEAPON_PISTOL_MAUSER",
+                    label: "Mauser Pistol",
+                    recipes: [
+                        {
+                            recipeIndex: 1,
+                            label: "Mauser Pistol",
+                            fail_chance: 0,
+                            success_rate: 100,
+                            max_stack: 1,
+                            blueprint: [
+                                { name: "part_mauser_frame", amox: 1 }, { name: "part_mauser_barrel", amox: 1 },
+                                { name: "part_mauser_stock", amox: 1 }, { name: "part_mauser_molds", amox: 1 },
+                                { name: "misc_toolbox", amox: 1 }
+                            ],
+                            toolsList: [{ name: "misc_toolbox", amox: 1, status: true, label: "กล่องเครื่องมือ" }]
+                        }
+                    ]
+                },
+                mockPart(5, 6, "part_schofield_frame", "Schofield Frame", 60, [
+                    { name: "mat_iron", amox: 8 }, { name: "misc_toolbox", amox: 1 }
+                ]),
+                mockPart(5, 7, "part_schofield_barrel", "Schofield Barrel", 70, [
+                    { name: "mat_copper", amox: 8 }, { name: "misc_toolbox", amox: 1 }
+                ])
+            ]
+        };
+    }
+
+    function mockPart(category, index, itemName, label, successRate, blueprint) {
+        return {
+            Category: category,
+            categoryname: "อาวุธ Tier 1",
+            id: index,
+            itemIndex: index,
+            type: "item_standard",
+            item: itemName,
+            label: label,
+            recipes: [
+                {
+                    recipeIndex: 1,
+                    label: label,
+                    fail_chance: 100 - successRate,
+                    success_rate: successRate,
+                    max_stack: 1,
+                    blueprint: blueprint.map(function (b) {
+                        return { name: b.name, amox: b.amox, label: b.name };
+                    })
                 }
             ]
         };

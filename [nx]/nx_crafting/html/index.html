@@ -11,79 +11,68 @@
         <section class="craft-panel" aria-label="Crafting">
             <button id="closeButton" class="icon-button close-button" type="button" aria-label="Close">&times;</button>
 
-            <div class="panel-content">
-                <aside class="recipe-sidebar">
-                    <header class="table-heading">
-                        <div class="heading-rule">
-                            <span></span>
-                        </div>
-                        <p class="eyebrow">CRAFT TABLE</p>
-                        <h1 id="tableName">โต๊ะคราฟ</h1>
-                    </header>
+            <div class="panel-inner">
+                <header class="panel-head">
+                    <div class="heading-rule"><span></span></div>
+                    <p class="eyebrow">CRAFT TABLE</p>
+                    <h1 id="tableName">โต๊ะคราฟ</h1>
+                </header>
 
-                    <label class="search-box" for="searchInput">
-                        <span class="search-symbol" aria-hidden="true"></span>
-                        <input id="searchInput" type="search" autocomplete="off" placeholder="กรองชื่อไอเทม">
-                    </label>
+                <nav id="categoryList" class="category-tabs" aria-label="Craft categories"></nav>
 
-                    <nav id="categoryList" class="category-list" aria-label="Craft categories"></nav>
+                <div class="craft-cols">
+                    <aside class="col-left">
+                        <label class="search-box" for="searchInput">
+                            <span class="search-symbol" aria-hidden="true"></span>
+                            <input id="searchInput" type="search" autocomplete="off" placeholder="กรองชื่อไอเทม">
+                        </label>
+                        <div id="recipeList" class="recipe-list" aria-label="Recipes"></div>
+                    </aside>
 
-                    <div id="recipeList" class="recipe-list" aria-label="Recipes"></div>
-                </aside>
-
-                <main class="craft-workbench">
-                    <section class="top-band">
-                        <div class="section-title">
-                            <p class="eyebrow">RECIPE</p>
-                            <h2 id="categoryTitle">รายการคราฟ</h2>
-                        </div>
-                        <div id="variantCards" class="variant-cards" aria-label="Recipe variants"></div>
-                    </section>
-
-                    <section class="materials-section framed-section">
-                        <div class="section-title small">
-                            <h3>วัตถุดิบที่ต้องใช้ในการสร้างไอเทม</h3>
-                        </div>
-                        <div id="materialsList" class="requirement-grid"></div>
-                    </section>
-
-                    <section class="lower-section framed-section">
-                        <div class="requirement-column">
-                            <div class="section-title small">
-                                <h3>ไอเทมที่ต้องมี</h3>
-                            </div>
-                            <div id="toolsList" class="requirement-list compact"></div>
-                        </div>
-
-                        <div class="requirement-column">
-                            <div class="section-title small">
-                                <h3>ไอเทมที่ได้รับเมื่อไม่สำเร็จ</h3>
-                            </div>
-                            <div id="failedList" class="requirement-list compact"></div>
-                        </div>
-                    </section>
-                </main>
-
-                <aside class="preview-area">
-                    <div class="preview-card">
+                    <main class="col-center">
+                        <h2 id="categoryTitle" class="sr-only-title"></h2>
                         <div class="preview-backplate">
                             <div id="previewIcon" class="preview-ring"></div>
                         </div>
-                        <div class="preview-copy">
-                            <p id="previewMeta" class="preview-meta">ITEM</p>
-                            <h2 id="previewName">เลือกสูตรคราฟ</h2>
-                            <p id="previewChance" class="preview-chance"></p>
-                        </div>
-                    </div>
+                        <p id="previewMeta" class="preview-meta">ITEM</p>
+                        <h2 id="previewName" class="preview-name">เลือกสูตรคราฟ</h2>
+                        <p id="previewChance" class="preview-chance"></p>
+                        <div id="variantCards" class="variant-cards" aria-label="Recipe variants"></div>
+                    </main>
 
+                    <aside class="col-right">
+                        <section class="req-block" id="materialsBlock">
+                            <div class="section-title small">
+                                <h3>วัตถุดิบที่ต้องใช้</h3>
+                            </div>
+                            <div id="materialsList" class="requirement-list"></div>
+                        </section>
+
+                        <section class="req-block" id="toolsBlock">
+                            <div class="section-title small">
+                                <h3>ไอเทมที่ต้องมี</h3>
+                            </div>
+                            <div id="toolsList" class="requirement-list"></div>
+                        </section>
+
+                        <section class="req-block" id="failedBlock">
+                            <div class="section-title small">
+                                <h3>ไอเทมที่ได้รับเมื่อไม่สำเร็จ</h3>
+                            </div>
+                            <div id="failedList" class="requirement-list"></div>
+                        </section>
+                    </aside>
+                </div>
+
+                <footer class="bottom-bar">
+                    <span class="bottom-label">จำนวนที่จะคราฟ</span>
                     <div class="amount-panel" aria-label="Craft amount">
                         <button id="amountMinus" class="stepper-button" type="button" aria-label="Decrease">-</button>
                         <input id="amountInput" class="amount-input" type="number" min="1" max="100" value="1" aria-label="Amount">
                         <button id="amountPlus" class="stepper-button" type="button" aria-label="Increase">+</button>
                     </div>
-
                     <button id="craftButton" class="craft-button" type="button">สร้างไอเทม</button>
-                </aside>
+                </footer>
             </div>
         </section>
 
