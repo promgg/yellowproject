@@ -126,7 +126,7 @@ Config.CarLockpick     = { pins = 3, difficulty = 4 }
 Config.LockpickItem    = 'lockpick' -- NEW item — does not exist in vorp_inventory's DB yet, must be added live
 Config.CarBreachRange   = 3.5      -- CLIENT: must be this close to a car to pick it (renamed from BreachRange)
 Config.BreachServerRadius = 200.0 -- SERVER: coarse anti-cheat radius from the train (also reused by the plant check)
-Config.CarProgDuration  = 5000     -- ms, progbar after a successful lockpick
+Config.CarProgDuration  = 30000    -- ms, progbar after a successful lockpick
 
 -- NPCs spawned around the train's EXTERIOR (not on it) per successful pick,
 -- pressure that ramps up as the crew loots more cars — capped so a full clear
