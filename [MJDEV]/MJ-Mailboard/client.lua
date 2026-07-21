@@ -19,25 +19,35 @@ Citizen.CreateThread(function()
     end
 end)
 
+local function openMailboard()
+    exports.lp_textui:HideUI()
+    -- รีเซ็ต ให้ลูปสร้าง prompt กดค้างใหม่หลังปิด UI ถ้ายังยืนอยู่ในระยะ
+    -- (ไม่งั้น nearMailboard ค้างเป็น true แล้วไม่มีวงแหวนขึ้นอีกจนกว่าจะเดินออกไปแล้วกลับมา)
+    nearMailboard = false
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = "showUI", show = true })
+    TriggerServerEvent("mailboard:getAll")
+end
+
 Citizen.CreateThread(function()
     while true do
-        local playerPed = PlayerPedId()
-        local playerCoords = GetEntityCoords(playerPed)
+        local playerCoords = GetEntityCoords(PlayerPedId())
         local foundNear = false
 
         for _, loc in pairs(Config.BoardLocations) do
             local dist = #(playerCoords - vector3(loc.x, loc.y, loc.z))
             if dist < Config.InteractDistance then
                 foundNear = true
+                -- เรียก TextUIHold ครั้งเดียวตอนเข้าระยะ — export ตัวนี้ poll ปุ่ม E
+                -- และขับวงแหวนเอง ยิง callback เมื่อกดค้างครบ (เหมือน lp_planting/lp_washing)
                 if not nearMailboard then
-                    exports.lp_textui:TextUI("กด [E] เปิดกระดานจดหมาย!", nil, { coords = vector3(loc.x, loc.y, loc.z - 0.5) })
-                end
-                if IsControlJustPressed(0, 0xCEFD9220) then -- ปุ่ม E
-                    exports.lp_textui:HideUI()
-                    SetNuiFocus(true, true)
-                    SendNUIMessage({ action = "showUI", show = true })
-                    TriggerServerEvent("mailboard:getAll")
-                    foundNear = false
+                    exports.lp_textui:TextUIHold(
+                        "เปิดกระดานจดหมาย",
+                        Config.InteractHoldMs,
+                        openMailboard,
+                        nil, -- ปุ่ม default = E
+                        { coords = vector3(loc.x, loc.y, loc.z - 0.5) }
+                    )
                 end
                 break
             end
@@ -49,7 +59,7 @@ Citizen.CreateThread(function()
         nearMailboard = foundNear
 
         if nearMailboard then
-            Citizen.Wait(0)
+            Citizen.Wait(200)
         else
             Citizen.Wait(1000)
         end
