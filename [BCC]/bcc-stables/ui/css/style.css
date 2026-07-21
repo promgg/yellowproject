@@ -72,8 +72,9 @@ button { color: inherit; }
 #btn-retry { border-color: #9c6f2f; background: linear-gradient(180deg,#9b6e2e,#624318); }
 
 .minimal-panel {
-  background: linear-gradient(90deg, rgba(10,8,5,.68), rgba(10,8,5,.18));
-  border: 0;
+  /* เพิ่ม opacity พื้นหลังให้ทึบขึ้น (เดิม .68→.18 ฝั่งขวาโปร่งมากจนอ่านยากทับม้า 3D) */
+  background: linear-gradient(90deg, rgba(14,11,7,.94), rgba(14,11,7,.80));
+  border: 1px solid var(--line);
 }
 
 /* ===== LEFT: list-panel ===== */

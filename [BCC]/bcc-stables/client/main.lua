@@ -29,6 +29,8 @@ local LastLoc, TamedModel, TameToken = nil, nil, nil
 local HorseGeneration = 0
 local PreviewGeneration = 0
 local IsTrainer, IsNaming, MaxBonding, HorseBreed = false, false, false, false
+-- โหมดแอดมิน "ดูม้าทุกตัว" (/stablecatalog) — เมื่อ true ร้านจะข้าม saleWhitelist + ข้อจำกัด job โชว์ม้าทั้งหมด
+local AdminViewAll = false
 
 -- Misc.
 MyHorse = 0
@@ -222,7 +224,8 @@ function ResolveHorseMeta(model)
                 breed = breedEntry.breed,
                 color = c.color,
                 slots = tonumber(c.invLimit) or 0,
-                stats = c.stats, -- { health, stamina, speed, acceleration, agility, courage } (0-10) ถ้ากำหนดไว้
+                stats = c.stats, -- { health, stamina, speed, acceleration, agility, courage } (0-10) ถ้ากำหนดไว้ — โชว์แถบใน UI เท่านั้น
+                attrs = c.attrs, -- { health, speed, acceleration, agility, courage, stamina } เป็น % (0-100) — ค่าสถานะจริงที่มีผลในเกม
             }
         end
     end
@@ -580,6 +583,7 @@ function TeardownStable()
     DestroyAllCams(true)
     DisplayRadar(true)
     InMenu = false
+    AdminViewAll = false -- ออกจากร้าน = จบโหมดแอดมิน กลับไปโชว์เฉพาะ whitelist ตามปกติ
     ClearPedTasksImmediately(PlayerPedId())
 end
 
@@ -882,6 +886,26 @@ function SpawnHorse(data)
 
     local stamina = data.stamina == nil and 100 or data.stamina
     Citizen.InvokeNative(0xC6258F41D86676E0, MyHorse, 1, stamina) -- SetAttributeCoreValue
+
+    -- ── ค่าสถานะจริงต่อม้า (config.attrs) — มีผลต่อการวิ่ง/เลือด/สตามินาในเกมจริง ──────────────
+    -- attrs เก็บเป็น % (0-100) ต่อม้า แปลงเป็น attribute points โดยคูณกับเพดานจริงของม้าตัวนั้น
+    -- (GetMaxAttributePoints) → "40%" = 40% ของค่าสูงสุดที่ม้าตัวนั้นทำได้ auto-calibrate ตามเกม
+    -- index อ้างอิง rsg-horses (RedM ใช้งานจริง): 0=health 1=stamina 4=agility 5=speed 6=accel
+    -- courage=3 ยังไม่ยืนยัน 100% — ถ้า index ไม่ตรง SetAttributePoints จะ no-op เฉยๆ ไม่ทำม้าพัง
+    local horseMeta = ResolveHorseMeta(horseModel)
+    if horseMeta and type(horseMeta.attrs) == 'table' then
+        local ATTR_INDEX = { health = 0, stamina = 1, agility = 4, speed = 5, acceleration = 6, courage = 3 }
+        for statName, index in pairs(ATTR_INDEX) do
+            local pct = tonumber(horseMeta.attrs[statName])
+            if pct and pct > 0 then
+                local maxPts = Citizen.InvokeNative(0x223BF310F854871C, MyHorse, index) -- GetMaxAttributePoints
+                if maxPts and maxPts > 0 then
+                    local points = math.floor(maxPts * math.min(pct, 100) / 100)
+                    Citizen.InvokeNative(0x09A59688C26D88DF, MyHorse, index, points) -- SetAttributePoints
+                end
+            end
+        end
+    end
 
     -- Bonding
     Citizen.InvokeNative(0x09A59688C26D88DF, MyHorse, 7, xp) -- SetAttributePoints
@@ -2235,6 +2259,35 @@ RegisterCommand(Config.commands.horseRespawn, function(source, args, rawCommand)
     WhistleSpawn()
 end, false)
 
+-- คำสั่งแอดมิน: เปิดหน้าร้านโชว์ม้า "ทุกตัว" (ข้าม saleWhitelist) ไว้เช็คชื่อ+สี — เช็คสิทธิ์ ACE ที่ server
+RegisterCommand(Config.adminCatalogCommand or 'stablecatalog', function()
+    if InMenu then return end
+
+    local isAdmin = Core.Callback.TriggerAwait('bcc-stables:CheckAdmin')
+    if not isAdmin then
+        Core.NotifyRightTip('คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 4000)
+        return
+    end
+
+    -- หาโรงม้าที่ใกล้สุด (ต้องอยู่ใกล้พอ กล้อง/preview จะได้อยู่ที่โรงม้าจริง)
+    local pcoords = GetEntityCoords(PlayerPedId())
+    local nearestKey, nearestDist = nil, math.huge
+    for key, st in pairs(Stables) do
+        if st.npc and st.npc.coords then
+            local d = #(pcoords - st.npc.coords)
+            if d < nearestDist then nearestKey, nearestDist = key, d end
+        end
+    end
+
+    if not nearestKey or nearestDist > 60.0 then
+        Core.NotifyRightTip('ไปยืนใกล้โรงม้าก่อนใช้คำสั่งนี้', 4000)
+        return
+    end
+
+    AdminViewAll = true -- TeardownStable จะรีเซ็ตกลับเป็น false ตอนปิดร้าน
+    OpenStable(nearestKey)
+end, false)
+
 RegisterCommand(Config.commands.horseSetWild, function(source, args, rawCommand)
     if Config.devMode then
         local mount = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
@@ -2390,8 +2443,9 @@ function CheckPlayerJob(trainer, site)
             HasJob = true
         end
 
-        if not trainer and result[2] then
-            JobMatchedHorses = FindHorsesByJob(result[2])
+        -- โหมดแอดมินให้ดึงรายการเสมอ (แม้ไม่มี job) เพราะ FindHorsesByJob จะข้าม job ให้อยู่แล้ว
+        if AdminViewAll or (not trainer and result[2]) then
+            JobMatchedHorses = FindHorsesByJob(result[2] or 'admin')
         end
 
         if not trainer and not result[1] and Stables[site].shop.jobsEnabled then
@@ -2482,29 +2536,27 @@ function FindHorsesByJob(job)
         local matchingColors = {}
 
         for horseColor, horseColorData in orderedPairs(horseType.colors) do
-            local horseJobs = {}
-            for _, horseJob in pairs(horseColorData.job) do
-                horseJobs[horseJob] = true
-            end
+            -- whitelist: ถ้า Config.saleWhitelist ไม่ว่าง → โชว์ขายเฉพาะ model ที่อยู่ใน list
+            -- ว่าง = โชว์ทุกตัวตามปกติ (next(wl) == nil) | โหมดแอดมิน (AdminViewAll) ข้ามทั้งหมด
+            local wl = Config.saleWhitelist
+            local onSale = AdminViewAll or (wl == nil) or (next(wl) == nil) or (wl[horseColor] == true)
 
-            if horseJobs[job] then
-                matchingColors[horseColor] = {
-                    color = horseColorData.color,
-                    cashPrice = horseColorData.cashPrice,
-                    goldPrice = horseColorData.goldPrice,
-                    invLimit = horseColorData.invLimit,
-                    job = horseColorData.job
-                }
-            end
+            if onSale then
+                local horseJobs = {}
+                for _, horseJob in pairs(horseColorData.job) do
+                    horseJobs[horseJob] = true
+                end
 
-            if len(horseJobs) == 0 then
-                matchingColors[horseColor] = {
-                    color = horseColorData.color,
-                    cashPrice = horseColorData.cashPrice,
-                    goldPrice = horseColorData.goldPrice,
-                    invLimit = horseColorData.invLimit,
-                    job = nil
-                }
+                -- แอดมิน: โชว์ทุกสีไม่ว่า job อะไร | ปกติ: โชว์ถ้า job ตรง หรือไม่มี job ล็อก
+                if AdminViewAll or horseJobs[job] or len(horseJobs) == 0 then
+                    matchingColors[horseColor] = {
+                        color = horseColorData.color,
+                        cashPrice = horseColorData.cashPrice,
+                        goldPrice = horseColorData.goldPrice,
+                        invLimit = horseColorData.invLimit,
+                        job = (len(horseJobs) == 0) and nil or horseColorData.job
+                    }
+                end
             end
         end
 

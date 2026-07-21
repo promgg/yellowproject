@@ -1,7 +1,12 @@
 Config = {}
 
 -- Language
-Config.defaultlang = 'en_lang'
+Config.defaultlang = 'th_lang'
+
+-- สิทธิ์ ACE สำหรับคำสั่งแอดมิน /stablecatalog (เปิดร้านโชว์ม้าทุกตัว ไว้เช็คชื่อ+สี)
+--   ตั้งใน server.cfg:  add_ace group.admin bcc-stables.admin allow
+Config.adminAce = 'bcc-stables.admin'
+Config.adminCatalogCommand = 'stablecatalog'
 -----------------------------------------------------
 
 Config.devMode = false -- Default: false / Do Not Run on a Live Server
@@ -20,6 +25,49 @@ Config.discord = {
 -- 1 = Gold Only
 -- 2 = Both
 Config.currencyType = 0 -- Cash only (gold is intentionally disabled in the stable UI and server callbacks)
+-----------------------------------------------------
+
+-- ── รายชื่อม้าที่ "เปิดขาย" ในโรงม้า (whitelist) ──────────────────────────────
+-- ตั้งเป็น model key ที่อยู่ใน config/horses.lua — ร้านจะโชว์ขายเฉพาะตัวใน list นี้เท่านั้น
+-- ปล่อยเป็นตารางว่าง {} = โชว์ขายทุกตัวตามปกติ (ปิดฟีเจอร์ whitelist)
+Config.saleWhitelist = {
+    ['a_c_horsemule_01']                      = true, -- Mule
+    ['a_c_horse_kentuckysaddle_chestnutpinto'] = true, -- Kentucky Saddler (Chestnut Pinto)
+    ['a_c_horse_morgan_bayroan']              = true, -- Morgan (Bay Roan)
+}
+-----------------------------------------------------
+
+-- ── รายชื่อม้าจาก "กาชา" (ไม่ได้ขายในโรงม้า — ได้จากระบบกาชา) ──────────────────
+-- ค่าสถานะจริง (attrs) ตั้งไว้ใน config/horses.lua ต่อ model แล้ว จะมีผลตอน summon ม้า
+-- list นี้ไว้ให้ระบบกาชาอ้างอิงว่ามีม้าอะไรบ้าง (ไม่อยู่ใน saleWhitelist จึงไม่โผล่ในร้าน)
+Config.GachaWhitelist = {
+    ['a_c_horse_americanpaint_greyovero'] = true, -- American Paint (Grey Overo)
+    ['a_c_horse_andalusian_perlino']      = true, -- Andalusian (Perlino)
+    ['a_c_horse_appaloosa_leopard']       = true, -- Appaloosa (Leopard)
+    ['a_c_horse_belgian_blondchestnut']   = true, -- Belgian Draft (Blond Chestnut)
+    ['a_c_horse_breton_steelgrey']        = true, -- Breton (Steel Grey)
+    ['a_c_horse_kentuckysaddle_black']    = true, -- Kentucky Saddler (Black)
+}
+-----------------------------------------------------
+
+-- ── รายชื่อม้าจาก "บริจาค/โดเนท" (ไม่ได้ขายในโรงม้า — ได้จากการบริจาค) ──────────
+-- ค่าสถานะจริง (attrs) ตั้งไว้ใน config/horses.lua ต่อ model แล้ว จะมีผลตอน summon ม้า
+-- ไม่อยู่ใน saleWhitelist จึงไม่โผล่ในร้าน
+Config.DonateWhitelist = {
+    ['a_c_horse_gypsycob_piebald']            = true, -- Gypsy Cob (Piebald)
+    ['a_c_horse_dutchwarmblood_sootybuckskin'] = true, -- Dutch Warmblood (Sooty Buckskin)
+    ['a_c_horse_shire_lightgrey']             = true, -- Shire (Light Grey)
+}
+-----------------------------------------------------
+
+-- ── รายชื่อม้าจาก "อีเวนต์/กิจกรรม" (ไม่ได้ขายในโรงม้า — ได้จากกิจกรรม) ──────────
+-- ค่าสถานะจริง (attrs) ตั้งไว้ใน config/horses.lua ต่อ model แล้ว จะมีผลตอน summon ม้า
+-- ไม่อยู่ใน saleWhitelist จึงไม่โผล่ในร้าน
+Config.EventWhitelist = {
+    ['a_c_horse_suffolkpunch_sorrel']    = true, -- Suffolk Punch (Sorrel)
+    ['a_c_horse_turkoman_gold']          = true, -- Turkoman (Gold)
+    ['a_c_horse_ardennes_strawberryroan'] = true, -- Ardennes (Strawberry Roan)
+}
 -----------------------------------------------------
 
 Config.keys = {

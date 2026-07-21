@@ -5,12 +5,19 @@
 --    ['a_c_horse_arabian_white'] = { color='White', cashPrice=1500, goldPrice=72, invLimit=30,
 --        stats = { health=6, stamina=8, speed=9, acceleration=8, agility=7, courage=6 } },
 --  ถ้าไม่กำหนด stats → UI จะ fallback เป็น 4/10 ทุกตัว (health/stamina ใช้ค่าจริงจาก DB /10 แทน)
+--
+--  ─────────────────────────────────────────────────────────────────────────────
+--  field `attrs` (ไม่บังคับ) = "ค่าสถานะจริง" ที่มีผลต่อการวิ่ง/เลือด/สตามินาในเกมจริงๆ (คนละตัวกับ stats ที่แค่โชว์)
+--  รูปแบบ:  attrs = { health=40, speed=40, acceleration=40, agility=50, courage=60, stamina=50 }  -- แต่ละค่าเป็น % (0-100)
+--  โค้ดจะแปลง % → attribute points โดยคูณกับเพดานจริงของม้า (GetMaxAttributePoints) ตอน spawn
+--  จับคู่ attribute index (อ้างอิง rsg-horses): health=0, stamina=1, agility=4, speed=5, acceleration=6, courage=3(ยังไม่ยืนยัน)
+--  ไม่กำหนด attrs → ม้าใช้ค่าเริ่มต้นของเกมตามปกติ (ไม่แตะ)
 -- ═══════════════════════════════════════════════════════════════════════════════
 Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% of cashPrice / Cash Price is Regular Game Price
 	{
 		breed = 'American Paint',
 		colors = {-- Only Players with Specified Job will See that Horse to Purchase in the Menu
-			['a_c_horse_americanpaint_greyovero']     = { color = 'Grey Overo',     cashPrice = 425, goldPrice = 20, invLimit = 200, job = {} }, -- Job Example: {'police', 'doctor'}
+			['a_c_horse_americanpaint_greyovero']     = { color = 'Grey Overo',     cashPrice = 425, goldPrice = 20, invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 70, agility = 60, courage = 60, stamina = 60 } }, -- Gacha
             ['a_c_horse_americanpaint_overo']         = { color = 'Overo',          cashPrice = 130, goldPrice = 6,  invLimit = 200, job = {} },
 			['a_c_horse_americanpaint_splashedwhite'] = { color = 'Splashed White', cashPrice = 140, goldPrice = 6,  invLimit = 200, job = {} },
 			['a_c_horse_americanpaint_tobiano']       = { color = 'Tobiano',        cashPrice = 140, goldPrice = 6,  invLimit = 200, job = {} },
@@ -30,7 +37,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		breed = 'Andalusian',
 		colors = {
             ['a_c_horse_andalusian_darkbay']  = { color = 'Dark Bay',  cashPrice = 140, goldPrice = 6,  invLimit = 200, job = {} },
-			['a_c_horse_andalusian_perlino']  = { color = 'Perlino',   cashPrice = 450, goldPrice = 21, invLimit = 200, job = {} },
+			['a_c_horse_andalusian_perlino']  = { color = 'Perlino',   cashPrice = 450, goldPrice = 21, invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Gacha
 			['a_c_horse_andalusian_rosegray'] = { color = 'Rose Gray', cashPrice = 440, goldPrice = 21, invLimit = 200, job = {} },
 		}
 	},
@@ -41,7 +48,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['a_c_horse_appaloosa_blanket']        = { color = 'Blanket',        cashPrice = 200, goldPrice = 9,  invLimit = 200, job = {} },
 			['a_c_horse_appaloosa_brownleopard']   = { color = 'Brown Leopard',  cashPrice = 450, goldPrice = 21, invLimit = 200, job = {} },
             ['a_c_horse_appaloosa_fewspotted_pc']  = { color = 'Few Spotted',    cashPrice = 140, goldPrice = 6,  invLimit = 200, job = {} },
-			['a_c_horse_appaloosa_leopard']        = { color = 'Leopard',        cashPrice = 430, goldPrice = 20, invLimit = 200, job = {} },
+			['a_c_horse_appaloosa_leopard']        = { color = 'Leopard',        cashPrice = 430, goldPrice = 20, invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 70, agility = 60, courage = 60, stamina = 60 } }, -- Gacha
 			['a_c_horse_appaloosa_leopardblanket'] = { color = 'Lepard Blanket', cashPrice = 130, goldPrice = 6,  invLimit = 200, job = {} },
 		}
 	},
@@ -62,13 +69,13 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		colors = {
             ['a_c_horse_ardennes_bayroan']        = { color = 'Bay Roan',        cashPrice = 140,  goldPrice = 6,  invLimit = 200, job = {} },
 			['a_c_horse_ardennes_irongreyroan']   = { color = 'Iron Grey Roan',  cashPrice = 1200, goldPrice = 58, invLimit = 200, job = {} },
-			['a_c_horse_ardennes_strawberryroan'] = { color = 'Strawberry Roan', cashPrice = 450,  goldPrice = 21, invLimit = 200, job = {} },
+			['a_c_horse_ardennes_strawberryroan'] = { color = 'Strawberry Roan', cashPrice = 450,  goldPrice = 21, invLimit = 80, job = {}, attrs = { health = 50, speed = 60, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Event
 		}
 	},
 	{
 		breed = 'Belgian Draft',
 		colors = {
-			['a_c_horse_belgian_blondchestnut'] = { color = 'Blond Chestnut', cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
+			['a_c_horse_belgian_blondchestnut'] = { color = 'Blond Chestnut', cashPrice = 120, goldPrice = 5, invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Gacha
 			['a_c_horse_belgian_mealychestnut'] = { color = 'Mealy Chestnut', cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
 		}
 	},
@@ -80,7 +87,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 			['a_c_horse_breton_redroan']        = { color = 'Red Roan',      cashPrice = 150, goldPrice = 7,  invLimit = 200, job = {} },
 			['a_c_horse_breton_sealbrown']      = { color = 'Seal Brown',    cashPrice = 550, goldPrice = 26, invLimit = 200, job = {} },
 			['a_c_horse_breton_sorrel']         = { color = 'Sorrel',        cashPrice = 150, goldPrice = 7,  invLimit = 200, job = {} },
-			['a_c_horse_breton_steelgrey']      = { color = 'Steel Grey',    cashPrice = 950, goldPrice = 45, invLimit = 200, job = {} },
+			['a_c_horse_breton_steelgrey']      = { color = 'Steel Grey',    cashPrice = 950, goldPrice = 45, invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Gacha
 		}
 	},
 	{
@@ -99,14 +106,14 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		colors = {
 			['a_c_horse_dutchwarmblood_chocolateroan'] = { color = 'Chocolate Roan', cashPrice = 450, goldPrice = 21, invLimit = 200, job = {} },
 			['a_c_horse_dutchwarmblood_sealbrown']     = { color = 'Seal Brown',     cashPrice = 150, goldPrice = 7,  invLimit = 200, job = {} },
-			['a_c_horse_dutchwarmblood_sootybuckskin'] = { color = 'Sooty Buckskin', cashPrice = 150, goldPrice = 7,  invLimit = 200, job = {} },
+			['a_c_horse_dutchwarmblood_sootybuckskin'] = { color = 'Sooty Buckskin', cashPrice = 150, goldPrice = 7,  invLimit = 140, job = {}, attrs = { health = 90, speed = 80, acceleration = 90, agility = 80, courage = 70, stamina = 80 } }, -- Donate
 		}
 	},
 	{
 		breed = 'Gypsy Cob',
 		colors = {
 			['a_c_horse_gypsycob_palominoblagdon'] = { color = 'Palomino Blagdon', cashPrice = 550, goldPrice = 26, invLimit = 200, job = {} },
-			['a_c_horse_gypsycob_piebald']         = { color = 'Piebald',          cashPrice = 150, goldPrice = 7,  invLimit = 200, job = {} },
+			['a_c_horse_gypsycob_piebald']         = { color = 'Piebald',          cashPrice = 150, goldPrice = 7,  invLimit = 120, job = {}, attrs = { health = 80, speed = 80, acceleration = 80, agility = 70, courage = 60, stamina = 80 } }, -- Donate
 			['a_c_horse_gypsycob_skewbald']        = { color = 'Skewbald',         cashPrice = 550, goldPrice = 26, invLimit = 200, job = {} },
 			['a_c_horse_gypsycob_splashedbay']     = { color = 'Splashed Bay',     cashPrice = 950, goldPrice = 45, invLimit = 200, job = {} },
 			['a_c_horse_gypsycob_splashedpiebald'] = { color = 'Splashed Piebald', cashPrice = 950, goldPrice = 45, invLimit = 200, job = {} },
@@ -125,9 +132,9 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 	{
 		breed = 'Kentucky Saddler',
 		colors = {
-            ['a_c_horse_kentuckysaddle_black']                 = { color = 'Black',               cashPrice = 50,  goldPrice = 2,  invLimit = 200, job = {} },
+            ['a_c_horse_kentuckysaddle_black']                 = { color = 'Black',               cashPrice = 50,  goldPrice = 2,  invLimit = 100, job = {}, attrs = { health = 70, speed = 60, acceleration = 70, agility = 60, courage = 60, stamina = 60 } }, -- Gacha
 			['a_c_horse_kentuckysaddle_buttermilkbuckskin_pc'] = { color = 'Buttermilk Buckskin', cashPrice = 240, goldPrice = 11, invLimit = 200, job = {} },
-			['a_c_horse_kentuckysaddle_chestnutpinto']         = { color = 'Chestnut Pinto',      cashPrice = 50,  goldPrice = 2,  invLimit = 200, job = {} },
+			['a_c_horse_kentuckysaddle_chestnutpinto']         = { color = 'Chestnut Pinto',      cashPrice = 3500, goldPrice = 167, invLimit = 60, job = {}, attrs = { health = 40, speed = 40, acceleration = 40, agility = 50, courage = 60, stamina = 50 } },
 			['a_c_horse_kentuckysaddle_grey']                  = { color = 'Grey',                cashPrice = 50,  goldPrice = 2,  invLimit = 200, job = {} },
 			['a_c_horse_kentuckysaddle_silverbay']             = { color = 'Silver Bay',          cashPrice = 50,  goldPrice = 2,  invLimit = 200, job = {} },
 		}
@@ -159,7 +166,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		breed = 'Morgan',
 		colors = {
 			['a_c_horse_morgan_bay']              = { color = 'Bay',             cashPrice = 55, goldPrice = 2, invLimit = 200, job = {} },
-			['a_c_horse_morgan_bayroan']          = { color = 'Bay Roan',        cashPrice = 55, goldPrice = 2, invLimit = 200, job = {} },
+			['a_c_horse_morgan_bayroan']          = { color = 'Bay Roan',        cashPrice = 4500, goldPrice = 214, invLimit = 70, job = {}, attrs = { health = 40, speed = 40, acceleration = 40, agility = 50, courage = 60, stamina = 50 } },
 			['a_c_horse_morgan_flaxenchestnut']   = { color = 'Flaxen Chestnut', cashPrice = 55, goldPrice = 2, invLimit = 200, job = {} },
 			['a_c_horse_morgan_liverchestnut_pc'] = { color = 'Liver Chestnut',  cashPrice = 55, goldPrice = 2, invLimit = 200, job = {} },
             ['a_c_horse_morgan_palomino']         = { color = 'Palomino',        cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
@@ -201,7 +208,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		breed = 'Shire',
 		colors = {
             ['a_c_horse_shire_darkbay']    = { color = 'Dark Bay',    cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
-			['a_c_horse_shire_lightgrey']  = { color = 'Light Grey',  cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
+			['a_c_horse_shire_lightgrey']  = { color = 'Light Grey',  cashPrice = 120, goldPrice = 5, invLimit = 160, job = {}, attrs = { health = 90, speed = 80, acceleration = 80, agility = 80, courage = 80, stamina = 90 } }, -- Donate
 			['a_c_horse_shire_ravenblack'] = { color = 'Raven Black', cashPrice = 130, goldPrice = 6, invLimit = 200, job = {} },
 		}
 	},
@@ -209,7 +216,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		breed = 'Suffolk Punch',
 		colors = {
 			['a_c_horse_suffolkpunch_redchestnut'] = { color = 'Red Chestnut', cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
-			['a_c_horse_suffolkpunch_sorrel']      = { color = 'Sorrel',       cashPrice = 120, goldPrice = 5, invLimit = 200, job = {} },
+			['a_c_horse_suffolkpunch_sorrel']      = { color = 'Sorrel',       cashPrice = 120, goldPrice = 5, invLimit = 100, job = {}, attrs = { health = 60, speed = 60, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Event
 		}
 	},
 	{
@@ -240,7 +247,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['a_c_horse_turkoman_black']    = { color = 'Black',    cashPrice = 1000, goldPrice = 48, invLimit = 200, job = {} },
 			['a_c_horse_turkoman_chestnut'] = { color = 'Chestnut', cashPrice = 1000, goldPrice = 48, invLimit = 200, job = {} },
             ['a_c_horse_turkoman_darkbay']  = { color = 'Dark Bay', cashPrice = 925,  goldPrice = 44, invLimit = 200, job = {} },
-			['a_c_horse_turkoman_gold']     = { color = 'Gold',     cashPrice = 950,  goldPrice = 45, invLimit = 200, job = {} },
+			['a_c_horse_turkoman_gold']     = { color = 'Gold',     cashPrice = 950,  goldPrice = 45, invLimit = 100, job = {}, attrs = { health = 60, speed = 70, acceleration = 60, agility = 50, courage = 60, stamina = 60 } }, -- Event
             ['a_c_horse_turkoman_grey']     = { color = 'Grey',     cashPrice = 1000, goldPrice = 48, invLimit = 200, job = {} },
             ['a_c_horse_turkoman_perlino']  = { color = 'Perlino',  cashPrice = 1000, goldPrice = 48, invLimit = 200, job = {} },
 			['a_c_horse_turkoman_silver']   = { color = 'Silver',   cashPrice = 950,  goldPrice = 45, invLimit = 200, job = {} },
@@ -276,7 +283,7 @@ Horses = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
 		colors = {
             ['a_c_donkey_01']                   = { color = 'Donkey',  cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
 			['a_c_horse_mp_mangy_backup']       = { color = 'Mangy',   cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
-			['a_c_horsemule_01']                = { color = 'Mule',    cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
+			['a_c_horsemule_01']                = { color = 'Mule',    cashPrice = 50, goldPrice = 2, invLimit = 30, job = {}, attrs = { health = 40, speed = 30, acceleration = 30, agility = 50, courage = 60, stamina = 40 } },
 			['a_c_horsemulepainted_01']         = { color = 'Zebra',   cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
             ['a_c_horse_murfreebrood_mange_01'] = { color = 'Mange 1', cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },
             ['a_c_horse_murfreebrood_mange_02'] = { color = 'Mange 2', cashPrice = 15, goldPrice = 1, invLimit = 200, job = {} },

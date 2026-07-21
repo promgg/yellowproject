@@ -264,6 +264,11 @@ local function SetPlayerCooldown(type, charid)
     CooldownData[type .. tostring(charid)] = os.time()
 end
 
+-- เช็คสิทธิ์แอดมิน (ACE) สำหรับคำสั่ง /stablecatalog — server เป็นเจ้าของสิทธิ์ ห้ามเชื่อ client
+Core.Callback.Register('bcc-stables:CheckAdmin', function(source, cb)
+    cb(IsPlayerAceAllowed(source, Config.adminAce or 'bcc-stables.admin') == true)
+end)
+
 Core.Callback.Register('bcc-stables:BuyHorse', function(source, cb, data)
     local src = source
     local user = Core.getUser(src)

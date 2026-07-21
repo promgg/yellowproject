@@ -49,7 +49,7 @@ Locales["th_lang"] = {
     trainerRegHorse = "เฉพาะผู้ฝึกสอนเท่านั้นที่สามารถลงทะเบียนม้าได้!",
     horsebrushDesc = "แปรงสำหรับแปรงม้า",
     durability = "ความทนทาน: ",
-    itemBroke = "Your item has broken!",
+    itemBroke = "ไอเทมของคุณพังแล้ว!",
     noReviver = "คุณต้องมีขวดยาฟื้นฟูม้า!",
     horseInfoCoat = 'สีม้า: ',
     horseInfoHealth = 'สุขภาพ: ',
@@ -67,7 +67,7 @@ Locales["th_lang"] = {
     horseInfoTrickLvl_4a = "ท่า: เต้น | space",
     horseInfoTrickLvl_4b = "เดินข้าง | space + A หรือ D",
     horseDied = "ม้าของคุณเสียชีวิตแล้ว กลับไปที่คอกม้าเพื่อเลือกม้าใหม่",
-    horseWrithe = "Your horse needs help!",
+    horseWrithe = "ม้าของคุณต้องการความช่วยเหลือ!",
     -- Discord Alerts
     discordHorsePurchased = "ซื้อม้าแล้ว!",
     discordTamedPurchased = "บันทึกม้าที่เชื่องแล้ว!",
@@ -76,7 +76,7 @@ Locales["th_lang"] = {
     discordTamedSold = "ขายม้าที่เชื่องแล้ว!",
     discordTraded = "แลกเปลี่ยนม้ากับ ",
     -- Flaming Hooves
-    flameHooveDesc = 'An enchanted item to activate flaming hooves',
-    flameHoovesActivated = 'Flaming hooves activated!',
-    flameHoovesDeactivated = 'Flaming hooves deactivated!',
+    flameHooveDesc = 'ไอเทมวิเศษสำหรับเปิดใช้งานกีบไฟ',
+    flameHoovesActivated = 'เปิดใช้งานกีบไฟแล้ว!',
+    flameHoovesDeactivated = 'ปิดใช้งานกีบไฟแล้ว!',
 }
