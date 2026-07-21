@@ -22,6 +22,12 @@ Config.hpDecayTime = 5 * 60      -- seconds for HP to drain from 100 → 0 (5 mi
 -- ตั้ง 0 = เก็บได้ทันทีเหมือนเดิม
 Config.readyDelay  = 5 * 60      -- seconds (5 min)
 
+-- เวลาที่มีให้เก็บรางวัลหลัง "พร้อมเก็บจริง" แล้ว (readyDelay ผ่านไปแล้ว) — ถ้าไม่มาเก็บทัน
+-- ของหายไปเลย (ลบทั้งแถวออกจาก animal_farm เหมือนสัตว์ตายจากไม่ให้อาหารทันเวลา)
+-- นับต่อจาก readyDelay ไม่ใช่นับจากตอน exp ครบ 100 — deadline รวม = last_fed + readyDelay + receiveExpire
+-- ตั้ง 0 = ปิดกลไกนี้ (เก็บได้ตลอดไม่มีวันหมดอายุ เหมือนเดิมก่อนแก้)
+Config.receiveExpire = 5 * 60    -- seconds (5 min)
+
 -- รูปไอเทม (อาหาร/ของรางวัล) ดึงจาก vorp_inventory อัตโนมัติจากชื่อ item:
 --   nui://vorp_inventory/html/img/items/<item_name>.png   (ตั้งใน app.js: ITEM_ICON_BASE)
 -- รูปสัตว์ (image ต่อ zone ด้านล่าง) วางไฟล์ไว้ที่โฟลเดอร์เดียวกันนั้น

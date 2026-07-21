@@ -241,15 +241,19 @@ end
 
 -- ปุ่มเก็บรางวัล (state=receive) ต้องรอ Config.readyDelay หลัง last_fed ก่อนกดได้จริง —
 -- ตั้ง ref นับถอยหลังไว้ ปุ่มจะยังเป็น disabled จน readyIn เดินถึง 0 ค่อยสลับเป็นกดได้ (ดู updateHp ฝั่ง app.js)
-local function setReadyRef(id, readyIn)
-  if not readyIn or readyIn <= 0 then
+-- expireIn นับคู่กันไปตลอด: เวลารวมจนกว่ารางวัลจะหายไปถ้าไม่มาเก็บ (readyDelay + receiveExpire)
+local function setReadyRef(id, readyIn, expireIn)
+  readyIn  = readyIn or 0
+  expireIn = expireIn or 0
+  if readyIn <= 0 and expireIn <= 0 then
     hpTickRefs[id] = nil
     return
   end
   hpTickRefs[id] = {
-    kind           = 'ready',
-    startMs        = GetGameTimer(),
-    readyInAtStart = readyIn,
+    kind            = 'ready',
+    startMs         = GetGameTimer(),
+    readyInAtStart  = readyIn,
+    expireInAtStart = expireIn,
   }
 end
 
@@ -258,8 +262,8 @@ local function startHpTick(animals)
   for _, a in ipairs(animals) do
     if a.state == 'feed' then
       setHpRef(a.id, a.hp or 0, a.deathTimer or 0)
-    elseif a.state == 'receive' and (a.readyIn or 0) > 0 then
-      setReadyRef(a.id, a.readyIn)
+    elseif a.state == 'receive' and ((a.readyIn or 0) > 0 or (a.expireIn or 0) > 0) then
+      setReadyRef(a.id, a.readyIn, a.expireIn)
     end
   end
 end
@@ -272,9 +276,11 @@ CreateThread(function()
       for id, ref in pairs(hpTickRefs) do
         local elapsedSec = (GetGameTimer() - ref.startMs) / 1000
         if ref.kind == 'ready' then
-          local readyIn = math.max(0, ref.readyInAtStart - elapsedSec)
-          updates[#updates+1] = { id = id, readyIn = math.floor(readyIn) }
-          if readyIn <= 0 then hpTickRefs[id] = nil end -- ครบแล้ว หยุด track ต่อ (ปุ่มสลับเป็นกดได้ฝั่ง NUI)
+          local readyIn  = math.max(0, ref.readyInAtStart - elapsedSec)
+          local expireIn = math.max(0, ref.expireInAtStart - elapsedSec)
+          updates[#updates+1] = { id = id, readyIn = math.floor(readyIn), expireIn = math.floor(expireIn) }
+          -- expireIn ครบ = server จะลบแถวทิ้งเองในรอบ decay tick ถัดไป (การ์ดหายผ่าน animalfarm:animalDied)
+          if readyIn <= 0 and expireIn <= 0 then hpTickRefs[id] = nil end
         else
           local hp         = math.max(0, ref.startHp - math.floor((elapsedSec / Config.hpDecayTime) * 100))
           -- timer = เวลาจนกว่าจะหิว (HP → 0); deathTimer = เวลาจนกว่าจะตาย
@@ -458,6 +464,7 @@ AddEventHandler('animalfarm:receiveAnimals', function(animals)
       timer      = a.timer or 0,
       deathTimer = a.deathTimer or 0,
       readyIn    = a.readyIn or 0,
+      expireIn   = a.expireIn or 0,
       last_fed   = a.last_fed or 0,
     }
     -- ped อาจ spawn แล้วจาก zoneEnter แต่ถ้ายังไม่มีก็ spawn ตอนนี้
@@ -505,17 +512,18 @@ AddEventHandler('animalfarm:animalFed', function(animalId, data)
   if data.state == 'feed' then
     setHpRef(animalId, data.hp or 100, data.deathTimer or (Config.hpDecayTime + Config.feedWindow))
   else
-    -- state เปลี่ยนเป็น receive → หยุด track HP แล้วเริ่ม track นับถอยหลังปุ่มเก็บรางวัลแทน
-    setReadyRef(animalId, data.readyIn or 0)
+    -- state เปลี่ยนเป็น receive → หยุด track HP แล้วเริ่ม track นับถอยหลังปุ่มเก็บรางวัล + หมดอายุแทน
+    setReadyRef(animalId, data.readyIn or 0, data.expireIn or 0)
   end
   sendNUI({ action = 'updateCard', data = {
-    id      = animalId,
-    state   = data.state,
-    hp      = data.hp,
-    exp     = data.exp,
+    id       = animalId,
+    state    = data.state,
+    hp       = data.hp,
+    exp      = data.exp,
     -- feed แล้ว HP กลับ 100 → reset countdown เป็น hpDecayTime เต็ม
-    timer   = data.state == 'feed' and Config.hpDecayTime or 0,
-    readyIn = data.readyIn or 0,
+    timer    = data.state == 'feed' and Config.hpDecayTime or 0,
+    readyIn  = data.readyIn or 0,
+    expireIn = data.expireIn or 0,
   }})
 end)
 

@@ -499,6 +499,15 @@ html, body {
   object-fit: contain;
 }
 
+.receive-expire {
+  font-family: 'Arial', sans-serif;
+  font-size: 8px;
+  text-transform: uppercase;
+  color: #E82938;
+  animation: blink-red 0.9s ease-in-out infinite;
+  text-align: center;
+}
+
 .animal-card.state-dead {
   border-color: rgba(141,141,141,0.75);
 }

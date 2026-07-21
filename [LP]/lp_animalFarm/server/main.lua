@@ -132,8 +132,9 @@ AddEventHandler('animalfarm:getAnimals', function(zoneType)
     { cid = charId, zone = zoneType },
     function(rows)
       if not rows then rows = {} end
-      local updated = {}
-      local deadIds = {}
+      local updated    = {}
+      local deadIds     = {}   -- state=feed, ไม่ให้อาหารทัน
+      local expiredIds  = {}   -- state=receive, พร้อมเก็บแล้วแต่ไม่มาเก็บทัน
       for _, row in ipairs(rows) do
         local died = false
         if row.state == 'feed' and row.last_fed and row.last_fed > 0 then
@@ -150,17 +151,32 @@ AddEventHandler('animalfarm:getAnimals', function(zoneType)
         elseif row.state == 'receive' and row.last_fed and row.last_fed > 0 then
           -- ปุ่มเก็บรางวัลต้อง inactive จนกว่า readyDelay จะครบ (ตรงกับเงื่อนไข last_fed<=@ready
           -- ที่ receiveReward เช็คจริงตอน claim) ไม่งั้นผู้เล่นเห็นปุ่มโชว์ว่าพร้อม แต่กดแล้วโดนบอกให้รอ
-          row.readyIn = math.max(0, (row.last_fed + (Config.readyDelay or 0)) - now())
+          local expireWindow   = Config.receiveExpire or 0
+          local expireDeadline = row.last_fed + (Config.readyDelay or 0) + expireWindow
+          if expireWindow > 0 and expireDeadline < now() then
+            expiredIds[#expiredIds+1] = row.id
+            died = true
+          else
+            row.readyIn  = math.max(0, (row.last_fed + (Config.readyDelay or 0)) - now())
+            row.expireIn = expireWindow > 0 and math.max(0, expireDeadline - now()) or 0
+          end
         end
-        -- ตายแล้วไม่ส่งกลับไปให้ NUI อีก การ์ดจะได้ไม่ค้างรอให้กดลบ
+        -- ตายแล้ว/หมดอายุแล้วไม่ส่งกลับไปให้ NUI อีก การ์ดจะได้ไม่ค้างรอให้กดลบ
         if not died then table.insert(updated, row) end
       end
 
-      -- ตัวที่ตายระหว่างผู้เล่นออฟไลน์ (decay tick วิ่งเฉพาะคนที่ออนไลน์) มาเก็บกวาดตอนเปิด UI
+      -- ตัวที่ตาย/หมดอายุระหว่างผู้เล่นออฟไลน์ (decay tick วิ่งเฉพาะคนที่ออนไลน์) มาเก็บกวาดตอนเปิด UI
       if #deadIds > 0 then
         MySQL.update('DELETE FROM animal_farm WHERE id IN (' .. table.concat(deadIds, ',') .. ')')
         notify(src, ('สัตว์ของคุณตายไป %d ตัว (ไม่ได้ให้อาหารทันเวลา)'):format(#deadIds), 'error')
         for _, id in ipairs(deadIds) do
+          TriggerClientEvent('animalfarm:animalDied', src, id)
+        end
+      end
+      if #expiredIds > 0 then
+        MySQL.update('DELETE FROM animal_farm WHERE id IN (' .. table.concat(expiredIds, ',') .. ')')
+        notify(src, ('รางวัลที่พร้อมเก็บ %d ตัวหายไปแล้ว (ไม่ได้มาเก็บทันเวลา)'):format(#expiredIds), 'error')
+        for _, id in ipairs(expiredIds) do
           TriggerClientEvent('animalfarm:animalDied', src, id)
         end
       end
@@ -369,6 +385,8 @@ AddEventHandler('animalfarm:feedAnimal', function(animalId, zoneType)
                   deathTimer = newState == 'feed' and (Config.hpDecayTime + Config.feedWindow) or 0,
                   -- exp เพิ่งครบ 100 → last_fed เพิ่งถูกตั้งเป็นตอนนี้เป๊ะ เหลือ readyDelay เต็มจำนวน
                   readyIn    = newState == 'receive' and (Config.readyDelay or 0) or 0,
+                  -- เวลารวมจนกว่าจะหมดอายุถ้าไม่มาเก็บ (readyDelay + receiveExpire เต็มจำนวน)
+                  expireIn   = newState == 'receive' and ((Config.readyDelay or 0) + (Config.receiveExpire or 0)) or 0,
                 })
               end
             )
@@ -497,11 +515,23 @@ end)
 
 -- ─── GLOBAL DECAY TICK ───────────────────────────────────────────────────────
 
+-- build charId → src map ครั้งเดียวต่อ tick (ใช้ร่วมกันทั้ง feed-death และ receive-expire ด้านล่าง)
+local function withOnlineCharMap(cb)
+  local charToSrc = {}
+  for _, playerId in ipairs(GetPlayers()) do
+    local psrc = tonumber(playerId)
+    local cid  = getCharId(psrc)
+    if cid then charToSrc[cid] = psrc end
+  end
+  cb(charToSrc)
+end
+
 CreateThread(function()
   while true do
     Wait(60000)
+
+    -- ── feed-state: ไม่ให้อาหารทันเวลา → ตาย ──────────────────────────────
     local deadline = now() - Config.hpDecayTime - Config.feedWindow
-    -- หา animals ที่กำลังจะตาย พร้อม char_id เพื่อ notify player
     MySQL.query(
       'SELECT id, char_id, zone_type FROM animal_farm WHERE state="feed" AND last_fed > 0 AND last_fed < @d',
       { d = deadline },
@@ -513,23 +543,44 @@ CreateThread(function()
           'DELETE FROM animal_farm WHERE state="feed" AND last_fed > 0 AND last_fed < @d',
           { d = deadline }
         )
-        -- build charId → src map ครั้งเดียว (แทน getUser ซ้ำใน nested loop)
-        local charToSrc = {}
-        for _, playerId in ipairs(GetPlayers()) do
-          local psrc = tonumber(playerId)
-          local cid  = getCharId(psrc)
-          if cid then charToSrc[cid] = psrc end
-        end
-        -- notify players ที่ online (lookup O(1))
-        for _, row in ipairs(rows) do
-          local src = charToSrc[row.char_id]
-          if src then
-            TriggerClientEvent('animalfarm:notify', src,
-              'Your ' .. row.zone_type .. ' animal has died! (not fed in time)', 'error')
-            TriggerClientEvent('animalfarm:animalDied', src, row.id)
+        withOnlineCharMap(function(charToSrc)
+          for _, row in ipairs(rows) do
+            local src = charToSrc[row.char_id]
+            if src then
+              TriggerClientEvent('animalfarm:notify', src,
+                'Your ' .. row.zone_type .. ' animal has died! (not fed in time)', 'error')
+              TriggerClientEvent('animalfarm:animalDied', src, row.id)
+            end
           end
-        end
+        end)
       end
     )
+
+    -- ── receive-state: พร้อมเก็บแล้วแต่ไม่มาเก็บทัน receiveExpire → หายไป ──────
+    local expireWindow = Config.receiveExpire or 0
+    if expireWindow > 0 then
+      local expireDeadline = now() - (Config.readyDelay or 0) - expireWindow
+      MySQL.query(
+        'SELECT id, char_id, zone_type FROM animal_farm WHERE state="receive" AND last_fed > 0 AND last_fed < @d',
+        { d = expireDeadline },
+        function(rows)
+          if not rows or #rows == 0 then return end
+          MySQL.update(
+            'DELETE FROM animal_farm WHERE state="receive" AND last_fed > 0 AND last_fed < @d',
+            { d = expireDeadline }
+          )
+          withOnlineCharMap(function(charToSrc)
+            for _, row in ipairs(rows) do
+              local src = charToSrc[row.char_id]
+              if src then
+                TriggerClientEvent('animalfarm:notify', src,
+                  'ของรางวัลจาก ' .. row.zone_type .. ' หายไปแล้ว (ไม่ได้มาเก็บทันเวลา)', 'error')
+                TriggerClientEvent('animalfarm:animalDied', src, row.id)
+              end
+            end
+          end)
+        end
+      )
+    end
   end
 end)

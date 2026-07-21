@@ -62,6 +62,16 @@ function setCardReadyTimer(id, sec) {
   btn.textContent = mm + ':' + ss;
 }
 
+function setCardExpireTimer(id, sec) {
+  var card = document.querySelector('.animal-card[data-id="' + id + '"]');
+  var el = card && card.querySelector('.receive-expire');
+  if (!el) return;
+  var s = Math.max(0, sec | 0);
+  var mm = String(Math.floor(s / 60)).padStart(2, '0');
+  var ss = String(s % 60).padStart(2, '0');
+  el.textContent = 'หมดอายุใน ' + mm + ':' + ss;
+}
+
 function clearAllTimers() { /* no-op: ไม่มี local timer แล้ว */ }
 
 // item icons มาจาก vorp_inventory โดยตรง — nui://vorp_inventory/html/img/items/<name>.png
@@ -117,8 +127,16 @@ function buildActionArea(animal) {
         return '<div class="receive-icon"><img src="assets/package.png" alt="receive"></div>' +
                '<button class="btn-receive btn-receive-disabled" disabled>' + rm + ':' + rs + '</button>';
       }
+      // พร้อมเก็บแล้ว — ถ้า config เปิด receiveExpire ไว้ (expireIn > 0) โชว์นับถอยหลังเตือนว่าใกล้หายไป
+      var expireIn = animal.expireIn || 0;
+      var expireHtml = expireIn > 0
+        ? '<span class="receive-expire">หมดอายุใน ' +
+          String(Math.floor(expireIn / 60)).padStart(2, '0') + ':' + String(expireIn % 60).padStart(2, '0') +
+          '</span>'
+        : '';
       return '<div class="receive-icon"><img src="assets/package.png" alt="receive"></div>' +
-             '<button class="btn-receive" onclick="onReceive(' + animal.id + ')">RECEIVE</button>';
+             '<button class="btn-receive" onclick="onReceive(' + animal.id + ')">RECEIVE</button>' +
+             expireHtml;
     }
     case 'feed': {
       var hungry = (animal.hp != null ? animal.hp : 100) <= 0;
@@ -344,14 +362,21 @@ window.addEventListener('message', function(event) {
         var card = document.querySelector('.animal-card[data-id="' + item.id + '"]');
         if (!card) return;
 
-        // ticket ของสัตว์ state=receive จะมีแค่ field readyIn (ไม่มี hp) — แยกสาขาก่อนแตะ HP bar
+        // ticket ของสัตว์ state=receive จะมีแค่ field readyIn/expireIn (ไม่มี hp) — แยกสาขาก่อนแตะ HP bar
         if (card.className.indexOf('state-receive') !== -1 && item.readyIn !== undefined) {
-          if (item.readyIn <= 0) {
-            // ครบเวลาแล้ว → สลับปุ่มจาก disabled countdown เป็น RECEIVE ที่กดได้จริง
-            var actionEl = card.querySelector('.card-action');
-            if (actionEl) actionEl.innerHTML = buildActionArea({ id: parseInt(card.dataset.id), state: 'receive', readyIn: 0 });
-          } else {
+          if (item.readyIn > 0) {
             setCardReadyTimer(item.id, item.readyIn);
+            return;
+          }
+          // ครบ readyIn แล้ว — ถ้าปุ่ม RECEIVE ที่กดได้จริงยังไม่ขึ้น (เพิ่งครบเมื่อกี้) ค่อย rebuild ทั้งอัน
+          // ไม่งั้นแค่รีเฟรชเลขนับถอยหลังหมดอายุพอ ไม่ต้อง rebuild ปุ่มทุกวินาที
+          var actionEl = card.querySelector('.card-action');
+          if (actionEl && !actionEl.querySelector('.btn-receive:not(.btn-receive-disabled)')) {
+            actionEl.innerHTML = buildActionArea({
+              id: parseInt(card.dataset.id), state: 'receive', readyIn: 0, expireIn: item.expireIn || 0,
+            });
+          } else {
+            setCardExpireTimer(item.id, item.expireIn || 0);
           }
           return;
         }
