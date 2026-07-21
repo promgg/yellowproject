@@ -2294,20 +2294,11 @@ end, false)
 -- recipe จาก vorp_character/bcc-wagons: อ่าน category+guids+palette ของแต่ละ component แล้วยิง SetMetaPedTag
 --   GetCategoryOfComponentAtIndex 0x9B90842304C938A7 | GetMetaPedAssetGuids 0xA9C28516A6DC9D56
 --   GetMetaPedAssetTint 0xE7998FEC53A33BBE | SetMetaPedTag 0xBC6DF00D7A4A6819
--- กรองเฉพาะ category อุปกรณ์ (จาก jo_libs horseComponents) เพื่อไม่ให้โดนขน/ตัวม้า (coat)
--- ให้ลองในเกม: ขี่ม้าที่มีอาน แล้ว /tacktint 0 200 0 (แดง) — ดูว่า "อุปกรณ์" เปลี่ยนสีไหม (ขนต้องไม่เปลี่ยน)
--- ถ้ายังไม่ครบ ให้เปิด F8 console อ่านบรรทัด [bcc-stables tint] แล้วส่ง category hash มาให้ปรับ mapping
-local TACK_CATEGORY = {
-    [`horse_saddles`]     = 'Saddles',
-    [`horse_blankets`]    = 'Saddlecloths',
-    [`horse_saddlebags`]  = 'SaddleBags',
-    [`saddle_stirrups`]   = 'Stirrups',
-    [`saddle_horns`]      = 'SaddleHorns',
-    [`horse_bridles`]     = 'Bridles',
-    [`horse_bedrolls`]    = 'Bedrolls',
-    [`horse_accessories`] = 'Accessories',
-    -- ไม่รวม: horse_manes/horse_tails/horse_mustache/horse_feathers (ขน/ประดับ) และตัวม้าเอง (coat)
-}
+-- native category (GetCategoryOfComponentAtIndex) คืน 0 กับม้าเสมอ ใช้ไม่ได้ → กรองด้วย "palette" แทน
+-- palette metaped_tint_horse (-1543234321) = ตัวม้า/ขน/แผงคอ/หาง/ขนนก → เว้นไว้ ไม่ tint
+-- palette อื่น (metaped_tint_leather ฯลฯ) = อุปกรณ์ → tint ได้
+-- ให้ลองในเกม: ขี่ม้าที่มีอาน แล้ว /tacktint 0 200 0 (แดง) — อุปกรณ์ต้องเปลี่ยนสี ขนม้าต้องไม่เปลี่ยน
+local HORSE_BODY_PALETTE = -1543234321 -- = joaat('metaped_tint_horse') แบบ signed ตามที่ native คืนค่าจริงบน build นี้
 
 RegisterCommand('tacktint', function(source, args)
     local horse = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
@@ -2323,15 +2314,14 @@ RegisterCommand('tacktint', function(source, args)
     local n = GetNumComponentsInPed(horse)
     local applied = 0
     for i = 0, n - 1 do
-        local category = Citizen.InvokeNative(0x9B90842304C938A7, horse, i, 0, Citizen.ResultAsInteger()) -- GetCategoryOfComponentAtIndex
-        local catName = TACK_CATEGORY[category]
         local drawable, albedo, normal, material = Citizen.InvokeNative(0xA9C28516A6DC9D56, horse, i,
             Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetGuids
         local palette = Citizen.InvokeNative(0xE7998FEC53A33BBE, horse, i,
             Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetTint
-        -- diagnostic ทุก component (เผื่อ mapping category ยังไม่ครบ ให้อ่าน hash จาก F8 มาปรับ)
-        print(('[bcc-stables tint] idx=%d cat=%s tack=%s palette=%s'):format(i, tostring(category), catName or '-', tostring(palette)))
-        if catName and palette and palette ~= 0 then
+        local isBody = (palette == HORSE_BODY_PALETTE)
+        local willTint = (palette and palette ~= 0 and not isBody)
+        print(('[bcc-stables tint] idx=%d palette=%s body=%s tint=%s'):format(i, tostring(palette), tostring(isBody), tostring(willTint)))
+        if willTint then
             Citizen.InvokeNative(0xBC6DF00D7A4A6819, horse, drawable, albedo, normal, material, palette, t0, t1, t2) -- SetMetaPedTag
             applied = applied + 1
         end
