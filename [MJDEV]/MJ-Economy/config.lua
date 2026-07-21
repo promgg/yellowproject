@@ -4,44 +4,64 @@ Config = {}
 Config.Items = {
     -- ============================================================
     -- ตลาดกลาง/ทุกเมือง : รับซื้อทุกอย่างเหมือนกันหมด
-    -- ราคา : Max = ราคาขายในตารางงานฟาร์ม, Min = floor(0.7 x Max)
+    -- ราคา : Min-Max = ช่วงราคาขายตรงจากตารางงานฟาร์ม (Valentine/Annesburg/Rhodes) คอลัมน์ "ราคาขาย"
+    -- ไอเทมที่ตารางระบุช่วงเดียวกันในหลายเมือง (ไม้/แปรรูปไม้) ใช้ราคาเดียวกันทั้งหมด — ตลาดนี้ไม่แยกตามเมือง
+    -- ปลา: ไม่มีตารางอ้างอิง ตั้ง 10-20 ทุกชนิดตามที่ตกลง (รายชื่อจาก lp_fishing/server/server.lua fishEntity)
     -- ค่า default : RandomWhenStart=true, RangeChange={1,2}, AmountToChange=500
     -- ============================================================
     ['market'] = {
-        -- ---------- พืชไร่ (5/ชิ้น) ----------
-        ['job_corn']          = { Label = 'ข้าวโพด',       Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_carrot']        = { Label = 'แครอท',         Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_Yarrow']        = { Label = 'ยาร์โรว์',      Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_sugarcane']     = { Label = 'อ้อย',          Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_mushroom']      = { Label = 'เห็ดป่า',       Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_Ginseng']       = { Label = 'โสม',           Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_opium']         = { Label = 'ฝิ่น',          Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_berry']         = { Label = 'เบอรี่',        Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_tobacco_plant'] = { Label = 'ต้นยาสูบ',      Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_barley']        = { Label = 'ข้าวบาร์เลย์',  Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_cotton']        = { Label = 'ฝ้าย',          Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['job_orange']        = { Label = 'ส้ม',           Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        -- ---------- พืชไร่ (10/ชิ้น) ----------
+        ['job_corn']          = { Label = 'ข้าวโพด',       Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_carrot']        = { Label = 'แครอท',         Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_Yarrow']        = { Label = 'ยาร์โรว์',      Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_sugarcane']     = { Label = 'อ้อย',          Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_mushroom']      = { Label = 'เห็ดป่า',       Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_Ginseng']       = { Label = 'โสม',           Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_opium']         = { Label = 'ฝิ่น',          Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_berry']         = { Label = 'เบอรี่',        Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_tobacco_plant'] = { Label = 'ต้นยาสูบ',      Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_barley']        = { Label = 'ข้าวบาร์เลย์',  Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_cotton']        = { Label = 'ฝ้าย',          Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['job_orange']        = { Label = 'ส้ม',           Min = 3,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
 
         -- ---------- แร่ ----------
-        ['mat_diamond']       = { Label = 'เพชร',          Min = 12, Max = 18, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_ruby']          = { Label = 'ทับทิม',        Min = 12, Max = 18, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_emerald']       = { Label = 'มรกต',          Min = 12, Max = 18, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_iron']          = { Label = 'เหล็ก',         Min = 9,  Max = 14, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_copper']        = { Label = 'ทองแดง',        Min = 7,  Max = 10, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_coal']          = { Label = 'ถ่านหิน',       Min = 4,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_nitrate']       = { Label = 'ไนเตรท',        Min = 4,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_sulfur']        = { Label = 'ซัลเฟอร์',      Min = 4,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['mat_stone']         = { Label = 'หิน',           Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_diamond']       = { Label = 'เพชร',          Min = 18, Max = 23, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_ruby']          = { Label = 'ทับทิม',        Min = 18, Max = 23, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_emerald']       = { Label = 'มรกต',          Min = 18, Max = 23, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_iron']          = { Label = 'เหล็ก',         Min = 15, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_copper']        = { Label = 'ทองแดง',        Min = 13, Max = 18, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_coal']          = { Label = 'ถ่านหิน',       Min = 7,  Max = 12, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_nitrate']       = { Label = 'ไนเตรท',        Min = 7,  Max = 12, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_sulfur']        = { Label = 'ซัลเฟอร์',      Min = 7,  Max = 12, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['mat_stone']         = { Label = 'หิน',           Min = 5,  Max = 10, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
 
         -- ---------- ไม้ / แปรรูปไม้ ----------
-        ['met_log']           = { Label = 'ท่อนไม้',       Min = 4,  Max = 7,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['met_stick']         = { Label = 'กิ่งไม้',       Min = 3,  Max = 5,  RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['met_wood_planks']   = { Label = 'ไม้แผ่น',       Min = 9,  Max = 13, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['met_bark']          = { Label = 'เปลือกไม้',     Min = 7,  Max = 10, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
-        ['met_resin']         = { Label = 'ยางไม้',        Min = 9,  Max = 13, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_log']           = { Label = 'ท่อนไม้',       Min = 18, Max = 23, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_stick']         = { Label = 'กิ่งไม้',       Min = 18, Max = 23, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_bark']          = { Label = 'เปลือกไม้',     Min = 35, Max = 40, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_resin']         = { Label = 'ยางไม้',        Min = 35, Max = 40, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_wood_planks']   = { Label = 'ไม้แผ่น',       Min = 50, Max = 70, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['met_wood_sharp']    = { Label = 'ไม้เหลา',       Min = 50, Max = 70, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
 
         -- ---------- เนื้อ ----------
-        ['meat_large']        = { Label = 'เนื้อใหญ่',     Min = 7,  Max = 10, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['meat_large']        = { Label = 'เนื้อใหญ่',     Min = 13, Max = 18, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+
+        -- ---------- ปลา (lp_fishing) ----------
+        ['fish_bluegill_small']       = { Label = 'ปลาบลูกิล',            Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_bullheadcat_small']    = { Label = 'ปลาดุกบูลเฮด',         Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_chainpickerel_small']  = { Label = 'ปลาเชนพิกเคอเรล',      Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_channelcatfish_large'] = { Label = 'ปลาดุกแชนเนล',         Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_lakesturgeon_large']   = { Label = 'ปลาสเตอร์เจียนทะเลสาบ', Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_largemouthbass_medium']= { Label = 'ปลากะพงปากใหญ่',       Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_longnosegar_large']    = { Label = 'ปลาการ์จมูกยาว',       Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_muskie_large']         = { Label = 'ปลามัสกี้',            Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_northernpike_large']   = { Label = 'ปลาไพค์เหนือ',         Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_perch_small']          = { Label = 'ปลาเพิร์ช',            Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_rainbowtrout_medium']  = { Label = 'ปลาเทราต์สายรุ้ง',     Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_redfinpickerel_small'] = { Label = 'ปลาพิกเคอเรลครีบแดง',  Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_rockbass_small']       = { Label = 'ปลากะพงหิน',           Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_salmonsockeye_medium'] = { Label = 'ปลาแซลมอนซ็อกอาย',     Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
+        ['fish_smallmouthbass_medium']= { Label = 'ปลากะพงปากเล็ก',       Min = 10, Max = 20, RandomWhenStart = true, RangeChange = {1, 2}, AmountToChange = 500 },
     },
 
     -- ============================================================
