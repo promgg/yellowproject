@@ -2200,28 +2200,52 @@ function SetComponent(entity, hash)
     Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
 end
 
--- ทาสีเฉพาะ "อุปกรณ์" ของม้า (อาน/หนัง/กระเป๋า ฯลฯ) — เว้นตัวม้า/ขน (palette metaped_tint_horse)
--- อ่าน guids+palette ของแต่ละ component แล้วยิง SetMetaPedTag ด้วย tint index เดียวกันทุกชิ้น
+-- ทาสีเฉพาะ "อุปกรณ์" ของม้า (อาน/หนัง/กระเป๋า ฯลฯ) — เว้นตัวม้า/ขน
+-- วิธีของ jo_libs สำหรับม้า: ได้ hash ของ shop item ต่อ index → GetShopItemBaseLayers(hash) ได้ tag ที่ถูกต้อง
+--   → SetMetaPedTag. (ขน/ตัวม้าไม่ใช่ shop item จึงคืน hash=0 ถูกข้ามอัตโนมัติ)
+--   เดิมอ่าน GetMetaPedAssetGuids จาก ped โดยตรง ซึ่งได้ tag ไม่ถูกกับอุปกรณ์ม้า → tint ติดแค่อาน
 -- t0/t1/t2 = index จานสี (0-254, 255=ปิด). ถ้า nil = ถอด tint (คืนสีเดิม)
--- ⚠️ GetMetaPedAssetGuids (0xA9C28516A6DC9D56) คืน 5 ค่า: [ค่า return ของ native, drawable, albedo, normal, material]
---    ต้องทิ้งค่าแรก (`_`) ตาม jo_libs — ไม่งั้น tag เลื่อนตำแหน่ง สีจะเพี้ยน/ไม่ติดกับบางชิ้น
---    ส่วน GetMetaPedAssetTint (0xE7998FEC53A33BBE) คืน 4 ค่า [palette, t0, t1, t2] ไม่ต้องทิ้ง
-local HORSE_BODY_PALETTE = -1543234321 -- joaat('metaped_tint_horse') signed ตามที่ native คืนบน build นี้
-function ApplyTackTint(entity, t0, t1, t2)
+local HORSE_BODY_PALETTE = -1543234321 -- joaat('metaped_tint_horse') signed — ตัวม้า/ขน ไม่ทา
+
+-- คืน hash ของ shop item ที่ component index นั้น (ลอง MP ก่อน SP ตาม jo_libs). 0 = ไม่ใช่ shop item
+-- ใช้ named native ตรง ๆ ให้ CfxLua จัด marshalling ตาม signature (เหมือน jo_libs)
+local function TackShopHashAtIndex(ped, index)
+    local hash = GetShopPedComponentAtIndex(ped, index, true, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
+    if not hash or hash == 0 then
+        hash = GetShopPedComponentAtIndex(ped, index, false, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
+        return hash, false
+    end
+    return hash, true
+end
+
+-- แปลง hash ของ shop item → drawable/albedo/normal/material/palette (+tint เดิม) ตาม metaped type ของม้า
+local function TackBaseLayers(hash, metapedType, isMp)
+    return Citizen.InvokeNative(0x63342C50EC115CE8, hash, 0, 0, metapedType, isMp,
+        Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(),
+        Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetShopItemBaseLayers
+    -- คืน: drawable, albedo, normal, material, palette, tint0, tint1, tint2
+end
+
+function ApplyTackTint(entity, t0, t1, t2, debug)
     if not entity or entity == 0 or not DoesEntityExist(entity) then return 0 end
     t0 = math.max(0, math.min(255, tonumber(t0) or 255))
     t1 = math.max(0, math.min(255, tonumber(t1) or 255))
     t2 = math.max(0, math.min(255, tonumber(t2) or 255))
+    local metapedType = GetMetaPedType(entity)
     local n = GetNumComponentsInPed(entity)
     local applied = 0
     for i = 0, n - 1 do
-        local _, drawable, albedo, normal, material = Citizen.InvokeNative(0xA9C28516A6DC9D56, entity, i,
-            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetGuids (ทิ้งค่าแรก!)
-        local palette = Citizen.InvokeNative(0xE7998FEC53A33BBE, entity, i,
-            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetTint
-        if palette and palette ~= 0 and palette ~= HORSE_BODY_PALETTE then
-            Citizen.InvokeNative(0xBC6DF00D7A4A6819, entity, drawable, albedo, normal, material, palette, t0, t1, t2) -- SetMetaPedTag
-            applied = applied + 1
+        local hash, isMp = TackShopHashAtIndex(entity, i)
+        if hash and hash ~= 0 then
+            local drawable, albedo, normal, material, palette = TackBaseLayers(hash, metapedType, isMp)
+            local tintable = palette and palette ~= 0 and palette ~= HORSE_BODY_PALETTE
+            if debug then
+                print(('[bcc-stables tint] idx=%d hash=%s palette=%s tint=%s'):format(i, tostring(hash), tostring(palette), tostring(tintable)))
+            end
+            if tintable then
+                Citizen.InvokeNative(0xBC6DF00D7A4A6819, entity, drawable, albedo, normal, material, palette, t0, t1, t2) -- SetMetaPedTag
+                applied = applied + 1
+            end
         end
     end
     Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
@@ -2365,7 +2389,7 @@ RegisterCommand('tacktint', function(source, args)
         return
     end
     local t0, t1, t2 = tonumber(args[1]) or 0, tonumber(args[2]) or 0, tonumber(args[3]) or 0
-    local applied = ApplyTackTint(horse, t0, t1, t2)
+    local applied = ApplyTackTint(horse, t0, t1, t2, true) -- debug=true → print hash/palette ต่อชิ้นใน F8
     NotifyTip(('เปลี่ยนสีอุปกรณ์ %d ชิ้น (t0=%d t1=%d t2=%d)'):format(applied, t0, t1, t2), 5000, 'success')
 end, false)
 
