@@ -34,6 +34,17 @@ local function hybridEnabled()
 end
 local Core = exports.vorp_core:GetCore()
 
+-- แจ้งเตือนทั้งหมดในสคริปต์ใช้ pNotify (แทน Core.NotifyRightTip ของเดิม)
+-- layout = topRight เลียนตำแหน่งของ NotifyRightTip เดิมให้ผู้เล่นเห็นจุดเดิม
+-- ต้องนิยามบนสุด: ทุก callsite ด้านล่าง (เธรดกันเบ็ด/checkRodAndBait/UseBait/โหมดง่าย) เรียกตัวนี้
+local function notify(text, kind, timeout)
+    pcall(function()
+        exports.pNotify:SendNotification({
+            text = text, type = kind or 'error', timeout = timeout or 4000, layout = 'topRight',
+        })
+    end)
+end
+
 -- ── กันการหยิบเบ็ดในเขตห้ามตกปลา ─────────────────────────────────────────────
 -- หลักการเดียวกับ "ห้ามพกอาวุธใน saloon" (lp_interior/client/main.lua):
 -- ห้ามใช้ RemoveAllPedWeapons — vorp_inventory ผูกอาวุธกับ DB คนละชั้น ลบตรงๆ เสี่ยงของหาย
@@ -57,7 +68,7 @@ CreateThread(function()
                 local now = GetGameTimer()
                 if now - lastNotify >= 4000 then
                     lastNotify = now
-                    Core.NotifyRightTip('ห้ามหยิบเบ็ดในเขตนี้', 3000)
+                    notify('ห้ามหยิบเบ็ดในเขตนี้', 'error', 3000)
                 end
             end
         end
@@ -121,14 +132,14 @@ Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
     local _, weaponHash = GetCurrentPedWeapon(ped, true, 0, false)
 
     if weaponHash ~= GetHashKey("WEAPON_FISHINGROD") then
-        Core.NotifyRightTip(T.NoFishingRodEquipped, 4000)
+        notify(T.NoFishingRodEquipped)
         return CB({false})
     end
 
     -- เขตห้ามตกปลา (โซนรอบไร่ปลูกผัก) — โหมดผสมเริ่มจากการใช้เหยื่อ ไม่ผ่าน StartPrompt
     -- ที่ gate ไว้ เลยต้องบล็อกที่นี่ด้วย ไม่งั้นยังเหวี่ยงได้ (server เช็คซ้ำอีกชั้น)
     if isInNoFishZone() then
-        Core.NotifyRightTip('ห้ามตกปลาในเขตนี้', 4000)
+        notify('ห้ามตกปลาในเขตนี้')
         return CB({false})
     end
 
@@ -136,7 +147,7 @@ Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
         -- ห้ามใส่ทับ ไม่ว่าจะเหยื่อตัวเดิมหรือคนละตัว ต้องให้เหยื่อที่ติดอยู่หมดไปก่อน
         -- (จับปลาได้ / ปลาหลุด) ถึงจะใส่เหยื่อใหม่ได้ — เดิมอนุญาตให้สลับเหยื่อคนละตัวได้
         -- ซึ่งจะไปตัด session ที่กำลังตกอยู่ทิ้งกลางคันแบบเงียบๆ
-        Core.NotifyRightTip(T.AlreadyHaveBait, 4000)
+        notify(T.AlreadyHaveBait)
         return CB({false})
     end
 
@@ -153,7 +164,7 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
 
     local playerPed = PlayerPedId()
     if Citizen.InvokeNative(0xDC88D06719070C39,playerPed) and not IsPedSwimming(playerPed) then
-        Core.NotifyRightTip(T.StandNearSide, 4000)
+        notify(T.StandNearSide)
     end
   
     Citizen.InvokeNative(0x1096603B519C905F, "MMFSH")
@@ -1257,12 +1268,6 @@ end)
 --  ปลาที่จับเป็น entity จริงในน้ำ ไม่ได้สุ่มจากตาราง จึงส่งเข้า server event เดิมได้
 --  และได้ด่านตรวจเดิมครบ (playersFishing + DoesEntityExist + canCarryItem)
 -- ═══════════════════════════════════════════════════════════════════════════
-
-local function notify(text, kind)
-    pcall(function()
-        exports.pNotify:SendNotification({ text = text, type = kind or 'error', timeout = 4000 })
-    end)
-end
 
 -- ปลาที่เหยื่อชิ้นนี้ล่อได้ ตัวที่ใกล้ที่สุด
 local function findBaitedFish(radius)

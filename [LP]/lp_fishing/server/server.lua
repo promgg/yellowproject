@@ -129,7 +129,9 @@ RegisterServerEvent("lp_fishing:FishToInventory", function(netid, fishModel, fis
 
     local canCarry = exports.vorp_inventory:canCarryItem(_source, fish.entity, 1)
     if not canCarry then
-        VORPcore.NotifyObjective(_source, T.CannotCarryMore, 4000)
+        TriggerClientEvent('pNotify:SendNotification', _source, {
+            text = T.CannotCarryMore, type = 'error', timeout = 4000, layout = 'topRight',
+        })
         -- ลบปลาทิ้งด้วยแม้เก็บไม่ได้ ไม่งั้น prop จะลอยค้างอยู่ปลายเบ็ด
         if DoesEntityExist(entity) then DeleteEntity(entity) end
         return
