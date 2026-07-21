@@ -149,17 +149,30 @@ end)
 
 -- ── ลดสเตมิน่าตอนวิ่ง ───────────────────────────────────────────────────────
 -- core ของ RDR3 เป็น 0-100 index 1 คือ stamina (index 0 คือ health)
--- native ทั้งคู่ยืนยันจาก bcc-stables ที่ใช้งานจริงบนเซิร์ฟนี้อยู่แล้ว
-local CORE_STAMINA   = 1
-local GET_CORE_VALUE = 0x36731AC041289BB1
-local SET_CORE_VALUE = 0xC6258F41D86676E0
-
-local function getStaminaCore(ped)
-    return Citizen.InvokeNative(GET_CORE_VALUE, ped, CORE_STAMINA, Citizen.ResultAsInteger())
+-- ⚠️ RDR3 ผู้เล่นมี stamina "สองชั้น" คนละตัวกัน (เห็นชัดจาก MJ-Respwan:368-369):
+--    inner core ring  = GetAttributeCoreValue(ped, 1)  -> ลดเมื่อ outer หมดแล้วเท่านั้น
+--    outer stamina    = GetPlayerStamina(PlayerId())   -> ตัวที่ลดตอนวิ่งปกติ (ที่ HUD โชว์)
+--
+-- รอบแรกอ่าน core ring ผิดตัว มันคืน 0 ตลอดตอนวิ่งปกติ (ยังไม่แตะ core เลย)
+-- ทำให้ระบบคิดว่าหมดแล้วตลอด ไม่เคย drain อะไรเลย — ต้องจับ outer แทน
+--
+-- อ่านด้วย GetPlayerStamina (ตัวเดียวกับที่ core/client.lua:84 ใช้โชว์ HUD)
+-- ลดด้วย ChangePedStamina ซึ่งเป็น "delta" ไม่ใช่ set ค่าตรงๆ
+-- (ยืนยันจาก vorp_core/spawnplayer.lua:164, MJ-Medic, MJ-Respwan, vorp_medic — ทุกที่ใช้แบบ delta)
+local function getStamina()
+    return GetPlayerStamina(PlayerId()) -- 0-100
 end
 
-local function setStaminaCore(ped, value)
-    Citizen.InvokeNative(SET_CORE_VALUE, ped, CORE_STAMINA, math.floor(value + 0.5))
+-- บังคับ stamina ลงไปที่ target — เขียนเฉพาะตอนต้องลดจริง
+-- ใช้ delta (target - current) จึงสู้กับ recharge ของ vorp_core ได้: ถ้ามันดันขึ้นเกิน target
+-- รอบถัดไป current จะ > target แล้วเราลดกลับลงมา
+local function drainStaminaTo(ped, target)
+    local current = getStamina()
+    if target < current then
+        ChangePedStamina(ped, target - current) -- delta ลบ = ลด
+        return current
+    end
+    return current
 end
 
 -- /statusdebug — ดูค่าปัจจุบันทั้งหมดในบรรทัดเดียว ใช้ตอนเทียบว่าหลอดบนจอตรงกับค่าจริงไหม
@@ -171,13 +184,8 @@ if Config.Debug then
         print(('  Thirst  %s / %s'):format(tostring(PlayerStatus and PlayerStatus.Thirst), tostring(Config.MaxThirst)))
         print(('  Stress  %s  (เริ่มหักเลือดที่ %d)'):format(tostring(PlayerStatus and PlayerStatus.Stress),
             math.floor((Config.MaxStress or 0) * 0.02)))
-        print(('  stamina core  %s / 100'):format(tostring(getStaminaCore(ped))))
-
-        -- ห่อ pcall เพราะนี่คือ native ที่กำลังสงสัยว่ามีจริงไหม
-        -- ถ้ามันไม่มี ต้องให้บรรทัดที่เหลือพิมพ์ต่อได้ ไม่ใช่ทั้งคำสั่งตายไปด้วย
-        local ok, res = pcall(function() return GetPlayerStamina(PlayerId()) end)
-        print(('  GetPlayerStamina(PlayerId())  %s'):format(ok and tostring(res) or ('เรียกไม่ได้: ' .. tostring(res))))
-
+        print(('  stamina (outer)  %s / 100'):format(tostring(getStamina())))
+        print(('  stamina core ring  %s'):format(tostring(GetAttributeCoreValue(ped, 1))))
         print(('  เลือด  %s'):format(tostring(GetEntityHealth(ped))))
     end, false)
 end
@@ -203,9 +211,9 @@ CreateThread(function()
             if moving and not IsPedDeadOrDying(ped, true) then
                 if not startedAt then
                     startedAt    = GetGameTimer()
-                    startedValue = getStaminaCore(ped)
+                    startedValue = getStamina()
                     if Config.Debug then
-                        print(('[MJ-STATUS] เริ่มวิ่ง — stamina เริ่มต้น %s'):format(tostring(startedValue)))
+                        print(('[MJ-STATUS] เริ่มวิ่ง — stamina เริ่มต้น %.1f'):format(startedValue))
                     end
                 end
 
@@ -213,28 +221,18 @@ CreateThread(function()
                 -- (ลบสะสมจะไปทบกับการลดตามธรรมชาติของเกม เวลาจริงเลยสั้นกว่าที่ตั้ง)
                 local elapsed = GetGameTimer() - startedAt
                 local target  = startedValue - (elapsed / drainMs) * 100.0
-
                 if target < 0 then target = 0 end
 
-                local before = getStaminaCore(ped)
+                local before = drainStaminaTo(ped, target)
 
-                -- เขียนเฉพาะตอนค่าน้อยลงจริง ไม่งั้นจะไปกันการฟื้นตัวปกติของเกม
-                if target < before then
-                    setStaminaCore(ped, target)
-
-                    -- log ทุก 1 วินาที ไม่ใช่ทุกรอบ (รอบละ 100ms จะท่วมจอ)
-                    -- ถ้า "หลังเขียน" เด้งกลับสูงกว่าที่สั่ง = มีตัวอื่นฟื้นค่าสู้อยู่
-                    -- (ตัวที่ต้องสงสัย: vorp_core StaminaRecharge ใน config/config.lua:197)
-                    if Config.Debug and (elapsed % 1000) < tick then
-                        local after = getStaminaCore(ped)
-                        print(('[MJ-STATUS] วิ่งมา %.1f วิ | สั่งเป็น %d | ก่อนสั่ง %s | หลังสั่ง %s%s')
-                            :format(elapsed / 1000, math.floor(target + 0.5), tostring(before), tostring(after),
-                                    after > math.floor(target + 0.5) + 1 and '  <-- มีตัวอื่นดันค่ากลับขึ้น' or ''))
-                    end
+                if Config.Debug and (elapsed % 1000) < tick then
+                    local after = getStamina()
+                    print(('[MJ-STATUS] วิ่งมา %.1f วิ | สั่งเป็น %.1f | ก่อน %.1f | หลัง %.1f')
+                        :format(elapsed / 1000, target, before, after))
                 end
             else
                 if Config.Debug and startedAt then
-                    print(('[MJ-STATUS] หยุดวิ่ง — stamina เหลือ %s'):format(tostring(getStaminaCore(ped))))
+                    print(('[MJ-STATUS] หยุดวิ่ง — stamina เหลือ %.1f'):format(getStamina()))
                 end
                 startedAt    = nil
                 startedValue = nil
