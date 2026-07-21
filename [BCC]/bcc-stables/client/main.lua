@@ -2203,6 +2203,9 @@ end
 -- ทาสีเฉพาะ "อุปกรณ์" ของม้า (อาน/หนัง/กระเป๋า ฯลฯ) — เว้นตัวม้า/ขน (palette metaped_tint_horse)
 -- อ่าน guids+palette ของแต่ละ component แล้วยิง SetMetaPedTag ด้วย tint index เดียวกันทุกชิ้น
 -- t0/t1/t2 = index จานสี (0-254, 255=ปิด). ถ้า nil = ถอด tint (คืนสีเดิม)
+-- ⚠️ GetMetaPedAssetGuids (0xA9C28516A6DC9D56) คืน 5 ค่า: [ค่า return ของ native, drawable, albedo, normal, material]
+--    ต้องทิ้งค่าแรก (`_`) ตาม jo_libs — ไม่งั้น tag เลื่อนตำแหน่ง สีจะเพี้ยน/ไม่ติดกับบางชิ้น
+--    ส่วน GetMetaPedAssetTint (0xE7998FEC53A33BBE) คืน 4 ค่า [palette, t0, t1, t2] ไม่ต้องทิ้ง
 local HORSE_BODY_PALETTE = -1543234321 -- joaat('metaped_tint_horse') signed ตามที่ native คืนบน build นี้
 function ApplyTackTint(entity, t0, t1, t2)
     if not entity or entity == 0 or not DoesEntityExist(entity) then return 0 end
@@ -2212,8 +2215,8 @@ function ApplyTackTint(entity, t0, t1, t2)
     local n = GetNumComponentsInPed(entity)
     local applied = 0
     for i = 0, n - 1 do
-        local drawable, albedo, normal, material = Citizen.InvokeNative(0xA9C28516A6DC9D56, entity, i,
-            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetGuids
+        local _, drawable, albedo, normal, material = Citizen.InvokeNative(0xA9C28516A6DC9D56, entity, i,
+            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetGuids (ทิ้งค่าแรก!)
         local palette = Citizen.InvokeNative(0xE7998FEC53A33BBE, entity, i,
             Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetTint
         if palette and palette ~= 0 and palette ~= HORSE_BODY_PALETTE then
