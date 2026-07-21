@@ -392,6 +392,13 @@ Core.Callback.Register('bcc-stables:BuyTack', function(source, cb, data)
         end
     end
 
+    -- สีอุปกรณ์ (tack tint) — เก็บเป็นคีย์สงวน _tint ใน components JSON (ไม่ใช่ category จริง จึงไม่ผ่าน loop validate ด้านบน)
+    -- ฟรี ไม่คิดเงิน. ส่ง nil = ไม่แตะสีเดิม / ส่ง table = ตั้งสีใหม่ (clamp 0-255 กันค่าเพี้ยนจาก client)
+    if type(data.tackTint) == 'table' and tonumber(data.tackTint.t0) then
+        local function clampTint(v) return math.max(0, math.min(255, math.floor(tonumber(v) or 255))) end
+        components._tint = { t0 = clampTint(data.tackTint.t0), t1 = clampTint(data.tackTint.t1), t2 = clampTint(data.tackTint.t2) }
+    end
+
     local currencyType = 0
     local price = cashPrice
     local balance = character.money
