@@ -34,6 +34,37 @@ local function hybridEnabled()
 end
 local Core = exports.vorp_core:GetCore()
 
+-- ── กันการหยิบเบ็ดในเขตห้ามตกปลา ─────────────────────────────────────────────
+-- หลักการเดียวกับ "ห้ามพกอาวุธใน saloon" (lp_interior/client/main.lua):
+-- ห้ามใช้ RemoveAllPedWeapons — vorp_inventory ผูกอาวุธกับ DB คนละชั้น ลบตรงๆ เสี่ยงของหาย
+-- ที่นี่แค่ "บังคับสลับเป็นมือเปล่า" เมื่อชักเบ็ดออกมาในเขต ตัวเบ็ดยังอยู่ในกระเป๋าครบ
+-- ปิดช่องหยิบเบ็ดจาก weapon wheel ตรงๆ (ไม่ผ่าน equipRod/UseBait ที่ gate ไว้แล้ว)
+-- ต้องอยู่หลัง local Core: closure ต้องเห็น Core เป็น upvalue ไม่งั้นเป็น global nil
+CreateThread(function()
+    local UNARMED = GetHashKey('WEAPON_UNARMED')
+    local ROD     = GetHashKey(Config.RodWeapon or 'WEAPON_FISHINGROD')
+    local lastNotify = 0
+
+    while true do
+        local sleep = 500
+        if Config.NoFishZones and isInNoFishZone() then
+            local ped = PlayerPedId()
+            local _, weapon = GetCurrentPedWeapon(ped, true, 0, true)
+            if weapon == ROD then
+                sleep = 0   -- เช็คถี่เฉพาะตอนถือเบ็ดในเขต ไม่งั้นสลับกลับมาได้ก่อน tick หน้า
+                SetCurrentPedWeapon(ped, UNARMED, true)
+
+                local now = GetGameTimer()
+                if now - lastNotify >= 4000 then
+                    lastNotify = now
+                    Core.NotifyRightTip('ห้ามหยิบเบ็ดในเขตนี้', 3000)
+                end
+            end
+        end
+        Wait(sleep)
+    end
+end)
+
 local T = Translation.Langs[Config.Lang]
 
 local fishing_data = {
