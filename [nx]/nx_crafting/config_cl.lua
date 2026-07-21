@@ -233,11 +233,12 @@ Config["Craft_Table"] = {
 	},
 
 	{
-		Position = {x = 2873.5984, y = 1359.5076, z = 62.4794, h = 315.3127},
+		Position = {x = 2877.9114, y = 1366.1206, z = 62.4592, h = -2.0000},
 		Table_Name = "General Crafting - Annesburg",
 		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		-- เดิม true (ใช้ prop ที่มีอยู่ในแมพ) เปลี่ยนเป็น false ให้ spawn โต๊ะเองตามพิกัด/โมเดลที่กำหนด
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("mp005_s_posse_ammotable03x") or "mp005_s_posse_ammotable03x",
 		Name = "~y~General Crafting",
 		Desc = "โต๊ะคราฟทั่วไป Annesburg",
 
@@ -251,11 +252,12 @@ Config["Craft_Table"] = {
 	},
 
 	{
-		Position = {x = 1259.0687, y = -1323.2338, z = 76.8877, h = 161.0100},
+		Position = {x = 1259.8979, y = -1324.3313, z = 76.4382, h = -43.0000},
 		Table_Name = "General Crafting - Rhodes",
 		Max_Distance = 2.5,
-		Disable_Model = true,
-		Model = GetHashKey and GetHashKey("p_campfirecombined03x") or "p_campfirecombined03x",
+		-- เดิม true (ใช้ prop ที่มีอยู่ในแมพ) เปลี่ยนเป็น false ให้ spawn โต๊ะเองตามพิกัด/โมเดลที่กำหนด
+		Disable_Model = false,
+		Model = GetHashKey and GetHashKey("mp005_s_posse_ammotable03x") or "mp005_s_posse_ammotable03x",
 		Name = "~y~General Crafting",
 		Desc = "โต๊ะคราฟทั่วไป Rhodes",
 
