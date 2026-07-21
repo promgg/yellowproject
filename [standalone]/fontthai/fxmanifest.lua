@@ -1,0 +1,10 @@
+fx_version 'cerulean'
+game 'rdr3'
+rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aware my resources *will* become incompatible once RedM ships.'
+
+author 'Zudrangma (ฟอนต์ไทย) — แพ็คเป็น RedM'
+description 'ฟอนต์ไทย native RDR2 — สตรีม font_lib_efigs.gfx (ฝัง glyph ไทยโดย Zudrangma) ทับฟอนต์ UI ของเกม ให้ข้อความ scaleform/native ในเกมแสดงภาษาไทยได้'
+version '1.0.0'
+
+-- ไฟล์ใน stream/ ถูก auto-stream เป็น game asset ทับของเกมตามชื่อ (font_lib_efigs.gfx)
+-- ไม่ต้องประกาศเพิ่ม — แค่มี ensure fontthai ก็โหลดให้
