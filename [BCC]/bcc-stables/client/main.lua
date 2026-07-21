@@ -14,8 +14,7 @@ local TradeGroup = GetRandomIntInRange(0, 0xffffff)
 local LootHorse
 local LootGroup = GetRandomIntInRange(0, 0xffffff)
 
-local HorseCargo -- เปิดกระเป๋าม้าตัวเอง (UiPrompt hold แทน prompt B ของเกม)
-local HorseCargoGroup = GetRandomIntInRange(0, 0xffffff)
+local invHoldStart = nil -- เวลาเริ่มกดค้างเปิดกระเป๋าม้า (Config.inventoryHoldMs)
 
 -- Target Prompts
 local HorseDrink, HorseRest, HorseSleep, HorseWallow = 0, 0, 0, 0
@@ -134,6 +133,7 @@ local function RemoveHorsePrompts()
     UiPromptDelete(HorseSleep)
     UiPromptDelete(HorseWallow)
     PromptsStarted = false
+    invHoldStart = nil -- เดินออกจากระยะ = ล้างการกดค้างที่ค้างอยู่ กันเปิดเองตอนกลับเข้าระยะ
 end
 
 CreateThread(function()
@@ -1056,18 +1056,29 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
             DisableControlAction(0, `INPUT_OPEN_SATCHEL_HORSE_MENU`, true)
         end
 
-        -- เปิดกระเป๋าม้าตัวเอง — ใช้ UiPrompt ของ resource (แสดงผ่านระบบ prompt ของเกม
-        -- ได้แถบ hold สวยงามและปุ่มที่ถูกต้อง) โหมด hold/กดทีเดียวตั้งค่าตอน register แล้ว
+        -- เปิดกระเป๋าม้า — รองรับทั้ง "กดทีเดียว" และ "กดค้าง" ตาม Config.inventoryHoldMs
+        -- ใช้ IsDisabledControl* (ไม่ใช่ตัวปกติ) เพราะเกมปิดอินพุตบางตัวตอนขี่ม้าอยู่
         -- ห่อ do...end กัน 'goto END' ด้านล่างกระโดดข้าม local เข้ามาในขอบเขต (Lua ห้าม)
         do
-            UiPromptSetActiveGroupThisFrame(HorseCargoGroup,
-                CreateVarString(10, 'LITERAL_STRING', _U('lootInventory')), 1, 0, 0, 0)
+            local holdMs = Config.inventoryHoldMs or 0
+            local openNow = false
 
-            local completed = (Config.inventoryHoldMs or 0) > 0
-                and UiPromptHasHoldModeCompleted(HorseCargo, 0)
-                or UiPromptHasStandardModeCompleted(HorseCargo, 0)
+            if holdMs > 0 then
+                -- กดค้าง: นับเวลาตั้งแต่เริ่มกด ครบ holdMs = เปิด ปล่อยก่อน = รีเซ็ต
+                if Citizen.InvokeNative(0xE2587F8CBBD87B1D, 0, Config.keys.inventory) then -- IsDisabledControlPressed
+                    if not invHoldStart then invHoldStart = GetGameTimer() end
+                    if (GetGameTimer() - invHoldStart) >= holdMs then
+                        openNow = true
+                        invHoldStart = nil
+                    end
+                else
+                    invHoldStart = nil
+                end
+            else
+                openNow = Citizen.InvokeNative(0x91AEF906BCA88877, 0, Config.keys.inventory) -- IsDisabledControlJustPressed
+            end
 
-            if completed then
+            if openNow then
                 if LocalPlayer.state.IsInvActive then
                     exports.vorp_inventory:closeInventory()
                 else
@@ -2313,22 +2324,6 @@ function StartPrompts()
     UiPromptSetStandardMode(LootHorse, true)
     UiPromptSetGroup(LootHorse, LootGroup, 0)
     UiPromptRegisterEnd(LootHorse)
-
-    -- เปิดกระเป๋าม้าตัวเอง — prompt ของ resource เอง (แทน prompt "Horse Cargo [B]" ของเกม
-    -- ที่ถูกซ่อนไปแล้วด้วยการ disable control) ใช้ระบบ UiPrompt เหมือนปุ่มอื่นในไฟล์นี้
-    -- จึงได้แถบ hold ของเกมสวยงามและแสดงปุ่มที่ถูกต้อง โหมดตาม Config.inventoryHoldMs
-    HorseCargo = UiPromptRegisterBegin()
-    UiPromptSetControlAction(HorseCargo, Config.keys.inventory)
-    UiPromptSetText(HorseCargo, CreateVarString(10, 'LITERAL_STRING', _U('lootInventory')))
-    UiPromptSetVisible(HorseCargo, true)
-    UiPromptSetEnabled(HorseCargo, true)
-    if (Config.inventoryHoldMs or 0) > 0 then
-        UiPromptSetHoldMode(HorseCargo, Config.inventoryHoldMs)
-    else
-        UiPromptSetStandardMode(HorseCargo, true)
-    end
-    UiPromptSetGroup(HorseCargo, HorseCargoGroup, 0)
-    UiPromptRegisterEnd(HorseCargo)
 end
 
 function HorseTargetPrompts(menuGroup)
