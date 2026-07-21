@@ -153,3 +153,11 @@ Config.SimpleMode = {
 -- false = ใช้กติกาเดิมของเกม เอ็นขาดถ้าแรงเกิน MaxFishForce
 Config.GuaranteedCatch = true
 Config.MaxFishForce    = 1.4   -- แรงที่ทำให้เอ็นขาด (มีผลเมื่อ GuaranteedCatch = false)
+
+-- ── เขตห้ามตกปลา (โซนรอบไร่ปลูกผัก) ──────────────────────────────────────────
+-- อยู่ในรัศมีของโซนพวกนี้ = prompt "เริ่มตกปลา" ไม่ขึ้น และเริ่มตกไม่ได้
+-- radius หน่วยเมตร (วัดในระนาบ x/y ไม่สนความสูง) เพิ่ม/ลดจุดได้ตามต้องการ
+Config.NoFishZones = {
+    { label = 'ไร่ Rhodes',    coords = vector3(967.7547, -1938.8070, 46.7184), radius = 35.0 },
+    { label = 'ไร่ (จุดที่ 2)', coords = vector3(859.0538, -1595.8829, 43.4967), radius = 35.0 },
+}

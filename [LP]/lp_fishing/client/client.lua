@@ -934,6 +934,22 @@ local function isHoldingRod()
     return weapon == GetHashKey(Config.RodWeapon or 'WEAPON_FISHINGROD')
 end
 
+-- อยู่ในเขตห้ามตกปลาไหม (โซนรอบไร่ปลูกผัก) — วัดในระนาบ x/y ไม่สนความสูง
+-- กันคนตกปลาริมไร่ระหว่างที่มีคนปลูกผักอยู่
+local function isInNoFishZone()
+    local zones = Config.NoFishZones
+    if not zones then return false end
+
+    local c = GetEntityCoords(PlayerPedId())
+    for _, z in ipairs(zones) do
+        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
+        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
+            return true, z.label
+        end
+    end
+    return false
+end
+
 local function hideStartPrompt()
     if not startPromptShown then return end
     startPromptShown = false
@@ -950,7 +966,7 @@ CreateThread(function()
         -- โชว์เฉพาะตอน "ยังไม่ได้เข้าโหมดตกปลา" (state 0) และยังไม่ได้ถือเบ็ด
         -- ถ้าถือเบ็ดแล้วเกมจะเข้า state 1 เอง native prompt ของเกมรับช่วงต่อ
         local idle = FISHING_GET_MINIGAME_STATE() == 0
-        if idle and not isHoldingRod() and isNearWater() then
+        if idle and not isHoldingRod() and isNearWater() and not isInNoFishZone() then
             if not startPromptShown then
                 startPromptShown = true
                 exports.lp_textui:TextUIHold(
@@ -1420,7 +1436,7 @@ CreateThread(function()
 
     while true do
         local sleep = 500
-        local ready = (not simpleBusy) and currentLure and isHoldingRod() and isNearWater()
+        local ready = (not simpleBusy) and currentLure and isHoldingRod() and isNearWater() and not isInNoFishZone()
 
         if ready then
             sleep = 300

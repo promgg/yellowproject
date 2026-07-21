@@ -173,8 +173,34 @@ end)
 
 -- client กด [E] ที่ prompt lp_textui -> ขอหยิบเบ็ด
 -- server ตรวจเองว่ามีเบ็ดจริงในคลังอาวุธก่อนสั่งหยิบ (client บอกได้แค่ "ขอ" ไม่ได้บอกว่ามี)
+-- ตรวจฝั่ง server ว่าอยู่ในเขตห้ามตกปลาไหม — กันคนยิง event ตรงข้าม gate ของ client
+-- (client เช็คให้ prompt ไม่ขึ้นอยู่แล้ว แต่ห้ามเชื่อ client เรื่องตำแหน่ง)
+local function serverInNoFishZone(src)
+    local zones = Config.NoFishZones
+    if not zones then return false end
+
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return false end
+    local c = GetEntityCoords(ped)
+
+    for _, z in ipairs(zones) do
+        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
+        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
+            return true
+        end
+    end
+    return false
+end
+
 RegisterServerEvent('lp_fishing:equipRod', function()
     local _source = source
+
+    if serverInNoFishZone(_source) then
+        TriggerClientEvent('pNotify:SendNotification', _source, {
+            text = 'ห้ามตกปลาในเขตนี้', type = 'error', timeout = 4000, layout = 'topRight',
+        })
+        return
+    end
 
     local ok, weapons = pcall(function()
         return exports.vorp_inventory:getUserInventoryWeapons(_source)
