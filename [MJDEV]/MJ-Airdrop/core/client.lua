@@ -28,6 +28,20 @@ AirdropState = {}
 OutZoneAi = {}
 Radius = 100.0
 
+-- ── ชุดประจำเมืองตอนอยู่ในวงแอร์ดรอป ─────────────────────────────────────────
+-- นับรวมทุกวง (มีหลายวงพร้อมกันได้) ใส่ถ้าอยู่วงใดวงหนึ่ง ถอดเมื่อออกครบทุกวง
+-- ไม่งั้นออกจากวง A ตอนยังอยู่วง B จะถอดชุดผิด
+local RingOutfitInside = {} -- [airdropId] = true
+local function updateRingOutfit(airdropId, inside)
+    RingOutfitInside[airdropId] = inside or nil
+    if next(RingOutfitInside) then
+        -- ไม่ใส่ param = ชุดเมืองของผู้เล่นเอง (idempotent เรียกซ้ำได้ ไม่เล่นท่าซ้ำ)
+        pcall(function() exports.nx_cityselect:WearCityOutfit() end)
+    else
+        pcall(function() exports.nx_cityselect:RemoveCityOutfit() end)
+    end
+end
+
 -- Zone counts (synced from server)
 local ZoneCount = {} -- [airdropId] = count
 
@@ -908,6 +922,7 @@ local function spawnAirdrop(v)
             if lastInside == nil or inside ~= lastInside then
                 lastInside = inside
                 TriggerServerEvent(script_name .. ":SV:ZonePresence", v.id, inside)
+                updateRingOutfit(v.id, inside) -- ใส่/ถอดชุดประจำเมืองตามเข้า/ออกวง
             end
 
             -- Max-occupancy cap enforcement: keep pushing back while denied, clear
@@ -1174,6 +1189,10 @@ elseif dist <= Radius then
                 end
             end
         end
+
+        -- วงนี้จบ/หายไป (AirdropState[v.id] = nil) — ถอดวงนี้ออกจากชุดที่นับ
+        -- ถ้าไม่อยู่วงอื่นแล้วจะคืนชุดเดิมให้เอง
+        updateRingOutfit(v.id, false)
     end)
 end
 

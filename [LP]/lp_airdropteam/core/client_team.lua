@@ -199,6 +199,10 @@ local function JoinTeam(team)
         DoTeamTeleport(result.coords, true)
         Notify('เข้าร่วม ' .. result.label .. ' แล้ว รอ safe zone หมดเวลา', 'success')
         StartSafeZoneCountdown(result.remainingMs or (Config.Team.safeZoneDuration * 1000))
+
+        -- ใส่ชุดประจำ "ทีมที่เข้าร่วม" (สีเมืองของทีม ไม่ใช่เมืองบ้านเกิด) เพื่อแยกฝ่ายในโซน
+        -- team.cityId ตรงกับ id ใน nx_cityselect (valentine/rhodes/annesburg)
+        pcall(function() exports.nx_cityselect:WearCityOutfit(team.cityId) end)
     end, team.id)
 end
 
@@ -295,6 +299,8 @@ AddEventHandler('lp_airdropteam:CL:ReviveAt', function(coords, eliminated)
         zoneSpawnPos = nil
         zoneOpened   = false
         exports.lp_textui:HideUI(SAFEZONE_TEXTUI_OWNER)
+        -- ออกจากรอบ = คืนชุดเดิม
+        pcall(function() exports.nx_cityselect:RemoveCityOutfit() end)
         Notify('คุณถูกเด้งออกจากรอบแล้ว', 'error')
     end
 end)
@@ -312,6 +318,10 @@ end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
+    -- ถ้ายังใส่ชุดทีมอยู่ตอน resource หยุด คืนชุดเดิมกันค้าง
+    if joinedTeamId then
+        pcall(function() exports.nx_cityselect:RemoveCityOutfit() end)
+    end
     for _, ped in pairs(spawnedNpcs) do
         if DoesEntityExist(ped) then DeleteEntity(ped) end
     end

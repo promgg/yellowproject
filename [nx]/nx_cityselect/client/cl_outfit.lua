@@ -1,20 +1,32 @@
 -- client/cl_outfit.lua
--- Apply/remove the city-badge outfit (toggle) when a badge item is used.
+-- ใส่/ถอด "ชุดประจำเมือง" (โค้ท) — ใช้ได้ 2 ทาง:
+--   1) กดใช้บัตรประจำเมือง (toggle ใส่/ถอด)
+--   2) resource อื่นเรียก export ตอนเข้า/ออกโซนกิจกรรม (mj-airdrop / lp_airdropteam /
+--      nx_graverobbery) ที่บังคับให้ใส่ชุดเมืองตัวเอง
 --
--- RDR2 civilian clothing is NOT the classic GTA5 component/drawable/texture
--- system — it's vorp_character's MetaPed asset-hash tag. เราใช้ export กลาง
--- ของ vorp_character (SetClothingTag/GetClothingTag) ที่รับ "category" ได้
--- ตอนนี้ตั้งเป็น "Coat" เพราะบัตรควรเปลี่ยน "โค้ท" ไม่ใช่เสื้อเชิ้ตชั้นในที่โดนโค้ททับบัง
+-- RDR2 civilian clothing เป็น MetaPed asset-hash tag ของ vorp_character
+-- เราใช้ export กลาง SetClothingTag/GetClothingTag/RemoveClothingTag ที่รับ category ได้
+-- ตอนนี้ category = "Coat" (บัตรเปลี่ยนโค้ท ไม่ใช่เสื้อเชิ้ตชั้นในที่โดนโค้ททับบัง)
 
--- ใช้ category จาก config (ค่าเริ่มต้น Coat) — เปลี่ยนได้ที่ Config.OutfitCategory
 local OUTFIT_CATEGORY = Config.OutfitCategory or "Coat"
 
--- currently-worn badge city id, or nil if wearing the player's own outfit
+-- สถานะร่วมของทั้งไฟล์ (badge และ zone-export ใช้ตัวเดียวกัน = แหล่งความจริงเดียว):
+--   wearingCityId : เมืองของชุดที่ใส่อยู่ตอนนี้ (nil = ใส่ชุดตัวเอง)
+--   previousTag   : โค้ทเดิมของผู้เล่นก่อนใส่ชุดเมืองครั้งแรก (nil = เดิมไม่ได้ใส่โค้ท)
 local wearingCityId = nil
--- snapshot of the tag the player had on before the first badge swap
 local previousTag = nil
 
--- สลับ/ถอดโค้ทจริง — tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ต้องถอด component ออก
+-- เลือก tag ตามเพศ — โค้ทชาย/หญิงคน hash กัน ใส่ผิดเพศจะไม่ขึ้น
+local function pickTag(outfitTag)
+    if not outfitTag then return nil end
+    -- รองรับทั้ง { male=, female= } และ tag เดี่ยว (เผื่อ config ยังไม่แยกเพศ)
+    if outfitTag.male or outfitTag.female then
+        return IsPedMale(PlayerPedId()) and outfitTag.male or outfitTag.female
+    end
+    return outfitTag
+end
+
+-- สลับ/ถอดโค้ทจริง — tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ถอด component ออก
 -- ไม่ใช่ apply nil (apply nil ไม่ทำอะไร โค้ทเมืองจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
 local function swapCoat(tag)
     if tag then
@@ -24,76 +36,110 @@ local function swapCoat(tag)
     end
 end
 
-local function ApplyOutfitWithAnim(tag, notifyText)
+-- เล่นท่าจัดเสื้อแล้วสลับโค้ทกลางท่า ให้มือบังจังหวะ swap แทนการเฟดจอดำ
+local function playSwapAnim(tag, notifyText)
     local ped = PlayerPedId()
     local a = Config.OutfitAnim
 
-    -- เล่นท่าจัดเสื้อแล้วสลับโค้ทกลางท่า ให้มือบังจังหวะ swap แทนการเฟดจอดำ
     RequestAnimDict(a.dict)
     local t0 = GetGameTimer()
     while not HasAnimDictLoaded(a.dict) and (GetGameTimer() - t0) < 1000 do Wait(10) end
 
     if HasAnimDictLoaded(a.dict) then
         TaskPlayAnim(ped, a.dict, a.anim, 8.0, -8.0, a.duration, a.flag, 0, false, false, false)
-        Wait(a.swapAt)          -- รอให้มือขยับขึ้นก่อน
+        Wait(a.swapAt)
         swapCoat(tag)
-        Wait(a.duration - a.swapAt) -- ปล่อยท่าเล่นต่อจนจบ
+        Wait(a.duration - a.swapAt)
         RemoveAnimDict(a.dict)
     else
         -- โหลดท่าไม่ขึ้น — สลับเลยไม่มีท่า (ยังทำงานได้ ไม่ค้าง)
         swapCoat(tag)
     end
 
-    exports.pNotify:SendNotification({
-        type    = 'success',
-        text    = notifyText,
-        timeout = 3000,
-    })
-end
-
--- ─────────────────────────────────────────────────────────────
---  EVENT: Server authorised outfit toggle (put on / take off)
--- ─────────────────────────────────────────────────────────────
--- เลือก tag ตามเพศของตัวละคร — โค้ทชาย/หญิงเป็นคน hash กัน ใส่ผิดเพศจะไม่ขึ้น
-local function pickTag(outfitTag)
-    if not outfitTag then return nil end
-    -- รองรับทั้งแบบใหม่ { male=, female= } และแบบเก่า (tag เดี่ยว) เผื่อ config ยังไม่ได้แยกเพศ
-    if outfitTag.male or outfitTag.female then
-        return IsPedMale(PlayerPedId()) and outfitTag.male or outfitTag.female
+    if notifyText and notifyText ~= "" then
+        exports.pNotify:SendNotification({ type = 'success', text = notifyText, timeout = 3000 })
     end
-    return outfitTag
 end
 
+-- ── หัวใจร่วม: ใส่/ถอดชุดเมือง (idempotent) ──────────────────────────────────
+-- ตั้งสถานะแบบ sync ทันที แล้วเล่นท่า/สลับใน thread เพื่อไม่ block ผู้เรียก export
+-- คืน true = เริ่มใส่/ถอดแล้ว, false = ทำไม่ได้ (ไม่มีเมือง/ไม่มี tag/สถานะซ้ำ)
+local function wearCity(cityId, notifyText)
+    cityId = cityId or exports.nx_cityselect:GetCurrentCityId()
+    if not cityId then return false end
+
+    local city = Config.CitiesById and Config.CitiesById[cityId]
+    if not city or not city.outfitTag then return false end
+
+    if wearingCityId == cityId then return true end -- ใส่ชุดเมืองนี้อยู่แล้ว
+
+    local tag = pickTag(city.outfitTag)
+    if not tag then return false end
+
+    -- จำโค้ทเดิมเฉพาะครั้งแรกที่เริ่มใส่ชุดเมือง (ยังไม่ได้ใส่ชุดเมืองใด ๆ)
+    -- ถ้าสลับจากเมือง A ไป B ให้คง previousTag เดิมไว้ (โค้ทจริงของผู้เล่น)
+    if wearingCityId == nil then
+        previousTag = exports.vorp_character:GetClothingTag(OUTFIT_CATEGORY)
+    end
+
+    wearingCityId = cityId
+    CreateThread(function() playSwapAnim(tag, notifyText) end)
+    return true
+end
+
+local function removeCity(notifyText)
+    if wearingCityId == nil then return false end -- ไม่ได้ใส่ชุดเมืองอยู่
+
+    local tag = previousTag
+    wearingCityId = nil
+    previousTag = nil
+    CreateThread(function() playSwapAnim(tag, notifyText) end)
+    return true
+end
+
+-- ─────────────────────────────────────────────────────────────
+--  EVENT: กดใช้บัตร (server ตรวจสิทธิ์แล้ว) → toggle ใส่/ถอด
+-- ─────────────────────────────────────────────────────────────
 RegisterNetEvent("nx_cityselect:Client:ApplyOutfit")
 AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
-    if not outfitData or not outfitData.outfitTag then return end
+    if not outfitData or not outfitData.cityId then return end
 
-    CreateThread(function()
-        if wearingCityId == outfitData.cityId then
-            -- same badge used again -> take it off, restore what they had before
-            ApplyOutfitWithAnim(previousTag, Lang.notify_outfit_removed or 'ถอดเสื้อประจำเมืองแล้ว')
-            wearingCityId = nil
-            previousTag = nil
-            return
-        end
-
-        local tag = pickTag(outfitData.outfitTag)
-        if not tag then return end
-
-        if wearingCityId == nil then
-            -- first swap this session -> remember the original outfit piece
-            previousTag = exports.vorp_character:GetClothingTag(OUTFIT_CATEGORY)
-        end
-
-        ApplyOutfitWithAnim(tag, Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""))
-        wearingCityId = outfitData.cityId
-    end)
+    if wearingCityId == outfitData.cityId then
+        removeCity(Lang.notify_outfit_removed or 'ถอดชุดประจำเมืองแล้ว')
+    else
+        local label = outfitData.label or outfitData.cityName or ""
+        wearCity(outfitData.cityId, Lang.notify_outfit_changed:format(label))
+    end
 end)
 
 -- ─────────────────────────────────────────────────────────────
---  DEBUG: เก็บค่า tag ของชิ้นที่ใส่อยู่ตอนนี้ (Config.Debug = true)
---  วิธีใช้: ใส่โค้ทที่อยากได้ในร้านตัดเสื้อ (เช่น Irwin Coat variation 9)
---  แล้วพิมพ์ /nxcapture ในเกม — จะได้บรรทัด outfitTag = {...} พร้อมวางลง config.lua
+--  EXPORTS: ให้ resource อื่นบังคับใส่/ถอดชุดเมืองตอนเข้า/ออกโซนกิจกรรม
+--
+--  ตัวอย่าง (ฝั่ง client ของ mj-airdrop / lp_airdropteam / nx_graverobbery):
+--    -- เข้าโซน: ใส่ชุดเมืองของผู้เล่นเอง
+--    exports.nx_cityselect:WearCityOutfit()
+--    -- หรือบังคับเมืองเจาะจง: exports.nx_cityselect:WearCityOutfit('valentine')
+--    -- ออกโซน: คืนชุดเดิม
+--    exports.nx_cityselect:RemoveCityOutfit()
+--
+--  ปลอดภัยต่อการเรียกซ้ำ (idempotent) — เข้าโซนซ้ำ/ออกซ้ำ ไม่เล่นท่าซ้ำ
+-- ─────────────────────────────────────────────────────────────
+exports('WearCityOutfit', function(cityId, notifyText)
+    return wearCity(cityId, notifyText)
+end)
+
+exports('RemoveCityOutfit', function(notifyText)
+    return removeCity(notifyText)
+end)
+
+-- คืน cityId ของชุดเมืองที่ใส่อยู่ (nil = ใส่ชุดตัวเอง) — ให้ผู้เรียกเช็คสถานะได้
+exports('IsWearingCityOutfit', function()
+    return wearingCityId
+end)
+
+-- ─────────────────────────────────────────────────────────────
+--  DEBUG: เก็บค่า tag ของชิ้นที่ใส่อยู่ (Config.Debug = true)
+--  ใส่โค้ทที่อยากได้ในร้านตัดเสื้อ → /nxcapture → ได้บรรทัด male=/female= วางลง config
 -- ─────────────────────────────────────────────────────────────
 if Config.Debug then
     RegisterCommand('nxcapture', function(_, args)
@@ -103,7 +149,6 @@ if Config.Debug then
             print(('^1[nx_cityselect]^7 ไม่พบชิ้นในหมวด "%s" — ตอนนี้ไม่ได้ใส่อยู่'):format(category))
             return
         end
-        -- ปรินต์เป็นบรรทัด male=/female= ตามเพศตัวละครตอนนี้ วางลง config ได้ตรงช่อง
         local genderKey = IsPedMale(PlayerPedId()) and "male" or "female"
         local line = ('%s = { drawable = %s, albedo = %s, normal = %s, material = %s, palette = %s, tint0 = %s, tint1 = %s, tint2 = %s },')
             :format(genderKey, tag.drawable, tag.albedo, tag.normal, tag.material, tag.palette, tag.tint0, tag.tint1, tag.tint2)

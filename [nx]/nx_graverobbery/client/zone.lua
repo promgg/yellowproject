@@ -7,6 +7,7 @@ NX_GR = NX_GR or {}
 local zones = {}          -- [villageId] = { coords = vector3, radius, sealAt, endsAt, sealed, label }
 local reported = {}       -- [villageId] = true/false — สถานะที่รายงานไป server ล่าสุด (ยิงเฉพาะตอนเปลี่ยน)
 local countdownFired = {} -- [villageId] = { [threshold] = true } — กันเตือนซ้ำที่วินาทีเดิม
+local grOutfitOn = false   -- ใส่ชุดประจำเมืองอยู่ไหม (กันเรียก export ซ้ำทุกรอบ)
 local serverClockSkew = 0 -- ส่วนต่างนาฬิกา server - client (วินาที) ใช้แปลง sealAt/endsAt ให้ตรง
 
 local DRAW_DISTANCE = 300.0            -- ไกลกว่านี้ไม่ต้องวาดเลย
@@ -119,9 +120,11 @@ CreateThread(function()
 
         if next(zones) then
             local coords = GetEntityCoords(PlayerPedId())
+            local insideAny = false
 
             for villageId, zone in pairs(zones) do
                 local inside = #(coords - zone.coords) <= zone.radius
+                if inside then insideAny = true end
 
                 -- ยิงเฉพาะตอนสถานะเปลี่ยน ไม่ใช่ทุกรอบ ลด traffic และไม่ชน rate limit
                 if reported[villageId] ~= inside then
@@ -149,6 +152,20 @@ CreateThread(function()
                     end
                 end
             end
+
+            -- ใส่/ถอดชุดประจำเมืองตามอยู่ในวงใดวงหนึ่งไหม — เรียก export เฉพาะตอนสถานะเปลี่ยน
+            -- WearCityOutfit() ไม่ใส่ param = ใช้เมืองของผู้เล่นเอง (สีเมืองตัวเอง)
+            if insideAny and not grOutfitOn then
+                grOutfitOn = true
+                pcall(function() exports.nx_cityselect:WearCityOutfit() end)
+            elseif not insideAny and grOutfitOn then
+                grOutfitOn = false
+                pcall(function() exports.nx_cityselect:RemoveCityOutfit() end)
+            end
+        elseif grOutfitOn then
+            -- ไม่มีวงเลย (อีเวนต์จบ) แต่ยังใส่ชุดอยู่ — คืนชุดกันค้าง
+            grOutfitOn = false
+            pcall(function() exports.nx_cityselect:RemoveCityOutfit() end)
         end
     end
 end)
