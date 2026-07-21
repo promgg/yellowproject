@@ -4,8 +4,12 @@
 แสดงภาษาไทยได้ ไม่ใช่แค่ NUI
 
 ## ที่มาของไฟล์
-- `stream/font_lib_efigs.gfx` — RDR2 font library (`font_lib_efigs` = English/French/Italian/German/Spanish)
+- `stream/font_lib_efigs_pc.gfx` **(ชื่อที่ RedM ใช้จริง — มี `_pc`)** และ `font_lib_efigs.gfx`
+  (ชื่อในไฟล์ RPF/singleplayer) — ใส่ทั้งสองชื่อไว้กันพลาด engine จะแมตช์ตัวที่ถูกเอง
+- ทั้งคู่คือ RDR2 font library (`font_lib_efigs` = English/French/Italian/German/Spanish)
   ที่ **ฝัง glyph ไทยเข้าไปแล้ว** โดยมอด **"RDR2 Mod Thai - Zudrangma"** (เครดิต: Zudrangma)
+- ⚠️ สำคัญ: ชื่อ asset ที่ FiveM/RedM สตรีมจริงคือ **`font_lib_efigs_pc.gfx`** (มี `_pc`) —
+  ถ้าตั้งชื่อไม่มี `_pc` การ override จะเงียบ ไม่เปลี่ยนอะไร (ref: citizenfx/fivem#3020)
 - ต้นฉบับเป็นมอด singleplayer แบบ **Lenny's Mod Loader (LML)** — ตัด `dinput8.dll`, `lml/`,
   และไฟล์ `.ytd` (texture แปลเนื้อเรื่อง 354 ไฟล์) ออกหมด **เหลือแค่ไฟล์ฟอนต์** เพราะ RedM
   ใช้แค่ตัวนี้
