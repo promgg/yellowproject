@@ -120,27 +120,27 @@ local generalBaseItems = {
     -- ── ตกปลา (lp_fishing) ────────────────────────────────────────────────
     -- เบ็ดเป็น "อาวุธจริง" (weapon = true) เพราะมินิเกมตกปลาของเกมต้องการ WEAPON_FISHINGROD
     -- ไม่ใช่แค่ไอเทมในกระเป๋า — ดู [LP]/lp_fishing/config/config.lua : Config.RodWeapon
-    { id = 'fishing_rod', item = 'WEAPON_FISHINGROD', weapon = true, label = 'เบ็ดตกปลา', category = 'fishing', price = 350, currency = 'cash', max = 1, image = 'weapon_fishingrod.png' },
+    { id = 'fishing_rod', item = 'WEAPON_FISHINGROD', weapon = true, label = 'เบ็ดตกปลา', category = 'fishing', price = 500, currency = 'cash', max = 1, image = 'weapon_fishingrod.png' },
 
     -- เหยื่อ 14 ชนิดของเกม — ชื่อไอเทม = ชื่อ prop ตรงๆ (ดู lp_fishing/config/baits.lua)
     -- เหยื่อคุมว่าปลาชนิดไหนจะมากิน (BaitsPerFish) เหยื่อแพง = ล่อปลาใหญ่/หายากได้
     { id = 'bait_bread',        item = 'p_baitBread01x',        label = 'เหยื่อ: ขนมปัง', category = 'fishing', price = 3, currency = 'cash', max = 50 },
     { id = 'bait_corn',         item = 'p_baitCorn01x',         label = 'เหยื่อ: ข้าวโพด', category = 'fishing', price = 3, currency = 'cash', max = 50 },
-    { id = 'bait_cheese',       item = 'p_baitCheese01x',       label = 'เหยื่อ: ชีส', category = 'fishing', price = 5, currency = 'cash', max = 50 },
-    { id = 'bait_worm',         item = 'p_baitWorm01x',         label = 'เหยื่อ: ไส้เดือน', category = 'fishing', price = 8, currency = 'cash', max = 50 },
-    { id = 'bait_cricket',      item = 'p_baitCricket01x',      label = 'เหยื่อ: จิ้งหรีด', category = 'fishing', price = 10, currency = 'cash', max = 50 },
-    { id = 'bait_crawdad',      item = 'p_crawdad01x',          label = 'เหยื่อ: กุ้งเครย์ฟิช', category = 'fishing', price = 15, currency = 'cash', max = 50 },
-    { id = 'bait_dragonfly',    item = 'p_finishedragonfly01x', label = 'เหยื่อ: แมลงปอ', category = 'fishing', price = 20, currency = 'cash', max = 50 },
-    { id = 'bait_crawd_lure',   item = 'p_finishdcrawd01x',     label = 'เหยื่อปลอม: กุ้ง', category = 'fishing', price = 25, currency = 'cash', max = 50 },
-    { id = 'bait_fish_lure',    item = 'p_FinisdFishlure01x',   label = 'เหยื่อปลอม: ปลา', category = 'fishing', price = 30, currency = 'cash', max = 50 },
-    { id = 'bait_spinner_v4',   item = 'p_lgoc_spinner_v4',     label = 'เหยื่อสปินเนอร์ (เงิน)', category = 'fishing', price = 40, currency = 'cash', max = 50 },
-    { id = 'bait_spinner_v6',   item = 'p_lgoc_spinner_v6',     label = 'เหยื่อสปินเนอร์ (ทอง)', category = 'fishing', price = 50, currency = 'cash', max = 50 },
+    { id = 'bait_cheese',       item = 'p_baitCheese01x',       label = 'เหยื่อ: ชีส', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_worm',         item = 'p_baitWorm01x',         label = 'เหยื่อ: ไส้เดือน', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_cricket',      item = 'p_baitCricket01x',      label = 'เหยื่อ: จิ้งหรีด', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_crawdad',      item = 'p_crawdad01x',          label = 'เหยื่อ: กุ้งเครย์ฟิช', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_dragonfly',    item = 'p_finishedragonfly01x', label = 'เหยื่อ: แมลงปอ', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_crawd_lure',   item = 'p_finishdcrawd01x',     label = 'เหยื่อปลอม: กุ้ง', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_fish_lure',    item = 'p_FinisdFishlure01x',   label = 'เหยื่อปลอม: ปลา', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_spinner_v4',   item = 'p_lgoc_spinner_v4',     label = 'เหยื่อสปินเนอร์ (เงิน)', category = 'fishing', price = 3, currency = 'cash', max = 50 },
+    { id = 'bait_spinner_v6',   item = 'p_lgoc_spinner_v6',     label = 'เหยื่อสปินเนอร์ (ทอง)', category = 'fishing', price = 3, currency = 'cash', max = 50 },
 
     -- เหยื่อ legendary — ขายไว้ให้ครบชุด แต่ปลา legendary ยังไม่เปิดใช้ (เฟส 2)
     -- ตอนนี้ล่อได้แค่ปลาธรรมดาเหมือนเหยื่อปกติ ปรับราคา/ซ่อนได้ถ้ายังไม่อยากให้ซื้อ
-    { id = 'bait_dragonfly_leg', item = 'p_finishedragonflylegendary01x', label = 'เหยื่อพิเศษ: แมลงปอ', category = 'fishing', price = 120, currency = 'cash', max = 20 },
-    { id = 'bait_fish_lure_leg', item = 'p_finisdfishlurelegendary01x',   label = 'เหยื่อพิเศษ: ปลา', category = 'fishing', price = 120, currency = 'cash', max = 20 },
-    { id = 'bait_crawd_leg',     item = 'p_finishdcrawdlegendary01x',     label = 'เหยื่อพิเศษ: กุ้ง', category = 'fishing', price = 120, currency = 'cash', max = 20 },
+    { id = 'bait_dragonfly_leg', item = 'p_finishedragonflylegendary01x', label = 'เหยื่อพิเศษ: แมลงปอ', category = 'fishing', price = 3, currency = 'cash', max = 20 },
+    { id = 'bait_fish_lure_leg', item = 'p_finisdfishlurelegendary01x',   label = 'เหยื่อพิเศษ: ปลา', category = 'fishing', price = 3, currency = 'cash', max = 20 },
+    { id = 'bait_crawd_leg',     item = 'p_finishdcrawdlegendary01x',     label = 'เหยื่อพิเศษ: กุ้ง', category = 'fishing', price = 3, currency = 'cash', max = 20 },
 
     -- ── แต่งตัว ───────────────────────────────────────────────────────────
     -- โพเมดใส่ผม (jo_pomade) — กดใช้แล้วหักทิ้ง 1 ชิ้น พกได้สูงสุด 2 (limit ใน DB)

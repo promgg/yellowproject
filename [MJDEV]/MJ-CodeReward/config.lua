@@ -34,7 +34,7 @@ Config.RewardCodes = {
         items = {
             {name = "mat_diamond", count = 60},
         },
-        money = 5000,
+        money = 50000,
     },
     ["WELCOME2025"] = {
         items = {
