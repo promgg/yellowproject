@@ -365,16 +365,15 @@ RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
     end
 
     if stamina and stamina > 0 then
-        local inner = GetAttributeCoreValue(PlayerPedId(), 1)
-        local outer = GetPlayerStamina(PlayerId())
-
-        if inner > 99 then
-            local newStamina = outer + stamina
-            ChangePedStamina(PlayerPedId(), newStamina)
-        else
-            local newStamina = outer + stamina
-            SetAttributeCoreValue(PlayerPedId(), 1, newStamina)
-        end
+        -- config.stamina = "เปอร์เซ็นต์ของหลอด" (100 = เต็ม, 50 = ครึ่งหลอด)
+        --
+        -- เดิมคำนวณ outer + stamina แล้วส่งเข้า ChangePedStamina ซึ่งรับ "delta" (เพิ่มเท่าไหร่)
+        -- ไม่ใช่ค่าเป้าหมาย — บวก outer เข้าไปด้วยเลยปนหน่วย และค่าที่ส่งใหญ่เกินโดน
+        -- scale/clamp ภายในจน stamina=100 คืนได้แค่ ~ครึ่งหลอด ต้องกินยา 2 ครั้งถึงเต็ม
+        --
+        -- RestorePlayerStamina รับ "percent 0.0-1.0" ตรงๆ ไม่ต้องอ่านค่าปัจจุบัน ไม่ปนหน่วย
+        -- (native เดียวกับที่ MJ-Admin:1048 ใช้ RestorePlayerStamina(PlayerId(), 1.0) = เต็ม)
+        RestorePlayerStamina(PlayerId(), math.min(stamina, 100) / 100.0)
     end
 end)
 
