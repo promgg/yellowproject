@@ -9,6 +9,23 @@ local horizontalMove = 0
 local status = nil
 local currentLure = nil
 
+-- อยู่ในเขตห้ามตกปลาไหม (โซนรอบไร่ปลูกผัก) — วัดในระนาบ x/y ไม่สนความสูง
+-- กันคนตกปลาริมไร่ระหว่างที่มีคนปลูกผักอยู่
+-- ต้องนิยามบนสุด: ถูกเรียกทั้งใน checkRodAndBait (บรรทัดต้นๆ) และ readiness check ด้านล่าง
+local function isInNoFishZone()
+    local zones = Config.NoFishZones
+    if not zones then return false end
+
+    local c = GetEntityCoords(PlayerPedId())
+    for _, z in ipairs(zones) do
+        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
+        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
+            return true, z.label
+        end
+    end
+    return false
+end
+
 -- โหมดผสม: ปล่อยให้ native task ทำงานเต็ม แล้วสลับเฉพาะช่วงสู้ปลา (state 7) เป็น lp_minigame
 local hybridRunning = false
 local function hybridEnabled()
@@ -74,6 +91,13 @@ Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
 
     if weaponHash ~= GetHashKey("WEAPON_FISHINGROD") then
         Core.NotifyRightTip(T.NoFishingRodEquipped, 4000)
+        return CB({false})
+    end
+
+    -- เขตห้ามตกปลา (โซนรอบไร่ปลูกผัก) — โหมดผสมเริ่มจากการใช้เหยื่อ ไม่ผ่าน StartPrompt
+    -- ที่ gate ไว้ เลยต้องบล็อกที่นี่ด้วย ไม่งั้นยังเหวี่ยงได้ (server เช็คซ้ำอีกชั้น)
+    if isInNoFishZone() then
+        Core.NotifyRightTip('ห้ามตกปลาในเขตนี้', 4000)
         return CB({false})
     end
 
@@ -932,22 +956,6 @@ end
 local function isHoldingRod()
     local _, weapon = GetCurrentPedWeapon(PlayerPedId(), true, 0, true)
     return weapon == GetHashKey(Config.RodWeapon or 'WEAPON_FISHINGROD')
-end
-
--- อยู่ในเขตห้ามตกปลาไหม (โซนรอบไร่ปลูกผัก) — วัดในระนาบ x/y ไม่สนความสูง
--- กันคนตกปลาริมไร่ระหว่างที่มีคนปลูกผักอยู่
-local function isInNoFishZone()
-    local zones = Config.NoFishZones
-    if not zones then return false end
-
-    local c = GetEntityCoords(PlayerPedId())
-    for _, z in ipairs(zones) do
-        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
-        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
-            return true, z.label
-        end
-    end
-    return false
 end
 
 local function hideStartPrompt()

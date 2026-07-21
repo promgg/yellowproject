@@ -35,11 +35,41 @@ local fishEntity = {
 
 local playersFishing = {}
 
+-- ตรวจฝั่ง server ว่าอยู่ในเขตห้ามตกปลาไหม — กันคนยิง event ตรงข้าม gate ของ client
+-- (client เช็คให้ prompt ไม่ขึ้นอยู่แล้ว แต่ห้ามเชื่อ client เรื่องตำแหน่ง)
+-- ต้องนิยามก่อน CreateThread ด้านล่าง ไม่งั้น closure ของ usable bait มองไม่เห็น local นี้
+local function serverInNoFishZone(src)
+    local zones = Config.NoFishZones
+    if not zones then return false end
+
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return false end
+    local c = GetEntityCoords(ped)
+
+    for _, z in ipairs(zones) do
+        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
+        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
+            return true
+        end
+    end
+    return false
+end
+
 CreateThread(function()
     for _, item in ipairs(Baits) do
         exports.vorp_inventory:registerUsableItem(item, function(data)
             local _source = data.source
-            
+
+            -- เขตห้ามตกปลา (โซนรอบไร่ปลูกผัก) — เช็คก่อนหักเหยื่อ ไม่งั้นเหยื่อหายฟรี
+            -- โหมดผสมเริ่มจากการใช้เหยื่อตรงนี้ ไม่ผ่าน equipRod เลยต้อง gate ที่นี่ด้วย
+            if serverInNoFishZone(_source) then
+                exports.vorp_inventory:closeInventory(_source)
+                TriggerClientEvent('pNotify:SendNotification', _source, {
+                    text = 'ห้ามตกปลาในเขตนี้', type = 'error', timeout = 4000, layout = 'topRight',
+                })
+                return
+            end
+
             playersFishing[_source] = true
             exports.vorp_inventory:closeInventory(_source)
 
@@ -173,25 +203,6 @@ end)
 
 -- client กด [E] ที่ prompt lp_textui -> ขอหยิบเบ็ด
 -- server ตรวจเองว่ามีเบ็ดจริงในคลังอาวุธก่อนสั่งหยิบ (client บอกได้แค่ "ขอ" ไม่ได้บอกว่ามี)
--- ตรวจฝั่ง server ว่าอยู่ในเขตห้ามตกปลาไหม — กันคนยิง event ตรงข้าม gate ของ client
--- (client เช็คให้ prompt ไม่ขึ้นอยู่แล้ว แต่ห้ามเชื่อ client เรื่องตำแหน่ง)
-local function serverInNoFishZone(src)
-    local zones = Config.NoFishZones
-    if not zones then return false end
-
-    local ped = GetPlayerPed(src)
-    if not ped or ped == 0 then return false end
-    local c = GetEntityCoords(ped)
-
-    for _, z in ipairs(zones) do
-        local dx, dy = c.x - z.coords.x, c.y - z.coords.y
-        if (dx * dx + dy * dy) <= (z.radius * z.radius) then
-            return true
-        end
-    end
-    return false
-end
-
 RegisterServerEvent('lp_fishing:equipRod', function()
     local _source = source
 
