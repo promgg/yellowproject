@@ -2288,6 +2288,42 @@ RegisterCommand(Config.adminCatalogCommand or 'stablecatalog', function()
     OpenStable(nearestKey)
 end, false)
 
+-- ══════════════════════════════════════════════════════════════════════════════
+-- [#1 สีอุปกรณ์ม้า — ขั้นทดสอบ native ก่อนทำเมนูเต็ม]
+-- /tacktint <g> <r> <b>  (แต่ละค่า 0-254, 255=ปิด channel) — เปลี่ยนสีอุปกรณ์ม้าตัวที่ขี่อยู่
+-- recipe จาก vorp_character/bcc-wagons: อ่าน guids+palette ของแต่ละ component แล้วยิง SetMetaPedTag
+--   GetMetaPedAssetGuids 0xA9C28516A6DC9D56 | GetMetaPedAssetTint 0xE7998FEC53A33BBE | SetMetaPedTag 0xBC6DF00D7A4A6819
+-- ⚠️ ขั้นนี้ tint "ทุกชิ้นที่มี palette" (รวมขนม้าด้วย) เพื่อพิสูจน์ว่า native ทำงาน — เวอร์ชันเมนูจริงจะเจาะเฉพาะอาน/ผ้าคลุม
+-- ให้ลองในเกม: ขี่ม้า แล้วพิมพ์ /tacktint 0 200 0 (แดง) ดูว่าอุปกรณ์เปลี่ยนสีไหม แล้วบอกผลมา
+RegisterCommand('tacktint', function(source, args)
+    local horse = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
+    if not horse or horse == 0 or not DoesEntityExist(horse) then
+        Core.NotifyRightTip('ต้องขี่ม้าอยู่ก่อนใช้คำสั่งนี้', 4000)
+        return
+    end
+
+    local t0 = math.max(0, math.min(255, tonumber(args[1]) or 0)) -- green
+    local t1 = math.max(0, math.min(255, tonumber(args[2]) or 0)) -- red
+    local t2 = math.max(0, math.min(255, tonumber(args[3]) or 0)) -- blue
+
+    local n = GetNumComponentsInPed(horse)
+    local applied = 0
+    for i = 0, n - 1 do
+        local drawable, albedo, normal, material = Citizen.InvokeNative(0xA9C28516A6DC9D56, horse, i,
+            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetGuids
+        local palette = Citizen.InvokeNative(0xE7998FEC53A33BBE, horse, i,
+            Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetMetaPedAssetTint
+        if palette and palette ~= 0 then
+            Citizen.InvokeNative(0xBC6DF00D7A4A6819, horse, drawable, albedo, normal, material, palette, t0, t1, t2) -- SetMetaPedTag
+            applied = applied + 1
+        end
+    end
+    Citizen.InvokeNative(0xCC8CA3E88256E58F, horse, false, true, true, true, false) -- UpdatePedVariation
+
+    Core.NotifyRightTip(('ลองเปลี่ยนสี %d ชิ้น (g=%d r=%d b=%d)'):format(applied, t0, t1, t2), 5000)
+    if Config.devMode then print(('[bcc-stables] /tacktint tinted %d components on horse'):format(applied)) end
+end, false)
+
 RegisterCommand(Config.commands.horseSetWild, function(source, args, rawCommand)
     if Config.devMode then
         local mount = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
