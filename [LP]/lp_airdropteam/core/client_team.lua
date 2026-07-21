@@ -200,9 +200,10 @@ local function JoinTeam(team)
         Notify('เข้าร่วม ' .. result.label .. ' แล้ว รอ safe zone หมดเวลา', 'success')
         StartSafeZoneCountdown(result.remainingMs or (Config.Team.safeZoneDuration * 1000))
 
-        -- ใส่ชุดประจำ "ทีมที่เข้าร่วม" (สีเมืองของทีม ไม่ใช่เมืองบ้านเกิด) เพื่อแยกฝ่ายในโซน
-        -- team.cityId ตรงกับ id ใน nx_cityselect (valentine/rhodes/annesburg)
-        pcall(function() exports.nx_cityselect:WearCityOutfit(team.cityId) end)
+        -- ใส่ชุดประจำ "เมืองตัวเอง" — server assign battle team จาก GetPlayerCityId เสมอ
+        -- (server_team.lua:154-175) ไม่ใช่เมืองของ NPC ที่กด สถานีเป็นแค่จุดเข้า/จุดกลับ
+        -- WearCityOutfit() ไม่ใส่ param = เมืองตัวเอง ตรงกับทีมที่ server จัดให้
+        pcall(function() exports.nx_cityselect:WearCityOutfit() end)
     end, team.id)
 end
 
