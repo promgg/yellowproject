@@ -165,6 +165,24 @@ exports('SetShirtTag', function(data)
     IsPedReadyToRender(ped)
 end)
 
+-- Generic versions of the two above — any clothing category, not just Shirt.
+-- category ต้องเป็นชื่อที่ metaPedCategoryTags รู้จัก เช่น "Coat", "Shirt", "Vest", "Hat"
+-- (nx_cityselect ใช้ "Coat" เพื่อให้บัตรประจำเมืองเปลี่ยนโค้ท ไม่ใช่เสื้อเชิ้ตที่โดนโค้ทบัง)
+exports('GetClothingTag', function(category)
+    return GetMetaPedData(category or "Shirt", PlayerPedId())
+end)
+
+exports('SetClothingTag', function(category, data)
+    if not data then return end
+    local ped = PlayerPedId()
+    -- ลำดับเดียวกับ SetShirtTag: apply item ก่อน (drawable = item hash) แล้วค่อย tag/tint
+    ApplyShopItemToPed(data.drawable, ped)
+    SetMetaPedTag(ped, data.drawable, data.albedo, data.normal, data.material, data.palette, data.tint0, data.tint1, data.tint2)
+    Citizen.InvokeNative(0xAAB86462966168CE, ped, 1)
+    UpdatePedVariation(ped)
+    IsPedReadyToRender(ped)
+end)
+
 function SetTextureOutfitTints(ped, category, data)
     Citizen.InvokeNative(0x4EFC1F8FF1AD94DE, ped, joaat(category), data.palette, data.tint0, data.tint1, data.tint2)
 end

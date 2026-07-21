@@ -1,24 +1,26 @@
 -- client/cl_outfit.lua
--- Apply/remove the city-badge shirt (toggle) when a badge item is used.
+-- Apply/remove the city-badge outfit (toggle) when a badge item is used.
 --
--- RDR2 civilian clothing (Shirt category) is NOT the classic GTA5
--- component/drawable/texture/palette system — it's vorp_character's
--- MetaPed asset-hash tag, applied via exports.vorp_character:SetShirtTag
--- and read back via exports.vorp_character:GetShirtTag (thin wrappers
--- around the same natives vorp_character's own character creator uses).
+-- RDR2 civilian clothing is NOT the classic GTA5 component/drawable/texture
+-- system — it's vorp_character's MetaPed asset-hash tag. เราใช้ export กลาง
+-- ของ vorp_character (SetClothingTag/GetClothingTag) ที่รับ "category" ได้
+-- ตอนนี้ตั้งเป็น "Coat" เพราะบัตรควรเปลี่ยน "โค้ท" ไม่ใช่เสื้อเชิ้ตชั้นในที่โดนโค้ททับบัง
 
--- currently-worn badge city id, or nil if wearing the player's own shirt
+-- ใช้ category จาก config (ค่าเริ่มต้น Coat) — เปลี่ยนได้ที่ Config.OutfitCategory
+local OUTFIT_CATEGORY = Config.OutfitCategory or "Coat"
+
+-- currently-worn badge city id, or nil if wearing the player's own outfit
 local wearingCityId = nil
--- snapshot of the shirt tag the player had on before the first badge swap
-local previousShirtTag = nil
+-- snapshot of the tag the player had on before the first badge swap
+local previousTag = nil
 
-local function ApplyShirtWithFade(shirtTag, notifyText)
+local function ApplyOutfitWithFade(tag, notifyText)
     local fadeTime = Config.OutfitFadeTime
 
     DoScreenFadeOut(fadeTime)
     Wait(fadeTime + 100)
 
-    exports.vorp_character:SetShirtTag(shirtTag)
+    exports.vorp_character:SetClothingTag(OUTFIT_CATEGORY, tag)
 
     Wait(200)
     DoScreenFadeIn(fadeTime)
@@ -33,25 +35,60 @@ end
 -- ─────────────────────────────────────────────────────────────
 --  EVENT: Server authorised outfit toggle (put on / take off)
 -- ─────────────────────────────────────────────────────────────
+-- เลือก tag ตามเพศของตัวละคร — โค้ทชาย/หญิงเป็นคน hash กัน ใส่ผิดเพศจะไม่ขึ้น
+local function pickTag(outfitTag)
+    if not outfitTag then return nil end
+    -- รองรับทั้งแบบใหม่ { male=, female= } และแบบเก่า (tag เดี่ยว) เผื่อ config ยังไม่ได้แยกเพศ
+    if outfitTag.male or outfitTag.female then
+        return IsPedMale(PlayerPedId()) and outfitTag.male or outfitTag.female
+    end
+    return outfitTag
+end
+
 RegisterNetEvent("nx_cityselect:Client:ApplyOutfit")
 AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
-    if not outfitData or not outfitData.shirtTag then return end
+    if not outfitData or not outfitData.outfitTag then return end
 
     CreateThread(function()
         if wearingCityId == outfitData.cityId then
             -- same badge used again -> take it off, restore what they had before
-            ApplyShirtWithFade(previousShirtTag, Lang.notify_outfit_removed or 'ถอดเสื้อประจำเมืองแล้ว')
+            ApplyOutfitWithFade(previousTag, Lang.notify_outfit_removed or 'ถอดเสื้อประจำเมืองแล้ว')
             wearingCityId = nil
-            previousShirtTag = nil
+            previousTag = nil
             return
         end
 
+        local tag = pickTag(outfitData.outfitTag)
+        if not tag then return end
+
         if wearingCityId == nil then
-            -- first swap this session -> remember the original shirt
-            previousShirtTag = exports.vorp_character:GetShirtTag()
+            -- first swap this session -> remember the original outfit piece
+            previousTag = exports.vorp_character:GetClothingTag(OUTFIT_CATEGORY)
         end
 
-        ApplyShirtWithFade(outfitData.shirtTag, Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""))
+        ApplyOutfitWithFade(tag, Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""))
         wearingCityId = outfitData.cityId
     end)
 end)
+
+-- ─────────────────────────────────────────────────────────────
+--  DEBUG: เก็บค่า tag ของชิ้นที่ใส่อยู่ตอนนี้ (Config.Debug = true)
+--  วิธีใช้: ใส่โค้ทที่อยากได้ในร้านตัดเสื้อ (เช่น Irwin Coat variation 9)
+--  แล้วพิมพ์ /nxcapture ในเกม — จะได้บรรทัด outfitTag = {...} พร้อมวางลง config.lua
+-- ─────────────────────────────────────────────────────────────
+if Config.Debug then
+    RegisterCommand('nxcapture', function(_, args)
+        local category = args[1] or OUTFIT_CATEGORY
+        local tag = exports.vorp_character:GetClothingTag(category)
+        if not tag then
+            print(('^1[nx_cityselect]^7 ไม่พบชิ้นในหมวด "%s" — ตอนนี้ไม่ได้ใส่อยู่'):format(category))
+            return
+        end
+        -- ปรินต์เป็นบรรทัด male=/female= ตามเพศตัวละครตอนนี้ วางลง config ได้ตรงช่อง
+        local genderKey = IsPedMale(PlayerPedId()) and "male" or "female"
+        local line = ('%s = { drawable = %s, albedo = %s, normal = %s, material = %s, palette = %s, tint0 = %s, tint1 = %s, tint2 = %s },')
+            :format(genderKey, tag.drawable, tag.albedo, tag.normal, tag.material, tag.palette, tag.tint0, tag.tint1, tag.tint2)
+        print(('^2[nx_cityselect]^7 %s (%s) ที่ใส่อยู่:'):format(category, genderKey))
+        print(line)
+    end, false)
+end
