@@ -339,11 +339,18 @@ AddEventHandler("onResourceStart", function(resourceName)
         local citySnapshot = city
         Inv:registerUsableItem(citySnapshot.badgeItem, function(data)
             local source   = data.source
+            -- DEBUG ไล่หาจุดที่หยุด — ลบออกเมื่อแก้เสร็จ
+            print(('^3[nx_cityselect DBG]^7 ใช้บัตร %s src=%s'):format(citySnapshot.badgeItem, tostring(source)))
             local user, char = GetUserAndChar(source)
-            if not user or not char then return end
+            if not user or not char then
+                print('^1[nx_cityselect DBG]^7 หยุด: ไม่พบ user/char')
+                return
+            end
 
             -- Verify the user actually belongs to this city (prevent fake item use)
             local assignedCity = CityManager_GetPlayerCity(char.identifier, char.charIdentifier)
+            print(('^3[nx_cityselect DBG]^7 assignedCity=%s ต้องเป็น=%s')
+                :format(tostring(assignedCity), citySnapshot.id))
             if assignedCity ~= citySnapshot.id then
                 TriggerClientEvent('pNotify:SendNotification', source, { type = 'error', text = 'บัตรนี้ไม่ใช่ของคุณ', timeout = 3000 })
                 return
