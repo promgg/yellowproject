@@ -9,6 +9,7 @@ dependencies {
     'feather-menu', -- client/main.lua เรียก exports['feather-menu'].initiate() ตอนโหลดไฟล์ทันที ต้องรับประกันว่า feather-menu ขึ้นก่อนเสมอ
     'vorp_inputs', -- ใช้หน้าต่างยืนยันรับข้อเสนอโอนม้า
     'vorp_inventory', -- กระเป๋าม้าและ client export สำหรับปิด/คืน focus
+    'pNotify', -- ระบบแจ้งเตือน (แทน Core.NotifyRightTip เดิม) — client+server เรียก pNotify:SendNotification
 }
 
 shared_scripts {

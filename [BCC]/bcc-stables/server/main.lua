@@ -1,6 +1,12 @@
 local Core = exports.vorp_core:GetCore()
 local BccUtils = exports['bcc-utils'].initiate()
 local CooldownData = {}
+
+-- แจ้งเตือนผ่าน pNotify (แทน Core.NotifyRightTip เดิม) — ยิงไปหา client ตาม src
+-- kind: 'info'(ค่าเริ่มต้น) / 'success' / 'error' / 'warning'
+local function NotifyTip(src, text, duration, kind)
+    TriggerClientEvent('pNotify:SendNotification', src, { text = tostring(text or ''), type = kind or 'info', timeout = tonumber(duration) or 4000 })
+end
 local DevModeActive = Config.devMode
 local ActionLocks = {}
 local RateLimits = {}
@@ -281,7 +287,7 @@ Core.Callback.Register('bcc-stables:BuyHorse', function(source, cb, data)
     if type(data) ~= 'table' or isRateLimited(src, 'buy_check', 750) then return cb(false) end
     local horseCount = horseSlotCount(character)
     if horseCount >= maxHorses then
-        Core.NotifyRightTip(src, _U('horseLimit') .. maxHorses .. _U('horses'), 4000)
+        NotifyTip(src, _U('horseLimit') .. maxHorses .. _U('horses'), 4000)
         return cb(false)
     end
 
@@ -305,7 +311,7 @@ Core.Callback.Register('bcc-stables:BuyHorse', function(source, cb, data)
     if character.money >= colorCfg.cashPrice then
         cb(true)
     else
-        Core.NotifyRightTip(src, _U('shortCash'), 4000)
+        NotifyTip(src, _U('shortCash'), 4000)
         cb(false)
     end
 end)
@@ -323,7 +329,7 @@ Core.Callback.Register('bcc-stables:RegisterHorse', function(source, cb, data)
     if type(data) ~= 'table' or isRateLimited(src, 'register_check', 750) then return cb(false) end
     local horseCount = horseSlotCount(character)
     if horseCount >= maxHorses then
-        Core.NotifyRightTip(src, _U('horseLimit') .. maxHorses .. _U('horses'), 4000)
+        NotifyTip(src, _U('horseLimit') .. maxHorses .. _U('horses'), 4000)
         return cb(false)
     end
 
@@ -331,7 +337,7 @@ Core.Callback.Register('bcc-stables:RegisterHorse', function(source, cb, data)
     local validToken = pending and pending.token == data.tameToken and pending.model == data.ModelH
         and pending.netId == tonumber(data.mountNetId) and pending.expires >= GetGameTimer()
     if not validToken or data.IsCash ~= true or data.origin ~= 'tameHorse' or character.money < Config.regCost then
-        Core.NotifyRightTip(src, _U('shortCash'), 4000)
+        NotifyTip(src, _U('shortCash'), 4000)
         return cb(false)
     end
 
@@ -404,7 +410,7 @@ Core.Callback.Register('bcc-stables:BuyTack', function(source, cb, data)
     local balance = character.money
     if balance < price then
         endLock(lockKey)
-        Core.NotifyRightTip(src, currencyType == 1 and _U('shortGold') or _U('shortCash'), 4000)
+        NotifyTip(src, currencyType == 1 and _U('shortGold') or _U('shortCash'), 4000)
         return cb({ ok = false, reason = 'funds' })
     end
 
@@ -418,7 +424,7 @@ Core.Callback.Register('bcc-stables:BuyTack', function(source, cb, data)
         return cb({ ok = false, reason = 'database' })
     end
     endLock(lockKey)
-    Core.NotifyRightTip(src, _U('purchaseSuccessful'), 4000)
+    NotifyTip(src, _U('purchaseSuccessful'), 4000, 'success')
     cb({ ok = true, components = encoded, price = price, currencyType = currencyType })
 end)
 
@@ -449,7 +455,7 @@ Core.Callback.Register('bcc-stables:SaveNewHorse', function(source, cb, data)
     local horseCount = horseSlotCount(character)
     if horseCount >= maxHorsesFor(character) or currency < colorCfg[priceKey] then
         endLock(lockKey)
-        Core.NotifyRightTip(src, horseCount >= maxHorsesFor(character) and (_U('horseLimit') .. maxHorsesFor(character) .. _U('horses')) or notification, 4000)
+        NotifyTip(src, horseCount >= maxHorsesFor(character) and (_U('horseLimit') .. maxHorsesFor(character) .. _U('horses')) or notification, 4000)
         return cb(false)
     end
     character.removeCurrency(currencyType, colorCfg[priceKey])
@@ -487,7 +493,7 @@ Core.Callback.Register('bcc-stables:SaveTamedHorse', function(source, cb, data)
     local horseCount = horseSlotCount(character)
     if horseCount >= maxHorsesFor(character) or character.money < regCost then
         endLock(lockKey)
-        Core.NotifyRightTip(src, horseCount >= maxHorsesFor(character) and (_U('horseLimit') .. maxHorsesFor(character) .. _U('horses')) or _U('shortCash'), 4000)
+        NotifyTip(src, horseCount >= maxHorsesFor(character) and (_U('horseLimit') .. maxHorsesFor(character) .. _U('horses')) or _U('shortCash'), 4000)
         return cb(false)
     end
     character.removeCurrency(0, regCost)
@@ -730,7 +736,7 @@ Core.Callback.Register('bcc-stables:GetHorseData', function(source, cb)
     { character.charIdentifier, character.identifier, 0 })
 
     if #horses == 0 then
-        Core.NotifyRightTip(src, _U('noHorses'), 4000)
+        NotifyTip(src, _U('noHorses'), 4000)
         return cb(false)
     end
 
@@ -743,7 +749,7 @@ Core.Callback.Register('bcc-stables:GetHorseData', function(source, cb)
     end
 
     if not selectedHorse then
-        Core.NotifyRightTip(src, _U('noSelectedHorse'), 4000)
+        NotifyTip(src, _U('noSelectedHorse'), 4000)
         return cb(false)
     end
 
@@ -850,7 +856,7 @@ Core.Callback.Register('bcc-stables:SellMyHorse', function(source, cb, data)
         exports.vorp_inventory:deleteCustomInventory(inventoryId)
     end
     endLock(lockKey)
-    Core.NotifyRightTip(src, _U('soldHorse') .. sellPrice, 4000)
+    NotifyTip(src, _U('soldHorse') .. sellPrice, 4000, 'success')
     LogToDiscord(character.charIdentifier, _U('discordHorseSold'))
     cb({ ok = true, sellPrice = sellPrice })
 end)
@@ -865,7 +871,7 @@ local function sellTamedHorse(src, model, netId, token)
     local lastTime = CooldownData['sellTame' .. tostring(charid)]
     local cooldown = tonumber(Config.cooldown.sellTame) or 15
     if lastTime and os.difftime(os.time(), lastTime) < cooldown * 60 then
-        Core.NotifyRightTip(src, _U('sellCooldown'), 4000)
+        NotifyTip(src, _U('sellCooldown'), 4000)
         return false, 'cooldown'
     end
     local pending = PendingTames[src]
@@ -881,7 +887,7 @@ local function sellTamedHorse(src, model, netId, token)
     SetPlayerCooldown('sellTame', charid)
     local sellPrice = math.ceil((tonumber(Config.tamedSellPrice) or 0) * (tonumber(colorCfg.cashPrice) or 0))
     character.addCurrency(0, sellPrice)
-    Core.NotifyRightTip(src, _U('soldHorse') .. sellPrice, 4000)
+    NotifyTip(src, _U('soldHorse') .. sellPrice, 4000, 'success')
     LogToDiscord(charid, _U('discordTamedSold'))
     return true, nil, sellPrice
 end
@@ -917,18 +923,18 @@ RegisterNetEvent('bcc-stables:SaveHorseTrade', function(serverId, horseId)
     if not horse or tonumber(horse.dead) == 1 then return end
     local targetCount = horseSlotCount(newOwner)
     if targetCount >= maxHorsesFor(newOwner) then
-        return Core.NotifyRightTip(src, _U('horseLimit') .. maxHorsesFor(newOwner) .. _U('horses'), 4000)
+        return NotifyTip(src, _U('horseLimit') .. maxHorsesFor(newOwner) .. _U('horses'), 4000)
     end
     local offerId = ('%s:%s:%s'):format(src, horseId, GetGameTimer())
     TradeOffers[offerId] = { source = src, target = serverId, horseId = horseId, expires = GetGameTimer() + 20000,
         sourceName = curOwnerName, targetName = newOwnerName }
     TriggerClientEvent('bcc-stables:TradeOffer', serverId, offerId, curOwnerName, horse.name)
-    Core.NotifyRightTip(src, 'ส่งข้อเสนอม้าแล้ว รอผู้รับยืนยัน', 4000)
+    NotifyTip(src, 'ส่งข้อเสนอม้าแล้ว รอผู้รับยืนยัน', 4000)
     SetTimeout(20500, function()
         if TradeOffers[offerId] then
             TradeOffers[offerId] = nil
-            Core.NotifyRightTip(src, 'ข้อเสนอส่งม้าหมดเวลา', 4000)
-            Core.NotifyRightTip(serverId, 'ข้อเสนอรับม้าหมดเวลา', 4000)
+            NotifyTip(src, 'ข้อเสนอส่งม้าหมดเวลา', 4000)
+            NotifyTip(serverId, 'ข้อเสนอรับม้าหมดเวลา', 4000)
         end
     end)
 end)
@@ -940,41 +946,41 @@ RegisterNetEvent('bcc-stables:ResolveTradeOffer', function(offerId, accepted)
     if not offer or offer.target ~= targetSrc then return end
     if offer.expires < GetGameTimer() then
         TradeOffers[offerId] = nil
-        Core.NotifyRightTip(targetSrc, 'ข้อเสนอรับม้าหมดเวลา', 4000)
-        Core.NotifyRightTip(offer.source, 'ข้อเสนอส่งม้าหมดเวลา', 4000)
+        NotifyTip(targetSrc, 'ข้อเสนอรับม้าหมดเวลา', 4000)
+        NotifyTip(offer.source, 'ข้อเสนอส่งม้าหมดเวลา', 4000)
         return
     end
     TradeOffers[offerId] = nil
     if accepted ~= true then
-        Core.NotifyRightTip(offer.source, 'ผู้รับปฏิเสธการรับม้า', 4000)
+        NotifyTip(offer.source, 'ผู้รับปฏิเสธการรับม้า', 4000)
         return
     end
     local sourceCharacter, targetCharacter = getCharacter(offer.source), getCharacter(targetSrc)
     if not sourceCharacter or not targetCharacter then
-        Core.NotifyRightTip(offer.source, 'ผู้เล่นไม่พร้อมทำรายการส่งม้า', 4000)
+        NotifyTip(offer.source, 'ผู้เล่นไม่พร้อมทำรายการส่งม้า', 4000)
         return
     end
     local sourcePed, targetPed = GetPlayerPed(offer.source), GetPlayerPed(targetSrc)
     if sourcePed == 0 or targetPed == 0 or #(GetEntityCoords(sourcePed) - GetEntityCoords(targetPed)) > 3.0 then
-        Core.NotifyRightTip(offer.source, 'ผู้เล่นอยู่ไกลเกินไป การส่งม้าถูกยกเลิก', 4000)
-        Core.NotifyRightTip(targetSrc, 'ผู้เล่นอยู่ไกลเกินไป การรับม้าถูกยกเลิก', 4000)
+        NotifyTip(offer.source, 'ผู้เล่นอยู่ไกลเกินไป การส่งม้าถูกยกเลิก', 4000)
+        NotifyTip(targetSrc, 'ผู้เล่นอยู่ไกลเกินไป การรับม้าถูกยกเลิก', 4000)
         return
     end
     local targetCount = horseSlotCount(targetCharacter)
     if targetCount >= maxHorsesFor(targetCharacter) then
-        Core.NotifyRightTip(offer.source, 'คอกของผู้รับเต็มแล้ว', 4000)
-        Core.NotifyRightTip(targetSrc, _U('horseLimit') .. maxHorsesFor(targetCharacter) .. _U('horses'), 4000)
+        NotifyTip(offer.source, 'คอกของผู้รับเต็มแล้ว', 4000)
+        NotifyTip(targetSrc, _U('horseLimit') .. maxHorsesFor(targetCharacter) .. _U('horses'), 4000)
         return
     end
     local transferredHorse = horseOwnerRow(sourceCharacter, offer.horseId, '`id`, `selected`, `dead`, `writhe`')
     if not transferredHorse or tonumber(transferredHorse.dead) == 1 or tonumber(transferredHorse.writhe) == 1 then
-        Core.NotifyRightTip(offer.source, 'ข้อมูลม้าเปลี่ยนแปลง การส่งม้าถูกยกเลิก', 4000)
+        NotifyTip(offer.source, 'ข้อมูลม้าเปลี่ยนแปลง การส่งม้าถูกยกเลิก', 4000)
         return
     end
     local updated = MySQL.update.await('UPDATE `player_horses` SET `identifier` = ?, `charid` = ?, `selected` = 0 WHERE `id` = ? AND `identifier` = ? AND `charid` = ? AND `dead` = 0',
         { targetCharacter.identifier, targetCharacter.charIdentifier, offer.horseId, sourceCharacter.identifier, sourceCharacter.charIdentifier })
     if updated ~= 1 then
-        Core.NotifyRightTip(offer.source, 'ข้อมูลม้าเปลี่ยนแปลง การส่งม้าถูกยกเลิก', 4000)
+        NotifyTip(offer.source, 'ข้อมูลม้าเปลี่ยนแปลง การส่งม้าถูกยกเลิก', 4000)
         return
     end
     if tonumber(transferredHorse.selected) == 1 then
@@ -985,8 +991,8 @@ RegisterNetEvent('bcc-stables:ResolveTradeOffer', function(offerId, accepted)
                 { replacementId, sourceCharacter.charIdentifier, sourceCharacter.identifier })
         end
     end
-    Core.NotifyRightTip(offer.source, _U('youGave') .. offer.targetName .. _U('aHorse'), 4000)
-    Core.NotifyRightTip(targetSrc, offer.sourceName .. _U('gaveHorse'), 4000)
+    NotifyTip(offer.source, _U('youGave') .. offer.targetName .. _U('aHorse'), 4000, 'success')
+    NotifyTip(targetSrc, offer.sourceName .. _U('gaveHorse'), 4000, 'success')
     TriggerClientEvent('bcc-stables:TradeCompleted', offer.source, offer.horseId)
     LogToDiscord(offer.sourceName, _U('discordTraded') .. offer.targetName)
 end)
@@ -1134,7 +1140,7 @@ if Config.flamingHooves.active then
             -- Check if durability is below the usage threshold
             if currentDurability < useDurability then
                 exports.vorp_inventory:subItemID(src, item.id)
-                Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+                NotifyTip(src, _U('itemBroke'), 4000, 'error')
                 return
             end
         end
@@ -1156,7 +1162,7 @@ if Config.flamingHooves.active then
         -- Check if durability is below the usage threshold or update the durability
         if newDurability < useDurability then
             exports.vorp_inventory:subItemID(src, item.id)
-            Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+            NotifyTip(src, _U('itemBroke'), 4000, 'error')
         else
             local newData = {
                 description = _U('flameHooveDesc') .. '</br>' .. _U('durability') .. newDurability .. '%',
@@ -1228,7 +1234,7 @@ Core.Callback.Register('bcc-stables:AuthorizeHorseCare', function(source, cb, ho
         local current = tonumber(metadata.durability) or maxDurability
         if current < useDurability then
             exports.vorp_inventory:subItemID(src, item.id)
-            Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+            NotifyTip(src, _U('itemBroke'), 4000, 'error')
             return cb(false)
         end
         local remaining = current - useDurability
@@ -1276,7 +1282,7 @@ exports.vorp_inventory:registerUsableItem(Config.horsebrush.item, function(data)
         -- Check if durability is below the usage threshold
         if currentDurability < useDurability then
             exports.vorp_inventory:subItemID(src, item.id)
-            Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+            NotifyTip(src, _U('itemBroke'), 4000, 'error')
             return
         end
     end
@@ -1317,7 +1323,7 @@ exports.vorp_inventory:registerUsableItem(Config.lantern.item, function(data)
         -- Check if durability is below the usage threshold
         if currentDurability < useDurability then
             exports.vorp_inventory:subItemID(src, item.id)
-            Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+            NotifyTip(src, _U('itemBroke'), 4000, 'error')
             return
         end
     end
@@ -1339,7 +1345,7 @@ RegisterNetEvent('bcc-stables:LanternDurability', function()
     -- Check if durability is below the usage threshold or update the durability
     if newDurability < useDurability then
         exports.vorp_inventory:subItemID(src, item.id)
-        Core.NotifyRightTip(src, _U('itemBroke'), 4000)
+        NotifyTip(src, _U('itemBroke'), 4000, 'error')
     else
         local newData = {
             description = _U('lanternDesc') .. '</br>' .. _U('durability') .. newDurability .. '%',

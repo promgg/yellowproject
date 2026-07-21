@@ -1,6 +1,12 @@
 local Core = exports.vorp_core:GetCore()
 FeatherMenu =  exports['feather-menu'].initiate()
 
+-- แจ้งเตือนผ่าน pNotify (แทน Core.NotifyRightTip เดิม) — ข้อความไทยอ่านชัด + สไตล์เดียวกับ resource อื่นในเซิร์ฟ
+-- kind: 'info'(ค่าเริ่มต้น) / 'success' / 'error' / 'warning'
+local function NotifyTip(text, duration, kind)
+    exports.pNotify:SendNotification({ text = tostring(text or ''), type = kind or 'info', timeout = tonumber(duration) or 4000 })
+end
+
 -- Prompts
 local OpenShops, OpenCall, OpenReturn
 local ShopGroup = GetRandomIntInRange(0, 0xffffff)
@@ -398,7 +404,7 @@ RegisterNUICallback('BuyHorse', function(data, cb)
     CheckPlayerJob(true, nil)
 
     if Stables[Site].trainerBuy and not IsTrainer then
-        Core.NotifyRightTip(_U('trainerBuyHorse'), 4000)
+        NotifyTip(_U('trainerBuyHorse'), 4000)
         cb({ ok = false, reason = 'trainer_only' })
         StableMenu()
         return
@@ -565,7 +571,7 @@ end)
 
 RegisterNUICallback('selectHorse', function(data, cb)
     local selected = Core.Callback.TriggerAwait('bcc-stables:SetSelectedHorse', data and data.horseId)
-    if not selected then Core.NotifyRightTip('ไม่สามารถตั้งม้าตัวนี้เป็นม้าหลักได้', 4000) end
+    if not selected then NotifyTip('ไม่สามารถตั้งม้าตัวนี้เป็นม้าหลักได้', 4000) end
     cb({ ok = selected == true })
 end)
 
@@ -605,7 +611,7 @@ RegisterNUICallback('CloseStable', function(data, cb)
         data.site = Site
         local result = Core.Callback.TriggerAwait('bcc-stables:BuyTack', data)
         if not result or result.ok ~= true then
-            Core.NotifyRightTip('ไม่สามารถบันทึกอุปกรณ์ม้าได้', 4000)
+            NotifyTip('ไม่สามารถบันทึกอุปกรณ์ม้าได้', 4000)
             return cb(result or { ok = false, reason = 'failed' })
         end
         cb(result)
@@ -704,7 +710,7 @@ RegisterNUICallback('healHorse', function(data, cb)
         if result and result.ok then
             SendNUIMessage({ action = 'healed', horseId = horseId })
         else
-            Core.NotifyRightTip('ไม่สามารถรักษาม้าตัวนี้ได้', 4000)
+            NotifyTip('ไม่สามารถรักษาม้าตัวนี้ได้', 4000)
         end
         return cb(result or { ok = false, reason = 'failed' })
     end
@@ -812,7 +818,7 @@ function SpawnHorse(data)
     MyModel = joaat(horseModel)
     if not LoadModel(MyModel, horseModel) then
         Spawning = false
-        Core.NotifyRightTip('โหลดโมเดลม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
+        NotifyTip('โหลดโมเดลม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
         return false
     end
 
@@ -852,7 +858,7 @@ function SpawnHorse(data)
 
     if not spawnPosition then
         Spawning = false
-        Core.NotifyRightTip('ไม่พบจุดเรียกม้าที่ปลอดภัย กรุณาขยับตำแหน่งแล้วลองใหม่', 4000)
+        NotifyTip('ไม่พบจุดเรียกม้าที่ปลอดภัย กรุณาขยับตำแหน่งแล้วลองใหม่', 4000)
         return false
     end
 
@@ -861,7 +867,7 @@ function SpawnHorse(data)
     if not entityExists then
         Spawning = false
         MyHorse = 0
-        Core.NotifyRightTip('ไม่สามารถสร้างม้าได้ กรุณาลองใหม่', 4000)
+        NotifyTip('ไม่สามารถสร้างม้าได้ กรุณาลองใหม่', 4000)
         return false
     end
 
@@ -1157,7 +1163,7 @@ end)
 
 function HorseDrinking()
     if not IsEntityInWater(MyHorse) then
-        Core.NotifyRightTip(HorseName .. _U('needWater'), 4000)
+        NotifyTip(HorseName .. _U('needWater'), 4000)
         return
     end
 
@@ -1360,13 +1366,13 @@ AddEventHandler('bcc-stables:ManageHorseDeath', function()
         Citizen.InvokeNative(0x925A160133003AC6, MyHorse, true) -- SetPausePedWritheBleedout
         RemoveHorsePrompts()
 
-        Core.NotifyRightTip(_U('horseWrithe'), 4000)
+        NotifyTip(_U('horseWrithe'), 4000)
 
         TriggerServerEvent('bcc-stables:SetHorseWrithe', MyHorseId)
 
         SaveHorseStats(true)
     else
-        Core.NotifyRightTip(_U('horseDied'), 4000)
+        NotifyTip(_U('horseDied'), 4000)
         TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, 'dead')
 
         Wait(5000)
@@ -1430,7 +1436,7 @@ function WhistleSpawn()
     if Config.whistleSpawn then
         GetSelectedHorse()
     else
-        Core.NotifyRightTip(_U('stableSpawn'), 4000)
+        NotifyTip(_U('stableSpawn'), 4000)
     end
 end
 
@@ -1539,7 +1545,7 @@ CreateThread(function()
                 if Citizen.InvokeNative(0xE0F65F0640EF0617, SellTame) then  -- PromptHasHoldModeCompleted
                     local onCooldown = Core.Callback.TriggerAwait('bcc-stables:CheckPlayerCooldown', 'sellTame')
                     if onCooldown then
-                        Core.NotifyRightTip(_U('sellCooldown'), 4000)
+                        NotifyTip(_U('sellCooldown'), 4000)
                         HorseBreed = false
                         goto END
                     end
@@ -1547,7 +1553,7 @@ CreateThread(function()
                     if trainerOnly then
                         CheckPlayerJob(true, nil)
                         if not IsTrainer then
-                            Core.NotifyRightTip(_U('trainerSellHorse'), 4000)
+                            NotifyTip(_U('trainerSellHorse'), 4000)
                             HorseBreed = false
                             goto END
                         end
@@ -1563,14 +1569,14 @@ CreateThread(function()
                             Wait(10)
                         end
 
-                        Core.NotifyRightTip(_U('tamedCooldown') .. Config.cooldown.sellTame .. _U('minutes'), 4000)
+                        NotifyTip(_U('tamedCooldown') .. Config.cooldown.sellTame .. _U('minutes'), 4000)
                         DeleteEntity(mount)
                         mount = 0
                         Wait(200)
                         HorseBreed = false
                         TameToken = nil
                     elseif not sold or not sold.ok then
-                        Core.NotifyRightTip('ไม่สามารถขายม้าตัวนี้ได้', 4000)
+                        NotifyTip('ไม่สามารถขายม้าตัวนี้ได้', 4000)
                     end
                 end
 
@@ -1578,7 +1584,7 @@ CreateThread(function()
                     CheckPlayerJob(true, nil)
                     if trainerOnly then
                         if not IsTrainer then
-                            Core.NotifyRightTip(_U('trainerRegHorse'), 4000)
+                            NotifyTip(_U('trainerRegHorse'), 4000)
                             HorseBreed = false
                             goto END
                         end
@@ -1632,7 +1638,7 @@ AddEventHandler('bcc-stables:ReviveHorse', function()
     local hasItem = Core.Callback.TriggerAwait('bcc-stables:HorseReviveItem', MyHorseId)
 
     if not hasItem then
-        Core.NotifyRightTip(_U('noReviver'), 4000)
+        NotifyTip(_U('noReviver'), 4000)
         return
     end
 
@@ -1649,7 +1655,7 @@ function OpenInventory(horsePedId, horseId, isLooting)
     local hasSaddlebags = Citizen.InvokeNative(0xFB4891BD7578CDC1, horsePedId, -2142954459) -- IsMetaPedUsingComponent
 
     if not isLooting and Config.useSaddlebags and not hasSaddlebags then
-        Core.NotifyRightTip(_U('noSaddlebags'), 4000)
+        NotifyTip(_U('noSaddlebags'), 4000)
         return
     end
 
@@ -1680,7 +1686,7 @@ function ReturnHorse()
     local playerPed = PlayerPedId()
 
     if not MyHorse or MyHorse == 0 then
-        Core.NotifyRightTip(_U('noHorse'), 4000)
+        NotifyTip(_U('noHorse'), 4000)
         return false
     end
 
@@ -1693,7 +1699,7 @@ function ReturnHorse()
     end
 
     if not SaveHorseStats(InWrithe, true) then
-        Core.NotifyRightTip('บันทึกสถานะม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
+        NotifyTip('บันทึกสถานะม้าไม่สำเร็จ กรุณาลองใหม่', 4000)
         return false
     end
     GetControlOfHorse()
@@ -1702,7 +1708,7 @@ function ReturnHorse()
     DeleteEntity(MyHorse)
     MyHorse = 0
     MyHorseId = nil
-    Core.NotifyRightTip(_U('horseReturned'), 4000)
+    NotifyTip(_U('horseReturned'), 4000, 'success')
     return true
 end
 
@@ -1766,7 +1772,7 @@ function SaveXp(xpSource)
     Citizen.InvokeNative(0x75415EE0CB583760, MyHorse, 7, horseXp) -- AddAttributePoints
 
     if Config.showXpMessage then
-        Core.NotifyRightTip('+ ' .. horseXp .. ' XP', 2000)
+        NotifyTip('+ ' .. horseXp .. ' XP', 2000, 'success')
     end
 
     local maxXp = Citizen.InvokeNative(0x223BF310F854871C, MyHorse, 7) -- GetMaxAttributePoints
@@ -1778,26 +1784,26 @@ end
 
 RegisterNetEvent('bcc-stables:BrushHorse', function(simpleBrushItem)
     if not MyHorse or MyHorse == 0 then
-        return Core.NotifyRightTip(_U('noHorse'), 4000)
+        return NotifyTip(_U('noHorse'), 4000)
     end
 
     local playerPed = PlayerPedId()
     local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(MyHorse))
 
     if distance > 3.5 then
-        return Core.NotifyRightTip(_U('tooFar'), 4000)
+        return NotifyTip(_U('tooFar'), 4000)
     end
 
     local skipDurability = type(simpleBrushItem) == 'string'
     if skipDurability then
         local consumed = Core.Callback.TriggerAwait('bcc-stables:UseSimpleBrush', MyHorseId, simpleBrushItem)
         if consumed ~= true then
-            return Core.NotifyRightTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
+            return NotifyTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
         end
     else
         local authorized = Core.Callback.TriggerAwait('bcc-stables:AuthorizeHorseCare', MyHorseId, 'brush')
         if authorized ~= true then
-            return Core.NotifyRightTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
+            return NotifyTip('ไม่สามารถใช้แปรงกับม้าตัวนี้ได้', 4000)
         end
     end
 
@@ -1839,20 +1845,20 @@ end)
 
 RegisterNetEvent('bcc-stables:FeedHorse', function(item)
     if not MyHorse or MyHorse == 0 then
-        return Core.NotifyRightTip(_U('noHorse'), 4000)
+        return NotifyTip(_U('noHorse'), 4000)
     end
 
     local playerPed = PlayerPedId()
     local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(MyHorse))
 
     if distance > 3.5 then
-        Core.NotifyRightTip(_U('tooFar'), 4000)
+        NotifyTip(_U('tooFar'), 4000)
         return
     end
 
     local consumed = Core.Callback.TriggerAwait('bcc-stables:UseHorseFood', MyHorseId, item)
     if consumed ~= true then
-        return Core.NotifyRightTip('ไม่สามารถให้อาหารม้าตัวนี้ได้', 4000)
+        return NotifyTip('ไม่สามารถให้อาหารม้าตัวนี้ได้', 4000)
     end
 
     ClearPedTasks(playerPed)
@@ -1887,7 +1893,7 @@ end)
 
 RegisterNetEvent('bcc-stables:FlamingHooves', function()
     if not MyHorse or MyHorse == 0 then
-        return Core.NotifyRightTip(_U('noHorse'), 4000)
+        return NotifyTip(_U('noHorse'), 4000)
     end
 
     if Activated then return end
@@ -1897,13 +1903,13 @@ RegisterNetEvent('bcc-stables:FlamingHooves', function()
     local horseCoords = GetEntityCoords(MyHorse)
 
     if #(playerCoords - horseCoords) > 3.5 then
-        return Core.NotifyRightTip(_U('tooFar'), 4000)
+        return NotifyTip(_U('tooFar'), 4000)
     end
 
     ClearPedTasks(playerPed)
 
     Citizen.InvokeNative(0x1913FE4CBF41C463, MyHorse, 207, true) -- SetPedConfigFlag / PCF_FlamingHoovesActive
-    Core.NotifyRightTip(_U('flameHoovesActivated'), 4000)
+    NotifyTip(_U('flameHoovesActivated'), 4000, 'success')
     Activated = true
 
     -- Check if durability system is enabled before adjusting durability
@@ -1916,7 +1922,7 @@ RegisterNetEvent('bcc-stables:FlamingHooves', function()
     Citizen.SetTimeout(duration, function()
         if DoesEntityExist(MyHorse) then
             Citizen.InvokeNative(0x1913FE4CBF41C463, MyHorse, 207, false)
-            Core.NotifyRightTip(_U('flameHoovesDeactivated'), 4000)
+            NotifyTip(_U('flameHoovesDeactivated'), 4000)
             Activated = false
         end
     end)
@@ -1924,14 +1930,14 @@ end)
 
 RegisterNetEvent('bcc-stables:UseLantern', function()
     if not MyHorse or MyHorse == 0 then
-        return Core.NotifyRightTip(_U('noHorse'), 4000)
+        return NotifyTip(_U('noHorse'), 4000)
     end
 
     local playerPed = PlayerPedId()
     local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(MyHorse))
 
     if distance > 3.5 then
-        return Core.NotifyRightTip(_U('tooFar'), 4000)
+        return NotifyTip(_U('tooFar'), 4000)
     end
 
     ClearPedTasks(playerPed)
@@ -1975,7 +1981,7 @@ AddEventHandler('bcc-stables:TradeHorse', function()
 end)
 
 RegisterNetEvent('bcc-stables:TradeOffer', function(offerId, ownerName, horseName)
-    Core.NotifyRightTip(('%s ต้องการมอบม้า %s ให้คุณ พิมพ์ ACCEPT เพื่อยืนยัน'):format(ownerName or 'ผู้เล่น', horseName or ''), 8000)
+    NotifyTip(('%s ต้องการมอบม้า %s ให้คุณ พิมพ์ ACCEPT เพื่อยืนยัน'):format(ownerName or 'ผู้เล่น', horseName or ''), 8000)
     local prompt = {
         type = 'enableinput', inputType = 'input', button = 'ยืนยัน', placeholder = 'ACCEPT', style = 'block',
         attributes = { inputHeader = 'รับม้า', type = 'text', pattern = '^(ACCEPT|accept)$', title = 'พิมพ์ ACCEPT เพื่อรับม้า' }
@@ -2318,7 +2324,7 @@ RegisterCommand(Config.adminCatalogCommand or 'stablecatalog', function()
 
     local isAdmin = Core.Callback.TriggerAwait('bcc-stables:CheckAdmin')
     if not isAdmin then
-        Core.NotifyRightTip('คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 4000)
+        NotifyTip('คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 4000)
         return
     end
 
@@ -2333,7 +2339,7 @@ RegisterCommand(Config.adminCatalogCommand or 'stablecatalog', function()
     end
 
     if not nearestKey or nearestDist > 60.0 then
-        Core.NotifyRightTip('ไปยืนใกล้โรงม้าก่อนใช้คำสั่งนี้', 4000)
+        NotifyTip('ไปยืนใกล้โรงม้าก่อนใช้คำสั่งนี้', 4000)
         return
     end
 
@@ -2352,12 +2358,12 @@ end, false)
 RegisterCommand('tacktint', function(source, args)
     local horse = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
     if not horse or horse == 0 or not DoesEntityExist(horse) then
-        Core.NotifyRightTip('ต้องขี่ม้าอยู่ก่อนใช้คำสั่งนี้', 4000)
+        NotifyTip('ต้องขี่ม้าอยู่ก่อนใช้คำสั่งนี้', 4000)
         return
     end
     local t0, t1, t2 = tonumber(args[1]) or 0, tonumber(args[2]) or 0, tonumber(args[3]) or 0
     local applied = ApplyTackTint(horse, t0, t1, t2)
-    Core.NotifyRightTip(('เปลี่ยนสีอุปกรณ์ %d ชิ้น (t0=%d t1=%d t2=%d)'):format(applied, t0, t1, t2), 5000)
+    NotifyTip(('เปลี่ยนสีอุปกรณ์ %d ชิ้น (t0=%d t1=%d t2=%d)'):format(applied, t0, t1, t2), 5000, 'success')
 end, false)
 
 RegisterCommand(Config.commands.horseSetWild, function(source, args, rawCommand)
@@ -2382,14 +2388,14 @@ end, false)
 
 RegisterCommand(Config.commands.horseInfo, function(source, args, rawCommand)
     if not MyHorse or MyHorse == 0 then
-        Core.NotifyRightTip(_U('noHorse'), 4000)
+        NotifyTip(_U('noHorse'), 4000)
         return
     end
 
     if #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(MyHorse)) <= 3.0 then
         HorseInfoMenu()
     else
-        Core.NotifyRightTip(_U('tooFar'), 4000)
+        NotifyTip(_U('tooFar'), 4000)
     end
 end, false)
 
@@ -2521,7 +2527,7 @@ function CheckPlayerJob(trainer, site)
         end
 
         if not trainer and not result[1] and Stables[site].shop.jobsEnabled then
-            Core.NotifyRightTip(_U('needJob'), 4000)
+            NotifyTip(_U('needJob'), 4000)
         end
     end
 end
