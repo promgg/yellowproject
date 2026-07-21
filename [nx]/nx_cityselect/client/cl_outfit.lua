@@ -14,22 +14,35 @@ local wearingCityId = nil
 -- snapshot of the tag the player had on before the first badge swap
 local previousTag = nil
 
-local function ApplyOutfitWithFade(tag, notifyText)
-    local fadeTime = Config.OutfitFadeTime
-
-    DoScreenFadeOut(fadeTime)
-    Wait(fadeTime + 100)
-
-    -- tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ต้องถอด component ออก ไม่ใช่ apply nil
-    -- (apply nil ไม่ทำอะไร โค้ทเมืองจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
+-- สลับ/ถอดโค้ทจริง — tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ต้องถอด component ออก
+-- ไม่ใช่ apply nil (apply nil ไม่ทำอะไร โค้ทเมืองจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
+local function swapCoat(tag)
     if tag then
         exports.vorp_character:SetClothingTag(OUTFIT_CATEGORY, tag)
     else
         exports.vorp_character:RemoveClothingTag(OUTFIT_CATEGORY)
     end
+end
 
-    Wait(200)
-    DoScreenFadeIn(fadeTime)
+local function ApplyOutfitWithAnim(tag, notifyText)
+    local ped = PlayerPedId()
+    local a = Config.OutfitAnim
+
+    -- เล่นท่าจัดเสื้อแล้วสลับโค้ทกลางท่า ให้มือบังจังหวะ swap แทนการเฟดจอดำ
+    RequestAnimDict(a.dict)
+    local t0 = GetGameTimer()
+    while not HasAnimDictLoaded(a.dict) and (GetGameTimer() - t0) < 1000 do Wait(10) end
+
+    if HasAnimDictLoaded(a.dict) then
+        TaskPlayAnim(ped, a.dict, a.anim, 8.0, -8.0, a.duration, a.flag, 0, false, false, false)
+        Wait(a.swapAt)          -- รอให้มือขยับขึ้นก่อน
+        swapCoat(tag)
+        Wait(a.duration - a.swapAt) -- ปล่อยท่าเล่นต่อจนจบ
+        RemoveAnimDict(a.dict)
+    else
+        -- โหลดท่าไม่ขึ้น — สลับเลยไม่มีท่า (ยังทำงานได้ ไม่ค้าง)
+        swapCoat(tag)
+    end
 
     exports.pNotify:SendNotification({
         type    = 'success',
@@ -58,7 +71,7 @@ AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
     CreateThread(function()
         if wearingCityId == outfitData.cityId then
             -- same badge used again -> take it off, restore what they had before
-            ApplyOutfitWithFade(previousTag, Lang.notify_outfit_removed or 'ถอดเสื้อประจำเมืองแล้ว')
+            ApplyOutfitWithAnim(previousTag, Lang.notify_outfit_removed or 'ถอดเสื้อประจำเมืองแล้ว')
             wearingCityId = nil
             previousTag = nil
             return
@@ -72,7 +85,7 @@ AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
             previousTag = exports.vorp_character:GetClothingTag(OUTFIT_CATEGORY)
         end
 
-        ApplyOutfitWithFade(tag, Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""))
+        ApplyOutfitWithAnim(tag, Lang.notify_outfit_changed:format(outfitData.label or outfitData.cityName or ""))
         wearingCityId = outfitData.cityId
     end)
 end)

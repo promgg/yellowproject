@@ -5,7 +5,15 @@ Config = {}
 -- ─────────────────────────────────────────────────────────────
 Config.MaxPlayersPerCity = 20       -- max registered citizens per city per cycle
 Config.SpawnFreezeTime   = 3000     -- ms to wait after spawn before showing UI
-Config.OutfitFadeTime    = 500      -- ms for fade-to-black when changing outfit
+-- ท่าจัดเสื้อตอนสลับ/ถอดโค้ท (แทนการเฟดจอดำ)
+-- ท่า adjust_belt เป็น full-body จัดเข็มขัด/เสื้อ ยกจาก jo_radial_clotheswheel ที่ใช้กับหมวด coats
+Config.OutfitAnim = {
+    dict     = "script_respawn@one_shot@fullbody@generic@unarmed@stand_adjust_belt@a",
+    anim     = "respawn_action",
+    flag     = 24,
+    duration = 1000,  -- ความยาวท่า (ms)
+    swapAt   = 450,   -- สลับ/ถอดโค้ทตอนกี่ ms (รอให้มือขยับขึ้นก่อน ซ่อนจังหวะ swap)
+}
 -- หมวดเสื้อผ้าที่บัตรประจำเมืองจะเปลี่ยน — ค่าเดิมคือ "Shirt" แต่เสื้อเชิ้ตชั้นในโดนโค้ททับ
 -- มองไม่เห็น จึงเปลี่ยนเป็น "Coat" ให้เห็นผลจริง (ชื่อหมวดต้องตรงกับ metaPedCategoryTags
 -- ของ vorp_character เช่น Coat / Shirt / Vest / Hat)
