@@ -7,34 +7,43 @@ function InitEconomy()
     DATA = {}
 
     MySQL.ready(function()
-        for category, items in pairs(Config.Items) do
-            for itemName, itemData in pairs(items) do
-                local newData = {
-                    Price = 0,
-                    Min = itemData.Min,
-                    Max = itemData.Max,
-                    RangeChange = itemData.RangeChange,
-                    AmountToChange = itemData.AmountToChange,
-                    CurrentAmount = 0,
-                    Label = itemData.Label,
-                    Status = 'equal'
-                }
-
-                -- Fetch or randomize price
-                if itemData.RandomWhenStart then
-                    newData.Price = math.random(itemData.Min, itemData.Max)
-                else
-                    local result = MySQL.Sync.fetchAll('SELECT price FROM mjdev_economy WHERE item = @item', { ['@item'] = itemName })
-                    newData.Price = result[1] and tonumber(result[1].price) or itemData.Min
-                end
-
-                -- Determine initial status
-                local center = math.floor((newData.Min + newData.Max) / 2)
-                newData.Status = (newData.Price > center) and 'up' or (newData.Price < center and 'down' or 'equal')
-
-                DATA[itemName] = newData
+        -- โหลดราคาทั้งหมด "ครั้งเดียว" แบบ async แล้วทำ map
+        -- เดิมยิง MySQL.Sync.fetchAll ต่อไอเทม 1 ครั้ง (blocking) ในลูป — มีกี่ไอเทมก็ block
+        -- main thread เท่านั้นครั้งตอน boot ตอนนี้เหลือ query เดียว ไม่บล็อก
+        MySQL.query('SELECT item, price FROM mjdev_economy', {}, function(rows)
+            local priceByItem = {}
+            for _, row in ipairs(rows or {}) do
+                priceByItem[row.item] = tonumber(row.price)
             end
-        end
+
+            for category, items in pairs(Config.Items) do
+                for itemName, itemData in pairs(items) do
+                    local newData = {
+                        Price = 0,
+                        Min = itemData.Min,
+                        Max = itemData.Max,
+                        RangeChange = itemData.RangeChange,
+                        AmountToChange = itemData.AmountToChange,
+                        CurrentAmount = 0,
+                        Label = itemData.Label,
+                        Status = 'equal'
+                    }
+
+                    -- Fetch or randomize price
+                    if itemData.RandomWhenStart then
+                        newData.Price = math.random(itemData.Min, itemData.Max)
+                    else
+                        newData.Price = priceByItem[itemName] or itemData.Min
+                    end
+
+                    -- Determine initial status
+                    local center = math.floor((newData.Min + newData.Max) / 2)
+                    newData.Status = (newData.Price > center) and 'up' or (newData.Price < center and 'down' or 'equal')
+
+                    DATA[itemName] = newData
+                end
+            end
+        end)
     end)
 
     -- Callbacks for jobs and inventory
