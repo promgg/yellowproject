@@ -333,7 +333,21 @@ AddEventHandler("MJ-STATUS:useItem", function(index, hunger, thirst, stress, sta
     end
     
     local prop_name = itemConfig.prop_name  -- Get the prop name Config.FoodItems
-    if (Config["FoodItems"][index]["Animation"] == "eat") then
+    local isEat = (Config["FoodItems"][index]["Animation"] == "eat")
+
+    -- แถบ progress ตอนกิน/ดื่ม (เพิ่มใหม่ผ่าน lp_progbar) — โชว์แค่แถบ ไม่ยุ่งกับท่า/prop
+    -- ท่ากิน/ดื่ม + prop ยังเป็นของ PlayAnimEat/PlayAnimDrink เดิมทั้งหมด (พฤติกรรมเดิมไม่เปลี่ยน)
+    -- duration 6000 = เท่าเวลาจริงของท่า (PlayAnimEat/Drink บล็อก Wait 800 + 5200 = 6000ms)
+    pcall(function()
+        exports.lp_progbar:Progress({
+            duration = 6000,
+            label = isEat and 'กำลังกิน...' or 'กำลังดื่ม...',
+            canCancel = false,
+            useWhileDead = false,
+        })
+    end)
+
+    if isEat then
         PlayAnimEat(prop_name)
     else
         PlayAnimDrink(prop_name)
