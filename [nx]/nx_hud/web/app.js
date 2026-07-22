@@ -263,7 +263,8 @@
             .slice(0, MAX_STATUS_ICONS)
             .map((item) => ({
                 key: cleanText(item.key, 'core'),
-                icon: iconName(item.icon || item.key)
+                icon: iconName(item.icon || item.key),
+                alarmHigh: item.alarmHigh === true
             }));
     }
 
@@ -271,6 +272,9 @@
         const node = document.createElement('div');
         node.className = 'nx-status-icon';
         node.dataset.statusKey = item.key;
+        if (item.alarmHigh === true) {
+            node.dataset.alarmHigh = 'true'; // ค่าสูง=อันตราย: กลับเกณฑ์สีเตือน (ดู applyStatusValue)
+        }
         node.style.setProperty('--value', '100%');
 
         const icon = document.createElement('span');
@@ -357,8 +361,16 @@
 
         node.style.setProperty('--value', `${percent}%`);
         node.classList.toggle('is-muted', missing);
-        node.classList.toggle('is-warning', !missing && percent <= 35 && percent > 15);
-        node.classList.toggle('is-critical', !missing && percent <= 15);
+
+        // วงที่ "ค่าสูง = อันตราย" (เช่น ความเครียด/core) เตือน/แดงตอนใกล้เต็ม — กลับเกณฑ์รอบ 100
+        // วงปกติ (food/water) เตือน/แดงตอนใกล้ 0 เหมือนเดิม
+        if (node.dataset.alarmHigh === 'true') {
+            node.classList.toggle('is-warning', !missing && percent >= 65 && percent < 85);
+            node.classList.toggle('is-critical', !missing && percent >= 85);
+        } else {
+            node.classList.toggle('is-warning', !missing && percent <= 35 && percent > 15);
+            node.classList.toggle('is-critical', !missing && percent <= 15);
+        }
     }
 
     function updateStatusIcons(icons) {

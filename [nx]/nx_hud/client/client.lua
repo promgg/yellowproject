@@ -566,6 +566,7 @@ local function sendConfig()
             statusIcons[#statusIcons + 1] = {
                 key = tostring(item.key),
                 icon = tostring(item.icon or item.key),
+                alarmHigh = item.alarmHigh == true, -- ค่าสูง=อันตราย (เช่น ความเครียด) กลับเกณฑ์สีเตือน
             }
         end
     end

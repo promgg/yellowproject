@@ -175,7 +175,9 @@ Config.SecondaryBar = {
 Config.StatusIcons = {
     { key = 'food', icon = 'food', default = 100, enabled = true },
     { key = 'water', icon = 'water', default = 100, enabled = true },
-    { key = 'core', icon = 'brain', default = 100, enabled = true },
+    -- core = ความเครียด (stress) — ค่าสูง = อันตราย → เตือน/แดงตอน "ใกล้เต็ม" ไม่ใช่ใกล้ 0
+    -- (alarmHigh กลับเกณฑ์สีเตือนใน NUI เฉพาะวงนี้ ส่วนหลอดเติมตามค่าปกติอยู่แล้ว)
+    { key = 'core', icon = 'brain', default = 100, enabled = true, alarmHigh = true },
 }
 
 Config.StatusAliases = {
