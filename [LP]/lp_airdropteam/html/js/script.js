@@ -1,3 +1,9 @@
+var I_PPL = '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5" r="3"/><path d="M2 15a6 6 0 0112 0z"/></svg>';
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 window.addEventListener('message', function(event) {
     switch(event.data.action) {
         case 'SyncAirdropTime':
@@ -8,134 +14,75 @@ window.addEventListener('message', function(event) {
         case 'UpdateAirdropPlayers':
             updateAirdropPlayers(event.data.id, event.data.players, event.data.maxPlayers);
             break;
-        
+
         case 'RemoveAirdrop':
             removeAirdrop(event.data.id);
             break;
-        
-        // other cases
     }
 });
 
 // cache player counts if UI card not created yet
 const __playersCache = {}; // { [id]: {players,maxPlayers} }
 
-// Function to remove an airdrop from the UI by its ID
 function removeAirdrop(id) {
-    const airdropItem = document.getElementById(`airdrop-${id}`);
-    if (airdropItem) {
-        airdropItem.remove();
-    }
+    const el = document.getElementById(`airdrop-${id}`);
+    if (el) el.remove();
 }
 
-// Function to format time as MM:SS
 function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes < 10 ? '0' : ''}${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    seconds = Math.max(0, seconds | 0);
+    const m = Math.floor(seconds / 60), s = seconds % 60;
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+// นับถอยหลังตัวเดียวต่อ timer (เก็บ interval ไว้บน element เพื่อล้างก่อนเริ่มใหม่ = กัน interval ซ้อน)
+function startCountdown(timer, countdown) {
+    if (timer._iv) clearInterval(timer._iv);
+    function paint() {
+        if (countdown > 0) {
+            timer.textContent = formatTime(countdown);
+            timer.classList.toggle('warn', countdown <= 60);
+            timer.classList.remove('ready');
+        } else {
+            timer.textContent = 'Ready';
+            timer.classList.remove('warn');
+            timer.classList.add('ready');
+        }
+    }
+    paint();
+    timer._iv = setInterval(function () {
+        if (countdown > 0) { countdown--; paint(); }
+        else { clearInterval(timer._iv); timer._iv = null; }
+    }, 1000);
 }
 
 function createAirdrop(id, name, countdown) {
     const container = document.querySelector('.airdrop-container');
+    let item = document.getElementById(`airdrop-${id}`);
 
-    // Check if an airdrop with this ID already exists
-    let airdropItem = document.getElementById(`airdrop-${id}`);
-    if (airdropItem) {
-        // If it exists, just update the countdown
-        const timer = airdropItem.querySelector('.timer');
-        const blinkingDot = airdropItem.querySelector('.blinking-dot');
-        timer.textContent = formatTime(countdown);
-
-        // Update the countdown and its styles
-        const countdownInterval = setInterval(() => {
-            if (countdown > 0) {
-                countdown--;
-                timer.textContent = formatTime(countdown);
-                if (countdown < 10) {
-                    timer.classList.add('low-time');
-                    blinkingDot.classList.add('blinking-red');
-                } else {
-                    timer.classList.remove('low-time');
-                    blinkingDot.classList.remove('blinking-red');
-                }
-            } else {
-                clearInterval(countdownInterval);
-                timer.textContent = "Ready";
-                timer.classList.add('blinking-text'); // Add blinking-text class to the timer
-                timer.classList.remove('low-time');
-                blinkingDot.classList.remove('blinking-red');
-                blinkingDot.classList.add('blinking-dot', 'ready'); // Add blinking-dot class to the dot
-                const image = airdropItem.querySelector('.airdrop-image');
-                image.style.filter = 'grayscale(100%)'; // Make the image grayscale
-            }
-        }, 1000);
-    } else {
-        // If it does not exist, create a new airdrop item
-        airdropItem = document.createElement('div');
-        airdropItem.className = 'airdrop-item';
-        airdropItem.id = `airdrop-${id}`;
-
-        const blinkingDot = document.createElement('div');
-        blinkingDot.className = 'blinking-dot';
-
-        const image = document.createElement('img');
-        image.src = '/html/img/airdrop.png';
-        image.className = 'airdrop-image';
-        image.alt = 'Airdrop';
-
-        const status = document.createElement('div');
-        status.className = 'airdrop-status';
-
-        const title = document.createElement('div');
-        title.className = 'airdrop-title';
-        title.textContent = name;
-
-        const timer = document.createElement('span');
-        timer.className = 'timer';
-        timer.textContent = formatTime(countdown);
-
-        status.appendChild(title);
-        status.appendChild(timer);
-
-        const playersLine = document.createElement('div');
-        playersLine.className = 'airdrop-players';
-        playersLine.id = `airdropPlayers-${id}`;
-        playersLine.textContent = '';
-        status.appendChild(playersLine);
-
-        airdropItem.appendChild(blinkingDot);
-        airdropItem.appendChild(image);
-        airdropItem.appendChild(status);
-        container.appendChild(airdropItem);
-
-        // Apply cached players if available
-        if (__playersCache[id]) {
-            updateAirdropPlayers(id, __playersCache[id].players, __playersCache[id].maxPlayers);
-        }
-
-        // Start countdown
-        const countdownInterval = setInterval(() => {
-            if (countdown > 0) {
-                countdown--;
-                timer.textContent = formatTime(countdown);
-                if (countdown < 10) {
-                    timer.classList.add('low-time');
-                    blinkingDot.classList.add('blinking-red');
-                } else {
-                    timer.classList.remove('low-time');
-                    blinkingDot.classList.remove('blinking-red');
-                }
-            } else {
-                clearInterval(countdownInterval);
-                timer.textContent = "Ready";
-                timer.classList.add('blinking-text'); // Add blinking-text class to the timer
-                timer.classList.remove('low-time');
-                blinkingDot.classList.remove('blinking-red');
-                blinkingDot.classList.add('blinking-dot', 'ready'); // Add blinking-dot class to the dot
-                image.style.filter = 'grayscale(100%)'; // Make the image grayscale
-            }
-        }, 1000);
+    if (item) {
+        // การ์ดมีอยู่แล้ว → รีสตาร์ทเฉพาะ countdown
+        startCountdown(item.querySelector('.p-timer'), countdown);
+        return;
     }
+
+    item = document.createElement('div');
+    item.className = 'airdrop-item';
+    item.id = `airdrop-${id}`;
+    item.innerHTML =
+        '<div class="ev-title">Airdrop</div>' +
+        '<div class="plate"><div class="inner">' +
+            '<span class="title">' + escapeHtml(name) + '</span>' +
+            '<div class="inrow">' +
+                '<span class="p-ppl">' + I_PPL + '<span id="airdropPlayers-' + id + '">-</span></span>' +
+                '<span class="divider"></span>' +
+                '<span class="p-timer timer">' + formatTime(countdown) + '</span>' +
+            '</div>' +
+        '</div></div>';
+    container.appendChild(item);
+
+    if (__playersCache[id]) updateAirdropPlayers(id, __playersCache[id].players, __playersCache[id].maxPlayers);
+    startCountdown(item.querySelector('.p-timer'), countdown);
 }
 
 function updateAirdropPlayers(id, players, maxPlayers) {
@@ -144,14 +91,6 @@ function updateAirdropPlayers(id, players, maxPlayers) {
     const p = Number(players) || 0;
     const m = Number(maxPlayers) || 0;
 
-    if (!el) {
-        __playersCache[id] = { players: p, maxPlayers: m };
-        return;
-    }
-
-    if (m > 0) el.textContent = `ผู้เล่น: ${p}/${m}`;
-    else el.textContent = `ผู้เล่น: ${p}`;
+    if (!el) { __playersCache[id] = { players: p, maxPlayers: m }; return; }
+    el.textContent = m > 0 ? `${p}/${m}` : `${p}`;
 }
-
-
-
