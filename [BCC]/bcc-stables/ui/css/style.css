@@ -531,3 +531,17 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 .dock-actions .secondary-actions i { font-size: 21px; }
 .dock-actions .secondary-actions strong { font-size: 12px; }
 .dock-actions .secondary-actions small { font-size: 9px; }
+
+/* ===== สี (variations) ของอุปกรณ์ ===== */
+.tack-color-section { margin: 10px 0 4px; }
+.tack-color-section > small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 7px; }
+.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 108px; overflow-y: auto; }
+.tack-color-swatch {
+  min-width: 30px; height: 30px; padding: 0 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--paper); font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 3px;
+  transition: border-color .12s, background .12s;
+}
+.tack-color-swatch:hover { background: rgba(255,255,255,.09); border-color: var(--gold-light); }
+.tack-color-swatch.active { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-light); box-shadow: 0 0 0 1px var(--gold) inset; }

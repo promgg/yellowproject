@@ -33,7 +33,7 @@ async function nui(name, payload) {
 function notify(text, kind) { nui('stableNotify', { text: text, kind: kind || 'info' }); }
 
 /* ===================== state ===================== */
-let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 0, location: '', healPrice: 500, healCurrencyLabel: '$', stableMeta: {}, activeHorseId: null };
+let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 0, location: '', healPrice: 500, healCurrencyLabel: '$', stableMeta: {}, activeHorseId: null, tackColorGroups: {} };
 let myHorses = [];
 let selIdx = 0;
 let ownedStatusFilter = 'all';
@@ -472,6 +472,7 @@ function renderTackOptions() {
   el('tack-cat-title').textContent = tackCat ? t(tackCat, tackCat) : 'เลือกหมวดด้านซ้าย';
   const prev = el('tack-prev'); const next = el('tack-next');
   if (!tackCat) {
+    renderTackColors(null, null);
     updateTackSummary(); updateTackTotal(); return;
   }
   const opts = DATA.compData[tackCat] || [];
@@ -480,8 +481,40 @@ function renderTackOptions() {
   const selectedIndex = entries.findIndex((entry) => (entry.id === -1 && Number(selectedHash) === 0) || (entry.id !== -1 && String(entry.hash) === String(selectedHash)));
   if (selectedIndex >= 0 && !Object.prototype.hasOwnProperty.call(tackPending, tackCat)) tackOptionIndex = selectedIndex;
   tackOptionIndex = Math.max(0, Math.min(tackOptionIndex, entries.length - 1));
+  renderTackColors(tackCat, selectedHash);
   updateTackSummary();
   updateTackTotal();
+}
+
+/* ===== สี (variations) ของอุปกรณ์ — โชว์เฉพาะสีของรุ่นที่เลือกอยู่ ===== */
+// หากลุ่มสี (variations รุ่นเดียวกัน) ที่มี hash ปัจจุบันอยู่ — จาก Config.TackColorGroups
+function findColorGroup(cat, hash) {
+  const groups = (DATA.tackColorGroups || {})[cat];
+  if (!groups || !hash) return null;
+  const key = tackHashKey(hash);
+  for (const g of groups) { if (g.some((h) => tackHashKey(h) === key)) return g; }
+  return null;
+}
+function renderTackColors(cat, selectedHash) {
+  const section = el('tack-color-section');
+  const wrap = el('tack-color-swatches');
+  if (!section || !wrap) return;
+  const group = findColorGroup(cat, selectedHash);
+  if (!group || group.length < 2) { section.hidden = true; wrap.innerHTML = ''; return; }
+  section.hidden = false;
+  const selKey = tackHashKey(selectedHash);
+  wrap.innerHTML = group.map((h, i) => {
+    const active = tackHashKey(h) === selKey;
+    return `<button class="tack-color-swatch${active ? ' active' : ''}" type="button" data-hash="${esc(String(h))}" title="สีที่ ${i + 1}">${i + 1}</button>`;
+  }).join('');
+  wrap.querySelectorAll('[data-hash]').forEach((b) => b.addEventListener('click', () => onTackColorPick(b.dataset.hash)));
+}
+function onTackColorPick(hash) {
+  if (!tackCat) return;
+  const opts = DATA.compData[tackCat] || [];
+  const idx = opts.findIndex((o) => tackHashKey(o.hash) === tackHashKey(hash));
+  if (idx < 0) return;
+  onTackPick(String(idx), opts[idx].hash);
 }
 function updateTackSummary() {
   const diffs = tackDiffEntries();
@@ -623,6 +656,7 @@ function openUI(p) {
   if (p.healCurrencyLabel) DATA.healCurrencyLabel = p.healCurrencyLabel;
   DATA.stableMeta = p.stableMeta || {};
   DATA.activeHorseId = p.activeHorseId == null ? null : Number(p.activeHorseId);
+  DATA.tackColorGroups = (p.tackColorGroups && typeof p.tackColorGroups === 'object') ? p.tackColorGroups : {};
   ownedStatusFilter = 'all';
   replaceOwnedHorses(p.myHorsesData, null);
   tackPending = {};

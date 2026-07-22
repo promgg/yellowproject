@@ -305,6 +305,7 @@ local function SendStableData(horseData, stableMeta)
         healCurrencyLabel = ((Config.healCurrency or Config.currencyType) == 1) and '' or '$',
         stableMeta = stableMeta or {},
         activeHorseId = MyHorseId,
+        tackColorGroups = Config.TackColorGroups or {}, -- กลุ่ม "สี" (variations) ของอุปกรณ์แต่ละรุ่น สำหรับ color picker
     })
 end
 
