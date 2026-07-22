@@ -36,7 +36,12 @@ Config = {
 
 	InventorySearchable        = true,    -- Should the search bar appear in inventories
 
-	InventorySearchAutoFocus   = true,    -- Search autoofocuses when you type
+	-- ปิดไว้: เดิม true ทำให้ช่องค้นหาแย่งคีย์บอร์ดโฟกัสทันทีตอนเปิดกระเป๋า — ปุ่มลัด fastslot
+	-- (เลข 1-6, ดู client/fastslot.lua) ถูก JS guard กันไม่ให้ยิงตอน target เป็น input/textarea
+	-- (html/app.js เจตนาถูกต้อง กันพิมพ์ค้นหาโดนตีความเป็นปุ่มลัด) ผลคือกด 1-6 ทันทีหลังเปิดกระเป๋า
+	-- (ก่อนคลิกที่อื่นให้ blur ออกจากช่องค้นหา) เงียบ ดูเหมือนกดติดๆ ดับๆ แบบสุ่ม — ปิด autofocus
+	-- ผู้เล่นต้องคลิกช่องค้นหาเองก่อนพิมพ์ (เหมือนกระเป๋า RedM ปกติ) แลกกับ fastslot กดติดเสมอ
+	InventorySearchAutoFocus   = false,   -- Search autoofocuses when you type
 
 	DisableDeathInventory      = true,    -- Prevent the ability to access inventory while dead
 
