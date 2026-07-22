@@ -83,10 +83,10 @@
 
             // สถานะปุ่ม
             case 'buttons':
-                setBtn('clearBody', item.clearBody);
+                setBtn('clearBody', item.clearBody, true);          // ปิด = ซ่อน (ยังไม่เปิดใช้)
                 setBtn('respawn', item.respawn);                    // ปิด = จาง (โชว์อยู่)
                 setBtn('leaveActivity', item.leaveActivity, true);  // ปิด = ซ่อน
-                setBtn('callHelp', item.callHelp);
+                setBtn('callHelp', item.callHelp, true);            // ปิด = ซ่อน (ยังไม่เปิดใช้)
                 break;
 
             // กดค้าง: start (เริ่มไล่ fill), done (เต็ม), cancel (ปล่อยก่อน = ถอย)

@@ -27,8 +27,10 @@ Config.HelpCooldown      = 20     -- วินาที cooldown ปุ่ม CA
 Config.HelpRadius        = 100.0  -- ระยะ (เมตร) ที่ผู้เล่นจะได้รับสัญญาณขอความช่วยเหลือ
 Config.HelpBlipTime      = 30000  -- ms อายุของ blip ขอความช่วยเหลือบนแผนที่
 
--- เปิด/ปิดปุ่มเริ่มต้น (greyed out เมื่อ false)
+-- เปิด/ปิดปุ่มเริ่มต้น (false = ซ่อนปุ่มไปเลย ไม่แสดงบนแถบ + กดไม่ได้)
 Config.Buttons = {
+    clearBody     = false, -- ซ่อนไว้ก่อน ยังไม่เปิดใช้ (ตั้ง true เพื่อโชว์ปุ่ม CLEAR BODY [G])
+    callHelp      = false, -- ซ่อนไว้ก่อน ยังไม่เปิดใช้ (ตั้ง true เพื่อโชว์ปุ่ม CALL FOR HELP [H])
     leaveActivity = false, -- placeholder — เปิดผ่าน export SetLeaveActivityButton หรือใช้ export LeaveActivityRespawn
     callDoctor    = false, -- ยังไม่มีระบบอาชีพหมอในเซิร์ฟเวอร์
 }
