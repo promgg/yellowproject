@@ -227,10 +227,10 @@ function applyHorseActions(h) {
   el('btn-heal').disabled = !needsHeal || permanentDead;
   el('btn-release').disabled = state.key === 'dead' || state.key === 'injured' || state.key === 'active';
   if (state.key === 'active') {
-    setPrimaryAction('เก็บม้าเข้าคอก', 'บันทึกสถานะและส่งม้ากลับคอก', 'fa-arrow-right-to-bracket');
+    setPrimaryAction('เก็บม้าเข้าคอก', 'เก็บม้า', 'fa-arrow-right-to-bracket');
     el('btn-summon').disabled = false;
   } else {
-    setPrimaryAction('เรียกม้าตัวนี้', anotherActive ? 'ต้องเก็บม้าที่ถูกเรียกอยู่ก่อน' : 'เรียกม้าออกจากคอกมายังจุดปลอดภัย', 'fa-horse-head');
+    setPrimaryAction('เรียกม้าตัวนี้', anotherActive ? 'ต้องเก็บม้าที่ถูกเรียกอยู่ก่อน' : 'เรียกม้า', 'fa-horse-head');
     el('btn-summon').disabled = anotherActive || state.key === 'dead' || state.key === 'injured';
   }
 }
