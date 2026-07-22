@@ -450,6 +450,7 @@ function renderTackCatList() {
   const prev = el('tack-prev'); const next = el('tack-next');
   if (prev) prev.addEventListener('click', () => moveTackOption(-1));
   if (next) next.addEventListener('click', () => moveTackOption(1));
+  list.querySelectorAll('.tack-color-swatch[data-hash]').forEach((b) => b.addEventListener('click', () => onTackColorPick(b.dataset.hash)));
   el('tack-cat-active-label').textContent = tackCat ? t(tackCat, tackCat) : '';
 }
 function tackInlineCarousel(cat) {
@@ -466,13 +467,23 @@ function tackInlineCarousel(cat) {
     <button id="tack-prev" class="tack-arrow" type="button" aria-label="อุปกรณ์ก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
     <div class="tack-current-card"><strong>${esc(currentLabel)}</strong></div>
     <button id="tack-next" class="tack-arrow" type="button" aria-label="อุปกรณ์ถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
-  </div>`;
+  </div>${tackColorSwatchesHTML(cat, current.hash)}`;
+}
+// แถวสี (variations ของรุ่นที่เลือกอยู่) — โชว์ใต้ carousel ฝั่งซ้าย. คืน '' ถ้ารุ่นนี้ไม่มีหลายสี
+function tackColorSwatchesHTML(cat, selectedHash) {
+  const group = findColorGroup(cat, selectedHash);
+  if (!group || group.length < 2) return '';
+  const selKey = tackHashKey(selectedHash);
+  const btns = group.map((h, i) => {
+    const active = tackHashKey(h) === selKey;
+    return `<button class="tack-color-swatch${active ? ' active' : ''}" type="button" data-hash="${esc(String(h))}" title="สีที่ ${i + 1}">${i + 1}</button>`;
+  }).join('');
+  return `<div class="tack-color-row"><small>สี (ลูกศร ↑↓)</small><div class="tack-color-swatches">${btns}</div></div>`;
 }
 function renderTackOptions() {
   el('tack-cat-title').textContent = tackCat ? t(tackCat, tackCat) : 'เลือกหมวดด้านซ้าย';
   const prev = el('tack-prev'); const next = el('tack-next');
   if (!tackCat) {
-    renderTackColors(null, null);
     updateTackSummary(); updateTackTotal(); return;
   }
   const opts = DATA.compData[tackCat] || [];
@@ -481,7 +492,6 @@ function renderTackOptions() {
   const selectedIndex = entries.findIndex((entry) => (entry.id === -1 && Number(selectedHash) === 0) || (entry.id !== -1 && String(entry.hash) === String(selectedHash)));
   if (selectedIndex >= 0 && !Object.prototype.hasOwnProperty.call(tackPending, tackCat)) tackOptionIndex = selectedIndex;
   tackOptionIndex = Math.max(0, Math.min(tackOptionIndex, entries.length - 1));
-  renderTackColors(tackCat, selectedHash);
   updateTackSummary();
   updateTackTotal();
 }
@@ -495,26 +505,23 @@ function findColorGroup(cat, hash) {
   for (const g of groups) { if (g.some((h) => tackHashKey(h) === key)) return g; }
   return null;
 }
-function renderTackColors(cat, selectedHash) {
-  const section = el('tack-color-section');
-  const wrap = el('tack-color-swatches');
-  if (!section || !wrap) return;
-  const group = findColorGroup(cat, selectedHash);
-  if (!group || group.length < 2) { section.hidden = true; wrap.innerHTML = ''; return; }
-  section.hidden = false;
-  const selKey = tackHashKey(selectedHash);
-  wrap.innerHTML = group.map((h, i) => {
-    const active = tackHashKey(h) === selKey;
-    return `<button class="tack-color-swatch${active ? ' active' : ''}" type="button" data-hash="${esc(String(h))}" title="สีที่ ${i + 1}">${i + 1}</button>`;
-  }).join('');
-  wrap.querySelectorAll('[data-hash]').forEach((b) => b.addEventListener('click', () => onTackColorPick(b.dataset.hash)));
-}
 function onTackColorPick(hash) {
   if (!tackCat) return;
   const opts = DATA.compData[tackCat] || [];
   const idx = opts.findIndex((o) => tackHashKey(o.hash) === tackHashKey(hash));
   if (idx < 0) return;
   onTackPick(String(idx), opts[idx].hash);
+}
+// เลื่อนสี (ลูกศร ขึ้น/ลง) — วนสีในกลุ่มของรุ่นที่เลือกอยู่
+function moveTackColor(dir) {
+  if (!tackCat) return;
+  const selectedHash = Object.prototype.hasOwnProperty.call(tackPending, tackCat) ? tackPending[tackCat] : tackInstalled[tackCat];
+  const group = findColorGroup(tackCat, selectedHash);
+  if (!group || group.length < 2) return;
+  const cur = group.findIndex((h) => tackHashKey(h) === tackHashKey(selectedHash));
+  const start = cur >= 0 ? cur : 0;
+  const nextIdx = (start + dir + group.length) % group.length;
+  onTackColorPick(group[nextIdx]);
 }
 function updateTackSummary() {
   const diffs = tackDiffEntries();
@@ -791,6 +798,13 @@ document.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (k === 'escape') { if (typing) document.activeElement.blur(); else backOrClose(); return; }
   if (typing) return;
+  // เมนูแต่งอาน: ลูกศร ซ้าย/ขวา = เปลี่ยนแบบ (รุ่น), ขึ้น/ลง = เปลี่ยนสีของรุ่นนั้น
+  if (mode === 'tack' && tackCat) {
+    if (k === 'arrowleft') { e.preventDefault(); moveTackOption(-1); return; }
+    if (k === 'arrowright') { e.preventDefault(); moveTackOption(1); return; }
+    if (k === 'arrowup') { e.preventDefault(); moveTackColor(-1); return; }
+    if (k === 'arrowdown') { e.preventDefault(); moveTackColor(1); return; }
+  }
   if (k === 'q' && !qDown) { qDown = true; startRotate('left'); }
   if (k === 'e' && !eDown) { eDown = true; startRotate('right'); }
 });

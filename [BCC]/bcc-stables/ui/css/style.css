@@ -532,10 +532,10 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 .dock-actions .secondary-actions strong { font-size: 12px; }
 .dock-actions .secondary-actions small { font-size: 9px; }
 
-/* ===== สี (variations) ของอุปกรณ์ ===== */
-.tack-color-section { margin: 10px 0 4px; }
-.tack-color-section > small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 7px; }
-.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 108px; overflow-y: auto; }
+/* ===== สี (variations) ของอุปกรณ์ — ใต้ carousel ฝั่งซ้าย ===== */
+.tack-color-row { margin: 6px 2px 4px; padding: 8px 10px; background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 3px; }
+.tack-color-row > small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
 .tack-color-swatch {
   min-width: 30px; height: 30px; padding: 0 6px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
