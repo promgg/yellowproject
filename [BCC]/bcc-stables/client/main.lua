@@ -2205,7 +2205,8 @@ end
 --   → SetMetaPedTag. (ขน/ตัวม้าไม่ใช่ shop item จึงคืน hash=0 ถูกข้ามอัตโนมัติ)
 --   เดิมอ่าน GetMetaPedAssetGuids จาก ped โดยตรง ซึ่งได้ tag ไม่ถูกกับอุปกรณ์ม้า → tint ติดแค่อาน
 -- t0/t1/t2 = index จานสี (0-254, 255=ปิด). ถ้า nil = ถอด tint (คืนสีเดิม)
-local HORSE_BODY_PALETTE = -1543234321 -- joaat('metaped_tint_horse') signed — ตัวม้า/ขน ไม่ทา
+-- หมายเหตุ: ไม่ต้องกรอง palette metaped_tint_horse ทิ้งแล้ว — เพราะตัวม้า/ขนคืน hash=0 (ไม่ใช่ shop item)
+-- ถูกข้ามอยู่แล้ว ส่วนอุปกรณ์บางชิ้น (เช่นบางกระเป๋า/ผ้าคลุม) ก็ใช้ palette นี้เหมือนกัน ต้องทาด้วย
 
 -- คืน hash ของ shop item ที่ component index นั้น (ลอง MP ก่อน SP ตาม jo_libs). 0 = ไม่ใช่ shop item
 -- ใช้ named native ตรง ๆ ให้ CfxLua จัด marshalling ตาม signature (เหมือน jo_libs)
@@ -2238,7 +2239,7 @@ function ApplyTackTint(entity, t0, t1, t2, debug)
         local hash, isMp = TackShopHashAtIndex(entity, i)
         if hash and hash ~= 0 then
             local drawable, albedo, normal, material, palette = TackBaseLayers(hash, metapedType, isMp)
-            local tintable = palette and palette ~= 0 and palette ~= HORSE_BODY_PALETTE
+            local tintable = palette and palette ~= 0
             if debug then
                 print(('[bcc-stables tint] idx=%d hash=%s palette=%s tint=%s'):format(i, tostring(hash), tostring(palette), tostring(tintable)))
             end
