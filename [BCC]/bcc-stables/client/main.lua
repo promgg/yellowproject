@@ -103,6 +103,14 @@ local function ManageStableBlip(site, closed)
     end
 end
 
+-- ลบ entity ให้ชัวร์: mark เป็น mission entity + ขอ control ก่อน DeleteEntity
+-- (DeleteEntity เฉย ๆ อาจไม่ลบ ped ที่ networked/ไม่ได้ควบคุม → ม้า/NPC เกิดซ้อนทุกครั้งที่ restart resource)
+function SafeDeleteEntity(entity)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then return end
+    Citizen.InvokeNative(0xAD738C3085FE7E11, entity, true, true) -- SetEntityAsMissionEntity (ขอ control ให้ลบได้ชัวร์)
+    DeleteEntity(entity)
+end
+
 local function AddStableNPC(site)
     local siteCfg = Stables[site]
 
@@ -127,7 +135,7 @@ local function RemoveStableNPC(site)
     local siteCfg = Stables[site]
 
     if siteCfg.NPC then
-        DeleteEntity(siteCfg.NPC)
+        SafeDeleteEntity(siteCfg.NPC)
         siteCfg.NPC = nil
     end
 end
@@ -299,7 +307,7 @@ local function ReconcileActiveHorseForStable(horseData)
 
     if entityExists then
         SetEntityAsMissionEntity(MyHorse, true, true)
-        DeleteEntity(MyHorse)
+        SafeDeleteEntity(MyHorse)
     end
     Sending = false
     HorseGeneration = HorseGeneration + 1
@@ -349,12 +357,12 @@ end
 
 local function ClearShopHorse()
     if ShopEntity ~= 0 then
-        DeleteEntity(ShopEntity)
+        SafeDeleteEntity(ShopEntity)
         ShopEntity = 0
     end
 
     if MyEntity ~=0 then
-        DeleteEntity(MyEntity)
+        SafeDeleteEntity(MyEntity)
         MyEntity = 0
     end
 end
@@ -395,7 +403,7 @@ RegisterNUICallback('loadHorse', function(data, cb)
 
     local entityExists = CheckEntityExists(ShopEntity)
     if not entityExists or requestGeneration ~= PreviewGeneration then
-        if ShopEntity ~= 0 then DeleteEntity(ShopEntity) end
+        if ShopEntity ~= 0 then SafeDeleteEntity(ShopEntity) end
         ShopEntity = 0
         return cb({ ok = false, reason = entityExists and 'stale' or 'entity' })
     end
@@ -488,7 +496,7 @@ function SetHorseName(data)
                 end
                 local horseSaved = Core.Callback.TriggerAwait('bcc-stables:SaveTamedHorse', data)
                 if horseSaved then
-                    DeleteEntity(data.mount)
+                    SafeDeleteEntity(data.mount)
                     HorseBreed = false
                     TameToken = nil
                 end
@@ -544,7 +552,7 @@ RegisterNUICallback('loadMyHorse', function(data, cb)
 
     local entityExists = CheckEntityExists(MyEntity)
     if not entityExists or requestGeneration ~= PreviewGeneration then
-        if MyEntity ~= 0 then DeleteEntity(MyEntity) end
+        if MyEntity ~= 0 then SafeDeleteEntity(MyEntity) end
         MyEntity = 0
         MyEntityID = nil
         return cb({ ok = false, reason = entityExists and 'stale' or 'entity' })
@@ -648,7 +656,7 @@ RegisterNUICallback('summonHorse', function(data, cb)
     if selected ~= true then
         Sending = false
         HorseGeneration = HorseGeneration + 1
-        if MyHorse ~= 0 and DoesEntityExist(MyHorse) then DeleteEntity(MyHorse) end
+        if MyHorse ~= 0 and DoesEntityExist(MyHorse) then SafeDeleteEntity(MyHorse) end
         MyHorse, MyHorseId = 0, nil
         return cb({ ok = false, reason = 'state_changed' })
     end
@@ -810,7 +818,7 @@ function SpawnHorse(data)
     if MyHorse ~= 0 then
         Sending = false
         HorseGeneration = HorseGeneration + 1
-        DeleteEntity(MyHorse)
+        SafeDeleteEntity(MyHorse)
         MyHorse = 0
         MyHorseId = nil
     end
@@ -1085,7 +1093,7 @@ AddEventHandler('bcc-stables:HorsePrompts', function()
             SaveHorseStats(InWrithe)
             Sending = false
             HorseGeneration = HorseGeneration + 1
-            DeleteEntity(MyHorse)
+            SafeDeleteEntity(MyHorse)
             MyHorse = 0
             MyHorseId = nil
             goto END
@@ -1344,7 +1352,7 @@ CreateThread(function()
                                 TriggerServerEvent('bcc-stables:UpdateHorseStatus', MyHorseId, 'dead')
                                 Wait(5000)
                                 SaveHorseStats(true)
-                                DeleteEntity(MyHorse)
+                                SafeDeleteEntity(MyHorse)
                                 Sending = false
                                 HorseGeneration = HorseGeneration + 1
                                 MyHorse = 0
@@ -1379,7 +1387,7 @@ AddEventHandler('bcc-stables:ManageHorseDeath', function()
 
         Wait(5000)
         SaveHorseStats(true)
-        DeleteEntity(MyHorse)
+        SafeDeleteEntity(MyHorse)
         Sending = false
         HorseGeneration = HorseGeneration + 1
         MyHorse = 0
@@ -1401,7 +1409,7 @@ AddEventHandler('bcc-stables:WhistleHorse', function()
         if dist >= 100 then
             Sending = false
             HorseGeneration = HorseGeneration + 1
-            DeleteEntity(MyHorse)
+            SafeDeleteEntity(MyHorse)
             MyHorse = 0
             MyHorseId = nil
             GetSelectedHorse()
@@ -1529,7 +1537,7 @@ CreateThread(function()
                         AddTrainerNPC(site)
                     end
                 elseif siteCfg.TrainerNPC then
-                    DeleteEntity(siteCfg.TrainerNPC)
+                    SafeDeleteEntity(siteCfg.TrainerNPC)
                     siteCfg.TrainerNPC = nil
                 end
             end
@@ -1572,7 +1580,7 @@ CreateThread(function()
                         end
 
                         NotifyTip(_U('tamedCooldown') .. Config.cooldown.sellTame .. _U('minutes'), 4000)
-                        DeleteEntity(mount)
+                        SafeDeleteEntity(mount)
                         mount = 0
                         Wait(200)
                         HorseBreed = false
@@ -1676,7 +1684,7 @@ function FleeHorse()
 
     Citizen.InvokeNative(0x22B0D0E37CCB840D, MyHorse, PlayerPedId(), 150.0, 10000, 6, 3.0) -- TaskSmartFleePed
     Wait(10000)
-    DeleteEntity(MyHorse)
+    SafeDeleteEntity(MyHorse)
     Sending = false
     HorseGeneration = HorseGeneration + 1
     MyHorse = 0
@@ -1707,7 +1715,7 @@ function ReturnHorse()
     GetControlOfHorse()
     Sending = false
     HorseGeneration = HorseGeneration + 1
-    DeleteEntity(MyHorse)
+    SafeDeleteEntity(MyHorse)
     MyHorse = 0
     MyHorseId = nil
     NotifyTip(_U('horseReturned'), 4000, 'success')
@@ -2610,12 +2618,12 @@ AddEventHandler('onResourceStop', function(resourceName)
     DisplayRadar(true)
 
     if ShopEntity ~= 0 then
-        DeleteEntity(ShopEntity)
+        SafeDeleteEntity(ShopEntity)
         ShopEntity = 0
     end
 
     if MyEntity ~= 0 then
-        DeleteEntity(MyEntity)
+        SafeDeleteEntity(MyEntity)
         MyEntity = 0
     end
 
@@ -2623,7 +2631,7 @@ AddEventHandler('onResourceStop', function(resourceName)
         SaveHorseStats(InWrithe)
         Sending = false
         HorseGeneration = HorseGeneration + 1
-        DeleteEntity(MyHorse)
+        SafeDeleteEntity(MyHorse)
         MyHorse = 0
     end
 
@@ -2633,7 +2641,7 @@ AddEventHandler('onResourceStop', function(resourceName)
             siteCfg.Blip = nil
         end
         if siteCfg.NPC then
-            DeleteEntity(siteCfg.NPC)
+            SafeDeleteEntity(siteCfg.NPC)
             siteCfg.NPC = nil
         end
     end
@@ -2644,7 +2652,7 @@ AddEventHandler('onResourceStop', function(resourceName)
             siteCfg.TrainerBlip = nil
         end
         if siteCfg.TrainerNPC then
-            DeleteEntity(siteCfg.TrainerNPC)
+            SafeDeleteEntity(siteCfg.TrainerNPC)
             siteCfg.TrainerNPC = nil
         end
     end
