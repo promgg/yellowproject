@@ -17,7 +17,8 @@
 
   function buildToast(image, label, name, qtyText) {
     var el = document.createElement('div');
-    el.className = 'toast';
+    // ADDED = ได้ (เขียว), อื่นๆ/REMOVED = เสีย (แดง) — CSS ใช้ --c ต่อคลาส
+    el.className = 'toast ' + (label === 'ADDED' ? 'is-add' : 'is-remove');
 
     var iconBox = document.createElement('div');
     iconBox.className = 'toast-icon-box';
