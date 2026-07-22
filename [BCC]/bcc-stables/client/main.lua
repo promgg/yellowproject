@@ -627,7 +627,7 @@ RegisterNUICallback('CloseStable', function(data, cb)
         data.site = Site
         local result = Core.Callback.TriggerAwait('bcc-stables:BuyTack', data)
         if not result or result.ok ~= true then
-            NotifyTip('ไม่สามารถบันทึกอุปกรณ์ม้าได้', 4000)
+            -- ไม่แจ้งซ้ำที่นี่ — NUI (onTackSave) แสดงข้อความ error ตาม reason ที่เจาะจงแล้ว
             return cb(result or { ok = false, reason = 'failed' })
         end
         cb(result)

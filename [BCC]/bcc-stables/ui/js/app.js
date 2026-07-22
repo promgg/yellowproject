@@ -220,7 +220,8 @@ function applyHorseActions(h) {
   el('main-status-dot').classList.toggle('danger', state.key === 'dead' || state.key === 'injured');
   setMainActionsEnabled(true);
   el('btn-cargo').disabled = state.key === 'dead' || state.key === 'injured';
-  el('btn-tack').disabled = state.key === 'dead' || state.key === 'injured';
+  // แต่งอานได้เฉพาะม้าที่อยู่ในคอก — ถ้าถูกเรียกออกมา (active) ต้องเก็บเข้าคอกก่อน
+  el('btn-tack').disabled = state.key === 'dead' || state.key === 'injured' || state.key === 'active';
   el('btn-setmain').disabled = Number(h.selected) === 1 || state.key === 'dead' || state.key === 'injured';
   el('btn-setmain').querySelector('span').textContent = Number(h.selected) === 1 ? 'ม้าหลักปัจจุบัน' : 'ตั้งเป็นม้าหลัก';
   el('btn-heal').disabled = !needsHeal || permanentDead;
@@ -626,8 +627,16 @@ async function onTackSave() {
   actionBusy = true; el('btn-tack-save').disabled = true;
   const result = await nui('CloseStable', { MenuAction: 'save', cashPrice: total.cash, goldPrice: total.gold, currencyType: 0 });
   actionBusy = false;
-  if (result && result.ok) root.classList.add('hidden');
-  else { el('btn-tack-save').disabled = false; notify('บันทึกอุปกรณ์ไม่สำเร็จ', 'error'); }
+  if (result && result.ok) { root.classList.add('hidden'); return; }
+  el('btn-tack-save').disabled = false;
+  const reasons = {
+    funds: 'เงินไม่พอสำหรับอุปกรณ์ที่เลือก',
+    invalid_component: 'อุปกรณ์ไม่ถูกต้อง กรุณาลองใหม่',
+    processing: 'กำลังประมวลผล รอสักครู่แล้วลองใหม่',
+    unavailable: 'ม้าตัวนี้ไม่พร้อมทำรายการ',
+    database: 'บันทึกไม่สำเร็จ (ฐานข้อมูล) กรุณาลองใหม่',
+  };
+  notify(reasons[result && result.reason] || 'บันทึกอุปกรณ์ไม่สำเร็จ', 'error');
 }
 
 /* ===================== mode switching ===================== */
