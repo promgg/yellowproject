@@ -187,12 +187,13 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
             return
         end
 
-        -- สุ่ม + แจก (server-side ทั้งหมด)
-        local winners = {}
+        -- สุ่มทั้ง batch ก่อน (ตัดสินว่าได้อะไร) แต่ "ยังไม่แจก"
+        -- กันผู้เล่นเห็นของเข้ากระเป๋าก่อนอนิเมชันเผยผลจบ (เดาออกว่าได้อะไร)
+        local rewards, winners = {}, {}
         for i = 1, qty do
             local reward = rollWinner(pool)
-            grantReward(src, xPlayer, reward)
-            winners[#winners + 1] = {
+            rewards[i] = reward
+            winners[i] = {
                 item   = reward.item,
                 label  = reward.label,
                 image  = reward.item,
@@ -202,25 +203,33 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
             }
         end
 
-        logGrant(src, xPlayer, pool, winners)
-
-        -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด กันสแปมตอนเปิดทีละมาก)
-        if Config.Broadcast and Config.Broadcast.Enable then
-            local pname = ((xPlayer.firstname or '') .. ' ' .. (xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
-            if pname == '' then pname = 'ผู้เล่น' end
-            local announced = {}
-            for _, w in ipairs(winners) do
-                if Config.Broadcast.Rarities[w.rarity] and not announced[w.item] then
-                    announced[w.item] = true
-                    local text = (Config.Broadcast.Message or 'คุณ %s ได้รับ %s'):format(pname, w.label or w.item)
-                    TriggerClientEvent('lp_gacha:broadcast', -1, text)
-                end
-            end
-        end
-
-        -- ส่งผลให้ client เล่นแอนิเมชันโชว์ (โชว์อย่างเดียว ไม่ตัดสินอะไร)
+        -- ส่งผลให้ client เล่นอนิเมชันก่อน (ตั๋วหักไปแล้ว remaining ถูกต้อง)
         local remaining = exports.vorp_inventory:getItemCount(src, nil, pool.ticket) or 0
         TriggerClientEvent('lp_gacha:result', src, winners, remaining)
+
+        -- แจกของจริง + ประกาศ + log หลังอนิเมชันเผยผลเสร็จ (server timer = แจกแม้ client หลุด)
+        -- แลกกับ: ถ้า DC ในช่วง ~2.3 วิของ reveal อาจแจกให้ ped ที่ออกไปแล้ว (โอกาสน้อยมาก
+        -- เพราะผู้เล่นกำลังดูอนิเมชันอยู่) — ตั๋วหักไปแล้ว การหน่วงคือของราคาที่ยอมจ่ายเพื่อไม่สปอยล์
+        Citizen.SetTimeout(Config.RevealMs or 2300, function()
+            for _, reward in ipairs(rewards) do
+                grantReward(src, xPlayer, reward)
+            end
+            logGrant(src, xPlayer, pool, winners)
+
+            -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด) — ยิงหลังเผยผลไม่ให้ banner สปอยล์ของตัวเอง
+            if Config.Broadcast and Config.Broadcast.Enable then
+                local pname = ((xPlayer.firstname or '') .. ' ' .. (xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
+                if pname == '' then pname = 'ผู้เล่น' end
+                local announced = {}
+                for _, w in ipairs(winners) do
+                    if Config.Broadcast.Rarities[w.rarity] and not announced[w.item] then
+                        announced[w.item] = true
+                        local text = (Config.Broadcast.Message or 'คุณ %s ได้รับ %s'):format(pname, w.label or w.item)
+                        TriggerClientEvent('lp_gacha:broadcast', -1, text)
+                    end
+                end
+            end
+        end)
     end)
 
     lastSpin[src]   = GetGameTimer()
