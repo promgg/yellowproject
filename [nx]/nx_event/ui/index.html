@@ -4,34 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nx_event</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- ── Event HUD panel (right side) ──────────────────────────────────── -->
+    <!-- ── Event HUD: แถบ nameplate บนกลางจอ ─────────────────────────────── -->
     <div id="event-hud" class="hidden">
-        <div class="hud-header">
-            <span class="hud-icon">⚔</span>
-            <span class="hud-title">สมบัติแห่งสัญญา</span>
-        </div>
-
-        <div class="hud-timer-row">
-            <span class="label-muted">เหลือเวลา</span>
-            <span id="timer-value">10:00</span>
-        </div>
-
-        <div class="hud-boxes-row">
-            <span class="label-muted">กล่อง</span>
-            <div class="bar-track">
-                <div id="boxes-fill" class="bar-fill gold"></div>
+        <div class="ev-title">สมบัติแห่งสัญญา</div>
+        <div class="group">
+            <div class="platesrow" id="cityRow"></div>
+            <div class="footrow">
+                <span class="chip">
+                    <span class="lbl">กล่อง</span>
+                    <span class="boxstrip" id="boxStrip"></span>
+                    <span id="boxCount">0/5</span>
+                </span>
+                <span class="chip timer" id="timerChip">
+                    <span class="lbl">เหลือเวลา</span>
+                    <span id="timer-value">10:00</span>
+                </span>
             </div>
-            <span id="boxes-count" class="val-gold">0/5</span>
         </div>
-
-        <div class="hud-divider"></div>
-
-        <!-- City rows rendered by JS -->
-        <div id="city-list"></div>
     </div>
 
     <!-- ── Downed overlay ────────────────────────────────────────────────── -->
