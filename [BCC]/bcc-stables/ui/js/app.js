@@ -33,7 +33,7 @@ async function nui(name, payload) {
 function notify(text, kind) { nui('stableNotify', { text: text, kind: kind || 'info' }); }
 
 /* ===================== state ===================== */
-let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 0, location: '', healPrice: 500, healCurrencyLabel: '$', stableMeta: {}, activeHorseId: null, tackTints: [] };
+let DATA = { shopData: [], compData: {}, translations: {}, currencyType: 0, location: '', healPrice: 500, healCurrencyLabel: '$', stableMeta: {}, activeHorseId: null };
 let myHorses = [];
 let selIdx = 0;
 let ownedStatusFilter = 'all';
@@ -48,8 +48,6 @@ let tackCat = null;
 let tackOptionIndex = 0;
 let tackPending = {};     // { <category>: hash } เลือกยังไม่บันทึก (คิดราคา)
 let tackInstalled = {};
-let tackInstalledTint = null; // สีอุปกรณ์ที่บันทึกไว้ของม้าตัวนี้ { t0, t1, t2 } (null = สีเดิม)
-let tackPendingTint = null;   // สีที่เลือกในเมนูยังไม่บันทึก (null = ยังไม่แตะ = เท่ากับ installed)
 let actionBusy = false;
 
 /* 4 สถิติสายพันธุ์ (จาก config/horses.lua) — ไม่รวม health/stamina (แยกไปโชว์เป็นสภาพจริง) */
@@ -270,8 +268,6 @@ async function previewCurrent() {
   const h = currentHorse();
   if (!h) return false;
   const result = await nui('loadMyHorse', { HorseId: h.id, HorseComp: h.components || '{}', HorseModel: h.model, HorseGender: h.gender });
-  tackInstalledTint = (result && result.tint) ? result.tint : null;
-  tackPendingTint = null;
   return result && result.ok !== false;
 }
 function selectHorseIndex(idx) {
@@ -497,53 +493,16 @@ function updateTackSummary() {
     </div>`).join('') : '<span class="tack-diff-empty">ยังไม่มีการเปลี่ยนแปลง</span>';
 }
 function updateTackTotal() {
-  const hasDiff = tackDiffEntries().length > 0 || tintChanged();
+  const hasDiff = tackDiffEntries().length > 0;
   const total = computeTackTotal();
   el('tack-total-price').textContent = priceText(total.cash);
   el('btn-tack-save').disabled = actionBusy || !hasDiff;
 }
 
-/* ===== สีอุปกรณ์ (tack tint) ===== */
-// 255,255,255 = ปิด tint = สีเดิม → normalize ให้เท่ากับ "ไม่มีสี" (null) เพื่อไฮไลต์ปุ่ม "สีเดิม" ถูกตัว
-function tintKey(tint) {
-  if (!tint || tint.t0 == null) return 'none';
-  if (Number(tint.t0) === 255 && Number(tint.t1) === 255 && Number(tint.t2) === 255) return 'none';
-  return `${Number(tint.t0)},${Number(tint.t1)},${Number(tint.t2)}`;
-}
-function tintChanged() {
-  return tackPendingTint !== null && tintKey(tackPendingTint) !== tintKey(tackInstalledTint);
-}
-function renderTackTints() {
-  const section = el('tack-tint-section');
-  const wrap = el('tack-tint-swatches');
-  if (!section || !wrap) return;
-  const tints = DATA.tackTints || [];
-  if (!tints.length) { section.hidden = true; wrap.innerHTML = ''; return; }
-  section.hidden = false;
-  const activeKey = tintKey(tackPendingTint !== null ? tackPendingTint : tackInstalledTint);
-  wrap.innerHTML = tints.map((tn, i) => {
-    const active = tintKey(tn) === activeKey;
-    return `<button class="tack-tint-swatch${active ? ' active' : ''}" type="button" data-tint="${i}" title="${esc(tn.label || '')}" style="--sw:${esc(tn.hex || '#888')}">
-      <span class="tack-tint-dot"></span><small>${esc(tn.label || '')}</small>
-    </button>`;
-  }).join('');
-  wrap.querySelectorAll('[data-tint]').forEach((b) => b.addEventListener('click', () => onTintPick(Number(b.dataset.tint))));
-}
-function onTintPick(i) {
-  const tn = (DATA.tackTints || [])[i];
-  if (!tn || actionBusy) return;
-  tackPendingTint = { t0: Number(tn.t0), t1: Number(tn.t1), t2: Number(tn.t2) };
-  nui('TackTint', tackPendingTint);
-  renderTackTints();
-  updateTackTotal();
-}
 function onTackPick(id, hash) {
   if (!tackCat) return;
   tackOptionIndex = id === '-1' ? 0 : Number(id) + 1;
   nui(tackCat, { id: id, hash: hash });
-  // อุปกรณ์ชิ้นใหม่เพิ่งใส่จะยังไม่มีสี → ทาสีปัจจุบันซ้ำบนพรีวิว (ถ้ามีสีที่เลือก/บันทึกไว้)
-  const effTint = tackPendingTint !== null ? tackPendingTint : tackInstalledTint;
-  if (effTint && tintKey(effTint) !== 'none') nui('TackTint', effTint);
   const nextHash = (id === '-1') ? 0 : hash;
   if (tackHashKey(nextHash) === tackHashKey(tackInstalled[tackCat])) delete tackPending[tackCat];
   else tackPending[tackCat] = nextHash;
@@ -589,18 +548,12 @@ function setMode(m) {
   } else if (m === 'tack') {
     const horse = currentHorse();
     tackPending = {};
-    let parsed = {};
-    try { parsed = JSON.parse(horse && horse.components || '{}') || {}; } catch (_) { parsed = {}; }
-    tackInstalled = parsed;
-    tackInstalledTint = (parsed._tint && parsed._tint.t0 != null)
-      ? { t0: Number(parsed._tint.t0), t1: Number(parsed._tint.t1), t2: Number(parsed._tint.t2) } : null;
-    tackPendingTint = null;
+    try { tackInstalled = JSON.parse(horse && horse.components || '{}') || {}; } catch (_) { tackInstalled = {}; }
     const cats = availableTackCats();
     tackCat = cats[0] || null;
     tackOptionIndex = 0;
     renderTackCatList();
     renderTackOptions();
-    renderTackTints();
   }
 }
 function backOrClose() { if (mode !== 'main') setMode('main'); else closeUI(); }
@@ -670,13 +623,10 @@ function openUI(p) {
   if (p.healCurrencyLabel) DATA.healCurrencyLabel = p.healCurrencyLabel;
   DATA.stableMeta = p.stableMeta || {};
   DATA.activeHorseId = p.activeHorseId == null ? null : Number(p.activeHorseId);
-  DATA.tackTints = Array.isArray(p.tackTints) ? p.tackTints : [];
   ownedStatusFilter = 'all';
   replaceOwnedHorses(p.myHorsesData, null);
   tackPending = {};
   tackInstalled = {};
-  tackInstalledTint = null;
-  tackPendingTint = null;
   shopGender = 'male';
   el('stable-location').textContent = DATA.location || '';
   renderOwnedCount();

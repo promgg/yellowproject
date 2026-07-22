@@ -29,7 +29,6 @@ local HorseDrink, HorseRest, HorseSleep, HorseWallow = 0, 0, 0, 0
 local BedrollsUsing, MasksUsing, MustachesUsing, HolstersUsing = nil, nil, nil, nil
 local SaddlesUsing, SaddleclothsUsing, StirrupsUsing, HorseshoesUsing = nil, nil, nil, nil
 local BagsUsing, ManesUsing, TailsUsing, SaddleHornsUsing, BridlesUsing = nil, nil, nil, nil, nil
-local CurrentTackTint = nil -- สีอุปกรณ์ปัจจุบัน { t0, t1, t2 } (nil = สีเดิม) ต่อม้าที่กำลังดู/ขี่
 
 -- Horse Training
 local LastLoc, TamedModel, TameToken = nil, nil, nil
@@ -306,7 +305,6 @@ local function SendStableData(horseData, stableMeta)
         healCurrencyLabel = ((Config.healCurrency or Config.currencyType) == 1) and '' or '$',
         stableMeta = stableMeta or {},
         activeHorseId = MyHorseId,
-        tackTints = Config.TackTintEnabled and (Config.TackTints or {}) or nil,
     })
 end
 
@@ -553,20 +551,12 @@ RegisterNUICallback('loadMyHorse', function(data, cb)
     Wait(300)
     Citizen.InvokeNative(0x6585D955A68452A5, MyEntity) -- ClearPedEnvDirt
 
-    CurrentTackTint = nil
     if components and components ~= '[]' then
-        for key, component in pairs(components) do
-            if key ~= '_tint' then
-                SetComponent(MyEntity, component)
-            end
-        end
-        local savedTint = components._tint
-        if type(savedTint) == 'table' and tonumber(savedTint.t0) then
-            CurrentTackTint = { t0 = tonumber(savedTint.t0), t1 = tonumber(savedTint.t1) or tonumber(savedTint.t0), t2 = tonumber(savedTint.t2) or tonumber(savedTint.t0) }
-            ApplyTackTint(MyEntity, CurrentTackTint.t0, CurrentTackTint.t1, CurrentTackTint.t2)
+        for _, component in pairs(components) do
+            SetComponent(MyEntity, component)
         end
     end
-    cb({ ok = true, horseId = MyEntityID, tint = CurrentTackTint })
+    cb({ ok = true, horseId = MyEntityID })
 end)
 
 RegisterNUICallback('selectHorse', function(data, cb)
@@ -607,7 +597,6 @@ RegisterNUICallback('CloseStable', function(data, cb)
     if data.MenuAction == 'save' then
         data.horseId = MyEntityID
         data.components = SaveComps()
-        data.tackTint = CurrentTackTint -- { t0, t1, t2 } หรือ nil — ส่งแยกจาก components (กัน server validate เป็น category)
         data.site = Site
         local result = Core.Callback.TriggerAwait('bcc-stables:BuyTack', data)
         if not result or result.ok ~= true then
@@ -977,14 +966,8 @@ function SpawnHorse(data)
     end
 
     if components and components ~= '[]' then
-        for key, component in pairs(components) do
-            if key ~= '_tint' then
-                SetComponent(MyHorse, component)
-            end
-        end
-        local savedTint = components._tint
-        if type(savedTint) == 'table' and tonumber(savedTint.t0) then
-            ApplyTackTint(MyHorse, tonumber(savedTint.t0), tonumber(savedTint.t1) or tonumber(savedTint.t0), tonumber(savedTint.t2) or tonumber(savedTint.t0))
+        for _, component in pairs(components) do
+            SetComponent(MyHorse, component)
         end
     end
 
@@ -2175,86 +2158,17 @@ RegisterNUICallback('Horseshoes', function(data, cb)
     end
 end)
 
--- เลือกสีอุปกรณ์จากเมนู (live preview บนม้าตัวอย่างในโรงม้า) — เก็บไว้ที่ CurrentTackTint เพื่อบันทึกตอน save
-RegisterNUICallback('TackTint', function(data, cb)
-    cb('ok')
-    local t0 = tonumber(data and data.t0)
-    if not t0 then return end
-    local t1 = tonumber(data.t1) or t0
-    local t2 = tonumber(data.t2) or t0
-    CurrentTackTint = { t0 = t0, t1 = t1, t2 = t2 }
-    ApplyTackTint(MyEntity, t0, t1, t2)
-end)
-
 ---@param entity number
 ---@param hash string
 function SetComponent(entity, hash)
     if not DoesEntityExist(entity) then return end
 
-    if hash == 0 then return end
-
     local comp = tonumber(hash)
+    if not comp or comp == 0 then return end -- กันค่าที่ไม่ใช่ hash (เช่น _tint เดิมที่อาจค้างใน DB ม้าเก่า)
 
     Citizen.InvokeNative(0xD3A7B003ED343FD9, entity, comp, true, true, true) -- ApplyShopItemToPed
     Wait(50)
     Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
-end
-
--- ทาสีเฉพาะ "อุปกรณ์" ของม้า (อาน/หนัง/กระเป๋า ฯลฯ) — เว้นตัวม้า/ขน
--- วิธีของ jo_libs สำหรับม้า: ได้ hash ของ shop item ต่อ index → GetShopItemBaseLayers(hash) ได้ tag ที่ถูกต้อง
---   → SetMetaPedTag. (ขน/ตัวม้าไม่ใช่ shop item จึงคืน hash=0 ถูกข้ามอัตโนมัติ)
---   เดิมอ่าน GetMetaPedAssetGuids จาก ped โดยตรง ซึ่งได้ tag ไม่ถูกกับอุปกรณ์ม้า → tint ติดแค่อาน
--- t0/t1/t2 = index จานสี (0-254, 255=ปิด). ถ้า nil = ถอด tint (คืนสีเดิม)
--- หมายเหตุ: ไม่ต้องกรอง palette metaped_tint_horse ทิ้งแล้ว — เพราะตัวม้า/ขนคืน hash=0 (ไม่ใช่ shop item)
--- ถูกข้ามอยู่แล้ว ส่วนอุปกรณ์บางชิ้น (เช่นบางกระเป๋า/ผ้าคลุม) ก็ใช้ palette นี้เหมือนกัน ต้องทาด้วย
-
--- คืน hash ของ shop item ที่ component index นั้น (ลอง MP ก่อน SP ตาม jo_libs). 0 = ไม่ใช่ shop item
--- ใช้ named native ตรง ๆ ให้ CfxLua จัด marshalling ตาม signature (เหมือน jo_libs)
-local function TackShopHashAtIndex(ped, index)
-    local hash = GetShopPedComponentAtIndex(ped, index, true, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
-    if not hash or hash == 0 then
-        hash = GetShopPedComponentAtIndex(ped, index, false, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
-        return hash, false
-    end
-    return hash, true
-end
-
--- แปลง hash ของ shop item → drawable/albedo/normal/material/palette (+tint เดิม) ตาม metaped type ของม้า
-local function TackBaseLayers(hash, metapedType, isMp)
-    return Citizen.InvokeNative(0x63342C50EC115CE8, hash, 0, 0, metapedType, isMp,
-        Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(),
-        Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt(), Citizen.PointerValueInt()) -- GetShopItemBaseLayers
-    -- คืน: drawable, albedo, normal, material, palette, tint0, tint1, tint2
-end
-
-function ApplyTackTint(entity, t0, t1, t2, debug)
-    if not entity or entity == 0 or not DoesEntityExist(entity) then return 0 end
-    t0 = math.max(0, math.min(255, tonumber(t0) or 255))
-    t1 = math.max(0, math.min(255, tonumber(t1) or 255))
-    t2 = math.max(0, math.min(255, tonumber(t2) or 255))
-    local metapedType = GetMetaPedType(entity)
-    local n = GetNumComponentsInPed(entity)
-    local applied = 0
-    for i = 0, n - 1 do
-        local hash, isMp = TackShopHashAtIndex(entity, i)
-        if hash and hash ~= 0 then
-            local drawable, albedo, normal, material, palette = TackBaseLayers(hash, metapedType, isMp)
-            local tintable = palette and palette ~= 0
-            if debug then
-                print(('[bcc-stables tint] idx=%d hash=%s palette=%s tint=%s'):format(i, tostring(hash), tostring(palette), tostring(tintable)))
-            end
-            if tintable then
-                Citizen.InvokeNative(0xBC6DF00D7A4A6819, entity, drawable, albedo, normal, material, palette, t0, t1, t2) -- SetMetaPedTag
-                applied = applied + 1
-            end
-        end
-    end
-    -- refresh การเรนเดอร์ให้ครบ (เหมือน jo_libs refreshPed) — ไม่งั้น preview ped ที่ freeze อยู่ภาพไม่อัปเดต
-    -- ต้องเปลี่ยนอุปกรณ์ถึงจะเห็นสี. 3 native: UpdatePedVariation + SetActiveMetaPedComponentsUpdated + (0x704C...)
-    Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
-    Citizen.InvokeNative(0xAAB86462966168CE, entity, true) -- SetActiveMetaPedComponentsUpdated
-    Citizen.InvokeNative(0x704C908E9C405136, entity) -- N_0x704C908E9C405136 (force meta ped refresh)
-    return applied
 end
 
 function RemoveComponent(category)
@@ -2377,25 +2291,6 @@ RegisterCommand(Config.adminCatalogCommand or 'stablecatalog', function()
 
     AdminViewAll = true -- TeardownStable จะรีเซ็ตกลับเป็น false ตอนปิดร้าน
     OpenStable(nearestKey)
-end, false)
-
--- ══════════════════════════════════════════════════════════════════════════════
--- [#1 สีอุปกรณ์ม้า — ขั้นทดสอบ native ก่อนทำเมนูเต็ม]
--- /tacktint <g> <r> <b>  (แต่ละค่า 0-254, 255=ปิด channel) — เปลี่ยนสีเฉพาะอุปกรณ์ม้าตัวที่ขี่อยู่
--- recipe จาก vorp_character/bcc-wagons: อ่าน category+guids+palette ของแต่ละ component แล้วยิง SetMetaPedTag
---   GetCategoryOfComponentAtIndex 0x9B90842304C938A7 | GetMetaPedAssetGuids 0xA9C28516A6DC9D56
---   GetMetaPedAssetTint 0xE7998FEC53A33BBE | SetMetaPedTag 0xBC6DF00D7A4A6819
--- เครื่องมือจูนสี: /tacktint <t0> <t1> <t2> — ทาสีอุปกรณ์ม้าตัวที่ขี่อยู่ (ไว้หาค่า index ใส่ Config.TackTints)
--- t0/t1/t2 = index จานสี 0-254 (255=ปิด). กรอง palette ให้เว้นตัวม้า/ขน อยู่แล้วใน ApplyTackTint
-RegisterCommand('tacktint', function(source, args)
-    local horse = Citizen.InvokeNative(0xE7E11B8DCBED1058, PlayerPedId()) -- GetMount
-    if not horse or horse == 0 or not DoesEntityExist(horse) then
-        NotifyTip('ต้องขี่ม้าอยู่ก่อนใช้คำสั่งนี้', 4000)
-        return
-    end
-    local t0, t1, t2 = tonumber(args[1]) or 0, tonumber(args[2]) or 0, tonumber(args[3]) or 0
-    local applied = ApplyTackTint(horse, t0, t1, t2, true) -- debug=true → print hash/palette ต่อชิ้นใน F8
-    NotifyTip(('เปลี่ยนสีอุปกรณ์ %d ชิ้น (t0=%d t1=%d t2=%d)'):format(applied, t0, t1, t2), 5000, 'success')
 end, false)
 
 RegisterCommand(Config.commands.horseSetWild, function(source, args, rawCommand)
