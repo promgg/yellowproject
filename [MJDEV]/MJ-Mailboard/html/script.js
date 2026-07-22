@@ -63,10 +63,10 @@ function renderPosts(filter) {
 
         const postEl = $(`
             <div class="post" data-id="${post.id}">
-                <span class="post-author">🧑 โดยคุณ: ${post.charname}</span>
+                <span class="post-author">โดย ${post.charname}</span>
                 <p class="post-text">${escapeHtml(post.text)}</p>
                 ${post.image ? `<img src="${post.image}" />` : ""}
-                <small class="post-time">🕒 โพสต์เมื่อ: ${formattedTime}</small>
+                <small class="post-time">โพสต์เมื่อ ${formattedTime}</small>
                 ${post.identifier === myIdentifier
                     ? `<button class="btn delete-btn" onclick="deletePost(${post.id})">ลบ</button>`
                     : ""}
