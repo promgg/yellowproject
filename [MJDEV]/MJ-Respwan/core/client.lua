@@ -99,6 +99,17 @@ local function SendButtonStates()
     })
 end
 
+-- แจ้งเตือนผ่าน pNotify — pcall กัน error กรณี resource pNotify ยังไม่ขึ้น/ไม่ได้ ensure
+local function Notify(text, ntype, timeout)
+    pcall(function()
+        exports.pNotify:SendNotification({
+            type = ntype or 'info',
+            text = text,
+            timeout = timeout or 3000,
+        })
+    end)
+end
+
 -- ฟังก์ชันปัดทศนิยม
 local function round(value, decimals)
     local power = 10 ^ (decimals or 0)
@@ -218,7 +229,7 @@ local function ClearBody()
     local now = GetGameTimer() / 1000
     if now - lastClearBody < Config.ClearBodyCooldown then
         local remaining = math.ceil(Config.ClearBodyCooldown - (now - lastClearBody))
-        TriggerEvent('vorp:TipBottom', 'กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 3000)
+        Notify('กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 'error', 3000)
         return
     end
     lastClearBody = now
@@ -228,7 +239,7 @@ local function ClearBody()
     -- ตอกพิกัดเดิมซ้ำ + สั่ง ragdoll ใหม่ เพื่อบังคับให้ network re-render ร่าง (แก้ร่างค้าง/ลอย)
     SetEntityCoordsNoOffset(ped, c.x, c.y, c.z, false, false, false)
     SetPedToRagdoll(ped, 2000, 2000, 0, false, false, false)
-    TriggerEvent('vorp:TipBottom', 'ซิงค์ร่างกายใหม่แล้ว', 3000)
+    Notify('ซิงค์ร่างกายใหม่แล้ว', 'success', 3000)
 end
 
 -- ปุ่ม 5: CALL FOR HELP [H] — ส่งสัญญาณขอความช่วยเหลือให้ผู้เล่นใกล้เคียง (แทนระบบ G/MJ-Alert-Doctor เดิม)
@@ -236,13 +247,13 @@ local function CallForHelp()
     local now = GetGameTimer() / 1000
     if now - lastHelpRequest < Config.HelpCooldown then
         local remaining = math.ceil(Config.HelpCooldown - (now - lastHelpRequest))
-        TriggerEvent('vorp:TipBottom', 'กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 3000)
+        Notify('กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 'error', 3000)
         return
     end
     lastHelpRequest = now
     -- ส่งแค่ trigger ให้ server (server ใช้พิกัดฝั่ง server เอง กัน spoof — ดู core/server.lua)
     TriggerServerEvent('MJ-ReSpwan:server:callHelp')
-    TriggerEvent('vorp:TipBottom', 'ส่งสัญญาณขอความช่วยเหลือแล้ว', 3000)
+    Notify('ส่งสัญญาณขอความช่วยเหลือแล้ว', 'success', 3000)
 end
 
 -- thread รับ input แบบ "กดค้าง" (hold) ระหว่างตาย — ทำงานเฉพาะตอน isDead
@@ -327,7 +338,7 @@ end)
 RegisterNetEvent('MJ-ReSpwan:client:helpBlip')
 AddEventHandler('MJ-ReSpwan:client:helpBlip', function(coords)
     if type(coords) ~= 'table' then return end
-    TriggerEvent('vorp:TipBottom', 'มีคนต้องการความช่วยเหลือใกล้คุณ', 5000)
+    Notify('มีคนต้องการความช่วยเหลือใกล้คุณ', 'warning', 5000)
 
     local blip = BlipAddForCoords(1664425300, coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
     SetBlipSprite(blip, joaat('blip_ambient_medic'), true)
@@ -406,26 +417,31 @@ RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
     -- lp_progbar ไม่มีฟีเจอร์โชว์ไอคอนไอเทม เลยตัด icon/name ออก (พฤติกรรมอื่นคงเดิมทุกอย่าง:
     -- duration/label/canCancel/controlDisables(disableSprint)/animation/prop(boneName) — lp_progbar
     -- ถูกเสริมให้รองรับ disableSprint + prop.boneName แล้ว)
-    exports.lp_progbar:Progress({
-        duration = animData.duration,
-        label = 'Heal',
-        useWhileDead = false,
-        canCancel = animData.canCancel,
-        controlDisables = animData.controlDisables or {},
-        animation = { animDict = animData.dict, anim = animData.anim, flags = animData.flags },
-        prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — lp_progbar สร้าง/แปะ/ลบให้เอง
-    })
+    -- pcall กัน crash กรณี lp_progbar ยังไม่ขึ้น — เลือด/ไอเทมถูกจัดการฝั่ง server ไปแล้ว ท่า/แถบพลาดได้ไม่พัง
+    pcall(function()
+        exports.lp_progbar:Progress({
+            duration = animData.duration,
+            label = 'Heal',
+            useWhileDead = false,
+            canCancel = animData.canCancel,
+            controlDisables = animData.controlDisables or {},
+            animation = { animDict = animData.dict, anim = animData.anim, flags = animData.flags },
+            prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — lp_progbar สร้าง/แปะ/ลบให้เอง
+        })
+    end)
 end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:ReviveAnim", function()
     -- ใช้ lp_progbar แทน MJ-Progressbar (revive โชว์แค่แถบ ท่าเล่นแยกผ่าน playAnimation เดิม)
     -- ตัด icon/name ออก (lp_progbar ไม่มี icon) พฤติกรรมอื่นคงเดิม
-    exports.lp_progbar:Progress({
-        duration = 7000,
-        label = 'Revive',
-        useWhileDead = false,
-        canCancel = false
-    })
+    pcall(function()
+        exports.lp_progbar:Progress({
+            duration = 7000,
+            label = 'Revive',
+            useWhileDead = false,
+            canCancel = false
+        })
+    end)
     playAnimation("mech_revive@unapproved", "revive", 7000)
 end)
 
@@ -705,7 +721,9 @@ end)
 
 
 function checkHasVIPItem()
-    local inventory = exports.vorp_inventory:getInventoryItems()
+    -- pcall + guard type กัน crash ทั้ง thread StartAutoRespawn กรณี inventory ยังไม่พร้อม/คืน nil
+    local ok, inventory = pcall(function() return exports.vorp_inventory:getInventoryItems() end)
+    if not ok or type(inventory) ~= 'table' then return false end
     for i = 1, #inventory do
         local item = inventory[i]
         for j = 1, #Config.VIP do

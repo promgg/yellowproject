@@ -1,6 +1,30 @@
 local Core = exports.vorp_core:GetCore()
 local Inv = exports.vorp_inventory
 
+-- ดึง character ของผู้เล่นแบบปลอดภัย — Core.getUser คืน nil ได้ถ้า src ไม่ valid/ยังไม่โหลด
+-- (ป้องกัน crash จาก Core.getUser(src).getUsedCharacter ตรงๆ)
+local function getChar(src)
+    local user = Core.getUser(src)
+    if not user then return nil end
+    return user.getUsedCharacter
+end
+
+-- แจ้งเตือนผู้เล่นผ่าน pNotify (server -> client)
+local function NotifyClient(src, text, ntype, timeout)
+    TriggerClientEvent('pNotify:SendNotification', src, {
+        type = ntype or 'info',
+        text = text,
+        timeout = timeout or 3000,
+    })
+end
+
+-- ยิง Discord webhook — ข้ามทันทีถ้ายังไม่ตั้ง webhook (กัน PerformHttpRequest error รัวๆ)
+local function postDiscord(payload)
+    if not Config.DISCORD_WEBHOOK or Config.DISCORD_WEBHOOK == '' then return end
+    PerformHttpRequest(Config.DISCORD_WEBHOOK, function(err, text, headers) end, 'POST',
+        json.encode(payload), { ['Content-Type'] = 'application/json' })
+end
+
 -- ใช้แปลง hash เป็นชื่ออาวุธ/สาเหตุ
 local function GetWeaponNameFromHash(hash)
     local weaponNames = {
@@ -60,10 +84,10 @@ local function sendDeathLogToDiscord(playerId, coords, cause, killerId, imageUrl
         embed.image = { url = imageUrl }
     end
 
-    PerformHttpRequest(Config.DISCORD_WEBHOOK, function(err, text, headers) end, "POST", json.encode({
+    postDiscord({
         username = "💀 MJ Death Logs",
         embeds = { embed }
-    }), { ["Content-Type"] = "application/json" })
+    })
     -- เรียก Client ถ่ายภาพหน้าจอส่ง Discord
 end
 
@@ -76,10 +100,10 @@ local function sendSimpleDiscordLog(title, description, color)
         footer = { text = os.date("📅 %d/%m/%Y 🕒 %H:%M:%S") }
     }
 
-    PerformHttpRequest(Config.DISCORD_WEBHOOK, function(err, text, headers) end, "POST", json.encode({
+    postDiscord({
         username = "💀 MJ Death Logs",
         embeds = { embed }
-    }), { ["Content-Type"] = "application/json" })
+    })
 end
 
 local function getClosestPlayer(source)
@@ -124,14 +148,19 @@ CreateThread(function()
 
             Inv:closeInventory(_source)
 
-            local user = Core.getUser(_source).getUsedCharacter
+            local user = getChar(_source)
+            if not user then return end
             local name = user.firstname .. ' ' .. user.lastname
 
             if value.revive then
                 local closestPlayer <const> = getClosestPlayer(_source)
-                if not closestPlayer then return end
+                if not closestPlayer then
+                    NotifyClient(_source, 'ไม่มีผู้เล่นที่บาดเจ็บอยู่ใกล้คุณ', 'error', 3000)
+                    return
+                end
 
-                local targetUser = Core.getUser(closestPlayer).getUsedCharacter
+                local targetUser = getChar(closestPlayer)
+                if not targetUser then return end
                 local targetName = targetUser.firstname .. ' ' .. targetUser.lastname
 
                 sendSimpleDiscordLog("💉 Revive Item Used", string.format(
@@ -165,9 +194,11 @@ end)
 
 
 RegisterCommand("revive", function(source, args)
-    local adminUser = Core.getUser(source).getUsedCharacter
-    local playerGroup = adminUser.group
-    if playerGroup == "admin" then
+    -- source == 0 = คอนโซล/ txAdmin (เชื่อถือได้ ให้ผ่านเลย) — ผู้เล่นต้อง group == admin
+    local isConsole = (source == 0)
+    local adminUser = not isConsole and getChar(source) or nil
+    local playerGroup = adminUser and adminUser.group or nil
+    if isConsole or playerGroup == "admin" then
         local targetId = tonumber(args[1])
         if targetId then
             Core.Player.Revive(targetId)
@@ -182,8 +213,8 @@ end)
 RegisterServerEvent("mj:checkAdminPermission")
 AddEventHandler("mj:checkAdminPermission", function()
     local _source = source
-    local User = Core.getUser(_source).getUsedCharacter
-    local group = User.group -- For example: "user", "mod", "admin", etc.
+    local User = getChar(_source)
+    local group = User and User.group or 'user' -- For example: "user", "mod", "admin", etc.
 
     local isAdmin = (group == "admin" or group == "mod") -- you can customize
     TriggerClientEvent("mj:returnAdminPermission", _source, isAdmin)
@@ -230,13 +261,21 @@ end)
 RegisterServerEvent("mj:discordDeathLog")
 AddEventHandler("mj:discordDeathLog", function(coords, cause, killerId, imageUrl)
     local src = source
+    -- client เป็นคนยิง event นี้ — กัน payload ผิดชนิด (coords ต้องเป็น vector/table ถึงจะ format ได้)
+    if type(coords) ~= 'table' and type(coords) ~= 'vector3' then return end
     sendDeathLogToDiscord(src, coords, cause, killerId, imageUrl)
 end)
 
 RegisterServerEvent("mj:discordReviveLog")
 AddEventHandler("mj:discordReviveLog", function(targetId, reason)
-    local targetName = GetPlayerName(targetId)
-    local coords = GetEntityCoords(GetPlayerPed(targetId))
+    -- targetId ต้องเป็น server id ที่แปลงเป็นเลขได้ (client adminRevive เดิมยิงมาผิดชนิด = ตกไปตรงนี้)
+    targetId = tonumber(targetId)
+    if not targetId then return end
+    reason = tostring(reason or 'ไม่ระบุ')
+
+    local targetName = GetPlayerName(targetId) or 'ไม่ทราบ'
+    local ped = GetPlayerPed(targetId)
+    local coords = (ped and ped ~= 0) and GetEntityCoords(ped) or vector3(0.0, 0.0, 0.0)
 
     local message = string.format(
         "**%s** ฟื้นขึ้นมาแล้ว!\n**เหตุผล:** %s\n**ตำแหน่ง:** [%.2f, %.2f, %.2f]",
@@ -252,11 +291,11 @@ AddEventHandler("mj:discordReviveLog", function(targetId, reason)
         }
     }
 
-    PerformHttpRequest(Config.DISCORD_WEBHOOK, function(err, text, headers) end, 'POST', json.encode({
+    postDiscord({
         username = "Revive Logs",
         embeds = embed,
         avatar_url = "https://i.imgur.com/jW2lPjX.png"
-    }), { ['Content-Type'] = 'application/json' })
+    })
 
     -- เรียก Client ถ่ายภาพหน้าจอส่ง Discord
     TriggerClientEvent("mj:deathScreenshot", targetId, Config.DISCORD_WEBHOOK, message)
@@ -265,6 +304,8 @@ end)
 RegisterServerEvent("mj:handleScreenshotWithReason")
 AddEventHandler("mj:handleScreenshotWithReason", function(imageUrl, reasonText)
     local src = source
+    -- client ยิง event นี้พร้อม url/ข้อความ — กัน payload ผิดชนิดก่อนโพสต์ลง Discord
+    if type(imageUrl) ~= 'string' or type(reasonText) ~= 'string' then return end
     local coords = GetEntityCoords(GetPlayerPed(src))
 
     local embed = {
@@ -278,8 +319,8 @@ AddEventHandler("mj:handleScreenshotWithReason", function(imageUrl, reasonText)
         }
     }
 
-    PerformHttpRequest(Config.DISCORD_WEBHOOK, function(err, text, headers) end, 'POST', json.encode({
+    postDiscord({
         username = "Revive Screenshot",
         embeds = embed
-    }), { ['Content-Type'] = 'application/json' })
+    })
 end)
