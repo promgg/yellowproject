@@ -559,21 +559,24 @@ end)
 CreateThread(function()
     prepareMyPrompt()
     while true do
-        Wait(0)
-        if FISHING_GET_MINIGAME_STATE() == 1 then
+        -- เดิม Wait(0) ตลอดเวลาแม้ไม่ได้ตกปลา + เรียก GET_MINIGAME_STATE 4 ครั้ง/เฟรม
+        -- prompt พวกนี้ (UiPromptSetActiveGroupThisFrame) เป็น ThisFrame ต้อง per-frame
+        -- "เฉพาะตอนอยู่ใน state ตกปลา" เท่านั้น — idle ให้ sleep 250ms พอเจอ state ค่อยเร่งเป็น 0
+        local state = FISHING_GET_MINIGAME_STATE()
+        local sleep = 250
+
+        if state == 1 then
+            sleep = 0
             UiPromptSetActiveGroupThisFrame(fishing_data.prompt_prepare_fishing.group, VarString(10, "LITERAL_STRING", T.ReadyToFish), 0, 0, 0, 0)
-        end
-
-        if FISHING_GET_MINIGAME_STATE() == 6 then
+        elseif state == 6 then
+            sleep = 0
             UiPromptSetActiveGroupThisFrame(fishing_data.prompt_waiting_hook.group, VarString(10, "LITERAL_STRING", T.Fishing), 0, 0, 0, 0)
-        end
-
-        if FISHING_GET_MINIGAME_STATE() == 7 then
+        elseif state == 7 then
+            sleep = 0
             fishing_data.fish.weight = FISHING_GET_F_(8)
             UiPromptSetActiveGroupThisFrame(fishing_data.prompt_hook.group, VarString(10, "LITERAL_STRING", T.MiniGame), 0, 0, 0, 0)
-        end
-
-        if FISHING_GET_MINIGAME_STATE() == 12 then
+        elseif state == 12 then
+            sleep = 0
             if fishs[GetEntityModel(FISHING_GET_FISH_HANDLE())] ~= nil then
                 UiPromptSetActiveGroupThisFrame(fishing_data.prompt_finish.group, VarString(10, "LITERAL_STRING",
                     T.FishName ..
@@ -584,6 +587,8 @@ CreateThread(function()
                     " : " .. string.format("%.2f%%", (fishing_data.fish.weight * 54.25)):gsub("%%", "") .. "Kg"), 0, 0, 0, 0)
             end
         end
+
+        Wait(sleep)
     end
 end)
 
