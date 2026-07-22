@@ -73,7 +73,9 @@
       canCancel         bool, default true — cancelKey aborts the bar
       useWhileDead      bool, default false — skip starting if the ped is dead
       position          optional string forwarded to the NUI (e.g. "carhud")
-      controlDisables   { disableMovement, disableCarMovement, disableMouse, disableCombat }
+      controlDisables   { disableMovement, disableSprint, disableCarMovement, disableMouse, disableCombat }
+                          (disableSprint = ปิดเฉพาะวิ่ง เดินได้ / disableMovement = ปิดเดิน+วิ่ง)
+      prop              { model, boneName | bone, coords, rotation }  (boneName เป็นชื่อกระดูก)
       animation         { animDict, anim, flags } or { task = "SCENARIO_NAME" }
       prop              { model, bone, coords = {x,y,z}, rotation = {x,y,z} }
 ]]
@@ -245,7 +247,14 @@ local function spawnProp(a)
     local obj    = CreateObject(hash, coords.x, coords.y, coords.z, true, true, true)
     SetModelAsNoLongerNeeded(hash)
 
-    local bone = a.prop.bone or GetPedBoneIndex(ped, 60309)
+    -- รองรับทั้ง boneName (ชื่อกระดูก เช่น "SKEL_L_HAND" — อ้างอิง vorp_metabolism/MJ-Progressbar)
+    -- และ bone (เลข tag ดิบ) แบบเดิม เพื่อเข้ากันได้กับ caller ทั้งสองแบบ
+    local bone
+    if a.prop.boneName then
+        bone = GetEntityBoneIndexByName(ped, a.prop.boneName)
+    else
+        bone = a.prop.bone or GetPedBoneIndex(ped, 60309)
+    end
     local c    = a.prop.coords or { x = 0.0, y = 0.0, z = 0.0 }
     local r    = a.prop.rotation or { x = 0.0, y = 0.0, z = 0.0 }
     AttachEntityToEntity(obj, ped, bone, c.x, c.y, c.z, r.x, r.y, r.z, true, true, false, true, 2, true, false, false)
@@ -469,13 +478,20 @@ local COMBAT_CONTROLS = {
 }
 
 local function applyControlDisables()
-    local mouse, move, carMove, combat = false, false, false, false
+    local mouse, move, carMove, combat, sprint = false, false, false, false, false
     for _, data in pairs(actions) do
         local d = data.action.controlDisables
         if d.disableMouse then mouse = true end
         if d.disableMovement then move = true end
         if d.disableCarMovement then carMove = true end
         if d.disableCombat then combat = true end
+        if d.disableSprint then sprint = true end
+    end
+
+    -- disableSprint = ปิดเฉพาะ "วิ่ง" (ยังเดินได้) — ต่างจาก disableMovement ที่ปิดเดินด้วย
+    -- ถ้า disableMovement เปิดอยู่แล้ว SPRINT ก็ถูกปิดในบล็อกนั้น (disable ซ้ำเป็น no-op ไม่เป็นไร)
+    if sprint then
+        DisableControlAction(0, CONTROLS.SPRINT, true)
     end
 
     if mouse then
