@@ -328,7 +328,7 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
   pointer-events: none;
 }
 .bottom-dock button, .bottom-dock .mode-switcher, .bottom-dock .dock-actions { pointer-events: auto; }
-.dock-actions { position: absolute; left: 0; right: 0; bottom: 0; min-height: 88px; }
+.dock-actions { position: absolute; left: 0; right: 0; bottom: 0; min-height: 88px; display: flex; align-items: flex-end; justify-content: center; }
 .dock-actions .action-stack { margin: 0; display: flex; justify-content: center; gap: 6px; }
 .dock-actions .main-action {
   width: 172px;
@@ -340,9 +340,14 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 .dock-actions .secondary-actions {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(112px, 132px));
+  grid-template-columns: repeat(4, minmax(112px, 132px));
   gap: 6px;
 }
+/* ปุ่มเรียกม้า = การ์ดสไตล์เดียวกัน แต่ไฮไลต์ทองให้รู้ว่าเป็น action หลัก */
+.dock-actions .secondary-actions button.is-primary { background: rgba(117,80,25,.88); border-color: rgba(200,149,69,.5); }
+.dock-actions .secondary-actions button.is-primary i { color: var(--gold-light); }
+.dock-actions .secondary-actions button.is-primary strong { color: #fff; }
+.dock-actions .secondary-actions button.is-primary:hover { background: rgba(140,96,32,.92); border-color: var(--gold-light); }
 .dock-actions .secondary-actions button {
   min-height: 82px;
   padding: 9px 7px;
@@ -385,7 +390,7 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
   .bottom-dock { width: 80vw; height: 122px; }
   .dock-actions { min-height: 76px; }
   .dock-actions .main-action { width: 155px; min-height: 72px; }
-  .dock-actions .secondary-actions { grid-template-columns: repeat(3, minmax(92px, 112px)); }
+  .dock-actions .secondary-actions { grid-template-columns: repeat(4, minmax(88px, 108px)); }
   .dock-actions .secondary-actions button { min-height: 72px; }
   .list-panel, .detail-panel { bottom: 140px; }
   .preview-stage { bottom: 136px; }
