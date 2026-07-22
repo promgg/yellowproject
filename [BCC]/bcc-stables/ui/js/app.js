@@ -302,7 +302,7 @@ function renderShopList() {
   const breeds = (DATA.shopData || []).map((breed, bi) => ({ breed, bi })).filter(({ breed }) => !term || String(breed.breed || '').toLocaleLowerCase('th').includes(term));
   el('shop-step-back').hidden = true;
   el('shop-search').parentElement.hidden = false;
-  el('shop-step-label').textContent = 'เลือกสายพันธุ์ แล้วเลื่อนเลือกสี';
+  el('shop-step-label').textContent = 'สายพันธุ์';
   el('shop-step-title').textContent = shopBreedIdx != null && DATA.shopData[shopBreedIdx] ? DATA.shopData[shopBreedIdx].breed : 'เลือกสายพันธุ์';
   el('shop-step-count').textContent = `${breeds.length} รายการ`;
   list.innerHTML = breeds.length ? breeds.map(({ breed, bi }) => {
@@ -310,8 +310,8 @@ function renderShopList() {
     const colors = Object.keys(breed.colors || {});
     return `<button class="horse-card breed-card${active ? ' active' : ''}" type="button" data-breed-index="${bi}">
       <span class="horse-thumb"><i class="fa-solid fa-horse-head"></i></span>
-      <span><strong>${esc(breed.breed || '—')}</strong><small>${active ? 'กำลังเลือกสีด้านล่าง' : 'กดเพื่อแสดงสีที่มี'}</small></span>
-      <span class="horse-state">${colors.length} สี</span>
+      <span><strong>${esc(breed.breed || '—')}</strong><small>${colors.length} สี</small></span>
+      <span class="horse-state">เลือก</span>
     </button>${active ? shopInlineCarousel(bi, breed) : ''}`;
   }).join('') : '<div class="card-empty">ไม่พบสายพันธุ์ที่ค้นหา</div>';
   list.querySelectorAll('[data-breed-index]').forEach((button) => button.addEventListener('click', () => {
