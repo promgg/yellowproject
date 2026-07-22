@@ -175,6 +175,9 @@ end
 
 local function StartDeathCam()
     ClearFocus()
+    -- reset มุมกล้องทุกครั้งที่เริ่มตาย ไม่งั้นตายรอบถัดไปกล้องเริ่มจากมุมค้างเดิม
+    angleZ = 0.0
+    angleY = 0.0
     local playerPed = PlayerPedId()
     local pos = GetEntityCoords(playerPed)
     cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z, 0, 0, 0, GetGameplayCamFov(), false, 0)
@@ -202,6 +205,19 @@ local function EndDeathCam()
     cam = nil
     DestroyAllCams(true)
 end
+
+-- ลูป free-look ของ death cam — เดิม ProcessCamControls ไม่เคยถูกเรียกเลย กล้องเลยล็อคนิ่ง
+-- ที่นี่ขับมันทุกเฟรมตอน isDead (และกล้องยังอยู่) ให้หมุนรอบศพตามเมาส์ได้ (orbit จำกัดก้ม/เงย 89°)
+Citizen.CreateThread(function()
+    while true do
+        if isDead and cam then
+            Citizen.Wait(0)
+            ProcessCamControls()
+        else
+            Citizen.Wait(200)
+        end
+    end
+end)
 
 -- ===== การกระทำของปุ่มทั้ง 5 (hotkey ต่อปุ่ม ไม่ใช้เมาส์/NUI focus) =====
 
