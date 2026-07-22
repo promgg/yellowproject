@@ -557,7 +557,10 @@ CreateThread(function()
 repeat Wait(5000) until LocalPlayer.state.IsInSession
 		
     while true do
-        Wait(0)
+        -- ProcessLocations มี throttle ภายในอยู่แล้ว (เช็ค location จริงทุก 500ms)
+        -- ลูปนอกเดิม Wait(0) ทุกเฟรมแค่เพื่อ get coords + เช็ค timer = เสียเปล่า
+        -- Wait(250) พอ — internal 500ms throttle ยังยิงตรงเวลา ป้ายสถานที่ช้าสุด ~250ms รับได้
+        Wait(250)
         local iPed = PlayerPedId()
         ProcessLocations(GetGameTimer(), GetEntityCoords(iPed), iPed)
     end
