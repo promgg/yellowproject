@@ -532,10 +532,27 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 .dock-actions .secondary-actions strong { font-size: 12px; }
 .dock-actions .secondary-actions small { font-size: 9px; }
 
-/* ===== สี (variations) ของอุปกรณ์ — ใต้ carousel ฝั่งซ้าย ===== */
-.tack-color-row { margin: 6px 2px 4px; padding: 8px 10px; background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 3px; }
-.tack-color-row > small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+/* ===== TACK drill-down (หมวด → แบบ + สี) ===== */
+/* หน้าหมวด: ไฮไลต์ + chevron */
+.tack-cat-card { position: relative; }
+.tack-cat-card .tack-go { margin-left: auto; color: var(--dim); font-size: 12px; }
+.tack-cat-card.hl { border-color: var(--gold); background: var(--gold-soft); }
+.tack-cat-card.hl .tack-go { color: var(--gold-light); }
+/* หน้าแบบ: header + back */
+.tack-items-head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.tack-items-head strong { color: var(--paper); font-size: 14px; }
+.tack-back { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; cursor: pointer; color: var(--gold-light); font-size: 11px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 3px; }
+.tack-back:hover { border-color: var(--gold); background: var(--gold-soft); }
+/* หน้าแบบ: รายการเลื่อน */
+.tack-item-scroll { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 46vh; }
+.tack-item { justify-content: space-between; }
+.tack-item .fa-check { color: var(--gold); font-size: 12px; }
+.tack-item.hl { border-color: var(--gold); background: var(--gold-soft); }
+.tack-item.equipped strong { color: var(--gold-light); }
+/* แถว Variation (สี) ด้านล่าง */
+.tack-variation-row { margin: 8px 2px 2px; padding: 9px 10px; background: rgba(0,0,0,.28); border: 1px solid var(--line); border-radius: 3px; }
+.tack-variation-row > small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 7px; }
+.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 96px; overflow-y: auto; }
 .tack-color-swatch {
   min-width: 30px; height: 30px; padding: 0 6px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
