@@ -8,13 +8,19 @@ local zones = {}          -- [villageId] = { coords = vector3, radius, sealAt, e
 local reported = {}       -- [villageId] = true/false — สถานะที่รายงานไป server ล่าสุด (ยิงเฉพาะตอนเปลี่ยน)
 local countdownFired = {} -- [villageId] = { [threshold] = true } — กันเตือนซ้ำที่วินาทีเดิม
 local grOutfitOn = false   -- ใส่ชุดประจำเมืองอยู่ไหม (กันเรียก export ซ้ำทุกรอบ)
-local serverClockSkew = 0 -- ส่วนต่างนาฬิกา server - client (วินาที) ใช้แปลง sealAt/endsAt ให้ตรง
+
+-- RedM client ไม่มี os.time() (ปิด library) — sync server unix time ผ่าน GetGameTimer แทน
+-- เก็บ server unix time + GetGameTimer ณ ตอน sync แล้วประมาณเวลาปัจจุบันจาก delta เกมไทเมอร์
+-- (แพตเทิร์นเดียวกับ lp_robbery/lp_eventnotify)
+local serverNow0 = 0   -- server unix time ตอน sync ล่าสุด
+local gameTimer0 = 0   -- GetGameTimer() ตอน sync ล่าสุด
 
 local DRAW_DISTANCE = 300.0            -- ไกลกว่านี้ไม่ต้องวาดเลย
 local COUNTDOWN_THRESHOLDS = { 300, 180, 60, 30, 10 }
 
 local function nowServer()
-    return os.time() + serverClockSkew
+    if serverNow0 == 0 then return 0 end -- ยังไม่ sync
+    return serverNow0 + math.floor((GetGameTimer() - gameTimer0) / 1000)
 end
 
 -- ── รับ state จาก server ──────────────────────────────────────────────────────
@@ -22,7 +28,7 @@ RegisterNetEvent('nx_graverobbery:client:zoneState', function(payload)
     local incoming = {}
 
     for _, z in ipairs(payload or {}) do
-        if z.now then serverClockSkew = z.now - os.time() end
+        if z.now then serverNow0 = z.now; gameTimer0 = GetGameTimer() end
 
         local previous = zones[z.villageId]
         incoming[z.villageId] = {
