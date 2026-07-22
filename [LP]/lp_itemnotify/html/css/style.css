@@ -24,7 +24,8 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 170px;
+  min-width: 170px;   /* ยืดตามชื่อไอเทมยาวไม่เท่ากัน (อย่างน้อย 170) */
+  max-width: 300px;   /* กันชื่อยาวผิดปกติล้นจอ — เกินนี้ตัด ... */
   height: 60px;
   padding: 0 14px 0 12px;
   border-radius: 8px;
