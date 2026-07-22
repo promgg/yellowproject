@@ -76,20 +76,29 @@ CreateThread(function()
     end
 end)
 
--- run it separately because events need to be detected with precision
-CreateThread(function()
-    while true do
-        Wait(0)
-        if Config.disableAutoAIM then
+-- auto-aim/targeting เป็น "การตั้งค่าถาวร" ไม่ต้อง set ทุกเฟรม
+-- เดิมยัดในลูป Wait(0) = เรียก native 120 ครั้ง/วิ เปล่าประโยชน์
+-- re-assert ทุก 1 วิ (กันกรณีถูก override) และสร้าง thread เฉพาะเมื่อเปิดใช้
+if Config.disableAutoAIM then
+    CreateThread(function()
+        while true do
             Citizen.InvokeNative(0xD66A941F401E7302, 3) -- SET_PLAYER_TARGETING_MODE
             Citizen.InvokeNative(0x19B4F71703902238, 3) -- _SET_PLAYER_IN_VEHICLE_TARGETING_MODE
+            Wait(1000)
         end
+    end)
+end
 
-        if Config.DisableCinematicMode then -- Cinematic Camera / Mode
+-- DisableCinematicModeThisFrame เป็น "ThisFrame" native ต้อง Wait(0) จริง
+-- แต่สร้าง thread นี้เฉพาะตอนเปิดใช้ ไม่งั้นเป็นลูป Wait(0) เปล่าที่ไม่ทำอะไร (ค่า default = false)
+if Config.DisableCinematicMode then -- Cinematic Camera / Mode
+    CreateThread(function()
+        while true do
+            Wait(0)
             DisableCinematicModeThisFrame()
         end
-    end
-end)
+    end)
+end
 
 -- show players id when focus on other players
 CreateThread(function()
