@@ -218,6 +218,24 @@ CreateThread(function()
     end
 end)
 
+-- แปลงค่าสถานะเป็นสเกล 0-10 สำหรับโชว์แถบใน UI:
+-- ใช้ c.stats (0-10) ถ้ากำหนดไว้ตรง ๆ / ไม่งั้น derive จาก c.attrs (0-100 %) โดยหาร 10 ปัดใกล้สุด
+-- (config ส่วนใหญ่กำหนดแค่ attrs → เดิม UI อ่าน stats ไม่เจอเลยโชว์ 4/10 ทุกค่า)
+function DeriveStats(c)
+    if type(c) ~= 'table' then return nil end
+    if type(c.stats) == 'table' then return c.stats end
+    if type(c.attrs) == 'table' then
+        local a = c.attrs
+        local function to10(v) local n = tonumber(v); if not n then return nil end return math.floor(n / 10 + 0.5) end
+        return {
+            health = to10(a.health), stamina = to10(a.stamina),
+            speed = to10(a.speed), acceleration = to10(a.acceleration),
+            agility = to10(a.agility), courage = to10(a.courage),
+        }
+    end
+    return nil
+end
+
 -- หา meta ของม้าจากชื่อโมเดล ใน config/horses.lua (breed/color/invLimit/stats) — ใช้แนบไปกับ
 -- myHorsesData ให้ NUI ใหม่โชว์สถิติ 6 ตัว + สายพันธุ์ + จำนวนช่องกระเป๋า โดยไม่ต้องอ่าน native
 function ResolveHorseMeta(model)
@@ -230,7 +248,7 @@ function ResolveHorseMeta(model)
                 breed = breedEntry.breed,
                 color = c.color,
                 slots = tonumber(c.invLimit) or 0,
-                stats = c.stats, -- { health, stamina, speed, acceleration, agility, courage } (0-10) ถ้ากำหนดไว้ — โชว์แถบใน UI เท่านั้น
+                stats = DeriveStats(c), -- 0-10 (จาก c.stats หรือ derive จาก attrs) — โชว์แถบใน UI เท่านั้น
                 attrs = c.attrs, -- { health, speed, acceleration, agility, courage, stamina } เป็น % (0-100) — ค่าสถานะจริงที่มีผลในเกม
             }
         end
@@ -2560,6 +2578,7 @@ function FindHorsesByJob(job)
                         cashPrice = horseColorData.cashPrice,
                         goldPrice = horseColorData.goldPrice,
                         invLimit = horseColorData.invLimit,
+                        stats = DeriveStats(horseColorData), -- 0-10 (จาก stats/attrs) ให้ NUI ร้านม้าโชว์ค่าจริง ไม่ใช่ 4/10
                         job = (len(horseJobs) == 0) and nil or horseColorData.job
                     }
                 end

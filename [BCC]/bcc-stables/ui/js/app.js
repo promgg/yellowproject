@@ -481,7 +481,6 @@ function renderTack() {
 // หน้า 1: รายการหมวด (↑↓ เลื่อน, Enter/→ เข้า)
 function renderTackCats() {
   el('tack-cat-title').textContent = 'เลือกหมวดอุปกรณ์';
-  el('tack-cat-active-label').textContent = 'กด ↑↓ เลือก • Enter เข้า';
   const list = el('tack-cat-list');
   const cats = availableTackCats();
   if (!cats.length) { list.innerHTML = '<div class="card-empty">ไม่มีอุปกรณ์ให้เลือก</div>'; return; }
@@ -513,7 +512,6 @@ function exitToTackCats() {
 function renderTackItems() {
   const cat = tackCat;
   el('tack-cat-title').textContent = t(cat, cat);
-  el('tack-cat-active-label').textContent = 'กด ↑↓ เลือกแบบ • ← → เปลี่ยนสี';
   const list = el('tack-cat-list');
   const models = tackModels(cat);
   const sel = selectedTackHash(cat);
@@ -861,9 +859,11 @@ document.addEventListener('keydown', (e) => {
   const tag = (document.activeElement && document.activeElement.tagName) || '';
   const typing = tag === 'INPUT' || tag === 'TEXTAREA';
   const k = e.key.toLowerCase();
-  if (k === 'escape') {
-    if (typing) { document.activeElement.blur(); return; }
-    if (mode === 'tack' && tackView === 'items') { exitToTackCats(); return; } // ในหน้าแบบ: ESC = กลับไปหน้าหมวด
+  // Escape หรือ Backspace = ย้อนกลับ/ปิด (Backspace ขณะพิมพ์ = ลบตัวอักษรตามปกติ)
+  if (k === 'escape' || k === 'backspace') {
+    if (typing) { if (k === 'escape') document.activeElement.blur(); return; }
+    e.preventDefault();
+    if (mode === 'tack' && tackView === 'items') { exitToTackCats(); return; } // หน้าแบบ → กลับหน้าหมวด
     backOrClose(); return;
   }
   if (typing) return;
@@ -878,7 +878,6 @@ document.addEventListener('keydown', (e) => {
       if (k === 'arrowup') { e.preventDefault(); moveTackModel(-1); return; }
       if (k === 'arrowleft') { e.preventDefault(); moveTackVariation(-1); return; }
       if (k === 'arrowright') { e.preventDefault(); moveTackVariation(1); return; }
-      if (k === 'backspace') { e.preventDefault(); exitToTackCats(); return; }
     }
   }
   if (k === 'q' && !qDown) { qDown = true; startRotate('left'); }

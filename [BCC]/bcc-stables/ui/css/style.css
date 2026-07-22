@@ -183,11 +183,11 @@ button { color: inherit; }
 
 .stat-grid { margin-top: 12px; padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px; border: 1px solid var(--line); background: rgba(0,0,0,.15); }
 .stat-item { display: grid; grid-template-columns: 13px 1fr auto; gap: 5px; align-items: center; }
-.stat-item i { color: var(--gold); font-size: 8px; }
-.stat-item span { color: #aaa093; font-size: 9px; }
-.stat-item strong { font: 700 10px "Stable Slab", serif; }
+.stat-item i { color: var(--gold); font-size: 10px; }
+.stat-item span { color: #aaa093; font-size: 11px; }
+.stat-item strong { font: 700 12px "Stable Slab", serif; }
 .stat-dots { grid-column: 2 / 4; display: flex; gap: 2px; }
-.stat-dots b { flex: 1; height: 2px; background: rgba(255,255,255,.08); }
+.stat-dots b { flex: 1; height: 3px; background: rgba(255,255,255,.08); }
 .stat-dots b.on { background: var(--gold); }
 
 .action-stack { margin-top: 12px; }
@@ -511,7 +511,7 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 .quick-info small { font-size: 10px; }
 .quick-info strong { font-size: 13px; }
 .condition-line { grid-template-columns: 13px 62px 1fr 36px; font-size: 10px; }
-.stat-item span { font-size: 10px; }
+.stat-item span { font-size: 12px; }
 .stat-item strong { font-size: 11px; }
 .stat-dots b { height: 3px; }
 .tack-current-card strong { font-size: 14px; }
@@ -535,39 +535,40 @@ kbd { min-width: 20px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.11)
 /* ===== TACK drill-down (หมวด → แบบ + สี) — flex rows สะอาด ไม่พึ่ง .horse-card ===== */
 /* แถวพื้นฐาน (ใช้ทั้ง category card และ item row) */
 .tack-cat-card, .tack-item {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  min-height: 44px; padding: 8px 11px; margin: 0; text-align: left; cursor: pointer;
-  color: var(--paper); background: rgba(255,255,255,.022);
-  border: 1px solid rgba(255,255,255,.06); border-left: 2px solid transparent; border-radius: 3px;
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 64px; padding: 11px 14px; margin: 0; text-align: left; cursor: pointer;
+  color: var(--paper); background: rgba(255,255,255,.025);
+  border: 1px solid rgba(255,255,255,.07); border-left: 3px solid transparent; border-radius: 3px;
   transition: background .12s, border-color .12s, transform .12s;
 }
 .tack-cat-card:hover, .tack-item:hover { background: rgba(255,255,255,.06); border-left-color: var(--gold-light); transform: translateX(2px); }
-.tack-cat-card.hl, .tack-item.hl { border-color: rgba(200,149,69,.55); border-left-color: var(--gold); background: linear-gradient(90deg, var(--gold-soft), transparent); }
-.tack-cat-card.hl { transform: translateX(2px); }
+.tack-cat-card.hl, .tack-item.hl { border-color: rgba(200,149,69,.62); border-left-color: var(--gold); background: linear-gradient(90deg, var(--gold-soft), rgba(200,149,69,.03)); transform: translateX(2px); }
 /* ป้ายข้อความ — บรรทัดเดียว ตัด ... ไม่ตัดคำมั่ว */
-.tk-label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.tk-label strong { font-size: 12px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tk-label small { font-size: 9px; color: var(--dim); white-space: nowrap; }
-.tk-ico { width: 20px; text-align: center; color: var(--gold); font-size: 15px; flex: none; }
-.tack-go { color: var(--dim); font-size: 11px; flex: none; }
+.tk-label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tk-label strong { font-size: 15px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-label small { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.tk-ico { width: 24px; text-align: center; color: var(--gold); font-size: 18px; flex: none; }
+.tack-go { color: var(--dim); font-size: 14px; flex: none; }
 .tack-cat-card.hl .tack-go { color: var(--gold-light); }
-.tk-check { color: var(--gold); font-size: 12px; flex: none; }
+.tk-check { color: var(--gold); font-size: 15px; flex: none; }
 .tack-item.equipped .tk-label strong { color: var(--gold-light); }
 /* หน้าแบบ: header + back */
-.tack-items-head { display: flex; align-items: center; gap: 10px; padding: 0 2px 9px; margin-bottom: 9px; border-bottom: 1px solid var(--line); }
-.tack-items-head strong { color: var(--paper); font-size: 13px; letter-spacing: .02em; }
-.tack-back { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; cursor: pointer; color: var(--gold-light); font-size: 11px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 3px; transition: background .12s, border-color .12s; }
+.tack-items-head { display: flex; align-items: center; gap: 11px; padding: 0 2px 10px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+.tack-items-head strong { color: var(--paper); font-size: 16px; letter-spacing: .02em; }
+.tack-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; cursor: pointer; color: var(--gold-light); font-size: 13px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 3px; transition: background .12s, border-color .12s; }
 .tack-back:hover { border-color: var(--gold); background: var(--gold-soft); }
 /* รายการแบบ (เลื่อนได้) */
-.tack-item-scroll { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 44vh; padding-right: 3px; }
-/* แถว Variation (สี) ด้านล่าง */
-.tack-variation-row { margin: 10px 2px 2px; padding: 10px 11px; background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 3px; }
-.tack-variation-row > small { display: block; color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
-.tack-color-swatches { display: flex; flex-wrap: wrap; gap: 6px; max-height: 96px; overflow-y: auto; }
+.tack-item-scroll { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 44vh; padding-right: 3px; }
+/* แถว Variation (สี) ด้านล่าง — แถวเดียว เลื่อนแนวนอน */
+.tack-variation-row { margin: 11px 2px 2px; padding: 11px 13px; background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 3px; }
+.tack-variation-row > small { display: block; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 9px; }
+.tack-color-swatches { display: flex; flex-wrap: nowrap; gap: 7px; overflow-x: auto; overflow-y: hidden; padding-bottom: 3px; }
+.tack-color-swatches::-webkit-scrollbar { height: 5px; }
+.tack-color-swatches::-webkit-scrollbar-thumb { background: rgba(200,149,69,.35); border-radius: 3px; }
 .tack-color-swatch {
-  min-width: 32px; height: 32px; padding: 0 7px; cursor: pointer;
+  flex: none; min-width: 38px; height: 38px; padding: 0 8px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: var(--muted); font-size: 12px; font-weight: 700;
+  color: var(--muted); font-size: 14px; font-weight: 700;
   background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 3px;
   transition: border-color .12s, background .12s, color .12s;
 }
