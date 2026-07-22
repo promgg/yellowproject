@@ -2249,7 +2249,11 @@ function ApplyTackTint(entity, t0, t1, t2, debug)
             end
         end
     end
+    -- refresh การเรนเดอร์ให้ครบ (เหมือน jo_libs refreshPed) — ไม่งั้น preview ped ที่ freeze อยู่ภาพไม่อัปเดต
+    -- ต้องเปลี่ยนอุปกรณ์ถึงจะเห็นสี. 3 native: UpdatePedVariation + SetActiveMetaPedComponentsUpdated + (0x704C...)
     Citizen.InvokeNative(0xCC8CA3E88256E58F, entity, false, true, true, true, false) -- UpdatePedVariation
+    Citizen.InvokeNative(0xAAB86462966168CE, entity, true) -- SetActiveMetaPedComponentsUpdated
+    Citizen.InvokeNative(0x704C908E9C405136, entity) -- N_0x704C908E9C405136 (force meta ped refresh)
     return applied
 end
 
