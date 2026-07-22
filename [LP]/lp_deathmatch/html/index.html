@@ -4,14 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>lp_deathmatch</title>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="root" class="hidden">
     <div class="dm-panel">
-      <div class="dm-cities" id="dmCities"></div>
-      <div class="dm-timer" id="dmTimer">20:00</div>
+      <div class="ev-title">Deathmatch</div>
+      <div class="group">
+        <div class="platesrow" id="dmCities"></div>
+        <div class="footrow one">
+          <span class="chip timer" id="dmTimerChip"><span class="lbl">เหลือเวลา</span><span id="dmTimer">20:00</span></span>
+        </div>
+      </div>
     </div>
 
     <div class="dm-results hidden" id="dmResults">
