@@ -5,42 +5,47 @@ VorpInv = exports.vorp_inventory:vorp_inventoryApi()
 
 function InitEconomy()
     DATA = {}
+    math.randomseed(os.time())
 
-    MySQL.ready(function()
-        -- โหลดราคาทั้งหมด "ครั้งเดียว" แบบ async แล้วทำ map
-        -- เดิมยิง MySQL.Sync.fetchAll ต่อไอเทม 1 ครั้ง (blocking) ในลูป — มีกี่ไอเทมก็ block
-        -- main thread เท่านั้นครั้งตอน boot ตอนนี้เหลือ query เดียว ไม่บล็อก
-        MySQL.query('SELECT item, price FROM mjdev_economy', {}, function(rows)
-            local priceByItem = {}
-            for _, row in ipairs(rows or {}) do
-                priceByItem[row.item] = tonumber(row.price)
+    -- เติม DATA จาก Config.Items เสมอ (synchronous) — ไม่ผูกกับ DB
+    -- เดิมโค้ดเติม DATA ทั้งก้อน "ภายใน callback ของ MySQL.query" ทำให้ถ้า query ล้มเหลว
+    -- (ตาราง mjdev_economy ไม่มี / DB error) callback ไม่ถูกเรียก → DATA ว่างทั้งหมด →
+    -- ทุกไอเทมขึ้น "ไม่พบข้อมูลสินค้า" (แม้ทุกไอเทมจะ RandomWhenStart คือไม่ได้ใช้ราคาจาก DB เลย)
+    local isRandom = {} -- [itemName] = true ถ้าสุ่มราคา (DB overlay ด้านล่างจะไม่ทับ)
+    for _, items in pairs(Config.Items) do
+        for itemName, itemData in pairs(items) do
+            local newData = {
+                Price = 0,
+                Min = itemData.Min,
+                Max = itemData.Max,
+                RangeChange = itemData.RangeChange,
+                AmountToChange = itemData.AmountToChange,
+                CurrentAmount = 0,
+                Label = itemData.Label,
+                Status = 'equal'
+            }
+            isRandom[itemName] = itemData.RandomWhenStart == true
+            if isRandom[itemName] then
+                newData.Price = math.random(itemData.Min, itemData.Max)
+            else
+                newData.Price = itemData.Min
             end
+            local center = math.floor((newData.Min + newData.Max) / 2)
+            newData.Status = (newData.Price > center) and 'up' or (newData.Price < center and 'down' or 'equal')
+            DATA[itemName] = newData
+        end
+    end
 
-            for category, items in pairs(Config.Items) do
-                for itemName, itemData in pairs(items) do
-                    local newData = {
-                        Price = 0,
-                        Min = itemData.Min,
-                        Max = itemData.Max,
-                        RangeChange = itemData.RangeChange,
-                        AmountToChange = itemData.AmountToChange,
-                        CurrentAmount = 0,
-                        Label = itemData.Label,
-                        Status = 'equal'
-                    }
-
-                    -- Fetch or randomize price
-                    if itemData.RandomWhenStart then
-                        newData.Price = math.random(itemData.Min, itemData.Max)
-                    else
-                        newData.Price = priceByItem[itemName] or itemData.Min
-                    end
-
-                    -- Determine initial status
-                    local center = math.floor((newData.Min + newData.Max) / 2)
-                    newData.Status = (newData.Price > center) and 'up' or (newData.Price < center and 'down' or 'equal')
-
-                    DATA[itemName] = newData
+    -- overlay ราคาจาก DB แบบ best-effort (เฉพาะไอเทมที่ไม่ RandomWhenStart) — ถ้า DB/ตารางมีปัญหา
+    -- ก็แค่ใช้ราคาจาก Config ต่อไป DATA ไม่ว่าง (query อยู่นอก path การเติม DATA แล้ว)
+    MySQL.ready(function()
+        MySQL.query('SELECT item, price FROM mjdev_economy', {}, function(rows)
+            for _, row in ipairs(rows or {}) do
+                local d = DATA[row.item]
+                if d and not isRandom[row.item] then
+                    d.Price = tonumber(row.price) or d.Price
+                    local center = math.floor((d.Min + d.Max) / 2)
+                    d.Status = (d.Price > center) and 'up' or (d.Price < center and 'down' or 'equal')
                 end
             end
         end)
