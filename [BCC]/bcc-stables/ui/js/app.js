@@ -489,9 +489,9 @@ function renderTackCats() {
   list.innerHTML = cats.map((cat, i) => {
     const count = (DATA.compData[cat] || []).length;
     const hl = i === tackCatIndex;
-    return `<button class="horse-card tack-cat-card${hl ? ' hl' : ''}" type="button" data-cat="${cat}">
-      <span class="horse-thumb"><i class="fa-solid fa-layer-group"></i></span>
-      <span><strong>${esc(t(cat, cat))}</strong><small>${count} แบบ</small></span>
+    return `<button class="tack-cat-card${hl ? ' hl' : ''}" type="button" data-cat="${cat}">
+      <i class="fa-solid fa-layer-group tk-ico"></i>
+      <span class="tk-label"><strong>${esc(t(cat, cat))}</strong><small>${count} แบบ</small></span>
       <i class="fa-solid fa-chevron-right tack-go"></i>
     </button>`;
   }).join('');
@@ -525,15 +525,15 @@ function renderTackItems() {
     <button class="tack-back" id="tack-back" type="button"><i class="fa-solid fa-chevron-left"></i> กลับ</button>
     <strong>${esc(t(cat, cat))}</strong>
   </div>`;
-  const removeRow = `<button class="horse-card tack-item${tackModelIndex === -1 ? ' hl' : ''}${removed ? ' equipped' : ''}" type="button" data-mi="-1">
-    <span><strong>ถอดออก</strong></span>${removed ? '<i class="fa-solid fa-check"></i>' : ''}
+  const removeRow = `<button class="tack-item${tackModelIndex === -1 ? ' hl' : ''}${removed ? ' equipped' : ''}" type="button" data-mi="-1">
+    <span class="tk-label"><strong>ถอดออก</strong></span>${removed ? '<i class="fa-solid fa-check tk-check"></i>' : ''}
   </button>`;
   const rows = models.map((m, i) => {
     const isEq = i === equippedModel;
     const hl = i === tackModelIndex;
     const colorNote = m.variations.length > 1 ? `${m.variations.length} สี` : '';
-    return `<button class="horse-card tack-item${hl ? ' hl' : ''}${isEq ? ' equipped' : ''}" type="button" data-mi="${i}">
-      <span><strong>แบบที่ ${i + 1}</strong><small>${colorNote}</small></span>${isEq ? '<i class="fa-solid fa-check"></i>' : ''}
+    return `<button class="tack-item${hl ? ' hl' : ''}${isEq ? ' equipped' : ''}" type="button" data-mi="${i}">
+      <span class="tk-label"><strong>แบบที่ ${i + 1}</strong>${colorNote ? `<small>${colorNote}</small>` : ''}</span>${isEq ? '<i class="fa-solid fa-check tk-check"></i>' : ''}
     </button>`;
   }).join('');
 
