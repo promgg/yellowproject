@@ -1,84 +1,158 @@
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Kanit:wght@400;500;600&display=swap');
+
+:root {
+    --accent: #c7a65d;
+    --time: #f1e7d1;
+    --bone: #e7ddcc;
+    --edge: rgba(166, 132, 68, 0.82);
+    --track: #4c4435;
+    --panel-a: rgba(35, 32, 26, 0.97);
+    --panel-b: rgba(14, 13, 11, 0.98);
+    --cooldown-left: 42px;
+    --cooldown-bottom: 108px;
+    --ring-length: 125.664;
+}
 
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    pointer-events: none;
 }
 
 body {
+    color: var(--bone);
     font-family: 'Kanit', sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    height: 100vh;
-    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
-.container {
-    display: none;
+.cooldown-badge {
+    position: fixed;
+    left: var(--cooldown-left);
+    bottom: var(--cooldown-bottom);
+    display: flex;
+    height: 52px;
     align-items: center;
-    justify-content: center;
-    width: 14vw;
-    height: 2.2vw;
-    border-radius: 0.4vw;
-    background: rgba(30, 30, 30, 0.95);
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
-    position: absolute;
-    top: 2vw; /* Repositioned to the top-center */
-    left: 50%;
-    transform: translateX(-50%) translateY(0); /* Center horizontally */
-    margin-left: 0;
-    animation: slideIn 1s ease-out forwards; /* Slide-in animation */
+    gap: 10px;
+    padding: 5px 12px 5px 6px;
+    border: 1px solid var(--edge);
+    border-radius: 28px 7px 7px 28px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(7px);
+    background: linear-gradient(180deg, var(--panel-a), var(--panel-b));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 235, 195, 0.08),
+        0 5px 13px rgba(0, 0, 0, 0.62);
+    transition:
+        opacity 180ms ease,
+        visibility 180ms ease,
+        transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
-.cooldown-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6vw;
-    padding: 0.4vw 0.8vw;
-    background: linear-gradient(145deg, #242424de, #000000e0); /* Gray gradient */
-    border-radius: 0.3vw;
+.cooldown-badge.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.timer-ring {
     position: relative;
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
 }
 
-.text {
-    font-size: 0.85vw;
-    color: #ffffff;
-    text-shadow: 0 0 4px rgba(255, 0, 0, 0.6);
+.timer-ring svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
 }
 
-.icon {
-    font-size: 1.2vw;
-    color: white;
-    filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.6));
+.timer-ring circle {
+    fill: rgba(17, 15, 12, 0.96);
+    stroke-width: 3;
+}
+
+.ring-track {
+    stroke: var(--track);
+}
+
+.ring-value {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    stroke-dasharray: var(--ring-length);
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 300ms linear;
+}
+
+.medical-mark {
+    position: relative;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 0 7px rgba(199, 166, 93, 0.24);
+}
+
+.badge-copy {
+    display: flex;
+    min-width: 68px;
+    flex-direction: column;
+    padding-right: 9px;
+    border-right: 1px solid var(--edge);
+    line-height: 1.15;
+}
+
+.badge-copy small {
+    color: var(--accent);
+    font: 700 8px/1.2 'Cinzel', serif;
+    letter-spacing: 0.15em;
+}
+
+.badge-copy strong {
+    color: var(--bone);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 #cooldown {
-    padding: 0.1vw 0.6vw;
-    background: #363636cc; /* Gray color for cooldown */
-    border-radius: 0.3vw;
-    font-size: 0.85vw;
-    color: white;
-    box-shadow: 0px 4px 8px rgba(141, 127, 127, 0.5);
-    animation: glow 1s infinite alternate;
+    min-width: 57px;
+    color: var(--time);
+    font: 700 18px/1 'Cinzel', serif;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    text-shadow: 0 0 10px rgba(199, 166, 93, 0.12);
 }
 
-@keyframes slideIn {
-    0% {
-        top: -10vw; /* Start from above the screen */
+@media (max-width: 1280px), (max-height: 720px) {
+    :root {
+        --cooldown-left: 28px;
+        --cooldown-bottom: 94px;
     }
-    100% {
-        top: 2vw; /* Slide into the top-center */
-    }
-}
 
-@keyframes glow {
-    0% {
-        box-shadow: 0 0 8px rgba(231, 76, 60, 0.5), 0 0 15px rgba(255, 99, 71, 0.6); /* Red shades */
+    .cooldown-badge {
+        transform-origin: left bottom;
+        transform: translateY(7px) scale(0.92);
     }
-    100% {
-        box-shadow: 0 0 15px rgba(231, 76, 60, 1), 0 0 30px rgba(255, 99, 71, 0.9); /* Brighter red shades */
+
+    .cooldown-badge.is-visible {
+        transform: translateY(0) scale(0.92);
     }
 }
