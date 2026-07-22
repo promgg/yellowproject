@@ -93,7 +93,7 @@ end
 
 -- ── โหลดจาก DB ตอนบูต ────────────────────────────────────────────────────────
 MySQL.ready(function()
-    MySQL.query('SELECT * FROM lp_planting', {}, function(rows)
+    MySQL.query('SELECT id, charidentifier, zone_id, seed, stage, x, y, z, heading, planted_at, watered_at FROM lp_planting', {}, function(rows)
         if not rows then
             print('^1[lp_planting]^7 อ่านตาราง lp_planting ไม่ได้ — รัน sql/lp_planting.sql แล้วหรือยัง')
             return
