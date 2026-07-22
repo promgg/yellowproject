@@ -1,158 +1,198 @@
+/* MJ-Mailboard — ธีม Corkboard (กระดานไม้ + กระดาษปักหมุด) ให้เข้าชุดธีมมืด-ทอง
+   คงคลาส/id เดิมทั้งหมดที่ script.js สร้าง (ไม่แตะ JS) เปลี่ยนแค่ภาษาภาพ */
 :root {
-  --gold: #c89545;
-  --gold-light: #e1bf7d;
-  --gold-soft: rgba(200, 149, 69, 0.13);
-  --paper: #f4eee4;
-  --muted: #9c9488;
-  --dim: #6f6a63;
-  --panel: rgba(16, 15, 13, 0.88);
-  --panel-deep: rgba(10, 10, 9, 0.94);
-  --line: rgba(224, 194, 140, 0.17);
-  --green: #83b98d;
-  --danger: #b66054;
+  --paper-a: #e6dcc2;
+  --paper-b: #d8cbac;
+  --ink: #33291c;
+  --ink-author: #5a3d1c;
+  --ink-soft: #7a5f3a;
+  --brass-a: #e7c684;
+  --brass-b: #a9812f;
+  --brass-dark: #33240f;
+  --gold-line: #7c5526;
+  --wax-a: #e46b57;
+  --wax-b: #8f2418;
+  --wood-a: #3a2c1a;
+  --wood-b: #241a0e;
 }
+
+* { box-sizing: border-box; }
 
 body {
   font-family: 'Kanit', sans-serif;
-  /* background-color: #111; */
-  color: var(--paper);
+  color: var(--paper-a);
   margin: 0;
   padding: 0;
 }
 
+/* ===== กระดานไม้ + กรอบทองเหลือง ===== */
 .board-container {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 20px;
-  background-color: var(--panel);
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(200, 149, 69, 0.35);
-  /* ถ้าต้องการจัดกึ่งกลางแนวนอนก็ใช้ margin: auto; แบบนี้ก็พอแล้ว */
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 4px, transparent 4px 30px),
+    linear-gradient(180deg, var(--wood-a), var(--wood-b));
+  border-radius: 10px;
 }
 
-/* กรณี fixed-size ให้จัดกึ่งกลางทั้งแนวตั้งและแนวนอน */
 .board-container.fixed-size {
   width: 900px !important;
   height: 820px !important;
-  overflow: auto;
   max-width: none !important;
-  /* auto ไม่ใช่ค่านิยมของ max-width ต้องใช้ none */
   max-height: none !important;
-
-  /* กำหนดตำแหน่งกึ่งกลางหน้าจอทั้งแนวตั้งและแนวนอน */
+  overflow: auto;
+  padding: 26px 30px;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  /* ลบ margin เดิมออก */
+  box-shadow:
+    0 0 0 6px #1a120a,
+    0 0 0 9px var(--gold-line),
+    0 0 0 10px #2a1c0c,
+    inset 0 0 60px rgba(0, 0, 0, 0.55),
+    0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
+/* ===== หัวข้อ: ป้ายสลักไม้ทอง ===== */
 .header {
   text-align: center;
-  margin-bottom: 25px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid var(--gold);  /* เส้นขีดตรงสีทอง */
-  background-color: var(--panel-deep);
+  margin-bottom: 22px;
+  padding-bottom: 6px;
   position: relative;
+  background: transparent;
+  border: none;
 }
 
-/* โลโก้ขนาดเพิ่มเล็กน้อย */
 .logo {
-  width: 100px;
+  width: 84px;
   height: auto;
-  margin-bottom: 12px;
-  filter: drop-shadow(0 0 4px var(--gold)); /* เงาทองนิดๆ */
+  margin-bottom: 10px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
-/* หัวข้อใหญ่ */
 h1 {
+  display: inline-block;
   margin: 0;
-  font-size: 32px;
-  color: var(--gold-light);
-  letter-spacing: 3px;
-  text-shadow: 1px 1px 3px #573d18;
+  font-family: 'Cinzel', serif;
   font-weight: 700;
+  font-size: 30px;
+  letter-spacing: 0.12em;
+  color: #f3e4c4;
+  padding: 8px 26px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #4a3517, #2a1c0c);
+  box-shadow: inset 0 1px 0 rgba(240, 202, 120, 0.35), 0 0 0 1px var(--gold-line), 0 3px 8px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 2px #000;
 }
 
-/* หัวข้อรอง */
-h2 {
-  margin-top: 6px;
-  font-size: 20px;
-  color: var(--muted);
-  font-weight: 500;
-  font-style: italic;
-  text-shadow: 0 0 4px rgba(200, 149, 69, 0.6);
-}
-
+/* ===== แท็บกรอง (ทั้งหมด / ของฉัน) — ป้ายทองเหลือง ===== */
 .filter-buttons {
-  text-align: center;
-  margin-bottom: 20px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 18px;
 }
 
 .btn {
-  padding: 10px 20px;
-  margin: 5px;
-  font-size: 14px;
+  padding: 7px 18px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  letter-spacing: 0.05em;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s ease-in-out;
+  transition: filter 0.15s ease;
 }
 
 .btn.red {
-  background-color: var(--gold);
-  color: var(--paper);
-}
-
-.btn.red:hover {
-  background-color: #a67d3d;
+  background: linear-gradient(180deg, var(--brass-a), var(--brass-b));
+  color: #2a1c07;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.6), 0 0 0 1px #3a2a10;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.4);
 }
 
 .btn.black {
-  background-color: var(--panel-deep);
-  color: var(--paper);
+  background: linear-gradient(180deg, #5a4326, var(--brass-dark));
+  color: #e8d9b6;
+  box-shadow: inset 0 1px 0 rgba(240, 202, 120, 0.3), 0 0 0 1px #1a120a;
 }
 
-.btn.black:hover {
-  background-color: var(--panel);
+.btn.red:hover,
+.btn.black:hover { filter: brightness(1.07); }
+
+/* ===== รายการโพสต์ (พื้นที่กระดาน) ===== */
+.post-list {
+  margin-top: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  user-select: text;
+  -webkit-user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-line) transparent;
+}
+
+.post-list::-webkit-scrollbar { width: 7px; }
+.post-list::-webkit-scrollbar-track { background: transparent; }
+.post-list::-webkit-scrollbar-thumb { background: var(--gold-line); border-radius: 3px; }
+.post-list::-webkit-scrollbar-thumb:hover { background: var(--brass-b); }
+
+/* ข้อความสถานะว่าง (script.js ใส่ <p> ตรงๆ) */
+.post-list > p {
+  text-align: center;
+  color: #c9b48c;
+  font-family: 'Special Elite', serif;
+  font-size: 15px;
+  padding: 30px 0;
+}
+
+/* ===== โพสต์ = กระดาษเก่าปักหมุดขี้ผึ้งแดง เอียงเล็กน้อย ===== */
+.post {
+  position: relative;
+  max-width: 560px;
+  margin: 14px auto 22px;
+  padding: 16px 18px;
+  border: none;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--paper-a), var(--paper-b));
+  color: var(--ink);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(140, 110, 60, 0.14);
+  transform: rotate(-1deg);
+}
+
+.post:nth-child(even) { transform: rotate(0.8deg); }
+
+/* หมุดขี้ผึ้งแดงกลางบน */
+.post::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--wax-a), var(--wax-b));
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5), inset 0 -1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .post-author {
-  position: absolute;
-  top: 10px;
-  left: 13px;
-  padding: 4px 8px;
-  /* background-color: #e74c3c;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px; */
-  font-size: 12px;
-  font-weight: bold;
-  color: var(--gold-light);
-  text-shadow: 0 0 4px rgba(200, 149, 69, 0.55);
-}
-
-.send-btn:hover {
-  background-color: #a67d3d;
-}
-
-.post-list {
-  margin-top: 20px;
-}
-
-.post {
-  position: relative; /* เพิ่มเพื่อให้ตำแหน่ง absolute ทำงานภายใน post นี้ */
-  background-color: var(--panel);
-  border-left: 4px solid var(--gold);
-  margin-bottom: 15px;
-  padding: 15px;
-  border-radius: 8px;
-  position: relative;
+  position: static;
+  display: block;
+  padding: 0 40px 0 0;
+  font-family: 'Special Elite', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-author);
+  text-shadow: none;
 }
 
 .post-text {
-  font-size: 16px;
-  margin-bottom: 10px;
+  font-family: 'Special Elite', serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 8px 0;
   white-space: pre-wrap;
 }
 
@@ -160,124 +200,120 @@ h2 {
   width: 150px;
   height: 150px;
   object-fit: cover;
-  /* ให้รูปครอบเต็มพื้นที่ โดยไม่ผิดเพี้ยนสัดส่วน */
-  border-radius: 6px;
-  border: 1px solid #444;
-  margin-bottom: 10px;
+  border-radius: 0;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  filter: sepia(0.35);
+  margin: 6px 0;
 }
 
 .post-time {
   display: block;
-  margin-top: 6px;
+  font-family: 'Special Elite', serif;
   font-size: 12px;
-  color: rgba(225, 191, 125, 0.75);
-  font-style: italic;
+  color: var(--ink-soft);
+  font-style: normal;
+  border-top: 1px dashed rgba(90, 61, 28, 0.4);
+  padding-top: 7px;
+  margin-top: 8px;
 }
 
 .delete-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: var(--danger);
-  color: var(--paper);
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  color: var(--wax-b);
+  border: none;
+  border-bottom: 1px solid rgba(143, 36, 24, 0.5);
+  border-radius: 0;
+  padding: 1px 3px;
+  font-family: 'Special Elite', serif;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.delete-btn:hover { color: #c0301c; background: transparent; }
+
+/* ===== ปุ่มเพิ่มประกาศ = ป้ายทองเหลือง ===== */
+.send-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: #2a1c07;
+  background: linear-gradient(180deg, var(--brass-a), var(--brass-b));
   border: none;
   border-radius: 4px;
-  padding: 5px 10px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.6), 0 0 0 1px #3a2a10, 0 3px 8px rgba(0, 0, 0, 0.4);
 }
 
-.delete-btn:hover {
-  background-color: #8f473d;
-}
+.send-btn:hover { filter: brightness(1.06); }
 
+/* ===== Modal เขียนประกาศ = แผ่นกระดาษ ===== */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.75);
+  inset: 0;
+  background: rgba(4, 3, 2, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
 }
 
-.modal.hidden {
-  display: none;
-}
+.modal.hidden { display: none; }
 
 .modal-content {
-  background-color: var(--panel-deep);
-  padding: 20px;
-  border-radius: 10px;
   width: 90%;
-  max-width: 500px;
-  box-shadow: 0 0 15px rgba(200, 149, 69, 0.2);
+  max-width: 440px;
+  padding: 22px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--paper-a), var(--paper-b));
+  color: var(--ink);
+  transform: rotate(-0.5deg);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(140, 110, 60, 0.14);
 }
 
 .modal-content h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: var(--paper);
+  margin: 0 0 16px;
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: #4a3517;
+  text-align: center;
+  font-style: normal;
+  text-shadow: none;
 }
 
 .modal-content input[type="text"] {
-  width: 95%;
-  padding: 10px;
-  margin-bottom: 15px;
+  width: 100%;
+  padding: 9px 6px;
+  margin-bottom: 14px;
+  font-family: 'Special Elite', serif;
   font-size: 14px;
   border: none;
-  border-radius: 6px;
-  background-color: var(--panel);
-  color: var(--paper);
+  border-bottom: 1.5px solid #8a6a30;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink);
+}
+
+.modal-content input[type="text"]::placeholder { color: #8a7a5e; }
+
+.post-cost {
+  margin: 4px 0 14px;
+  font-family: 'Special Elite', serif;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
 }
 
 .form-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-
-.post-list {
-  max-height: 400px;
-  overflow-y: auto;
-
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-
-  padding-right: 10px;
-
-  /* Scrollbar สำหรับ Chrome, Edge, Safari */
-  scrollbar-width: thin;              /* Firefox */
-  scrollbar-color: var(--gold) transparent; /* Firefox */
-}
-
-/* Chrome, Edge, Safari */
-.post-list::-webkit-scrollbar {
-  width: 6px;            /* ความกว้าง scrollbar */
-}
-
-.post-list::-webkit-scrollbar-track {
-  background: transparent;   /* สีพื้นหลังแทร็ค */
-}
-
-.post-list::-webkit-scrollbar-thumb {
-  background-color: var(--gold); /* สี thumb (แถบเลื่อน) เป็นสีทอง */
-  border-radius: 3px;        /* มุมโค้ง */
-  border: 1px solid transparent; /* ขอบบางๆ เพื่อความสวย */
-}
-
-/* ถ้าต้องการเปลี่ยนสีตอน hover */
-.post-list::-webkit-scrollbar-thumb:hover {
-  background-color: var(--gold-light);
-}
-
-/* ราคา/อายุประกาศ ใต้ช่องกรอกในหน้าต่างเขียนประกาศ */
-.post-cost {
-    margin: 6px 0 10px;
-    font-size: 13px;
-    color: #c9a227;
-    text-align: center;
 }
