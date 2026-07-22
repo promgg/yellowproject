@@ -1,484 +1,265 @@
 /* =========================================================================
-   lp_gacha — NUI front-end
-   *** ไม่ตัดสินรางวัลเอง *** server เป็นคนสุ่ม/แจกทั้งหมด หน้านี้แค่:
-     - รับรายการไอเทม + จำนวนตั๋ว จาก server ตอน 'open' มาแสดง
-     - ส่ง "คำขอสปิน" {pool, qty} กลับไป server
-     - รับ "รายชื่อผู้ชนะ" จาก server มาเล่นแอนิเมชันโชว์
+   lp_gacha — NUI front-end (2 เฟส: กล่อง+จำนวน → opening → ผลลัพธ์ grid)
+   *** ไม่ตัดสินรางวัลเอง *** server สุ่ม/แจกทั้งหมด หน้านี้แค่โชว์
+     - open  : รับ {pool,label,boxCount,qtyMax,items} มาตั้งค่าเฟส 1
+     - spin  : ส่ง {pool,qty} กลับ server
+     - result: รับ winners[] + remaining มาเล่น opening แล้วโชว์ grid
+     - broadcast: โชว์แบนเนอร์ให้ทุกคน (แม้ปิดหน้าหลัก)
    ========================================================================= */
 
-// สี rarity (คงจาก prototype — ใช้ลงสีการ์ดอย่างเดียว)
 const RARITIES = {
-  basic:     { border: '#685540', borderOpacity: 1,   borderWidth: '1px',  glow: '#be893b', glowAlpha: 0.4, listDot: ['#be893b', 'rgba(190,137,59,0.3)'] },
-  common:    { border: '#cecece', borderOpacity: 0.5, borderWidth: '.5px', glow: '#858585', glowAlpha: 0.4, listDot: ['#858585', 'rgba(126,126,126,0.3)'] },
-  uncommon:  { border: '#60cd8e', borderOpacity: 0.5, borderWidth: '.5px', glow: '#23c941', glowAlpha: 0.4, listDot: ['#23c941', 'rgba(126,126,126,0.3)'] },
-  rare:      { border: '#219af9', borderOpacity: 0.5, borderWidth: '.5px', glow: '#219af9', glowAlpha: 0.4, listDot: ['#219af9', 'rgba(33,154,249,0.3)'] },
-  epic:      { border: '#f921ca', borderOpacity: 0.5, borderWidth: '.5px', glow: '#8221f9', glowAlpha: 0.4, listDot: ['#8221f9', 'rgba(220,33,249,0.3)'] },
-  legendary: { border: '#FFD700', borderOpacity: 0.5, borderWidth: '.5px', glow: '#ffe066', glowAlpha: 0.4, listDot: ['#FFD700', 'rgba(255,215,0,0.3)'] },
+  basic:     { c:'#be893b', g:'rgba(190,137,59,.5)' },
+  common:    { c:'#cecece', g:'rgba(206,206,206,.4)' },
+  uncommon:  { c:'#60cd8e', g:'rgba(96,205,142,.45)' },
+  rare:      { c:'#219af9', g:'rgba(33,154,249,.5)' },
+  epic:      { c:'#f921ca', g:'rgba(249,33,202,.5)' },
+  legendary: { c:'#FFD700', g:'rgba(255,215,0,.55)' },
 };
-
-const RARITY_ORDER = ['basic', 'common', 'uncommon', 'rare', 'epic', 'legendary'];
-function rarestOf(items) {
-  return items.reduce((best, it) =>
-    RARITY_ORDER.indexOf(it.rarity) > RARITY_ORDER.indexOf(best.rarity) ? it : best
-  );
-}
+const RARITY_ORDER = ['basic','common','uncommon','rare','epic','legendary'];
+const rarityRank = (r) => Math.max(0, RARITY_ORDER.indexOf(r));
 
 const PLACEHOLDER_IMG = 'assets/item_placeholder.png';
-// รูปไอเทมของรางวัลประเภท item ชี้ไปที่โฟลเดอร์รูปของ vorp_inventory ตรงๆ (path เดียวกับที่
-// กระเป๋าใช้จริง — nui:// ข้าม resource ได้ตราบใดที่ vorp_inventory export ไฟล์นี้ใน files{},
-// แบบเดียวกับที่ nx_shop ใช้ Config.ItemImagePath อยู่แล้ว) กันปัญหารูปไม่ตรง/ไม่มีรูปที่ lp_gacha
-// ต้องคอยก็อปไฟล์มาเก็บเองซ้ำซ้อนแล้วตกหล่น (เช่น bonus_gun5/bonus_gun10 ที่ไม่เคยมีรูปจริงใน
-// assets/ ของ lp_gacha) ม้า (type='horse') ไม่ใช่ item ในกระเป๋า เลยยังต้องใช้รูปโลคอลของ lp_gacha เอง
 const INVENTORY_IMG_BASE = 'nui://vorp_inventory/html/img/items/';
-function imgSrc(image, type) {
+function imgSrc(image, type){
   if (!image) return PLACEHOLDER_IMG;
-  if (type === 'horse') return `assets/${image}.png`;
-  return `${INVENTORY_IMG_BASE}${image}.png`;
+  if (type === 'horse') return `assets/${image}.png`;         // ม้าใช้รูปโลคอล
+  return `${INVENTORY_IMG_BASE}${image}.png`;                 // item ชี้รูปกระเป๋า
 }
 
-function cardBackground(rarity) {
-  const r = RARITIES[rarity] || RARITIES.common;
-  const glow = hexToRgba(r.glow, r.glowAlpha);
-  const fade = hexToRgba(r.glow, 0);
-  return `radial-gradient(100px 170px at 50% 100%, ${glow} 0%, ${fade} 100%), linear-gradient(#131313, #131313)`;
-}
+/* ===== state ===== */
+let POOL = null, ITEMS = [], boxCount = 0, QTY_MAX = 100;
+let spinning = false, openTimer = null, resultBuf = null, openStart = 0;
+const MIN_OPEN_MS = 1800;   // ค้าง opening อย่างน้อยเท่านี้ให้ลื่น
 
-function hexToRgba(hex, alpha) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+/* ===== dom ===== */
+const $ = (id) => document.getElementById(id);
+const root = $('root');
+const boxCardName = $('box-card-name'), boxCard = $('box-card');
+const boxCountVal = $('box-count-val');
+const opening = $('opening'), openingFill = $('opening-fill'), openingPct = $('opening-pct');
+const resultPanel = $('result-panel'), resultGrid = $('result-grid');
+const amountInput = $('amount-input'), amountMsg = $('amount-msg'), randomBtn = $('random-btn');
+const oddsBtn = $('odds-btn'), oddsList = $('odds-list'), oddsBody = $('odds-list-body');
+const broadcast = $('broadcast'), broadcastText = $('broadcast-text');
+let broadcastTimer = null;
 
-const SPIN_MS = 5200;
-const SKIP_MS = 400;
-const CARD_PITCH = 174;
-const CARD_CENTER = 78.5;
-const VIEW_CENTER = 960;
-const AUTO_SPIN_THRESHOLD = 10; // เกินนี้ = ข้ามรีลทีละใบ ไป spotlight ของหายากสุดแทน
-
-/* ===================== state (มาจาก server) ===================== */
-let POOL = null;            // id ของ pool ที่เปิดอยู่
-let ITEMS = [];             // รายการไอเทมในตู้ (แสดงผลอย่างเดียว) [{key,name,image,rarity,amount,chancePct}]
-let boxCount = 0;           // จำนวนตั๋วที่ถืออยู่ (เพดานการสปิน)
-let QTY_MAX = 100;          // เพดานจาก config (ยังถูกจำกัดด้วย boxCount อีกชั้น)
-
-/* ===================== elements ===================== */
-const root = document.getElementById('root');
-const strip = document.getElementById('belt-strip');
-const spinMain = document.getElementById('spin-main');
-const spinMainQty = document.getElementById('spin-main-qty');
-const spinQtyToggle = document.getElementById('spin-qty-toggle');
-const qtyModal = document.getElementById('qty-modal');
-const qtyModalMin = document.getElementById('qty-modal-min');
-const qtyModalMax = document.getElementById('qty-modal-max');
-const qtyModalInput = document.getElementById('qty-modal-input');
-const qtyModalHint = document.getElementById('qty-modal-hint');
-const qtyModalConfirm = document.getElementById('qty-modal-confirm');
-const qtyModalCancel = document.getElementById('qty-modal-cancel');
-const autoSkipCheckbox = document.getElementById('auto-skip-checkbox');
-const chanceBtn = document.getElementById('chance-btn');
-const itemsList = document.getElementById('items-list');
-const result = document.getElementById('result');
-const resultGrid = document.getElementById('result-grid');
-const currencyValueEl = document.getElementById('currency-value');
-const insufficientMsg = document.getElementById('insufficient-msg');
-const currencyLabelEl = document.getElementById('currency-label');
-
-let spinning = false;
-let activeSpin = null;
-let autoSkip = false;
-
-/* ===================== box count / limits ===================== */
-function updateBoxCount() {
-  currencyValueEl.textContent = boxCount + ' ใบ';
-}
-function maxQty() {
-  return Math.max(1, Math.min(QTY_MAX, boxCount || 0));
-}
-
-function flashInsufficient(msg) {
-  insufficientMsg.textContent = msg || 'ตั๋วไม่พอ';
-  currencyValueEl.classList.add('shake-error');
-  setTimeout(() => currencyValueEl.classList.remove('shake-error'), 400);
-  insufficientMsg.classList.remove('hidden');
-  insufficientMsg.classList.remove('show');
-  void insufficientMsg.offsetWidth;
-  insufficientMsg.classList.add('show');
-  clearTimeout(flashInsufficient._t);
-  flashInsufficient._t = setTimeout(() => insufficientMsg.classList.add('hidden'), 1500);
-}
-
-/* ===================== helpers ===================== */
-// การ์ดใส้ไส้ระหว่างหมุน = สุ่มจาก ITEMS แบบ uniform เพื่อความสวยงามเท่านั้น (ไม่ใช่ผลจริง)
-function randomFiller() {
-  if (!ITEMS.length) return { name: '', image: null, rarity: 'common', amount: 1 };
-  return ITEMS[Math.floor(Math.random() * ITEMS.length)];
-}
-
-function cardHTML(item, cls, opts = {}) {
-  const r = RARITIES[item.rarity] || RARITIES.common;
-  const borderColor = hexToRgba(r.border, r.borderOpacity);
-  const glowColor = hexToRgba(r.glow, 0.85);
-  const winnerCls = opts.winner ? ' is-winner' : '';
-  const stackCls = opts.count > 1 ? ' is-stacked' : '';
-  // badge = จำนวนที่ได้ (amount) x จำนวนครั้งที่ออกไอเทมนี้ในชุด
-  const qty = (item.amount || 1) * (opts.count || 1);
-  const style = `border-color:${borderColor};border-width:${r.borderWidth};background-image:${cardBackground(item.rarity)};--glow-color:${glowColor}`;
-  return `<div class="${cls}${winnerCls}${stackCls}" style="${style}">
-      <div class="price">${qty}</div>
-      <div class="img"><img src="${imgSrc(item.image, item.type)}" alt="${item.name}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'"></div>
-      <div class="label">${item.name}</div>
-    </div>`;
-}
-
-/* ===================== drop-rate list ===================== */
-function renderItemsList() {
-  const body = document.getElementById('items-list-body');
-  body.innerHTML = ITEMS.map(it => {
-    const r = RARITIES[it.rarity] || RARITIES.common;
-    const pct = typeof it.chancePct === 'number' ? it.chancePct : 0;
-    const pctLabel = pct >= 10 ? Math.round(pct) : pct.toFixed(1);
-    return `<div class="items-list-row">
-        <span class="diamond" style="background:linear-gradient(180deg,${r.listDot[0]},${r.listDot[1]})"></span>
-        <span class="name">${it.name}</span>
-        <span class="chance">${pctLabel}%</span>
-      </div>`;
-  }).join('');
-}
-
-/* ===================== belt ===================== */
-function fillIdleBelt() {
-  const cards = [];
-  for (let i = 0; i < 14; i++) cards.push(cardHTML(randomFiller(), 'belt-card'));
-  strip.style.transition = 'none';
-  strip.style.transform = 'translateX(0)';
-  strip.innerHTML = cards.join('');
-}
-
-// หมุนรีลไปหยุดที่ winner (winner กำหนดโดย server ส่งเข้ามา ไม่สุ่มเองแล้ว)
-function runSpin(winner, onLand) {
-  const WIN_INDEX = 48;
-  const cards = [];
-  for (let i = 0; i < 60; i++) {
-    cards.push(i === WIN_INDEX ? cardHTML(winner, 'belt-card') : cardHTML(randomFiller(), 'belt-card'));
-  }
-  strip.style.transition = 'none';
-  strip.style.transform = 'translateX(0)';
-  strip.innerHTML = cards.join('');
-
-  const jitter = (Math.random() * 100) - 50;
-  const winnerCenter = WIN_INDEX * CARD_PITCH + CARD_CENTER;
-  const targetX = VIEW_CENTER - winnerCenter + jitter;
-  const targetTransform = `translateX(${targetX}px)`;
-
-  let litIndex = -1;
-  let rafId = null;
-  function currentTranslateX() {
-    const m = getComputedStyle(strip).transform;
-    if (m === 'none') return 0;
-    const match = m.match(/matrix\(([^)]+)\)/);
-    return match ? parseFloat(match[1].split(',')[4]) : 0;
-  }
-  function trackCenterCard() {
-    const tx = currentTranslateX();
-    const idx = Math.round((VIEW_CENTER - CARD_CENTER - tx) / CARD_PITCH);
-    if (idx !== litIndex) {
-      if (litIndex >= 0 && strip.children[litIndex]) strip.children[litIndex].classList.remove('is-winner');
-      if (strip.children[idx]) strip.children[idx].classList.add('is-winner');
-      litIndex = idx;
-    }
-    rafId = requestAnimationFrame(trackCenterCard);
-  }
-  rafId = requestAnimationFrame(trackCenterCard);
-
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    cancelAnimationFrame(rafId);
-    clearTimeout(activeSpin.timeoutId);
-    activeSpin = null;
-    onLand(winner);
-  };
-
-  const startTransition = (durationMs, easing) => {
-    strip.style.transition = `transform ${durationMs}ms ${easing}`;
-    strip.style.transform = targetTransform;
-    strip.addEventListener('transitionend', finish, { once: true });
-  };
-
-  void strip.offsetWidth;
-  startTransition(SPIN_MS, 'cubic-bezier(0.12, 0.8, 0.15, 1)');
-
-  activeSpin = {
-    winner,
-    timeoutId: setTimeout(finish, SPIN_MS + 400),
-    skip() {
-      clearTimeout(this.timeoutId);
-      const currentTransform = getComputedStyle(strip).transform;
-      strip.style.transition = 'none';
-      strip.style.transform = currentTransform;
-      void strip.offsetWidth;
-      startTransition(SKIP_MS, 'ease-out');
-      this.timeoutId = setTimeout(finish, SKIP_MS + 200);
-    },
-  };
-}
-
-/* ===================== result ===================== */
-function summarizeItems(items) {
-  const order = [];
-  const counts = new Map();
-  for (const it of items) {
-    if (!counts.has(it.name)) { counts.set(it.name, { item: it, count: 0 }); order.push(it.name); }
-    counts.get(it.name).count++;
-  }
-  return order
-    .map((name) => counts.get(name))
-    .sort((a, b) => RARITY_ORDER.indexOf(b.item.rarity) - RARITY_ORDER.indexOf(a.item.rarity));
-}
-
-function showResult(items) {
-  resultGrid.classList.remove('spotlight');
-  const grouped = summarizeItems(items);
-  resultGrid.classList.toggle('single', grouped.length === 1);
-  resultGrid.innerHTML = grouped
-    .map((entry) => cardHTML(entry.item, 'result-card', { count: entry.count }))
-    .join('');
-  result.classList.remove('hidden');
-}
-
-function showSpotlight(item, onDone) {
-  resultGrid.classList.add('spotlight');
-  resultGrid.innerHTML = cardHTML(item, 'result-card spotlight-card', { winner: true });
-  result.classList.remove('hidden');
-  setTimeout(onDone, 900);
-}
-
-/* ===================== flow ===================== */
-function setQtyBarDisabled(disabled) {
-  spinMain.disabled = disabled;
-  spinQtyToggle.disabled = disabled;
-  if (disabled) {
-    closeQtyModal();
-    spinMainQty.textContent = 'กำลังหมุน...';
-  } else {
-    setPendingQty(pendingQty);
-  }
-}
-
-// เล่นรีลทีละใบตามรายชื่อผู้ชนะที่ server ส่งมา (ไม่สุ่มเอง)
-function runBatchAnimated(winners, idx) {
-  runSpin(winners[idx], () => {
-    if (idx < winners.length - 1) {
-      runBatchAnimated(winners, idx + 1);
-    } else {
-      spinning = false;
-      setQtyBarDisabled(false);
-      showResult(winners);
-    }
-  });
-  if (autoSkip && activeSpin) activeSpin.skip();
-}
-
-// ชุดใหญ่: ข้ามรีลทีละใบ ไป spotlight ของหายากสุดก่อน แล้วเปิดกริดเต็ม
-function runBulkSpin(winners) {
-  const best = rarestOf(winners);
-  showSpotlight(best, () => {
-    spinning = false;
-    setQtyBarDisabled(false);
-    showResult(winners);
-  });
-}
-
-// รับผลจาก server มาเล่นแอนิเมชัน
-function handleResult(winners, remaining) {
-  if (typeof remaining === 'number') { boxCount = remaining; updateBoxCount(); }
-  if (!Array.isArray(winners) || winners.length === 0) {
-    spinning = false;
-    setQtyBarDisabled(false);
-    return;
-  }
-  // server ส่ง field ชื่อว่า label — normalize ให้มี name เพื่อให้ cardHTML/summarizeItems ใช้ร่วมกับ ITEMS ได้
-  winners = winners.map(w => ({ ...w, name: w.name || w.label }));
-  if (winners.length > AUTO_SPIN_THRESHOLD) {
-    runBulkSpin(winners);
-  } else {
-    runBatchAnimated(winners, 0);
-  }
-}
-
-// ส่งคำขอสปินไป server (ไม่ตัดสิน/ไม่หักอะไรเองที่ client)
-function startSpin(count) {
-  if (spinning) return;
-  if (!POOL) return;
-  if ((boxCount || 0) < count) {
-    flashInsufficient('ตั๋วไม่พอ');
-    return;
-  }
-  spinning = true;
-  setQtyBarDisabled(true);
-  nui('spin', { pool: POOL, qty: count });
-}
-
-/* ===================== spin quantity ===================== */
-let pendingQty = 1;
-
-function setPendingQty(n) {
-  const clamped = Math.max(1, Math.min(n, maxQty()));
-  pendingQty = clamped;
-  spinMainQty.textContent = `เริ่มลุ้นไอเทม (${clamped})`;
-}
-
-function openQtyModal() {
-  qtyModal.classList.remove('hidden');
-  qtyModalInput.max = maxQty();
-  qtyModalInput.value = pendingQty;
-  qtyModalInput.classList.remove('invalid');
-  qtyModalHint.classList.add('hidden');
-  qtyModalInput.focus();
-  qtyModalInput.select();
-}
-function closeQtyModal() {
-  qtyModal.classList.add('hidden');
-}
-
-qtyModalMin.addEventListener('click', () => { qtyModalInput.value = 1; });
-qtyModalMax.addEventListener('click', () => { qtyModalInput.value = maxQty(); });
-
-function submitQtyModal() {
-  const n = Number(qtyModalInput.value);
-  const hi = maxQty();
-  if (!Number.isInteger(n) || n < 1 || n > hi) {
-    qtyModalHint.textContent = `1-${hi} เท่านั้น`;
-    qtyModalInput.classList.add('invalid');
-    qtyModalHint.classList.remove('hidden');
-    qtyModalInput.focus();
-    qtyModalInput.select();
-    return;
-  }
-  setPendingQty(n);
-  closeQtyModal();
-}
-
-/* ===================== events ===================== */
-spinMain.addEventListener('click', () => startSpin(pendingQty));
-spinQtyToggle.addEventListener('click', openQtyModal);
-
-qtyModalInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') submitQtyModal();
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
-});
-qtyModalInput.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
-qtyModalConfirm.addEventListener('click', submitQtyModal);
-qtyModalCancel.addEventListener('click', closeQtyModal);
-qtyModal.addEventListener('click', (e) => { if (e.target === qtyModal || e.target.id === 'qty-modal-bg') closeQtyModal(); });
-
-autoSkipCheckbox.addEventListener('change', () => { autoSkip = autoSkipCheckbox.checked; });
-
-let hideItemsTimeout = null;
-function openChance() {
-  clearTimeout(hideItemsTimeout);
-  itemsList.classList.remove('hidden');
-  chanceBtn.classList.add('open');
-  chanceBtn.setAttribute('aria-expanded', 'true');
-}
-function closeChance() {
-  hideItemsTimeout = setTimeout(() => {
-    itemsList.classList.add('hidden');
-    chanceBtn.classList.remove('open');
-    chanceBtn.setAttribute('aria-expanded', 'false');
-  }, 100);
-}
-chanceBtn.addEventListener('mouseenter', openChance);
-chanceBtn.addEventListener('mouseleave', closeChance);
-itemsList.addEventListener('mouseenter', openChance);
-itemsList.addEventListener('mouseleave', closeChance);
-
-function closeResult() {
-  result.classList.add('hidden');
-  fillIdleBelt();
-}
-document.getElementById('result-close').addEventListener('click', closeResult);
-result.addEventListener('click', (e) => { if (e.target === result) closeResult(); });
-
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (!result.classList.contains('hidden')) { closeResult(); return; }
-  if (!qtyModal.classList.contains('hidden')) { closeQtyModal(); return; }
-  if (!itemsList.classList.contains('hidden')) {
-    itemsList.classList.add('hidden');
-    chanceBtn.classList.remove('open');
-    chanceBtn.setAttribute('aria-expanded', 'false');
-    return;
-  }
-  closeUI(); // ไม่มี overlay เปิดอยู่ -> ปิด NUI
-});
-
-/* ===================== NUI bridge ===================== */
-function nui(name, payload) {
-  const resName = (window.GetParentResourceName && GetParentResourceName()) || 'lp_gacha';
-  fetch(`https://${resName}/${name}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-    body: JSON.stringify(payload || {}),
-  }).catch(() => {});
-}
-
-function openUI(data) {
+/* ===================== เฟส 1: เปิดหน้า ===================== */
+function openUI(data){
   POOL = data.pool;
   ITEMS = Array.isArray(data.items) ? data.items : [];
   boxCount = data.boxCount || 0;
   QTY_MAX = data.qtyMax || 100;
-  if (data.label && currencyLabelEl) {
-    // เก็บ label เดิม "จำนวนที่มี" ไว้ แต่โชว์ชื่อ pool บนหัวเรื่องถ้ามี element
-    const titleText = document.getElementById('title-text');
-    if (titleText) titleText.textContent = data.label;
-  }
-  renderItemsList();
-  fillIdleBelt();
-  updateBoxCount();
-  setPendingQty(1);
+  boxCardName.textContent = (data.label || 'GACHA').toUpperCase();
+  updateBoxCount(boxCount);
+
+  // reset
+  resultPanel.classList.add('hidden');
+  opening.classList.add('hidden');
+  boxCard.classList.remove('shake');
+  oddsList.classList.add('hidden');
+  oddsBtn.setAttribute('aria-expanded','false');
   spinning = false;
-  setQtyBarDisabled(false);
-  result.classList.add('hidden');
+  randomBtn.disabled = false;
+  clampAmount();
+  renderOdds();
   root.classList.remove('hidden');
 }
+function closeUI(){ root.classList.add('hidden'); nui('close', {}); }
+function updateBoxCount(n){ boxCount = n; boxCountVal.textContent = Number(n).toLocaleString(); }
 
-function closeUI() {
-  root.classList.add('hidden');
-  nui('close', {});
+function maxQty(){ return Math.max(1, Math.min(boxCount || 0, QTY_MAX || 100)); }
+function clampAmount(){
+  let v = parseInt(amountInput.value, 10);
+  if (isNaN(v) || v < 1) v = 1;
+  const m = maxQty();
+  if (v > m) v = m;
+  amountInput.value = v;
+  return v;
+}
+
+/* odds list */
+function renderOdds(){
+  oddsBody.innerHTML = '';
+  ITEMS.forEach((it) => {
+    const r = RARITIES[it.rarity] || RARITIES.common;
+    const row = document.createElement('div');
+    row.className = 'orow';
+    row.innerHTML =
+      `<span class="odot" style="background:${r.c};box-shadow:0 0 8px ${r.g}"></span>` +
+      `<span class="oname">${it.name || it.key}</span>` +
+      `<span class="oamt">${it.chancePct != null ? it.chancePct + '%' : ''}</span>`;
+    oddsBody.appendChild(row);
+  });
+}
+
+/* ===================== เฟส opening ===================== */
+function startOpening(){
+  if (spinning) return;
+  const qty = clampAmount();
+  if (boxCount < 1){ flashMsg('ตั๋วไม่พอ'); return; }
+
+  spinning = true;
+  randomBtn.disabled = true;
+  resultBuf = null;
+  resultPanel.classList.add('hidden');
+  opening.classList.remove('hidden');
+  boxCard.classList.add('shake');
+  openStart = Date.now();
+
+  // หลอดวิ่งขึ้นไปหยุดแถว ~88% รอ result จริงจาก server
+  let pct = 0;
+  setPct(0);
+  clearInterval(openTimer);
+  openTimer = setInterval(() => {
+    if (pct < 88){ pct += Math.max(1, (88 - pct) * 0.06); setPct(Math.min(88, pct)); }
+    // ถ้า result มาแล้ว + ครบเวลาขั้นต่ำ -> ปิดจ๊อบ
+    if (resultBuf && (Date.now() - openStart) >= MIN_OPEN_MS){
+      clearInterval(openTimer);
+      finishOpening();
+    }
+  }, 60);
+
+  nui('spin', { pool: POOL, qty });
+}
+function setPct(p){ const v = Math.round(p); openingPct.textContent = v; openingFill.style.width = v + '%'; }
+
+function finishOpening(){
+  setPct(100);
+  setTimeout(() => {
+    boxCard.classList.remove('shake');
+    opening.classList.add('hidden');
+    revealResult(resultBuf.winners, resultBuf.remaining);
+    spinning = false;
+    randomBtn.disabled = false;
+  }, 380);
+}
+
+/* server ส่งผลกลับ */
+function handleResult(winners, remaining){
+  resultBuf = { winners: winners || [], remaining: remaining };
+  // ถ้ายังไม่ได้กด opening (กันเคสหลุด) หรือครบเวลาแล้ว -> จบเลย
+  if (!spinning){ revealResult(resultBuf.winners, resultBuf.remaining); return; }
+  if ((Date.now() - openStart) >= MIN_OPEN_MS){ clearInterval(openTimer); finishOpening(); }
+}
+
+/* ===================== เฟส 2: ผลลัพธ์ grid ===================== */
+function aggregate(winners){
+  const map = new Map();
+  winners.forEach((w) => {
+    const key = (w.type || 'item') + ':' + w.item;
+    const cur = map.get(key);
+    const amt = Number(w.amount) || 1;
+    if (cur){ cur.total += amt; if (rarityRank(w.rarity) > rarityRank(cur.rarity)) cur.rarity = w.rarity; }
+    else map.set(key, { item:w.item, image:w.image || w.item, label:w.label || w.item,
+                        rarity:w.rarity || 'common', type:w.type || 'item', total:amt });
+  });
+  // เรียง rare -> ทั่วไป
+  return [...map.values()].sort((a,b) => rarityRank(b.rarity) - rarityRank(a.rarity));
+}
+
+function revealResult(winners, remaining){
+  if (remaining != null) updateBoxCount(remaining);
+  const rows = aggregate(winners);
+  resultGrid.innerHTML = '';
+  rows.forEach((it, i) => {
+    const r = RARITIES[it.rarity] || RARITIES.common;
+    const hi = rarityRank(it.rarity) >= rarityRank('epic'); // epic ขึ้นไปเรืองแสง
+    const card = document.createElement('div');
+    card.className = 'rcard' + (hi ? ' rare-hi' : '');
+    card.style.setProperty('--rc', r.c);
+    card.style.setProperty('--rg', r.g);
+    card.style.setProperty('--d', (i * 0.04) + 's');
+    card.innerHTML =
+      `<div class="rc-name">${it.label}</div>` +
+      `<div class="rc-img"><img src="${imgSrc(it.image, it.type)}" alt="" ` +
+        `onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'"></div>` +
+      `<div class="rc-count">x${Number(it.total).toLocaleString()}</div>`;
+    resultGrid.appendChild(card);
+  });
+  resultPanel.classList.remove('hidden');
+}
+
+/* ===================== broadcast ===================== */
+function showBroadcast(text){
+  if (!text) return;
+  broadcastText.textContent = text;
+  broadcast.classList.remove('hidden','out');
+  // retrigger animation
+  void broadcast.offsetWidth;
+  clearTimeout(broadcastTimer);
+  broadcastTimer = setTimeout(() => {
+    broadcast.classList.add('out');
+    setTimeout(() => broadcast.classList.add('hidden'), 400);
+  }, 6000);
+}
+
+/* ===================== ui helpers ===================== */
+function flashMsg(msg){
+  amountMsg.textContent = msg;
+  amountMsg.classList.remove('hidden');
+  clearTimeout(flashMsg._t);
+  flashMsg._t = setTimeout(() => amountMsg.classList.add('hidden'), 1800);
+}
+
+/* ===================== events ===================== */
+randomBtn.addEventListener('click', startOpening);
+amountInput.addEventListener('change', clampAmount);
+amountInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startOpening(); });
+oddsBtn.addEventListener('click', () => {
+  const open = oddsList.classList.toggle('hidden') === false;
+  oddsBtn.setAttribute('aria-expanded', String(open));
+});
+$('close-btn').addEventListener('click', closeUI);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !root.classList.contains('hidden')) closeUI();
+});
+
+/* ===================== NUI bridge ===================== */
+function nui(name, payload){
+  const resName = (window.GetParentResourceName && GetParentResourceName()) || 'lp_gacha';
+  fetch(`https://${resName}/${name}`, {
+    method:'POST', headers:{ 'Content-Type':'application/json; charset=UTF-8' },
+    body:JSON.stringify(payload || {}),
+  }).catch(() => {});
 }
 
 window.addEventListener('message', (ev) => {
   const data = ev.data || {};
-  switch (data.action) {
-    case 'open':
-      openUI(data.data || {});
-      break;
-    case 'result':
-      handleResult(data.winners, data.remaining);
-      break;
+  switch (data.action){
+    case 'open':      openUI(data.data || {}); break;
+    case 'result':    handleResult(data.winners, data.remaining); break;
     case 'rejected':
-      // server ปฏิเสธคำขอ (cooldown / ตั๋วไม่พอ / หักไม่สำเร็จ) — คืนสถานะปุ่ม
-      spinning = false;
-      setQtyBarDisabled(false);
-      flashInsufficient(data.reason === 'cooldown' ? 'รอสักครู่' : 'ตั๋วไม่พอ');
+      spinning = false; randomBtn.disabled = false;
+      clearInterval(openTimer);
+      boxCard.classList.remove('shake'); opening.classList.add('hidden');
+      flashMsg(data.reason === 'cooldown' ? 'รอสักครู่' : 'ตั๋วไม่พอ');
       break;
-    case 'close':
-      root.classList.add('hidden');
-      break;
+    case 'broadcast': showBroadcast(data.text); break;   // โชว์ได้แม้ปิดหน้าหลัก
+    case 'close':     root.classList.add('hidden'); break;
   }
 });
 
-/* DEV ONLY — โชว์ mock เมื่อเปิดตรงในเบราว์เซอร์ (ไม่ทำงานใน CEF ที่ใช้ nui://) */
-if (window.location.protocol !== 'nui:' && window.location.protocol !== 'https:') {
+/* DEV ONLY — mock เมื่อเปิดตรงในเบราว์เซอร์ */
+if (window.location.protocol !== 'nui:' && window.location.protocol !== 'https:'){
   openUI({
-    pool: 'promo', label: 'กาชาโปรโมทเซิร์ฟ', boxCount: 10, qtyMax: 100,
-    items: [
-      { key: 'food_bread', name: 'ขนมปัง', image: 'food_bread', rarity: 'basic', amount: 5, chancePct: 17.6 },
-      { key: 'mat_diamond', name: 'เพชร', image: 'mat_diamond', rarity: 'rare', amount: 2, chancePct: 8.6 },
-      { key: 'a_c_horse_suffolkpunch_sorrel', name: 'ม้า Suffolk Punch', image: 'a_c_horse_suffolkpunch_sorrel', rarity: 'legendary', amount: 1, chancePct: 20 },
+    pool:'promo', label:'กาชาโปรโมทเซิร์ฟ', boxCount:9999, qtyMax:100,
+    items:[
+      { key:'food_bread', name:'ขนมปัง', image:'food_bread', rarity:'basic', amount:5, chancePct:17.6 },
+      { key:'mat_diamond', name:'เพชร', image:'mat_diamond', rarity:'rare', amount:2, chancePct:8.6 },
+      { key:'aed', name:'กล่องชุบเพื่อน', image:'aed', rarity:'epic', amount:1, chancePct:5 },
+      { key:'horse', name:'ม้า Suffolk Punch', image:'a_c_horse_suffolkpunch_sorrel', rarity:'legendary', amount:1, chancePct:2 },
     ],
   });
+  // mock ปุ่ม random -> ส่งผลปลอมกลับ
+  window.__mockResult = () => handleResult([
+    { item:'food_bread', label:'ขนมปัง', image:'food_bread', rarity:'basic', amount:5, type:'item' },
+    { item:'food_bread', label:'ขนมปัง', image:'food_bread', rarity:'basic', amount:5, type:'item' },
+    { item:'mat_diamond', label:'เพชร', image:'mat_diamond', rarity:'rare', amount:2, type:'item' },
+    { item:'aed', label:'กล่องชุบเพื่อน', image:'aed', rarity:'epic', amount:1, type:'item' },
+    { item:'a_c_horse_suffolkpunch_sorrel', label:'ม้า Suffolk Punch', image:'a_c_horse_suffolkpunch_sorrel', rarity:'legendary', amount:1, type:'horse' },
+  ], 9994);
+  const _orig = nui;
+  window.nui = (n,p) => { if (n === 'spin') setTimeout(window.__mockResult, 900); };
+  randomBtn.addEventListener('click', () => setTimeout(window.__mockResult, 900));
+  setTimeout(() => showBroadcast('คุณ JAME GARCIA ได้รับ ม้า Suffolk Punch'), 400);
 }

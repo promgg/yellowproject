@@ -32,6 +32,12 @@ RegisterNetEvent('lp_gacha:spinRejected', function(reason)
     SendNUIMessage({ action = 'rejected', reason = reason })
 end)
 
+-- ประกาศทั้งเซิร์ฟ (ยิงถึงทุกคน) — โชว์ banner ได้แม้ไม่ได้เปิดหน้ากาชาอยู่
+-- SendNUIMessage ส่งเข้า NUI ได้เสมอเพราะ page โหลดค้างตลอด ไม่ต้องมี focus/เปิดหน้า
+RegisterNetEvent('lp_gacha:broadcast', function(text)
+    SendNUIMessage({ action = 'broadcast', text = text })
+end)
+
 -- ---------- NUI callbacks ----------
 -- คำขอสปิน: relay ตรงไป server ไม่ตัดสินอะไรฝั่ง client
 RegisterNUICallback('spin', function(data, cb)

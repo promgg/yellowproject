@@ -204,6 +204,20 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
 
         logGrant(src, xPlayer, pool, winners)
 
+        -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด กันสแปมตอนเปิดทีละมาก)
+        if Config.Broadcast and Config.Broadcast.Enable then
+            local pname = ((xPlayer.firstname or '') .. ' ' .. (xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
+            if pname == '' then pname = 'ผู้เล่น' end
+            local announced = {}
+            for _, w in ipairs(winners) do
+                if Config.Broadcast.Rarities[w.rarity] and not announced[w.item] then
+                    announced[w.item] = true
+                    local text = (Config.Broadcast.Message or 'คุณ %s ได้รับ %s'):format(pname, w.label or w.item)
+                    TriggerClientEvent('lp_gacha:broadcast', -1, text)
+                end
+            end
+        end
+
         -- ส่งผลให้ client เล่นแอนิเมชันโชว์ (โชว์อย่างเดียว ไม่ตัดสินอะไร)
         local remaining = exports.vorp_inventory:getItemCount(src, nil, pool.ticket) or 0
         TriggerClientEvent('lp_gacha:result', src, winners, remaining)
