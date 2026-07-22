@@ -261,33 +261,32 @@ end
 -- 'quick' = painkiller/stamina) — fallback เป็น 'heal' ถ้า item เก่าไม่มี category กำหนดไว้
 -- (เดิมโค้ดนี้เรียก Progress() แค่โชว์ UI แถบ แล้วแยกไปเล่นท่าเองผ่าน playAnimation() ซึ่งเป็นแค่
 -- TaskPlayAnim + Wait(duration) ตรงๆ ไม่มีจุดเช็คยกเลิกเลย — กด canCancel เท่าไหร่ก็ไม่มีผลกับท่าจริง
--- ย้ายมาส่ง animation เข้า Progress() ตรงๆ แทน ให้ MJ-Progressbar เป็นเจ้าของท่าเต็มๆ รวมกลไกยกเลิก
+-- ย้ายมาส่ง animation เข้า Progress() ตรงๆ แทน ให้ progbar (lp_progbar) เป็นเจ้าของท่าเต็มๆ รวมกลไกยกเลิก
 -- (Backspace) ที่มีอยู่แล้วในตัว — ยกเลิกได้แค่ท่า/UI เท่านั้น ไอเทม/เลือดเสียไปแล้วตั้งแต่กดใช้ (server
 -- ทำงานทันทีไม่รอ client กลับมา ไม่เปลี่ยนพฤติกรรมส่วนนี้)
 RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
     local animData = Config.Animations[category] or Config.Animations.heal
-    exports['MJ-Progressbar']:Progress({
-        name = 'Heal',
+    -- ใช้ lp_progbar แทน MJ-Progressbar — lp_progbar เป็นเจ้าของท่า/prop/ยกเลิกเต็มๆ เหมือนเดิม
+    -- lp_progbar ไม่มีฟีเจอร์โชว์ไอคอนไอเทม เลยตัด icon/name ออก (พฤติกรรมอื่นคงเดิมทุกอย่าง:
+    -- duration/label/canCancel/controlDisables(disableSprint)/animation/prop(boneName) — lp_progbar
+    -- ถูกเสริมให้รองรับ disableSprint + prop.boneName แล้ว)
+    exports.lp_progbar:Progress({
         duration = animData.duration,
         label = 'Heal',
-        -- รูปไอเทมจริงที่ใช้ (bandage_s/bandage_xl/painkiller/stamina) — MJ-Progressbar ต่อ path
-        -- nui://vorp_inventory/html/img/items/<icon>.png ให้เองอยู่แล้ว (ดู Process() ของมัน)
-        -- fallback 'bandage' ไว้เผื่อ server เก่าไม่ส่ง itemName มา (เข้ากันได้กับของเดิม)
-        icon = itemName or 'bandage',
         useWhileDead = false,
         canCancel = animData.canCancel,
         controlDisables = animData.controlDisables or {},
         animation = { animDict = animData.dict, anim = animData.anim, flags = animData.flags },
-        prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — MJ-Progressbar สร้าง/แปะ/ลบให้เอง
+        prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — lp_progbar สร้าง/แปะ/ลบให้เอง
     })
 end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:ReviveAnim", function()
-    exports['MJ-Progressbar']:Progress({
-        name = 'Revive',
+    -- ใช้ lp_progbar แทน MJ-Progressbar (revive โชว์แค่แถบ ท่าเล่นแยกผ่าน playAnimation เดิม)
+    -- ตัด icon/name ออก (lp_progbar ไม่มี icon) พฤติกรรมอื่นคงเดิม
+    exports.lp_progbar:Progress({
         duration = 7000,
         label = 'Revive',
-        icon = 'syringe',
         useWhileDead = false,
         canCancel = false
     })
