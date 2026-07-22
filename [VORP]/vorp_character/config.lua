@@ -23,6 +23,11 @@ Config.AllowPlayerDeleteCharacter = true
 -- command to reload character
 Config.ReloadCharCommand = "rc"
 
+-- แก้อาการ "เข้าเกมแล้วชุดโหลดไม่ครบ ต้องพิมพ์ /rc เอง"
+-- true = หลังโหลดตัวละครเสร็จ จะ apply ชุดซ้ำอัตโนมัติหนึ่งครั้ง (เหมือน /rc ให้เอง)
+-- ตั้ง false ถ้าทำให้ชุดกะพริบหรือมีปัญหา
+Config.AutoReloadOnSpawn = true
+
 -- Option to enable/disable the initial RDO intro
 Config.UseInitialAnimScene = true
 

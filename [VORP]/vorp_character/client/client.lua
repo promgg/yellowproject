@@ -359,6 +359,24 @@ function CharSelect()
 	TriggerEvent("vorp:initCharacter", playerCoords, heading, isDead)
 	characterChosen = true
 	SetModelAsNoLongerNeeded(nModel)
+
+	-- แก้อาการ "เข้าเกมแล้วชุดโหลดไม่ครบ ต้อง /rc เอง":
+	-- SetPlayerModel เพิ่งสลับร่าง (บรรทัดบน) แล้ว LoadPlayerComponents apply ทันที
+	-- แต่ ped ยังสตรีมไม่เสร็จ บาง component จึงไม่ติด — รอ ped พร้อมแล้ว apply ซ้ำ
+	-- หนึ่งครั้ง (เหมือน /rc ที่ผู้เล่นเคยกดเอง) ปิดได้ที่ Config.AutoReloadOnSpawn
+	if Config.AutoReloadOnSpawn then
+		CreateThread(function()
+			local rp = PlayerPedId()
+			local tries = 0
+			while not IsPedReadyToRender(rp) and tries < 60 do
+				Wait(50); tries = tries + 1; rp = PlayerPedId()
+			end
+			Wait(500) -- เผื่อ streaming เสื้อผ้าอีกนิด
+			if characterChosen and (next(CachedSkin) or next(CachedComponents)) then
+				LoadPlayerComponents(PlayerPedId(), CachedSkin, CachedComponents)
+			end
+		end)
+	end
 end
 
 function StartSwapCharacters()
