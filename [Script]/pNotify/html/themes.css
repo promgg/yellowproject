@@ -5,14 +5,17 @@
    ไม่มีป้าย "แจ้งเตือน" ที่ noty.js ฝัง markup มาแบบ hardcode (ซ่อนด้วย .header ด้านล่าง)
    ══════════════════════════════════════════════════════════ */
 .noty_theme__lp.noty_bar {
-    /* แบบ C "Minimal" ขนาดเท่า lp_itemnotify (170x60) — โปร่งเบลอ ขอบทองจาง ขีดสีประเภทซ้าย
+    /* แบบ C "Minimal" — โปร่งเบลอ ขอบทองจาง ขีดสีประเภทซ้าย
        --c = สีประเภท ตั้งจาก .noty_type__* ด้านล่าง ใช้ทั้งขีดซ้าย + progress bar
-       flex + align-items center = ข้อความอยู่กึ่งกลางแนวตั้ง, min-height กันข้อความยาวโดนตัด */
+       min-width/max-width แทน width ตายตัว — ข้อความสั้นกระชับได้ ยาวก็ยืดได้ ไม่ผูกกับขนาด
+       lp_itemnotify (170x60) อีกต่อไป กันข้อความยาวโดนบีบ/ตัด (เช่น ข้อความแจ้งเตือนโซน)
+       flex + align-items center = ข้อความอยู่กึ่งกลางแนวตั้ง, min-height กันข้อความสั้นแคบเกิน */
     --c: #b8a887;
     position: relative;
     display: flex;
     align-items: center;
-    width: 170px;
+    min-width: 170px;
+    max-width: 420px;
     min-height: 60px;
     margin: 6px 0 6px auto;
     border-radius: 8px;
