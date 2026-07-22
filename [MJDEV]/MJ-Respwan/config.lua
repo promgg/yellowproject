@@ -21,6 +21,7 @@ Config.Keys = {
     callHelp      = 'H', -- ขอความช่วยเหลือ (ส่งสัญญาณให้ผู้เล่นใกล้เคียง)
 }
 
+Config.HoldTime          = 600    -- ms ต้องกดค้างปุ่มนานเท่านี้ถึงจะทำงาน (เหมือน lp_textui)
 Config.ClearBodyCooldown = 5      -- วินาที cooldown ปุ่ม CLEAR BODY
 Config.HelpCooldown      = 20     -- วินาที cooldown ปุ่ม CALL FOR HELP
 Config.HelpRadius        = 100.0  -- ระยะ (เมตร) ที่ผู้เล่นจะได้รับสัญญาณขอความช่วยเหลือ

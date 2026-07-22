@@ -1,64 +1,54 @@
-<html>
+<!DOCTYPE html>
+<html lang="th">
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MJ Respwan</title>
-    <script src="nui://game/ui/jquery.js" type="text/javascript"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link href="css/style.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
-    <!-- แผงหน้าจอตาย: ยึดด้านล่างจอ ขอบแดง ธีมมืด-ทอง -->
-    <div id="deathScreen" class="death-screen">
-        <div class="death-panel">
+    <!-- แผงหน้าจอตาย: กลุ่มลอยกลางล่างจอ (Prompt Cluster) ธีมมืด-ทอง สไตล์ lp_textui -->
+    <div id="deathScreen" class="lt-death">
 
-            <!-- ส่วนกลาง: RESPAWN IN + นับถอยหลัง MM:SS + ข้อความ -->
-            <div class="death-center">
-                <div class="respawn-label">RESPAWN IN</div>
-                <div class="respawn-timer" id="timer">05:00</div>
-                <div class="death-subtitle">คุณเสียชีวิต กรุณารอการเกิดใหม่</div>
+        <!-- ID ผู้เล่น มุมขวาล่าง -->
+        <div class="lt-pid">ID: <span id="PlayerId">0</span></div>
+
+        <div class="lt-cluster">
+            <!-- ตัวนับถอยหลัง -->
+            <div class="lt-timer">
+                <span class="lt-eyebrow">RESPAWN IN</span>
+                <span class="lt-digits" id="timer">05:00</span>
+                <span class="lt-subtitle">คุณเสียชีวิต · รอการเกิดใหม่</span>
             </div>
 
-            <div class="death-id">ID: <span id="PlayerId">0</span></div>
-
-            <!-- แถวปุ่ม 5 ปุ่ม (hotkey ต่อปุ่ม) -->
-            <div class="death-buttons">
-                <div class="death-btn" id="btn-clearBody">
-                    <span class="key">G</span>
-                    <span class="labels">
-                        <span class="label-main">CLEAR BODY</span>
-                        <span class="label-sub">ซิงค์ร่างกาย</span>
-                    </span>
+            <!-- แถวปุ่ม (กดค้าง = fill ไล่จากซ้าย) -->
+            <div class="lt-row" id="btnRow">
+                <div class="lt-btn" id="btn-clearBody">
+                    <span class="lt-fill"></span>
+                    <span class="lt-keycap">G</span>
+                    <span class="lt-lbl"><span class="en">CLEAR BODY</span><span class="th">ซิงค์ร่างกาย</span></span>
                 </div>
 
-                <div class="death-btn disabled" id="btn-respawn">
-                    <span class="key">E</span>
-                    <span class="labels">
-                        <span class="label-main">RESPAWN</span>
-                        <span class="label-sub">เกิดที่โรงพยาบาล</span>
-                    </span>
+                <div class="lt-btn is-dim" id="btn-respawn">
+                    <span class="lt-fill"></span>
+                    <span class="lt-keycap">E</span>
+                    <span class="lt-lbl"><span class="en">RESPAWN</span><span class="th">เกิดที่โรงพยาบาล</span></span>
                 </div>
 
-                <div class="death-btn hidden" id="btn-leaveActivity">
-                    <span class="key">X</span>
-                    <span class="labels">
-                        <span class="label-main">LEAVE ACTIVITY</span>
-                        <span class="label-sub">ออกจากกิจกรรม</span>
-                    </span>
+                <div class="lt-btn is-hide" id="btn-leaveActivity">
+                    <span class="lt-fill"></span>
+                    <span class="lt-keycap">X</span>
+                    <span class="lt-lbl"><span class="en">LEAVE ACTIVITY</span><span class="th">ออกจากกิจกรรม</span></span>
                 </div>
 
-                <div class="death-btn" id="btn-callHelp">
-                    <span class="key">H</span>
-                    <span class="labels">
-                        <span class="label-main">CALL FOR HELP</span>
-                        <span class="label-sub">ขอความช่วยเหลือ</span>
-                    </span>
+                <div class="lt-btn" id="btn-callHelp">
+                    <span class="lt-fill"></span>
+                    <span class="lt-keycap">H</span>
+                    <span class="lt-lbl"><span class="en">CALL FOR HELP</span><span class="th">ขอความช่วยเหลือ</span></span>
                 </div>
             </div>
-
         </div>
     </div>
 

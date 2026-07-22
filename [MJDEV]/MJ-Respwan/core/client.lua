@@ -245,35 +245,67 @@ local function CallForHelp()
     TriggerEvent('vorp:TipBottom', 'ส่งสัญญาณขอความช่วยเหลือแล้ว', 3000)
 end
 
--- thread รับ input ของปุ่มทั้ง 5 ระหว่างตาย (ทำงานเฉพาะตอน isDead)
+-- thread รับ input แบบ "กดค้าง" (hold) ระหว่างตาย — ทำงานเฉพาะตอน isDead
+-- ใช้ IsDisabledControl* เพราะตอนตายเกมปิด control ผู้เล่นอัตโนมัติ (IsControlJustPressed จะไม่ยิงเลย
+-- = สาเหตุเดิมที่ G/H กดไม่ติด) — ตัวนี้อ่านปุ่มได้ไม่ว่า control จะถูกปิดหรือไม่
+-- กดค้างครบ Config.HoldTime ปุ่มถึงทำงาน + ส่งสถานะ fill ให้ NUI (start/done/cancel) ให้แถบไล่เอง
 Citizen.CreateThread(function()
+    local HoldTime = Config.HoldTime or 600
+    local order = { 'clearBody', 'respawn', 'leaveActivity', 'callHelp' }
+
+    -- ปุ่มนี้ "พร้อมกด" ตอนนี้ไหม (ให้ตรงกับสถานะที่ส่งให้ NUI ใน SendButtonStates)
+    local function canPress(id)
+        if id == 'respawn' then return respawnReady end
+        if id == 'leaveActivity' then return leaveActivityEnabled end
+        return true -- clearBody / callHelp เปิดตลอด
+    end
+
+    local function fireAction(id)
+        if id == 'clearBody' then ClearBody()
+        elseif id == 'respawn' then RespawnAtHospital()
+        elseif id == 'leaveActivity' then RespawnAtHospital()
+        elseif id == 'callHelp' then CallForHelp()
+        end
+    end
+
+    local held = nil        -- id ปุ่มที่กำลังกดค้าง
+    local heldSince = 0
+    local fired = false
+
     while true do
         if isDead then
             Citizen.Wait(0)
 
-            -- CLEAR BODY [G] — เปิดตลอด
-            if IsControlJustPressed(0, btnKeys.clearBody) then
-                ClearBody()
-            end
-
-            -- RESPAWN AT HOSPITAL [E] — เฉพาะเมื่อ countdown ถึง 0
-            if respawnReady and IsControlJustPressed(0, btnKeys.respawn) then
-                RespawnAtHospital()
-            end
-
-            -- LEAVE ACTIVITY [X] — เปิดเฉพาะเมื่อ activity สั่งเปิด (default ปิด, key inert)
-            if leaveActivityEnabled and IsControlJustPressed(0, btnKeys.leaveActivity) then
-                RespawnAtHospital()
-            end
-
-            -- CALL DOCTOR [B] — ปิดไว้ (ยังไม่มีอาชีพหมอ) key inert
-            -- if callDoctorEnabled and IsControlJustPressed(0, btnKeys.callDoctor) then end
-
-            -- CALL FOR HELP [H] — เปิดตลอด (มี cooldown)
-            if IsControlJustPressed(0, btnKeys.callHelp) then
-                CallForHelp()
+            if held then
+                -- ยังกดค้าง + ปุ่มยังพร้อมอยู่ไหม
+                if canPress(held) and IsDisabledControlPressed(0, btnKeys[held]) then
+                    if not fired and (GetGameTimer() - heldSince) >= HoldTime then
+                        fired = true
+                        SendNUIMessage({ type = 'hold', id = held, state = 'done' })
+                        fireAction(held)
+                    end
+                else
+                    -- ปล่อยก่อนครบ (หรือปุ่มถูกปิด) -> ยกเลิก fill
+                    SendNUIMessage({ type = 'hold', id = held, state = 'cancel' })
+                    held = nil
+                    fired = false
+                end
+            else
+                -- ยังไม่กดค้าง -> หาปุ่มที่พร้อม + เพิ่งเริ่มกด
+                for i = 1, #order do
+                    local id = order[i]
+                    if canPress(id) and IsDisabledControlJustPressed(0, btnKeys[id]) then
+                        held = id
+                        heldSince = GetGameTimer()
+                        fired = false
+                        SendNUIMessage({ type = 'hold', id = id, state = 'start', duration = HoldTime })
+                        break
+                    end
+                end
             end
         else
+            held = nil
+            fired = false
             Citizen.Wait(200)
         end
     end
@@ -309,22 +341,19 @@ AddEventHandler('MJ-ReSpwan:client:helpBlip', function(coords)
     end)
 end)
 
+-- ระหว่างตายเกมปิด control อัตโนมัติ — เปิดคีย์ที่ระบบอื่นยังต้องใช้ตอนตายกลับ (chat/เมนู ฯลฯ)
+-- (ปุ่มบนหน้าจอตายเองใช้ IsDisabledControl* อยู่แล้ว ไม่ต้องพึ่ง thread นี้)
+-- iterate + เช็ค nil กัน native error กรณีชื่อคีย์ไม่มีในตาราง Keys (เดิม 'K'/'T'/'DELETE' เป็น nil
+-- ทำให้ thread ตายกลางคันทุกเฟรม → คีย์ที่อยู่หลังมัน (H/Z/F6/X/ENTER) ไม่เคยถูกเปิด)
+local enableWhileDead = { 'N', 'E', 'H', 'Z', 'F6', 'X', 'ENTER', 'DEL' }
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(0)
-
         if isDead then
-            -- DisableAllControlActions(0)
-            EnableControlAction(0, Keys['N'], true)
-            EnableControlAction(0, Keys['E'], true)
-            EnableControlAction(0, Keys['K'], true)
-            EnableControlAction(0, Keys['T'], true)
-            EnableControlAction(0, Keys['H'], true)
-            EnableControlAction(0, Keys['Z'], true)
-            EnableControlAction(0, Keys['F6'], true)
-            EnableControlAction(0, Keys['X'], true)
-            EnableControlAction(0, Keys['ENTER'], true)
-            EnableControlAction(0, Keys['DELETE'], true)
+            Citizen.Wait(0)
+            for i = 1, #enableWhileDead do
+                local h = Keys[enableWhileDead[i]]
+                if h then EnableControlAction(0, h, true) end
+            end
         else
             Citizen.Wait(500)
         end
