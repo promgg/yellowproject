@@ -11,6 +11,27 @@ Config.VipSpawnTime = 5 * minute -- ===> เวลาตายรอเกิด
 
 Config.VIP = {"vip_card", "revive_token"} -- Inventory items for VIP
 
+-- ===== ปุ่มบนหน้าจอตาย (death screen bottom bar) =====
+-- ชื่อปุ่ม -> ตัวอักษรคีย์ (map เข้ากับตาราง Keys[...] ใน core/client.lua สำหรับ IsControlJustPressed)
+Config.Keys = {
+    clearBody     = 'G', -- ซิงค์ร่างกายใหม่ (แก้ร่างค้าง/desync)
+    respawn       = 'E', -- เกิดใหม่ที่โรงพยาบาล (เปิดใช้เมื่อ countdown = 0)
+    leaveActivity = 'X', -- ออกจากกิจกรรม (ปิดไว้ default — ใช้ผ่าน export)
+    callDoctor    = 'B', -- เรียกหมอ (ปิดไว้ — ยังไม่มีอาชีพหมอ)
+    callHelp      = 'H', -- ขอความช่วยเหลือ (ส่งสัญญาณให้ผู้เล่นใกล้เคียง)
+}
+
+Config.ClearBodyCooldown = 5      -- วินาที cooldown ปุ่ม CLEAR BODY
+Config.HelpCooldown      = 20     -- วินาที cooldown ปุ่ม CALL FOR HELP
+Config.HelpRadius        = 100.0  -- ระยะ (เมตร) ที่ผู้เล่นจะได้รับสัญญาณขอความช่วยเหลือ
+Config.HelpBlipTime      = 30000  -- ms อายุของ blip ขอความช่วยเหลือบนแผนที่
+
+-- เปิด/ปิดปุ่มเริ่มต้น (greyed out เมื่อ false)
+Config.Buttons = {
+    leaveActivity = false, -- placeholder — เปิดผ่าน export SetLeaveActivityButton หรือใช้ export LeaveActivityRespawn
+    callDoctor    = false, -- ยังไม่มีระบบอาชีพหมอในเซิร์ฟเวอร์
+}
+
 Config.Animations = {
     revive = {dict = "mech_revive@unapproved", anim = "revive", duration = 7000},
 

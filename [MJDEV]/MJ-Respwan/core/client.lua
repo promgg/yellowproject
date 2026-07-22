@@ -67,11 +67,37 @@ local isDead = false
 -- ตอนตายรอบถัดไป (sentDeathLog ค้างที่ true ตลอด เพราะ path ปกติของมันเช็คแค่ isDead ที่ถูกรีเซ็ต
 -- ไปก่อนหน้านี้แล้วจากที่อื่น เลยไม่มีจังหวะไหนที่ isDead ยังเป็น true ตอน IsPlayerDead() กลับเป็น false)
 local sentDeathLog = false
-local helpRequested = false
 -- วนตรวจจับการกดปุ่ม
 local CoolDown = 60
-local helpCooldown = 20 -- วินาที
-local lastHelpRequest = 0
+local lastHelpRequest = 0   -- GetGameTimer()/1000 ครั้งล่าสุดที่กดขอความช่วยเหลือ
+local lastClearBody = 0     -- GetGameTimer()/1000 ครั้งล่าสุดที่กด CLEAR BODY
+
+-- ===== สถานะปุ่มบนหน้าจอตาย =====
+-- respawnReady = ปุ่ม RESPAWN เปิดใช้เมื่อ countdown ถึง 0 (ขับจาก StartAutoRespawn)
+local respawnReady = false
+local leaveActivityEnabled = (Config.Buttons and Config.Buttons.leaveActivity) or false
+local callDoctorEnabled    = (Config.Buttons and Config.Buttons.callDoctor) or false
+
+-- map ชื่อปุ่ม -> control hash (จากตาราง Keys ด้านบน)
+local btnKeys = {
+    clearBody     = Keys[Config.Keys.clearBody]     or Keys['G'],
+    respawn       = Keys[Config.Keys.respawn]       or Keys['E'],
+    leaveActivity = Keys[Config.Keys.leaveActivity] or Keys['X'],
+    callDoctor    = Keys[Config.Keys.callDoctor]    or Keys['B'],
+    callHelp      = Keys[Config.Keys.callHelp]      or Keys['H'],
+}
+
+-- ส่งสถานะ enable/disable ของปุ่มทั้ง 5 ไปให้ NUI
+local function SendButtonStates()
+    SendNUIMessage({
+        type          = 'buttons',
+        clearBody     = true,               -- เปิดตลอด
+        respawn       = respawnReady,        -- เปิดเมื่อ countdown = 0
+        leaveActivity = leaveActivityEnabled,
+        callDoctor    = callDoctorEnabled,
+        callHelp      = true,               -- เปิดตลอด (มี cooldown)
+    })
+end
 
 -- ฟังก์ชันปัดทศนิยม
 local function round(value, decimals)
@@ -166,40 +192,121 @@ local function EndDeathCam()
     DestroyAllCams(true)
 end
 
+-- ===== การกระทำของปุ่มทั้ง 5 (hotkey ต่อปุ่ม ไม่ใช้เมาส์/NUI focus) =====
+
+-- ปุ่ม 2/3: เกิดใหม่ที่โรงพยาบาล — ยกตรรกะ E-respawn เดิมจาก StartAutoRespawn มาไว้ที่เดียว
+-- (RESPAWN AT HOSPITAL และ LeaveActivityRespawn ใช้ตัวเดียวกัน ต่างกันแค่ "รอ countdown หรือไม่")
+local function RespawnAtHospital()
+    DoScreenFadeOut(1000)
+    Wait(1000)
+
+    EndDeathCam()
+    TriggerServerEvent("vorp_core:PlayerRespawnInternal", true)
+    FreezeEntityPosition(PlayerPedId(), false)
+
+    DoScreenFadeIn(1500)
+    isDead = false
+    sentDeathLog = false
+    CloseUi()
+
+    TriggerServerEvent("vorp:ImDead", false)
+    LocalPlayer.state:set('isDead', false, true)
+end
+
+-- ปุ่ม 1: CLEAR BODY [G] — resync ร่างเพื่อแก้ design/desync ของศพ (เทียบเท่า clear body ของ ESX)
+local function ClearBody()
+    local now = GetGameTimer() / 1000
+    if now - lastClearBody < Config.ClearBodyCooldown then
+        local remaining = math.ceil(Config.ClearBodyCooldown - (now - lastClearBody))
+        TriggerEvent('vorp:TipBottom', 'กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 3000)
+        return
+    end
+    lastClearBody = now
+
+    local ped = PlayerPedId()
+    local c = GetEntityCoords(ped)
+    -- ตอกพิกัดเดิมซ้ำ + สั่ง ragdoll ใหม่ เพื่อบังคับให้ network re-render ร่าง (แก้ร่างค้าง/ลอย)
+    SetEntityCoordsNoOffset(ped, c.x, c.y, c.z, false, false, false)
+    SetPedToRagdoll(ped, 2000, 2000, 0, false, false, false)
+    TriggerEvent('vorp:TipBottom', 'ซิงค์ร่างกายใหม่แล้ว', 3000)
+end
+
+-- ปุ่ม 5: CALL FOR HELP [H] — ส่งสัญญาณขอความช่วยเหลือให้ผู้เล่นใกล้เคียง (แทนระบบ G/MJ-Alert-Doctor เดิม)
+local function CallForHelp()
+    local now = GetGameTimer() / 1000
+    if now - lastHelpRequest < Config.HelpCooldown then
+        local remaining = math.ceil(Config.HelpCooldown - (now - lastHelpRequest))
+        TriggerEvent('vorp:TipBottom', 'กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 3000)
+        return
+    end
+    lastHelpRequest = now
+    -- ส่งแค่ trigger ให้ server (server ใช้พิกัดฝั่ง server เอง กัน spoof — ดู core/server.lua)
+    TriggerServerEvent('MJ-ReSpwan:server:callHelp')
+    TriggerEvent('vorp:TipBottom', 'ส่งสัญญาณขอความช่วยเหลือแล้ว', 3000)
+end
+
+-- thread รับ input ของปุ่มทั้ง 5 ระหว่างตาย (ทำงานเฉพาะตอน isDead)
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(0)
         if isDead then
-            if IsControlJustReleased(0, 0x760A9C6F) then -- กด G
-                local currentTime = GetGameTimer() / 1000 -- เปลี่ยนเป็นวินาที
-                if currentTime - lastHelpRequest >= helpCooldown then
-                    SendNUIMessage({
-                        type = 'addclass2',
-                        status = true
-                    })
-                    helpRequested = true
-                    lastHelpRequest = currentTime
-                    TriggerEvent("!MJ-Alert-Doctor:alertNet", "dead")
-                else
-                    local remaining = math.ceil(helpCooldown - (currentTime - lastHelpRequest))
-                    TriggerEvent('vorp:TipBottom',
-                        'กรุณารอสักครู่ (' .. remaining .. ' วินาที)', 3000)
-                end
+            Citizen.Wait(0)
+
+            -- CLEAR BODY [G] — เปิดตลอด
+            if IsControlJustPressed(0, btnKeys.clearBody) then
+                ClearBody()
             end
 
-            -- ปิดแสดง UI ช่วยเหลือหลัง cooldown
-            if helpRequested then
-                local currentTime = GetGameTimer() / 1000
-                if currentTime - lastHelpRequest >= helpCooldown then
-                    SendNUIMessage({
-                        type = 'addclass2',
-                        status = false
-                    })
-                    helpRequested = false -- reset ให้กดซ้ำได้รอบหน้า
-                end
+            -- RESPAWN AT HOSPITAL [E] — เฉพาะเมื่อ countdown ถึง 0
+            if respawnReady and IsControlJustPressed(0, btnKeys.respawn) then
+                RespawnAtHospital()
             end
+
+            -- LEAVE ACTIVITY [X] — เปิดเฉพาะเมื่อ activity สั่งเปิด (default ปิด, key inert)
+            if leaveActivityEnabled and IsControlJustPressed(0, btnKeys.leaveActivity) then
+                RespawnAtHospital()
+            end
+
+            -- CALL DOCTOR [B] — ปิดไว้ (ยังไม่มีอาชีพหมอ) key inert
+            -- if callDoctorEnabled and IsControlJustPressed(0, btnKeys.callDoctor) then end
+
+            -- CALL FOR HELP [H] — เปิดตลอด (มี cooldown)
+            if IsControlJustPressed(0, btnKeys.callHelp) then
+                CallForHelp()
+            end
+        else
+            Citizen.Wait(200)
         end
     end
+end)
+
+-- export: activity เรียกเมื่อผู้เล่นออกจากกิจกรรม -> เกิดใหม่ที่ รพ. ทันที (ข้าม countdown)
+exports('LeaveActivityRespawn', function()
+    if not isDead then return end
+    Citizen.CreateThread(RespawnAtHospital)
+end)
+
+-- export: เปิด/ปิดปุ่ม LEAVE ACTIVITY ในหน้าจอ (+คีย์) เผื่อ activity อยากให้ปุ่มในจอกดได้ (default ปิด)
+exports('SetLeaveActivityButton', function(enabled)
+    leaveActivityEnabled = enabled and true or false
+    if isDead then SendButtonStates() end
+end)
+
+-- รับสัญญาณขอความช่วยเหลือ -> ปัก blip ชั่วคราว + แจ้งเตือน
+RegisterNetEvent('MJ-ReSpwan:client:helpBlip')
+AddEventHandler('MJ-ReSpwan:client:helpBlip', function(coords)
+    if type(coords) ~= 'table' then return end
+    TriggerEvent('vorp:TipBottom', 'มีคนต้องการความช่วยเหลือใกล้คุณ', 5000)
+
+    local blip = BlipAddForCoords(1664425300, coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+    SetBlipSprite(blip, joaat('blip_ambient_medic'), true)
+    SetBlipScale(blip, 1.2)
+    Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'ต้องการความช่วยเหลือ') -- SetBlipName
+
+    Citizen.SetTimeout(Config.HelpBlipTime, function()
+        if blip and DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
+    end)
 end)
 
 Citizen.CreateThread(function()
@@ -385,59 +492,31 @@ function isAdmin(callback)
 end
 
 function StartAutoRespawn()
-    local autoSpawnTimer = round(Config.SpawnTime / 1000)
-    local MaxRespawnTimer = round(Config.SpawnTime / 1000)
+    respawnReady = false -- reset ทุกครั้งที่เริ่มตายใหม่ (ปุ่ม RESPAWN เริ่มต้น disabled)
+    SendButtonStates()   -- ส่งสถานะปุ่มเริ่มต้นให้ NUI
 
+    local autoSpawnTimer = round(Config.SpawnTime / 1000)
     if checkHasVIPItem() then
         autoSpawnTimer = round(Config.VipSpawnTime / 1000)
-        MaxRespawnTimer = round(Config.VipSpawnTime / 1000)
     end
 
     Citizen.CreateThread(function()
+        -- ส่งค่าเริ่มต้นก่อนนับถอยหลัง (JS จัดรูปเป็น MM:SS เอง)
+        local minutes, secs = secondsToClock(autoSpawnTimer)
+        SendNUIMessage({ type = 'respawn', minutes = minutes, seconds = secs })
+
         while autoSpawnTimer > 0 and isDead do
             Citizen.Wait(1000)
             autoSpawnTimer = autoSpawnTimer - 1
-            local minutes, secs = secondsToClock(autoSpawnTimer)
-            local nText = string.format('%02d:%02d', minutes, secs)
-            SendNUIMessage({
-                type = 'respawn',
-                text = string.format("จะเกิดใหม่ใน %s", nText)
-            })
+            local m, s = secondsToClock(math.max(autoSpawnTimer, 0))
+            SendNUIMessage({ type = 'respawn', minutes = m, seconds = s })
         end
-    end)
 
-    Citizen.CreateThread(function()
-        while isDead do
-            Citizen.Wait(0)
-            if autoSpawnTimer <= 0 then
-                SendNUIMessage({
-                    type = 'addclass',
-                    status = false
-                })
-
-                if IsControlJustPressed(0, Keys["E"]) then
-                    DoScreenFadeOut(1000)
-                    Wait(1000)
-
-                    EndDeathCam()
-                    TriggerServerEvent("vorp_core:PlayerRespawnInternal", true)
-                    FreezeEntityPosition(PlayerPedId(), false)
-
-                    DoScreenFadeIn(1500)
-                    isDead = false
-                    sentDeathLog = false
-                    CloseUi()
-
-                    TriggerServerEvent("vorp:ImDead", false)
-                    LocalPlayer.state:set('isDead', false, true)
-                    break
-                else
-                    SendNUIMessage({
-                        type = 'addclass',
-                        status = true
-                    })
-                end
-            end
+        -- countdown ถึง 0 -> เปิดปุ่ม RESPAWN AT HOSPITAL [E] (การกด E จัดการใน input thread ด้านบน)
+        if isDead then
+            SendNUIMessage({ type = 'respawn', minutes = 0, seconds = 0 })
+            respawnReady = true
+            SendButtonStates()
         end
     end)
 end
@@ -480,7 +559,7 @@ CreateThread(function()
                     isDead = true
                     local my_id = GetPlayerServerId(PlayerId())
                     SendNUIMessage({ type = 'ui', status = true, id = my_id })
-                    SendNUIMessage({ type = 'addclass', status = true })
+                    -- สถานะปุ่มจัดการใน StartAutoRespawn (respawnReady เริ่มต้น false)
                     CreateThread(StartDeathCam)
                     CreateThread(StartAutoRespawn)
                 end
@@ -616,13 +695,9 @@ function secondsToClock(seconds)
 end
 
 CloseUi = function() -- ปิด Ui
-    helpRequested = false
+    respawnReady = false
     SendNUIMessage({
         type = 'ui',
-        status = false
-    })
-    SendNUIMessage({
-        type = 'addclass2',
         status = false
     })
 end

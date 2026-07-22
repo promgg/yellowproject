@@ -189,6 +189,44 @@ AddEventHandler("mj:checkAdminPermission", function()
     TriggerClientEvent("mj:returnAdminPermission", _source, isAdmin)
 end)
 
+-- ===== ขอความช่วยเหลือ (CALL FOR HELP) =====
+-- client ส่งแค่ trigger — server ใช้พิกัดฝั่ง server เอง (กัน spoof พิกัด) แล้วหาผู้เล่นในรัศมี
+local helpCooldownSv = {} -- [src] = GetGameTimer() ที่ขอความช่วยเหลือได้อีกครั้ง
+AddEventHandler('playerDropped', function()
+    if source then helpCooldownSv[source] = nil end
+end)
+
+RegisterServerEvent("MJ-ReSpwan:server:callHelp")
+AddEventHandler("MJ-ReSpwan:server:callHelp", function()
+    local src = source
+
+    -- rate-limit ฝั่ง server (กัน spam event) ใช้ Config.HelpCooldown เป็นวินาที
+    local now = GetGameTimer()
+    local cd = (Config.HelpCooldown or 20) * 1000
+    if helpCooldownSv[src] and now < helpCooldownSv[src] then
+        return
+    end
+    helpCooldownSv[src] = now + cd
+
+    local srcPed = GetPlayerPed(src)
+    if not srcPed or srcPed == 0 then return end
+    local srcCoords = GetEntityCoords(srcPed)
+    local radius = Config.HelpRadius or 100.0
+
+    for _, pid in ipairs(GetPlayers()) do
+        pid = tonumber(pid)
+        if pid and pid ~= src then
+            local ped = GetPlayerPed(pid)
+            if ped and ped ~= 0 then
+                local dist = #(srcCoords - GetEntityCoords(ped))
+                if dist <= radius then
+                    TriggerClientEvent("MJ-ReSpwan:client:helpBlip", pid, srcCoords)
+                end
+            end
+        end
+    end
+end)
+
 RegisterServerEvent("mj:discordDeathLog")
 AddEventHandler("mj:discordDeathLog", function(coords, cause, killerId, imageUrl)
     local src = source

@@ -1,89 +1,208 @@
-@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Cinzel:wght@600;700&display=swap');
 
-*
-{
+:root {
+    --gold: #d9b779;
+    --gold-bright: #f4d99a;
+    --tan: #b89466;
+    --red: #a01b1b;
+    --red-bright: #d13030;
+    --panel-bg: rgba(14, 10, 7, 0.82);
+    --bar-bg: rgba(24, 18, 12, 0.9);
+    --btn-bg: rgba(40, 30, 20, 0.85);
+    --btn-border: rgba(217, 183, 121, 0.35);
+    --text: #efe6d6;
+    --muted: #9a8a72;
+}
+
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: 'Special Elite', cursive;
-    color: #FFF;
-    font-size: 1.5vh;
-}
-
-body {
+    color: var(--text);
+    -webkit-user-select: none;
     user-select: none;
-    display: none;
-    justify-content: flex-end;
-    align-items: start;
-    min-height: 100vh;
-    background: radial-gradient(rgba(43, 26, 14, 0.7), #0a0a0a);
-    z-index: -1;
 }
 
-.container {
-    display: flex;
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* ===== แผงหลัก: ยึดล่างจอ ===== */
+.death-screen {
+    display: none; /* แสดง/ซ่อนผ่าน JS (type='ui') */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
     justify-content: center;
     align-items: flex-end;
-    flex-direction: column;
-    width: 30vh;
-    height: 30vh;
-    margin-top: 70vh;
-    margin-right: 4vh;
+    /* เงาไล่จากล่างขึ้นให้อ่านง่ายบน death cam */
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0) 22vh);
+    padding-bottom: 3vh;
 }
 
-.time {
-    font-size: 2vh;
-    /* margin-right: 5.5vh; */
+.death-panel {
+    width: 60vw;
+    max-width: 1100px;
+    min-width: 520px;
+    position: relative;
+    background: var(--panel-bg);
+    border: none;
+    border-radius: 0.8vh;
+    box-shadow: 0 0.5vh 2.5vh rgba(0, 0, 0, 0.55), inset 0 0 3vh rgba(0, 0, 0, 0.6);
+    padding: 2.2vh 2.5vh 2.4vh;
+    backdrop-filter: blur(2px);
 }
 
-.main {
+/* เส้นทองด้านบนของแผง */
+.death-panel::before {
+    content: '';
+    position: absolute;
+    top: 0.6vh;
+    left: 2.5vh;
+    right: 2.5vh;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold), transparent);
+    opacity: 0.5;
+}
+
+/* ===== ส่วนกลาง: นับถอยหลัง ===== */
+.death-center {
+    text-align: center;
+    margin-bottom: 2vh;
+}
+
+.respawn-label {
+    font-family: 'Cinzel', serif;
+    font-size: 1.6vh;
+    letter-spacing: 0.6vh;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.8vh;
+}
+
+.respawn-timer {
+    display: inline-block;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 6vh;
+    line-height: 1;
+    letter-spacing: 0.3vh;
+    color: var(--gold-bright);
+    background: rgba(0, 0, 0, 0.55);
+    border: 0.15vh solid var(--btn-border);
+    border-radius: 0.6vh;
+    padding: 1vh 3vh;
+    text-shadow: 0 0 1.5vh rgba(244, 217, 154, 0.35);
+    min-width: 22vh;
+}
+
+.death-subtitle {
+    margin-top: 1.2vh;
+    font-size: 1.9vh;
+    color: var(--red-bright);
+    text-shadow: 0 1px 2px #000;
+    letter-spacing: 0.1vh;
+}
+
+.death-id {
+    position: absolute;
+    top: 1.6vh;
+    right: 2.2vh;
+    font-size: 1.5vh;
+    color: var(--muted);
+}
+
+.death-id span {
+    color: var(--gold);
+}
+
+/* ===== แถวปุ่ม ===== */
+.death-buttons {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
+    gap: 1.2vh;
+    flex-wrap: nowrap;
+}
+
+.death-btn {
+    flex: 0 0 24vh;   /* ความกว้างคงที่ ไม่ยืด — เท่ากันทุกสถานะ (2 ปุ่ม หรือ 4 ปุ่ม) */
+    display: flex;
     align-items: center;
-    width: auto;
-    height: 3vh;
-    background-color: #2d1b0f; /* น้ำตาลเข้มเหมือนไม้ไหม้ */
-    box-shadow: 0 0 .5vh #000000aa;
-    border-radius: .3vh;
+    gap: 1vh;
+    background: var(--btn-bg);
+    border: 0.15vh solid var(--btn-border);
+    border-radius: 0.6vh;
+    padding: 1.1vh 1.2vh;
+    min-width: 0;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.text {
-    font-size: 1.2vh;
-    padding: .2vh 4vh;
-    border-left: solid #a52a2a .4vh;
-    border-right: solid #a52a2a .4vh;
-    text-shadow: 1px 1px #000;
+/* ปุ่มที่กดได้ */
+.death-btn:not(.disabled) {
+    box-shadow: inset 0 0 1.2vh rgba(217, 183, 121, 0.08);
 }
 
-.id span {
-    color: #ff0000;
+.death-btn:not(.disabled):hover {
+    border-color: var(--gold);
+}
+
+.death-btn .key {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4vh;
+    height: 3.4vh;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.9vh;
+    color: #1a1109;
+    background: linear-gradient(180deg, var(--gold-bright), var(--tan));
+    border-radius: 0.4vh;
+    box-shadow: 0 0.2vh 0.4vh rgba(0, 0, 0, 0.5);
+}
+
+.death-btn .labels {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.death-btn .label-main {
     font-size: 1.5vh;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.05vh;
 }
 
-.id p {
-    padding: 1vh;
-    font-size: 1.5vh;
+.death-btn .label-sub {
+    font-size: 1.25vh;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* ปุ่ม .x และ .y ถูกย้ายไว้ด้านล่างสุด */
-.x {
-    width: 2.3vh;
-    text-align: center;
-    height: 2vh;
-    background-color: #8b5a2b; /* สีน้ำตาลทองแดง */
-    border: none;
-    font-size: 1.2vh;
-    margin: .5vh;
-    border-radius: .3vh;
+/* ปุ่มที่กดยังไม่ได้ = โชว์อยู่แต่ทำจาง (เช่น RESPAWN ระหว่างนับถอยหลัง) */
+.death-btn.disabled {
+    opacity: 0.4;
+    filter: grayscale(0.9);
 }
 
-.y {
-    width: 2.3vh;
-    text-align: center;
-    height: 2vh;
-    background-color: #a52a2a; /* สีเลือดหมูเข้ม */
-    border: none;
-    font-size: 1.2vh;
-    margin: .5vh;
-    border-radius: .3vh;
+.death-btn.disabled .key {
+    background: linear-gradient(180deg, #6a6258, #4a453d);
+    color: #2a251f;
+}
+
+/* ปุ่มที่ไม่เกี่ยวกับสถานะนี้ = ซ่อนไปเลย (เช่น LEAVE ACTIVITY ตอนไม่อยู่ในกิจกรรม) */
+.death-btn.hidden {
+    display: none;
 }

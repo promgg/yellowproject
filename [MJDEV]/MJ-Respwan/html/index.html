@@ -11,21 +11,58 @@
 </head>
 
 <body>
-    <div class="container">
-        <div class="time" id="text-re">จะเกิดใหม่ใน 01:42 วินาที</div>
-        <div class="main">
-            <div class="id"><p>ID: <span id="PlayerId">398</span></p></div>
-            <div class="text">วิญญาณของเจ้า</div>
-        </div>
-        <p>หายใจแผ่วเต็มทีแล้วนี่นา</p>
-        <div class="mainbtn">
-            <div class="btn a"><p style="font-size: 1.3vh;">กด<button class="x">E</button>เพื่อฟื้นคืนชีพ</p></div>
-            <div class="btn b"><p style="font-size: 1.3vh;">กด<button class="y">G</button>เพื่อเรียกหมอ</p></div>
+    <!-- แผงหน้าจอตาย: ยึดด้านล่างจอ ขอบแดง ธีมมืด-ทอง -->
+    <div id="deathScreen" class="death-screen">
+        <div class="death-panel">
+
+            <!-- ส่วนกลาง: RESPAWN IN + นับถอยหลัง MM:SS + ข้อความ -->
+            <div class="death-center">
+                <div class="respawn-label">RESPAWN IN</div>
+                <div class="respawn-timer" id="timer">05:00</div>
+                <div class="death-subtitle">คุณเสียชีวิต กรุณารอการเกิดใหม่</div>
+            </div>
+
+            <div class="death-id">ID: <span id="PlayerId">0</span></div>
+
+            <!-- แถวปุ่ม 5 ปุ่ม (hotkey ต่อปุ่ม) -->
+            <div class="death-buttons">
+                <div class="death-btn" id="btn-clearBody">
+                    <span class="key">G</span>
+                    <span class="labels">
+                        <span class="label-main">CLEAR BODY</span>
+                        <span class="label-sub">ซิงค์ร่างกาย</span>
+                    </span>
+                </div>
+
+                <div class="death-btn disabled" id="btn-respawn">
+                    <span class="key">E</span>
+                    <span class="labels">
+                        <span class="label-main">RESPAWN</span>
+                        <span class="label-sub">เกิดที่โรงพยาบาล</span>
+                    </span>
+                </div>
+
+                <div class="death-btn hidden" id="btn-leaveActivity">
+                    <span class="key">X</span>
+                    <span class="labels">
+                        <span class="label-main">LEAVE ACTIVITY</span>
+                        <span class="label-sub">ออกจากกิจกรรม</span>
+                    </span>
+                </div>
+
+                <div class="death-btn" id="btn-callHelp">
+                    <span class="key">H</span>
+                    <span class="labels">
+                        <span class="label-main">CALL FOR HELP</span>
+                        <span class="label-sub">ขอความช่วยเหลือ</span>
+                    </span>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script src="js/script.js" type="text/javascript"></script>
-    <script src="js/materialize.min.js" type="text/javascript"></script>
 </body>
 
 </html>
