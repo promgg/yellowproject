@@ -15,6 +15,9 @@ Config.Visibility = {
     MainHud = true,
     HorseHud = true,
     HideOnPause = true,
+    -- ซ่อน HUD ตอนโหมดกล้อง: ตรวจ cinematic cam ของเกมเอง + สคริปต์กล้อง/โฟโต้ภายนอก
+    -- สั่งได้ผ่าน event 'nx_hud:client:setCameraMode' หรือ exports.nx_hud:SetCameraMode(true/false)
+    HideOnCamera = true,
 }
 
 Config.NativeHud = {

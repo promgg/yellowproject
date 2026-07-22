@@ -7,6 +7,7 @@ local hudExplicitVisible = Config.Visibility.MainHud ~= false
 local horseExplicitVisible = Config.Visibility.HorseHud ~= false
 local playerReady = INTEGRATION.WaitForSelectedCharacter ~= true
 local vorpUiVisible = true
+local cameraModeExternal = false -- ตั้งโดยสคริปต์กล้อง/โฟโต้ภายนอกผ่าน event/export
 local currentVoiceMode = Config.Voice.DefaultMode or 'NORMAL'
 local externalStatusValues = {}
 local lastHudMessage = nil
@@ -268,6 +269,26 @@ local function isPauseMenuVisible()
 
     local ok, active = pcall(IsPauseMenuActive)
     return ok and nativeBool(active)
+end
+
+-- โหมดกล้อง: ซ่อน HUD เมื่ออยู่ในกล้อง cinematic ของเกม หรือถูกสคริปต์ภายนอกสั่ง (cameraModeExternal)
+local function isCameraModeActive()
+    if Config.Visibility.HideOnCamera ~= true then
+        return false
+    end
+
+    if cameraModeExternal then
+        return true
+    end
+
+    if type(IsCinematicCamRendering) == 'function' then
+        local ok, active = pcall(IsCinematicCamRendering)
+        if ok and nativeBool(active) then
+            return true
+        end
+    end
+
+    return false
 end
 
 local function isDebugPreviewActive()
@@ -592,7 +613,7 @@ local function sendConfig()
 end
 
 local function sendHudVisibility(force)
-    local visible = hudExplicitVisible and playerReady and vorpUiVisible and not isPauseMenuVisible()
+    local visible = hudExplicitVisible and playerReady and vorpUiVisible and not isPauseMenuVisible() and not isCameraModeActive()
 
     if force or visible ~= lastHudVisible then
         SendNUIMessage({
@@ -606,7 +627,7 @@ local function sendHudVisibility(force)
 end
 
 local function sendHorseVisibility(visible, force)
-    visible = visible == true and hudExplicitVisible and horseExplicitVisible == true and playerReady and vorpUiVisible and not isPauseMenuVisible()
+    visible = visible == true and hudExplicitVisible and horseExplicitVisible == true and playerReady and vorpUiVisible and not isPauseMenuVisible() and not isCameraModeActive()
 
     if force or visible ~= lastHorseVisible then
         SendNUIMessage({
@@ -734,7 +755,7 @@ end
 
 local function shouldShowRadar(mounted)
     if RADAR_CONFIG.Enabled ~= true then return false end
-    if not hudExplicitVisible or not playerReady or not vorpUiVisible or isPauseMenuVisible() then return false end
+    if not hudExplicitVisible or not playerReady or not vorpUiVisible or isPauseMenuVisible() or isCameraModeActive() then return false end
     if radarMode == 'off' then return false end
     if radarMode == 'horse' then return mounted == true end
     return radarMode == 'always'
@@ -944,6 +965,24 @@ end)
 RegisterNetEvent(EVENT_PREFIX .. ':client:setHorseVisible', function(visible)
     horseExplicitVisible = visible == true
     sendHorseVisibility(horseExplicitVisible, true)
+end)
+
+-- ให้สคริปต์กล้อง/โฟโต้ภายนอกสั่งซ่อน/โชว์ HUD ได้ทันที (เสริมจากการตรวจ cinematic cam อัตโนมัติ)
+--   TriggerEvent('nx_hud:client:setCameraMode', true/false)  หรือ  exports.nx_hud:SetCameraMode(true/false)
+local function applyCameraMode(active)
+    cameraModeExternal = active == true
+    local mounted = getMountEntity(PlayerPedId()) ~= nil
+    sendHudVisibility(true)
+    sendHorseVisibility(mounted, true)
+    sendRadarVisibility(mounted, true)
+end
+
+RegisterNetEvent(EVENT_PREFIX .. ':client:setCameraMode', function(active)
+    applyCameraMode(active)
+end)
+
+exports('SetCameraMode', function(active)
+    applyCameraMode(active)
 end)
 
 RegisterNetEvent(EVENT_PREFIX .. ':client:setRadarMode', function(mode)
