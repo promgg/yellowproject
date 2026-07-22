@@ -178,7 +178,7 @@ local function buildGraveCluster(opts)
                 cooldownMinutes = opts.cooldownMinutes or 0, -- แดนบน = 0 (ตัวจริงคำนวณจาก schedule ตอน commit), แดนใต้ = 90
                 requiredItem = 'tool_grave_shovel',
                 requiredItemAmount = 1,
-                consumeItem = false,
+                consumeItem = true, -- หักพลั่วทุกครั้งก่อนเข้ามินิเกม (พลาด/ยกเลิกก็ไม่คืน)
                 damageDurability = false,
                 durabilityLoss = 5,
             },

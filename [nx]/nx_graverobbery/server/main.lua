@@ -175,6 +175,16 @@ RegisterNetEvent('nx_graverobbery:server:requestStart', function(graveId)
     }
     activeBySource[source] = token
 
+    -- หักพลั่วทันทีก่อนเข้ามินิเกม — หักทุกครั้ง แม้จะพลาด/ยกเลิกทีหลังก็ไม่คืน
+    -- จองหลุมสำเร็จก่อนค่อยหัก กันเคสหักแล้วจองไม่ได้ (หลุมโดนคนอื่นจองตัดหน้า) เสียของฟรี
+    if result.grave.robbery.consumeItem then
+        if not NX_GR.VORP.RemoveItem(source, result.grave.robbery.requiredItem, result.grave.robbery.requiredItemAmount) then
+            NX_GR.Security.Log(source, 'requestStart', 'remove_item_failed', { character = result.character, graveId = result.grave.id, villageId = result.grave.villageId })
+            cancelSession(token, 'unavailable')
+            return
+        end
+    end
+
     NX_GR.Cooldowns.Sync(result.grave.id)
     TriggerClientEvent('nx_graverobbery:client:startSession', source, {
         token = token,
@@ -237,16 +247,7 @@ RegisterNetEvent('nx_graverobbery:server:complete', function(token)
         return
     end
 
-    if not NX_GR.VORP.HasItem(source, grave.robbery.requiredItem, grave.robbery.requiredItemAmount) then
-        cancelSession(token, 'need_shovel')
-        return
-    end
-
-    if grave.robbery.consumeItem and not NX_GR.VORP.RemoveItem(source, grave.robbery.requiredItem, grave.robbery.requiredItemAmount) then
-        NX_GR.Security.Log(source, 'complete', 'remove_item_failed', { character = character, graveId = grave.id, villageId = grave.villageId })
-        cancelSession(token, 'unavailable')
-        return
-    end
+    -- พลั่วถูกหักไปแล้วตอน requestStart (ก่อนเข้ามินิเกม) — ตรงนี้ไม่ต้องเช็ค/หักซ้ำ
 
     -- ให้รางวัลก่อนตัดสิทธิ์หลุม — ถ้า inventory เต็ม/add item ล้มเหลว หลุมยังไม่ถูกใช้ ผู้เล่นลองใหม่ได้
     -- (เดิมสลับลำดับ ทำให้หลุมถูกเผาทิ้งไปเปล่าๆ ถ้า reward ล้มเหลวหลัง commit คูลดาวน์ไปแล้ว)
@@ -266,6 +267,9 @@ RegisterNetEvent('nx_graverobbery:server:complete', function(token)
     activeBySource[source] = nil
     NX_GR.Cooldowns.Sync(grave.id)
     NX_GR.EventNotify.Refresh(grave.villageId)
+
+    -- ขุดหลุมสุดท้ายในเมืองครบแล้ว → ปิดอีเวนต์เลย โดม (zone marker) จะหายทันที ไม่ต้องรอหมดเวลา
+    NX_GR.Event.EndIfDepleted(grave.villageId)
 
     NX_GR.Alerts.Dispatch(grave)
 end)

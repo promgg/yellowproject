@@ -201,6 +201,33 @@ function NX_GR.Event.GetState(villageId)
     return active[villageId]
 end
 
+-- true = ทุกหลุมในเมืองนี้ถูกขุดหมดแล้ว (cooldown ทั้งหมด)
+-- available = ยังขุดได้ / reserved = มีคนกำลังขุดหลุมสุดท้ายอยู่ → ทั้งคู่ยังไม่ถือว่าหมด
+local function allGravesDepleted(villageId)
+    local found = false
+    for _, grave in ipairs(Config.Graves or {}) do
+        if grave.villageId == villageId and grave.enabled and grave.robbery and grave.robbery.enabled then
+            found = true
+            if NX_GR.Cooldowns.IsAvailable(grave.id) then return false end -- ยังมีหลุมขุดได้
+            local entry = NX_GR.Cooldowns.Get(grave.id)
+            if entry and entry.state == 'reserved' then return false end    -- มีคนกำลังขุดหลุมสุดท้าย รอก่อน
+        end
+    end
+    return found -- ไม่มีหลุมเลย = ยังไม่ปิด (กันปิดวงมั่วตอนคอนฟิกว่าง)
+end
+
+-- เรียกหลังหลุมถูกขุดสำเร็จ (commit cooldown) — ถ้าหมดทั้งเมืองก็ปิดอีเวนต์เลย
+-- เอาโดม (zone marker) ออกทันที ไม่ต้องรอจนหมดเวลาตามตาราง เพราะไม่มีอะไรให้ขุดแล้ว
+function NX_GR.Event.EndIfDepleted(villageId)
+    if not active[villageId] then return end
+    if allGravesDepleted(villageId) then
+        endEvent(villageId)
+        if Config.Debug then
+            print(('[nx_graverobbery] event ended early (all graves looted) village=%s'):format(villageId))
+        end
+    end
+end
+
 -- ── สั่งเปิด/ปิดด้วยมือ (คำสั่งแอดมินใน main.lua) ─────────────────────────────
 -- ใช้ได้เฉพาะเมืองแดนบนที่มี Config.GraveZones — แดนใต้ไม่มีอีเวนต์ให้เปิดปิด
 -- คุมด้วยคูลดาวน์รายหลุมแทน ขุดได้ตลอดเวลาอยู่แล้ว
