@@ -146,7 +146,7 @@ MySQL.ready(function()
         end
     end
 
-    MySQL.query('SELECT * FROM lp_leaderboard_kills', {}, function(rows)
+    MySQL.query('SELECT charid, name, kills, deaths, score FROM lp_leaderboard_kills', {}, function(rows)
         if not rows then logTx('db-error', 'โหลด lp_leaderboard_kills คืน nil (query fail?)') end
         for _, r in ipairs(rows or {}) do
             killStats[tostring(r.charid)] = {
@@ -157,7 +157,7 @@ MySQL.ready(function()
         onOneLoaded()
     end)
 
-    MySQL.query('SELECT * FROM lp_leaderboard_cities', {}, function(rows)
+    MySQL.query('SELECT city, label, entries, wins, losses FROM lp_leaderboard_cities', {}, function(rows)
         if not rows then logTx('db-error', 'โหลด lp_leaderboard_cities คืน nil (query fail?)') end
         for _, r in ipairs(rows or {}) do
             cityStats[tostring(r.city)] = {
@@ -170,7 +170,7 @@ MySQL.ready(function()
 
     for _, catId in ipairs(gatherJobIds) do
         local job = Config.GatherJobs[catId]
-        MySQL.query('SELECT * FROM ' .. job.table, {}, function(rows)
+        MySQL.query('SELECT charid, name, score, count FROM ' .. job.table, {}, function(rows)
             if not rows then logTx('db-error', ('โหลด %s คืน nil (query fail?)'):format(job.table)) end
             for _, r in ipairs(rows or {}) do
                 gatherStats[catId][tostring(r.charid)] = {
