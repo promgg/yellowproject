@@ -5,48 +5,53 @@
    ไม่มีป้าย "แจ้งเตือน" ที่ noty.js ฝัง markup มาแบบ hardcode (ซ่อนด้วย .header ด้านล่าง)
    ══════════════════════════════════════════════════════════ */
 .noty_theme__lp.noty_bar {
-    /* display:table = หดตามความยาวข้อความจริง (ไม่ยืดเต็ม 325px ของ container เสมอ)
-       margin-left:auto ดันการ์ดให้ชิดขอบขวาของ container เหมือนเดิม แม้จะแคบลง */
+    /* แบบ C "Minimal" — บาง โปร่งเบลอ ขอบทองจางๆ ขีดสีประเภทบางซ้าย (บังจอน้อย)
+       --c = สีประเภท ตั้งจาก .noty_type__* ด้านล่าง ใช้ทั้งขีดซ้าย + progress bar
+       display:table = หดตามความยาวข้อความจริง, margin-left:auto ชิดขวาเหมือนเดิม */
+    --c: #b8a887;
     display: table;
-    margin: 8px 0 8px auto;
+    margin: 6px 0 6px auto;
     max-width: 100%;
-    min-width: 160px;
-    border-radius: 10px;
-    background: rgba(24, 26, 30, 0.92);
-    border-left: 4px solid #9aa0a6;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    min-width: 150px;
+    border-radius: 6px;
+    background: rgba(10, 8, 5, 0.62);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    border-left: 2px solid var(--c);
+    box-shadow: inset 0 0 0 1px rgba(240, 202, 120, 0.12);
     overflow: hidden;
 }
 .noty_theme__lp.noty_bar .header { display: none; }
 .noty_theme__lp.noty_bar .noty_body {
-    padding: 12px 14px;
+    padding: 8px 13px;
     font-family: 'Kanit', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    color: #f4ead8;
-    line-height: 1.5;
+    font-size: 12.5px;
+    font-weight: 400;
+    color: #e7ddcc;
+    line-height: 1.4;
 }
 .noty_theme__lp.noty_bar .noty-sub {
     display: block;
     margin-top: 2px;
-    font-size: 12px;
+    font-size: 10.5px;
     font-weight: 400;
-    color: rgba(244, 234, 216, 0.6);
+    color: rgba(231, 221, 204, 0.55);
 }
-.noty_theme__lp.noty_bar .noty_buttons { padding: 0 12px 10px; }
+.noty_theme__lp.noty_bar .noty_buttons { padding: 0 13px 8px; }
 .noty_theme__lp.noty_bar .noty_progressbar {
     position: absolute; left: 0; bottom: 0;
-    height: 2px; width: 100%;
-    background: rgba(240, 202, 120, 0.6);
+    height: 1px; width: 100%;
+    background: var(--c);
+    opacity: 0.6;
 }
 
-.noty_theme__lp.noty_type__success { border-left-color: #3ecf8e; }
-.noty_theme__lp.noty_type__error   { border-left-color: #ff5c5c; }
-.noty_theme__lp.noty_type__warning { border-left-color: #f0ca78; }
+.noty_theme__lp.noty_type__success { --c: #6fbf8b; }
+.noty_theme__lp.noty_type__error   { --c: #cf5346; }
+.noty_theme__lp.noty_type__warning { --c: #f0ca78; }
 .noty_theme__lp.noty_type__info,
-.noty_theme__lp.noty_type__information { border-left-color: #9aa0a6; }
+.noty_theme__lp.noty_type__information { --c: #b8a887; }
 .noty_theme__lp.noty_type__alert,
-.noty_theme__lp.noty_type__notification { border-left-color: #f0ca78; }
+.noty_theme__lp.noty_type__notification { --c: #f0ca78; }
 
 .noty_theme__gta.noty_bar {
     margin: 7px 0;
