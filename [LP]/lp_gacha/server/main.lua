@@ -113,6 +113,7 @@ local function openGacha(src, poolId)
     TriggerClientEvent('lp_gacha:open', src, {
         pool     = poolId,
         label    = pool.label,
+        ticket   = pool.ticket, -- ให้ NUI โชว์รูปตั๋วเป็นรูป box
         boxCount = count,
         qtyMax   = Config.QtyMax,
         items    = Display[poolId],
@@ -130,9 +131,43 @@ end
 -- ---------- anti-spam state ----------
 local activeSpin = {} -- [src] = true ระหว่างประมวลผลสปิน (กันซ้อน/re-entrant)
 local lastSpin   = {} -- [src] = GetGameTimer() ครั้งล่าสุด (กันถี่)
+local pending    = {} -- [src] = { xPlayer, pool, rewards, winners } รอ client ยืนยัน reveal จบ แล้วค่อยแจก
+
+-- แจกของจริง + log + ประกาศ (idempotent — เคลียร์ pending ก่อน กันแจกซ้ำ)
+-- เรียกได้จาก: revealDone (ปกติ) / failsafe timer / playerDropped — ตัวไหนถึงก่อนได้หมด
+local function doGrant(src)
+    local p = pending[src]
+    if not p then return end
+    pending[src] = nil
+
+    for _, reward in ipairs(p.rewards) do
+        grantReward(src, p.xPlayer, reward)
+    end
+    logGrant(src, p.xPlayer, p.pool, p.winners)
+
+    -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด) — ยิงตอนแจก = หลังเผยผล ไม่สปอยล์
+    if Config.Broadcast and Config.Broadcast.Enable then
+        local pname = ((p.xPlayer.firstname or '') .. ' ' .. (p.xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
+        if pname == '' then pname = 'ผู้เล่น' end
+        local announced = {}
+        for _, w in ipairs(p.winners) do
+            if Config.Broadcast.Rarities[w.rarity] and not announced[w.item] then
+                announced[w.item] = true
+                local text = (Config.Broadcast.Message or 'คุณ %s ได้รับ %s'):format(pname, w.label or w.item)
+                TriggerClientEvent('lp_gacha:broadcast', -1, text)
+            end
+        end
+    end
+end
+
+-- client ยืนยันว่าอนิเมชันเผยผลจบแล้ว → แจกตอนนี้ (reveal ยาวไม่คงที่ callback แม่นกว่า timer)
+RegisterNetEvent('lp_gacha:revealDone', function()
+    doGrant(source)
+end)
 
 AddEventHandler('playerDropped', function()
     local src = source
+    if pending[src] then doGrant(src) end -- ยังมีของค้างตอนออก → แจกก่อน กันตั๋วหายฟรี
     activeSpin[src] = nil
     lastSpin[src]   = nil
 end)
@@ -203,32 +238,21 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
             }
         end
 
-        -- ส่งผลให้ client เล่นอนิเมชันก่อน (ตั๋วหักไปแล้ว remaining ถูกต้อง)
+        -- ถ้ามีของค้างจากสปินก่อน (client ยังไม่ยืนยัน) แจกให้จบก่อน กันของหายตอนเปิดรัว
+        if pending[src] then doGrant(src) end
+
+        -- เก็บ pending ไว้ แจกจริงตอน client ยิง revealDone (อนิเมชันเผยผลจบ)
+        -- reveal สุ่มเลขทีละใบ ความยาวไม่คงที่ ใช้ callback แม่นกว่า timer ตายตัว
+        pending[src] = { xPlayer = xPlayer, pool = pool, rewards = rewards, winners = winners }
+
+        -- ส่งผลให้ client เล่นอนิเมชัน (ตั๋วหักไปแล้ว remaining ถูกต้อง)
         local remaining = exports.vorp_inventory:getItemCount(src, nil, pool.ticket) or 0
         TriggerClientEvent('lp_gacha:result', src, winners, remaining)
 
-        -- แจกของจริง + ประกาศ + log หลังอนิเมชันเผยผลเสร็จ (server timer = แจกแม้ client หลุด)
-        -- แลกกับ: ถ้า DC ในช่วง ~2.3 วิของ reveal อาจแจกให้ ped ที่ออกไปแล้ว (โอกาสน้อยมาก
-        -- เพราะผู้เล่นกำลังดูอนิเมชันอยู่) — ตั๋วหักไปแล้ว การหน่วงคือของราคาที่ยอมจ่ายเพื่อไม่สปอยล์
-        Citizen.SetTimeout(Config.RevealMs or 2300, function()
-            for _, reward in ipairs(rewards) do
-                grantReward(src, xPlayer, reward)
-            end
-            logGrant(src, xPlayer, pool, winners)
-
-            -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด) — ยิงหลังเผยผลไม่ให้ banner สปอยล์ของตัวเอง
-            if Config.Broadcast and Config.Broadcast.Enable then
-                local pname = ((xPlayer.firstname or '') .. ' ' .. (xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
-                if pname == '' then pname = 'ผู้เล่น' end
-                local announced = {}
-                for _, w in ipairs(winners) do
-                    if Config.Broadcast.Rarities[w.rarity] and not announced[w.item] then
-                        announced[w.item] = true
-                        local text = (Config.Broadcast.Message or 'คุณ %s ได้รับ %s'):format(pname, w.label or w.item)
-                        TriggerClientEvent('lp_gacha:broadcast', -1, text)
-                    end
-                end
-            end
+        -- failsafe: ถ้า client ไม่ยิง revealDone ใน N วิ (หลุด/error/ปิดหน้า) แจกเองกันตั๋วหายฟรี
+        local capture = src
+        Citizen.SetTimeout(Config.RevealFailsafeMs or 20000, function()
+            if pending[capture] then doGrant(capture) end
         end)
     end)
 

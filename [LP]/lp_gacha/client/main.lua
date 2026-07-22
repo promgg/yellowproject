@@ -49,6 +49,12 @@ RegisterNUICallback('spin', function(data, cb)
     cb('ok')
 end)
 
+-- NUI แจ้งว่าอนิเมชันเผยผลจบแล้ว → server แจกของตอนนี้ (ไม่ใช่ก่อนเผย)
+RegisterNUICallback('revealDone', function(_, cb)
+    TriggerServerEvent('lp_gacha:revealDone')
+    cb('ok')
+end)
+
 RegisterNUICallback('close', function(_, cb)
     closeUI()
     cb('ok')
