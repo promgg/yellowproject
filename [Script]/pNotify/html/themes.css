@@ -5,22 +5,25 @@
    ไม่มีป้าย "แจ้งเตือน" ที่ noty.js ฝัง markup มาแบบ hardcode (ซ่อนด้วย .header ด้านล่าง)
    ══════════════════════════════════════════════════════════ */
 .noty_theme__lp.noty_bar {
-    /* แบบ C "Minimal" — บาง โปร่งเบลอ ขอบทองจางๆ ขีดสีประเภทบางซ้าย (บังจอน้อย)
+    /* แบบ C "Minimal" ขนาดเท่า lp_itemnotify (170x60) — โปร่งเบลอ ขอบทองจาง ขีดสีประเภทซ้าย
        --c = สีประเภท ตั้งจาก .noty_type__* ด้านล่าง ใช้ทั้งขีดซ้าย + progress bar
-       display:table = หดตามความยาวข้อความจริง, margin-left:auto ชิดขวาเหมือนเดิม */
+       flex + align-items center = ข้อความอยู่กึ่งกลางแนวตั้ง, min-height กันข้อความยาวโดนตัด */
     --c: #b8a887;
-    display: table;
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 170px;
+    min-height: 60px;
     margin: 6px 0 6px auto;
-    max-width: 100%;
-    min-width: 150px;
-    border-radius: 6px;
+    border-radius: 8px;
     background: rgba(10, 8, 5, 0.62);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px);
-    border-left: 2px solid var(--c);
+    border-left: 3px solid var(--c);
     box-shadow: inset 0 0 0 1px rgba(240, 202, 120, 0.12);
     overflow: hidden;
 }
+.noty_theme__lp.noty_bar .noty_body { flex: 1 1 auto; }
 .noty_theme__lp.noty_bar .header { display: none; }
 .noty_theme__lp.noty_bar .noty_body {
     padding: 8px 13px;
