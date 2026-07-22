@@ -570,20 +570,8 @@ local function isValidResetCategory(category)
     return false
 end
 
-RegisterCommand('lbreset', function(src, args)
-    if src == 0 then return end -- console: ใช้ /lbreset ในเกมเท่านั้น (ต้องมี char ผูก group)
-    if not checkCooldown(src, 'reset') then return end
-    local char = getChar(src)
-    if not isAdmin(char) then
-        TriggerClientEvent('pNotify:SendNotification', src, { text = Config.Locale.adminOnly, type = 'error', timeout = 3000 })
-        return
-    end
-    local category = tostring(args[1] or 'all')
-    if not isValidResetCategory(category) then
-        TriggerClientEvent('pNotify:SendNotification', src, { text = 'หมวดไม่ถูกต้อง: ' .. category, type = 'error', timeout = 3000 })
-        return
-    end
-
+-- ล้างข้อมูลจริง (memory + DB) ตามหมวด — ใช้ร่วมกันทั้ง /lbreset และ /clearleaderboard
+local function doReset(category)
     if category == 'kill' or category == 'all' then
         killStats, dirtyKill, lastPair = {}, {}, {}
         MySQL.query('DELETE FROM lp_leaderboard_kills')
@@ -599,8 +587,56 @@ RegisterCommand('lbreset', function(src, args)
         end
     end
     boardsDirty = true
+end
+
+RegisterCommand('lbreset', function(src, args)
+    if src == 0 then return end -- console: ใช้ /lbreset ในเกมเท่านั้น (ต้องมี char ผูก group)
+    if not checkCooldown(src, 'reset') then return end
+    local char = getChar(src)
+    if not isAdmin(char) then
+        TriggerClientEvent('pNotify:SendNotification', src, { text = Config.Locale.adminOnly, type = 'error', timeout = 3000 })
+        return
+    end
+    local category = tostring(args[1] or 'all')
+    if not isValidResetCategory(category) then
+        TriggerClientEvent('pNotify:SendNotification', src, { text = 'หมวดไม่ถูกต้อง: ' .. category, type = 'error', timeout = 3000 })
+        return
+    end
+
+    doReset(category)
     logTx('admin-reset', ('by=%s(%s) category=%s'):format(GetPlayerName(src) or '?', tostring(charIdOf(char)), category))
     TriggerClientEvent('pNotify:SendNotification', src, { text = Config.Locale.resetDone, type = 'success', timeout = 3000 })
+    pushAllOpen()
+end, false)
+
+-- /clearleaderboard [category] — ล้างกระดานอันดับ ตรวจสิทธิ์ด้วย ACE (Config.AcePermission)
+-- ต่างจาก /lbreset ตรงที่เช็ค ace ไม่ใช่ group → สั่งจาก console/RCON ก็ได้ (src == 0 = เต็มสิทธิ์อยู่แล้ว)
+-- ให้สิทธิ์ผู้เล่นใน server.cfg:  add_ace group.admin lp_leaderboard.admin allow
+RegisterCommand('clearleaderboard', function(src, args)
+    local fromConsole = (src == 0)
+
+    if not fromConsole and not IsPlayerAceAllowed(src, Config.AcePermission) then
+        TriggerClientEvent('pNotify:SendNotification', src, { text = Config.Locale.adminOnly, type = 'error', timeout = 3000 })
+        return
+    end
+    if not fromConsole and not checkCooldown(src, 'reset') then return end
+
+    local category = tostring(args[1] or 'all')
+    if not isValidResetCategory(category) then
+        local msg = 'หมวดไม่ถูกต้อง: ' .. category .. ' (kill|city|fish|mining|planting|lumber|hunting|all)'
+        if fromConsole then print('[lp_leaderboard] ' .. msg)
+        else TriggerClientEvent('pNotify:SendNotification', src, { text = msg, type = 'error', timeout = 3000 }) end
+        return
+    end
+
+    doReset(category)
+    local who = fromConsole and 'console' or (GetPlayerName(src) or '?')
+    logTx('ace-clear', ('by=%s src=%s category=%s'):format(who, tostring(src), category))
+    if fromConsole then
+        print(('[lp_leaderboard] clearleaderboard: ล้างหมวด "%s" เรียบร้อย'):format(category))
+    else
+        TriggerClientEvent('pNotify:SendNotification', src, { text = Config.Locale.resetDone, type = 'success', timeout = 3000 })
+    end
     pushAllOpen()
 end, false)
 
