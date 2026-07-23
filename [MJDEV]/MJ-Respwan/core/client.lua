@@ -613,6 +613,15 @@ RegisterCommand("mjhealtest", function(_, args)
 
     local ped = PlayerPedId()
 
+    -- 0) ทดลองบังคับปิด native health recharge multiplier ก่อนเทส (native เดียวกับที่ vorp_core ใช้ปิด
+    -- เองตอน spawn — [VORP]/vorp_core/client/spawnplayer.lua:127-129 — เมื่อ Config.HealthRecharge.enable
+    -- = false ใน vorp_core config ปัจจุบัน) รอบเทสก่อนหน้า entityHealth ไต่ขึ้นเชิงเส้นคงที่ ~2.1/วิ
+    -- ไม่มีทีท่าชะลอแม้ผ่านไป 15 วิ (ไม่ใช่แบบ "ไล่หาเป้าหมายแล้วช้าลง") บ่งชี้ว่าอาจเป็น native recharge
+    -- ตัวนี้เองที่ไม่ได้ถูกปิดไว้จริงตอนนี้ (เช่น re-enable กลับมาหลัง MJ-Respwan ทำ respawn เอง โดยไม่ผ่าน
+    -- flow ที่ vorp_core ปิดให้) — บังคับปิดตรงนี้เพื่อดูว่า drift หายไหม ถ้าหายแปลว่าใช่ตัวการจริง
+    Citizen.InvokeNative(0x8899C244EBCF70DE, PlayerId(), 0.0) -- SetPlayerHealthRechargeMultiplier(playerId, 0.0)
+    print('[MJ-ReSpawn][TEST] บังคับปิด SetPlayerHealthRechargeMultiplier(0.0) ก่อนเทส — เช็คว่า drift หายไหม')
+
     -- 1) ลดเลือดเหลือ 10%
     SetAttributeCoreValue(ped, 0, 10)
     Citizen.Wait(0)
