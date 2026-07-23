@@ -103,7 +103,7 @@ Config.BathHouse = {
             dict  = 'script@mini_game@bathing@BATHING_INTRO_OUTRO_VALENTINE',
             scene = 's_regular_intro',
             door  = 142240370, -- door hash ของโรงแรมนั้น ผูกเข้าฉากในชื่อ "Door"
-            blip  = { enabled = false, sprite = 1475879922, name = 'อ่างอาบน้ำ Valentine' },
+            blip  = { enabled = false, sprite = 1475879922, name = 'Bath House Valentine' },
         },
         {
             id    = 'annesburg',
@@ -112,7 +112,7 @@ Config.BathHouse = {
             dict  = 'script@mini_game@bathing@BATHING_INTRO_OUTRO_ANNESBURG',
             scene = 's_regular_intro',
             door  = -201071322, -- door hash ของโรงแรมนั้น ผูกเข้าฉากในชื่อ "Door"
-            blip  = { enabled = false, sprite = 1475879922, name = 'อ่างอาบน้ำ Annesburg' },
+            blip  = { enabled = false, sprite = 1475879922, name = 'Bath House Annesburg' },
         },
         {
             id    = 'rhodes',
@@ -121,7 +121,7 @@ Config.BathHouse = {
             dict  = 'script@mini_game@bathing@BATHING_INTRO_OUTRO_RHODES',
             scene = 's_regular_intro',
             door  = -1847993131, -- door hash ของโรงแรมนั้น ผูกเข้าฉากในชื่อ "Door"
-            blip  = { enabled = false, sprite = 1475879922, name = 'อ่างอาบน้ำ Rhodes' },
+            blip  = { enabled = false, sprite = 1475879922, name = 'Bath House Rhodes' },
         },
     },
 }
