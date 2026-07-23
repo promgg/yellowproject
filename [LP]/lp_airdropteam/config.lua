@@ -41,7 +41,7 @@ Config.Team = {
         {
             id         = 'A',
             cityId     = 'valentine', -- ต้องตรงกับ id ใน nx_cityselect/config.lua -> Config.Cities
-            label      = 'ทีม A (Valentine)',
+            label      = 'Team A (Valentine)',
             zoneSpawn  = vector4(3175.5391, -339.3997, 43.1643, 190.2213), -- จุดเกิดทีม A ในสนาม
             -- TODO: ปรับพิกัดจุด NPC เข้าร่วมทีมจริง ตอนนี้ใช้ spawnPoint ของ Valentine ใน
             -- nx_cityselect/config.lua ไปก่อน (ยืนยันแล้วว่าเป็นจุดที่ยืนได้จริง) เพราะยังไม่มี
@@ -51,7 +51,7 @@ Config.Team = {
         {
             id         = 'B',
             cityId     = 'rhodes',
-            label      = 'ทีม B (Rhodes)',
+            label      = 'Team B (Rhodes)',
             zoneSpawn  = vector4(3355.8877, -551.6219, 42.9280, 278.4370), -- จุดเกิดทีม B ในสนาม
             -- TODO: ปรับพิกัดจุด NPC เข้าร่วมทีมจริง (ตอนนี้ใช้ spawnPoint ของ Rhodes ชั่วคราว)
             joinCoords = vector4(1221.5322, -1302.0590, 76.8985, 135.7318),
@@ -59,7 +59,7 @@ Config.Team = {
         {
             id         = 'C',
             cityId     = 'annesburg',
-            label      = 'ทีม C (Annesburg)',
+            label      = 'Team C (Annesburg)',
             zoneSpawn  = vector4(3121.4070, -675.5122, 43.0089, 2.9577), -- จุดเกิดทีม C ในสนาม
             -- TODO: ปรับพิกัดจุด NPC เข้าร่วมทีมจริง (ตอนนี้ใช้ spawnPoint ของ Annesburg ชั่วคราว)
             joinCoords = vector4(2926.5059, 1285.3009, 44.6548, 68.1800),
