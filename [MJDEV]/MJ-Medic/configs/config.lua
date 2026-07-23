@@ -90,19 +90,19 @@ Config.AlertBlips = {
 -- ตำแหน่งสถานีหมอ
 Config.Stations = {
     Valentine = {
-        Name = "สถานีหมอ Valentine",
+        Name = "Medic Valentine",
         Coords = vector3(-288.82, 808.44, 119.43),
         Teleports = Config.Teleports,
         Storage = Config.Storage
     },
     Strawberry = {
-        Name = "สถานีหมอ Strawberry",
+        Name = "Medic Strawberry",
         Coords = vector3(-1807.87, -430.77, 158.83),
         Teleports = Config.Teleports,
         Storage = Config.Storage
     },
     SaintDenis = {
-        Name = "สถานีหมอ Saint Denis",
+        Name = "Medic Saint Denis",
         Coords = vector3(2721.29, -1233.11, 50.37),
         Teleports = Config.Teleports,
         Storage = Config.Storage
