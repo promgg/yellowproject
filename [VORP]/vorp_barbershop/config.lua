@@ -38,6 +38,12 @@ Config.locations = {
 		price = 10,
 		radius = 1.5,
 	},
+	rhodes = { -- พิกัดฐานอ้างอิงจากจุดร้านเสื้อ Rhodes (vorp_character) — ทดสอบในเกมแล้วปรับ radius ได้ถ้าเดินเข้าไม่ถึง
+		blip = true,
+		pos = { x = 1324.66, y = -1291.59, z = 77.08 },
+		price = 10,
+		radius = 1.5,
+	},
 	-- armadillo = {
 	-- 	blip = true,
 	-- 	pos = { x = -3684.22, y = -2621.05, z = -13.44 },
