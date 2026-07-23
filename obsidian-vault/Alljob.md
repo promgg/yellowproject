@@ -148,38 +148,38 @@
 
 ต้อง**แช่ตัวอยู่ในน้ำจริง** (ไม่ใช่แค่ยืนริมฝั่ง) ในโซนน้ำที่เกมรู้จัก (ทะเลสาบ/แม่น้ำ/บึง/ลำธาร/หนอง/มหาสมุทร) **ต้องมี `job_fishing_rod` (เบ็ดตกปลา) ติดตัวตลอด** (เช็คทั้ง client และ server ไม่ถูกใช้หมด/หักเหมือนขวาน-จอบ) และมีเหยื่อ (`job_fishing_bait`) ในกระเป๋า จะเห็นข้อความ **"[E] เริ่มตกปลา"** พร้อมจำนวนเหยื่อที่เหลือ กด E เริ่มเล่นมินิเกมตกปลา (ผ่าน lp_minigame — มีจังหวะกดให้ทันเหมือนเกมตกปลาทั่วไป สำเร็จหรือพลาดมีผลต่อโอกาสได้ปลา) หลังมินิเกมจบจะมีช่วง **"กำลังดึงปลาขึ้นฝั่ง"** 30 วินาที แล้วเซิร์ฟเวอร์จะสุ่มปลาให้ตาม % **ปลาบางชนิดจำกัดเฉพาะแหล่งน้ำนั้นๆ** เท่านั้น (ดูคอลัมน์ "ต้องอยู่โซนน้ำ" — ถ้าไม่ตรงชื่อแหล่งน้ำที่ระบุ ปลาชนิดนั้นจะไม่มีสิทธิ์ออกเลยแม้จะยืนแช่น้ำอยู่) วนรอบเล่นต่ออัตโนมัติจนกว่าเหยื่อจะหมด กระเป๋าเต็ม หรือกด X ยกเลิกเอง — **หมายเหตุ:** โหมด AFK (กด G ค้างรอเฉยๆ ได้ปลาทุก 60 วินาทีโดยไม่ต้องเล่นมินิเกม) ถูกปิดไว้อยู่ในตอนนี้ ผู้เล่นต้องเล่นมินิเกมทุกครั้งที่จะได้ปลา
 
-| ไอเทม | ชื่อ (label) | โอกาสดรอป | จำนวน | ต้องอยู่โซนน้ำ |
-|---|---|---|---|---|
-| `fish_bluegill_small` | ปลาบลูกิลล์ | 70% | 1 | ตกได้ทุกที่ |
-| `fish_perch_small` | ปลาคอน | 68% | 1 | ตกได้ทุกที่ |
-| `fish_rockbass_small` | ปลาร็อกแบส | 66% | 1 | ตกได้ทุกที่ |
-| `fish_chainpickerel_small` | ปลาพิกเคอเรลลายโซ่ | 64% | 1 | WATER_DAKOTARIVER |
-| `fish_redfinpickerel_small` | ปลาพิกเคอเรลครีบแดง | 62% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
-| `fish_bullheadcat_small` | ปลาดุกหัวกระทิง | 60% | 1 | BAYOUNWA |
-| `fish_largemouthbass_medium` | ปลาแบสปากกว้าง | 45% | 1 | BAYOUNWA |
-| `fish_smallmouthbass_medium` | ปลาแบสปากเล็ก | 43% | 1 | WATER_OWANJILA |
-| `fish_salmonsockeye_medium` | ปลาแซลมอนซ็อกอาย | 35% | 1 | WATER_OCREAGHSRUN |
-| `fish_rainbowtrout_medium` | ปลาเทราต์สตีลเฮด | 33% | 1 | BAYOUNWA |
-| `fish_channelcatfish_large` | ปลาดุกแชนแนล | 22% | 1 | BAYOUNWA |
-| `fish_longnosegar_large` | ปลาการ์จมูกยาว | 20% | 1 | BAYOUNWA |
-| `fish_lakesturgeon_large` | ปลาสเตอร์เจียนน้ำจืด | 18% | 1 | BAYOUNWA |
-| `fish_muskie_large` | ปลามัสกี้ | 12% | 1 | WATER_LANNAHECHEERIVER |
-| `fish_northernpike_large` | ปลาหอกเหนือ | 10% | 1 | WATER_OCREAGHSRUN |
-| `fish_bluegill_legendary` | ปลาบลูกิลล์ในตำนาน | 6% | 1 | ตกได้ทุกที่ |
-| `fish_perch_legendary` | ปลาคอนในตำนาน | 5% | 1 | ตกได้ทุกที่ |
-| `fish_rockbass_legendary` | ปลาร็อกแบสในตำนาน | 5% | 1 | ตกได้ทุกที่ |
-| `fish_chainpickerel_legendary` | ปลาพิกเคอเรลลายโซ่ในตำนาน | 4% | 1 | WATER_DAKOTARIVER |
-| `fish_redfinpickerel_legendary` | ปลาพิกเคอเรลครีบแดงในตำนาน | 4% | 1 | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
-| `fish_bullheadcat_legendary` | ปลาดุกหัวกระทิงในตำนาน | 3% | 1 | BAYOUNWA |
-| `fish_largemouthbass_legendary` | ปลาแบสปากกว้างในตำนาน | 3% | 1 | BAYOUNWA |
-| `fish_smallmouthbass_legendary` | ปลาแบสปากเล็กในตำนาน | 3% | 1 | WATER_OWANJILA |
-| `fish_salmonsockeye_legendary` | ปลาแซลมอนซ็อกอายในตำนาน | 2% | 1 | WATER_OCREAGHSRUN |
-| `fish_rainbowtrout_legendary` | ปลาเทราต์สตีลเฮดในตำนาน | 2% | 1 | BAYOUNWA |
-| `fish_channelcatfish_legendary` | ปลาดุกแชนแนลในตำนาน | 2% | 1 | BAYOUNWA |
-| `fish_longnosegar_legendary` | ปลาการ์จมูกยาวในตำนาน | 2% | 1 | BAYOUNWA |
-| `fish_lakesturgeon_legendary` | ปลาสเตอร์เจียนน้ำจืดในตำนาน | 1% | 1 | BAYOUNWA |
-| `fish_muskie_legendary` | ปลามัสกี้ในตำนาน | 1% | 1 | WATER_LANNAHECHEERIVER |
-| `fish_northernpike_legendary` | ปลาหอกเหนือในตำนาน | 1% | 1 | WATER_OCREAGHSRUN |
+| ไอเทม                           | ชื่อ (label)                | โอกาสดรอป | จำนวน | ต้องอยู่โซนน้ำ                                 |
+| ------------------------------- | --------------------------- | --------- | ----- | ---------------------------------------------- |
+| `fish_bluegill_small`           | ปลาบลูกิลล์                 | 70%       | 1     | ตกได้ทุกที่                                    |
+| `fish_perch_small`              | ปลาคอน                      | 68%       | 1     | ตกได้ทุกที่                                    |
+| `fish_rockbass_small`           | ปลาร็อกแบส                  | 66%       | 1     | ตกได้ทุกที่                                    |
+| `fish_chainpickerel_small`      | ปลาพิกเคอเรลลายโซ่          | 64%       | 1     | WATER_DAKOTARIVER                              |
+| `fish_redfinpickerel_small`     | ปลาพิกเคอเรลครีบแดง         | 62%       | 1     | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
+| `fish_bullheadcat_small`        | ปลาดุกหัวกระทิง             | 60%       | 1     | BAYOUNWA                                       |
+| `fish_largemouthbass_medium`    | ปลาแบสปากกว้าง              | 45%       | 1     | BAYOUNWA                                       |
+| `fish_smallmouthbass_medium`    | ปลาแบสปากเล็ก               | 43%       | 1     | WATER_OWANJILA                                 |
+| `fish_salmonsockeye_medium`     | ปลาแซลมอนซ็อกอาย            | 35%       | 1     | WATER_OCREAGHSRUN                              |
+| `fish_rainbowtrout_medium`      | ปลาเทราต์สตีลเฮด            | 33%       | 1     | BAYOUNWA                                       |
+| `fish_channelcatfish_large`     | ปลาดุกแชนแนล                | 22%       | 1     | BAYOUNWA                                       |
+| `fish_longnosegar_large`        | ปลาการ์จมูกยาว              | 20%       | 1     | BAYOUNWA                                       |
+| `fish_lakesturgeon_large`       | ปลาสเตอร์เจียนน้ำจืด        | 18%       | 1     | BAYOUNWA                                       |
+| `fish_muskie_large`             | ปลามัสกี้                   | 12%       | 1     | WATER_LANNAHECHEERIVER                         |
+| `fish_northernpike_large`       | ปลาหอกเหนือ                 | 10%       | 1     | WATER_OCREAGHSRUN                              |
+| `fish_bluegill_legendary`       | ปลาบลูกิลล์ในตำนาน          | 6%        | 1     | ตกได้ทุกที่                                    |
+| `fish_perch_legendary`          | ปลาคอนในตำนาน               | 5%        | 1     | ตกได้ทุกที่                                    |
+| `fish_rockbass_legendary`       | ปลาร็อกแบสในตำนาน           | 5%        | 1     | ตกได้ทุกที่                                    |
+| `fish_chainpickerel_legendary`  | ปลาพิกเคอเรลลายโซ่ในตำนาน   | 4%        | 1     | WATER_DAKOTARIVER                              |
+| `fish_redfinpickerel_legendary` | ปลาพิกเคอเรลครีบแดงในตำนาน  | 4%        | 1     | WATER_LOWERMONTANARIVER, WATER_STILLWATERCREEK |
+| `fish_bullheadcat_legendary`    | ปลาดุกหัวกระทิงในตำนาน      | 3%        | 1     | BAYOUNWA                                       |
+| `fish_largemouthbass_legendary` | ปลาแบสปากกว้างในตำนาน       | 3%        | 1     | BAYOUNWA                                       |
+| `fish_smallmouthbass_legendary` | ปลาแบสปากเล็กในตำนาน        | 3%        | 1     | WATER_OWANJILA                                 |
+| `fish_salmonsockeye_legendary`  | ปลาแซลมอนซ็อกอายในตำนาน     | 2%        | 1     | WATER_OCREAGHSRUN                              |
+| `fish_rainbowtrout_legendary`   | ปลาเทราต์สตีลเฮดในตำนาน     | 2%        | 1     | BAYOUNWA                                       |
+| `fish_channelcatfish_legendary` | ปลาดุกแชนแนลในตำนาน         | 2%        | 1     | BAYOUNWA                                       |
+| `fish_longnosegar_legendary`    | ปลาการ์จมูกยาวในตำนาน       | 2%        | 1     | BAYOUNWA                                       |
+| `fish_lakesturgeon_legendary`   | ปลาสเตอร์เจียนน้ำจืดในตำนาน | 1%        | 1     | BAYOUNWA                                       |
+| `fish_muskie_legendary`         | ปลามัสกี้ในตำนาน            | 1%        | 1     | WATER_LANNAHECHEERIVER                         |
+| `fish_northernpike_legendary`   | ปลาหอกเหนือในตำนาน          | 1%        | 1     | WATER_OCREAGHSRUN                              |
 
 ---
 

@@ -6,18 +6,18 @@
 
 ## nx_shop — 10 สาขา
 
-| ร้าน | ชื่อ | พิกัด | เปิด-ปิด | หมวดสินค้า |
-|---|---|---|---|---|
-| `general_vlt` | VALENTINE GENERAL STORE | `-324.1397, 804.4375, 117.8816` | เปิดตลอด (ไม่ผูกเวลา) | General |
-| `general_rho` | RHODES GENERAL STORE | `1330.2391, -1293.4142, 78.2563` | เปิดตลอด (ไม่ผูกเวลา) | General |
-| `general_anb` | ANNESBURG GENERAL STORE | `2930.8000, 1362.4426, 45.1829` | เปิดตลอด (ไม่ผูกเวลา) | General |
-| `general_emr` | EMERALD RANCH GENERAL STORE | `1420.3792, 379.5956, 90.3204` | เปิดตลอด (ไม่ผูกเวลา) | General |
-| `gun_vlt` | VALENTINE GUNSMITH | `-281.1246, 778.8676, 119.5040` | เปิดตลอด (ไม่ผูกเวลา) | Gun |
-| `gun_rho` | RHODES GUNSMITH | `1323.2031, -1323.2544, 78.8197` | เปิดตลอด (ไม่ผูกเวลา) | Gun |
-| `gun_anb` | ANNESBURG GUNSMITH | `2948.0452, 1318.7841, 46.5781` | เปิดตลอด (ไม่ผูกเวลา) | Gun |
-| `doctor_vlt` | VALENTINE DOCTOR | `-288.2027, 805.0736, 119.3859` | เปิดตลอด (ไม่ผูกเวลา) | Doctor |
-| `doctor_rho` | RHODES DOCTOR | `1369.7628, -1310.8749, 77.9377` | เปิดตลอด (ไม่ผูกเวลา) | Doctor |
-| `doctor_anb` | ANNESBURG DOCTOR | `2926.7612, 1351.8997, 44.4271` | เปิดตลอด (ไม่ผูกเวลา) | Doctor |
+| ร้าน          | ชื่อ                        | พิกัด                            | เปิด-ปิด              | หมวดสินค้า |
+| ------------- | --------------------------- | -------------------------------- | --------------------- | ---------- |
+| `general_vlt` | VALENTINE GENERAL STORE     | `-324.1397, 804.4375, 117.8816`  | เปิดตลอด (ไม่ผูกเวลา) | General    |
+| `general_rho` | RHODES GENERAL STORE        | `1330.2391, -1293.4142, 78.2563` | เปิดตลอด (ไม่ผูกเวลา) | General    |
+| `general_anb` | ANNESBURG GENERAL STORE     | `2930.8000, 1362.4426, 45.1829`  | เปิดตลอด (ไม่ผูกเวลา) | General    |
+| `general_emr` | EMERALD RANCH GENERAL STORE | `1420.3792, 379.5956, 90.3204`   | เปิดตลอด (ไม่ผูกเวลา) | General    |
+| `gun_vlt`     | VALENTINE GUNSMITH          | `-281.1246, 778.8676, 119.5040`  | เปิดตลอด (ไม่ผูกเวลา) | Gun        |
+| `gun_rho`     | RHODES GUNSMITH             | `1323.2031, -1323.2544, 78.8197` | เปิดตลอด (ไม่ผูกเวลา) | Gun        |
+| `gun_anb`     | ANNESBURG GUNSMITH          | `2948.0452, 1318.7841, 46.5781`  | เปิดตลอด (ไม่ผูกเวลา) | Gun        |
+| `doctor_vlt`  | VALENTINE DOCTOR            | `-288.2027, 805.0736, 119.3859`  | เปิดตลอด (ไม่ผูกเวลา) | Doctor     |
+| `doctor_rho`  | RHODES DOCTOR               | `1369.7628, -1310.8749, 77.9377` | เปิดตลอด (ไม่ผูกเวลา) | Doctor     |
+| `doctor_anb`  | ANNESBURG DOCTOR            | `2926.7612, 1351.8997, 44.4271`  | เปิดตลอด (ไม่ผูกเวลา) | Doctor     |
 
 ### General Store (nx_shop) — ใช้ร่วมกันทุกสาขา
 
