@@ -89,7 +89,7 @@ Config.Stations = {
         id            = 'valentine',
         name          = 'Valentine',
         description   = 'เมืองปศุสัตว์คึกคักแห่งนิวแฮนโนเวอร์ ศูนย์กลางการค้าและปศุสัตว์',
-        image         = 'https://cdn.discordapp.com/attachments/1513207995419463711/1528768704043815045/image.png?ex=6a5f804e&is=6a5e2ece&hm=8b4837279b39943de8dce9fb9e4d8d8a24342e05478c7310a95f41d3bf711bc3&', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
+        image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#b0453d',
         coords        = vector3(-178.0618, 627.9431, 114.0896),
         heading       = 154.0,
@@ -105,7 +105,7 @@ Config.Stations = {
         id            = 'emerald',
         name          = 'Emerald Ranch',
         description   = 'ฟาร์มปศุสัตว์เล็กๆ ริมทะเลสาบ Owanjila',
-        image         = 'https://cdn.discordapp.com/attachments/1513207995419463711/1528768704043815045/image.png?ex=6a5f804e&is=6a5e2ece&hm=8b4837279b39943de8dce9fb9e4d8d8a24342e05478c7310a95f41d3bf711bc3&',
+        image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#4d7ab5',
         coords        = vector3(1523.6372, 442.5369, 90.6785),
         heading       = -89.1400,
@@ -119,7 +119,7 @@ Config.Stations = {
         id            = 'rhodes',
         name          = 'Rhodes',
         description   = 'เมืองทางใต้แห่งเลมอยน์ ดินแดนของเกียรติยศและกฎหมาย',
-        image         = 'https://cdn.discordapp.com/attachments/1513207995419463711/1528768704043815045/image.png?ex=6a5f804e&is=6a5e2ece&hm=8b4837279b39943de8dce9fb9e4d8d8a24342e05478c7310a95f41d3bf711bc3&',
+        image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#4d9e5c',
         coords        = vector3(1230.2825, -1298.4816, 76.9543),
         heading       = -135.1912,
@@ -134,7 +134,7 @@ Config.Stations = {
         id            = 'annesburg',
         name          = 'Annesburg',
         description   = 'เมืองเหมืองถ่านหินทางตะวันออกของนิวแฮนโนเวอร์ ริม Roanoke Ridge',
-        image         = 'https://cdn.discordapp.com/attachments/1513207995419463711/1528768704043815045/image.png?ex=6a5f804e&is=6a5e2ece&hm=8b4837279b39943de8dce9fb9e4d8d8a24342e05478c7310a95f41d3bf711bc3&',
+        image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#8a5ac2',
         coords        = vector3(2930.8950, 1274.2233, 44.7028),
         heading       = 5.9054,
@@ -149,7 +149,7 @@ Config.Stations = {
         id            = 'riggs',
         name          = 'Riggs Station',
         description   = 'ป้ายรถไฟกลางทะเลทรายเวสต์เอลิซาเบธ',
-        image         = 'https://cdn.discordapp.com/attachments/1513207995419463711/1528768704043815045/image.png?ex=6a5f804e&is=6a5e2ece&hm=8b4837279b39943de8dce9fb9e4d8d8a24342e05478c7310a95f41d3bf711bc3&',
+        image         = '', -- ใส่ path/URL รูปได้ทีหลัง เช่น 'img/valentine.png'
         color         = '#c2953c',
         coords        = vector3(-1094.4144, -577.5806, 82.4100),
         heading       = 63.3,
