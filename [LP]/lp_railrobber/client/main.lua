@@ -201,7 +201,7 @@ RegisterNetEvent('lp_railrobber:cl:intelReceived', function(data)
     local a = data.ambush
     ambushBlip = BlipAddForCoords(1664425300, a.coords.x, a.coords.y, a.coords.z)
     SetBlipSprite(ambushBlip, GetHashKey('blip_ambient_train'), true)
-    Citizen.InvokeNative(0x9CB1A1623062F402, ambushBlip, CreateVarString(10, 'LITERAL_STRING', 'จุดซุ่มปล้นรถไฟ'))
+    Citizen.InvokeNative(0x9CB1A1623062F402, ambushBlip, CreateVarString(10, 'LITERAL_STRING', 'Train Ambush')) -- RedM เรนเดอร์ไทยบน blip ไม่ได้
 
     myAmbush = a -- this client must physically reach the zone to trigger the ambush
     Notify('ได้ข่าวขบวนสินค้าแล้ว! ตามหมุดสีบนแผนที่ไปยังจุดซุ่ม แล้วรอที่นั่น', 'success', 6000)
