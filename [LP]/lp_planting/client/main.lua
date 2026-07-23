@@ -200,6 +200,29 @@ end)
 
 RegisterNetEvent('lp_planting:removePlant', function(id) removePlant(id) end)
 
+-- ── ฝนรดน้ำให้ (server ตัดสินจาก weathersync แล้วยิงมาให้ทุกคน) ──────────────
+-- server ยิงหาทุกคน (-1) เพราะไม่รู้ว่าเจ้าของออนไลน์อยู่ไหม — เครื่องนี้จะมีเฉพาะต้นของ
+-- ตัวเองใน Plants อยู่แล้ว id ที่ไม่ใช่ของเราจะหาไม่เจอและถูกข้ามไปเอง
+-- อัปเดตแบบเดียวกับตอนรดน้ำเองสำเร็จ (ดู action == 'water') ให้ตัวนับเวลาโตเริ่มตรงกัน
+RegisterNetEvent('lp_planting:plantsWatered', function(ids)
+    if type(ids) ~= 'table' then return end
+
+    local n = 0
+    for _, id in ipairs(ids) do
+        local p = Plants[id]
+        if p and p.stage == 'water' then
+            p.stage = 'grow'
+            p.grownAtStart = 0
+            p.baseTimer = GetGameTimer()
+            n = n + 1
+        end
+    end
+
+    if n > 0 then
+        notifyOk(('ฝนตก รดน้ำให้ต้นไม้ %d ต้นแล้ว ต้นเริ่มโต'):format(n))
+    end
+end)
+
 -- ── คอยดูแลให้ prop มีอยู่จริง ──────────────────────────────────────────────
 -- spawnProp ใช้ CreateObject = object ฝั่ง client ล้วน ถ้าตอนสร้างผู้เล่นอยู่ไกล
 -- (เข้าเกมมาคนละมุมแผนที่กับแปลงปลูก) object จะสร้างไม่ติดหรือโดนเกมเก็บทิ้ง

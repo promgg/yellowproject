@@ -122,6 +122,50 @@ MySQL.ready(function()
     end)
 end)
 
+-- ── ฝนตก = รดน้ำต้นที่รอน้ำอยู่ให้เอง ────────────────────────────────────────
+-- weathersync เก็บสภาพอากาศไว้ฝั่ง server อยู่แล้ว (standalone/weathersync/server.lua)
+-- และ export getWeather ออกมาให้ — เลยเช็คจากฝั่ง server ได้ตรงๆ ไม่ต้องเชื่อ client
+-- ว่า "ตอนนี้ฝนตกนะ" (ถ้าให้ client แจ้งมา จะโดนปลอมเพื่อรดน้ำฟรีได้ทันที)
+--
+-- รดเฉพาะต้น stage 'water' (ใส่ปุ๋ยแล้ว รอน้ำ) -> 'grow' + stamp wateredAt
+-- ไม่หักน้ำในถังใคร เพราะฝนเป็นคนรด
+CreateThread(function()
+    local cfg = Config.RainWatering or {}
+    if cfg.enabled == false then return end
+
+    while true do
+        Wait(((cfg.checkSeconds or 30) * 1000))
+
+        -- pcall กัน weathersync ยังไม่ขึ้น/ถูกถอดออก — ฝนไม่ทำงานดีกว่า resource พัง
+        local ok, weather = pcall(function()
+            return exports.weathersync:getWeather()
+        end)
+
+        local raining = ok and weather and (cfg.weathers or {})[tostring(weather):lower()] == true
+
+        if raining then
+            local now = os.time()
+            local ids = {}
+
+            for id, p in pairs(Plants) do
+                if p.stage == 'water' then
+                    p.stage, p.wateredAt = 'grow', now
+                    MySQL.update('UPDATE lp_planting SET stage = ?, watered_at = ? WHERE id = ?',
+                        { 'grow', now, id })
+                    ids[#ids + 1] = id
+                end
+            end
+
+            if #ids > 0 then
+                -- ยิงหาทุกคน เจ้าของเท่านั้นที่มีต้นพวกนี้อยู่ในเครื่อง client กรองเองได้
+                -- (แพทเทิร์นเดียวกับ lp_planting:removePlant — เจ้าของอาจออฟไลน์ ไม่มีใครรับก็ไม่เป็นไร)
+                TriggerClientEvent('lp_planting:plantsWatered', -1, ids)
+                print(('^2[lp_planting]^7 ฝนตก (%s) รดน้ำให้ต้นไม้ %d ต้น'):format(tostring(weather), #ids))
+            end
+        end
+    end
+end)
+
 -- ── ลงทะเบียนเมล็ดเป็นไอเทมใช้ได้ ────────────────────────────────────────────
 CreateThread(function()
     for seed in pairs(Config.SeedLookup) do
