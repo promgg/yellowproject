@@ -363,7 +363,7 @@ AddEventHandler('MJ-ReSpwan:client:helpBlip', function(coords)
     local blip = BlipAddForCoords(1664425300, coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
     SetBlipSprite(blip, joaat('blip_ambient_medic'), true)
     SetBlipScale(blip, 1.2)
-    Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'ต้องการความช่วยเหลือ') -- SetBlipName
+    Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Help Wanted') -- SetBlipName (RedM เรนเดอร์ไทยบน blip ไม่ได้)
 
     Citizen.SetTimeout(Config.HelpBlipTime, function()
         if blip and DoesBlipExist(blip) then
