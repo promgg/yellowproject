@@ -29,7 +29,6 @@ Config.AntiCombat = {
 Config.ActionDisableFlags = {
     Enable = true,
     Flags = {
-        0,  -- ADF_MELEE           ต่อยเปล่า/ฟันระยะประชิด
         1,  -- ADF_GRAPPLE         จับล็อกตัว
         2,  -- ADF_ATTACK          แอ็กชันโจมตี (ดู note ด้านล่าง)
         3,  -- ADF_KNOCKOUT        น็อกสลบ
@@ -49,6 +48,8 @@ Config.ActionDisableFlags = {
         33, -- ADF_TACKLE          พุ่งเข้าใส่
         34, -- ADF_PAIRED_TURN_ATTACK           โจมตีคู่แบบหมุนตัว
     },
+    -- ตั้งใจ "ไม่" ปิด 0 ADF_MELEE — ให้ยังใช้อาวุธระยะประชิด (มีด/ขวาน/ต่อย) ตีกันได้ตามปกติ
+    --
     -- ตั้งใจ "ไม่" ปิดกลุ่มป้องกัน/ดิ้นหนี เพราะปิดแล้วผู้เล่นจะติดกับ ออกจากท่าไม่ได้:
     --   7 BLOCKING · 8 COUNTER · 10 DODGE · 11 PARRY · 20 STRUGGLE
     --   21 ESCAPE · 22 REVERSAL · 23 BREAKOUT · 24 RELEASE
