@@ -83,7 +83,7 @@ Config.Zones = {
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Valentine Farm' },
         -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ไกลสุดจากจุดกลาง 29 ม. ห่างกันอย่างน้อย 6.6 ม.
         waterPoints = {
-            { coords = vector3(-855.6186, 331.2108, 96.1075), heading = 77.0 },
+            { coords = vector3(-866.8853, 328.2064, 95.275), heading = 77.0 },
             { coords = vector3(-854.6676, 337.7260, 95.2925), heading = 77.0 },
             { coords = vector3(-854.6491, 318.7562, 94.6704), heading = 178.9988 },
             { coords = vector3(-865.9594, 342.7844, 95.4351), heading = -102.0 },
@@ -105,7 +105,7 @@ Config.Zones = {
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Annesburg Farm' },
         -- 4 จุด เดินเก็บพิกัดจากในเกมจริง ล้อมรอบจุดกลางไร่ ไกลสุด 33 ม.
         waterPoints = {
-            { coords = vector3(2969.4299, 788.4561, 51.3998), heading = 5.5112   },
+            { coords = vector3(2969.1701, 788.2528, 50.399), heading = 5.5112   },
             { coords = vector3(2964.8826, 755.2872, 50.5314), heading = 179.2094 },
             { coords = vector3(2935.0195, 770.1731, 50.4043), heading = 43.9894  },
             { coords = vector3(2959.0801, 804.2598, 50.4299), heading = 101.5899 },
@@ -129,7 +129,7 @@ Config.Zones = {
                  color = 'BLIP_STYLE_CHALLENGE_OBJECTIVE', label = 'Rhodes Farm' },
         -- 4 จุด เดินเก็บพิกัดจากในเกมจริง เรียงตามแถบยาวของไร่
         waterPoints = {
-            { coords = vector3(968.0037, -1996.9865, 45.8850), heading = 176.6739 },
+            { coords = vector3(967.5383, -1996.9367, 44.8566), heading = 176.67 },
             { coords = vector3(955.1717, -1969.6906, 45.4171), heading = 94.7748 },
             { coords = vector3(992.0030, -1940.3483, 46.5500), heading = -76.2256 },
             { coords = vector3(977.3839, -1889.6364, 45.5741), heading = 3.8747 },
