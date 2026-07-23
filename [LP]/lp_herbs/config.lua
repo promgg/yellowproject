@@ -78,7 +78,7 @@ Config.Zones = {
         radius = 25.0,
         scatter = 18.0, -- รัศมีสุ่มกระจาย prop รอบ center
         minSpacing = 5.0,
-        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'เก็บสมุนไพร - Valentine' },
+        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'Herbs - Valentine' },
         herbs = {
             { item = 'job_corn',       label = 'ข้าวโพด',  model = 'crp_wheat_dry_aa_sim' },
             { item = 'job_carrot',     label = 'แครอท',    model = 'rdr_bush_ficus_aa_sim' },
@@ -93,7 +93,7 @@ Config.Zones = {
         radius = 25.0,
         scatter = 18.0,
         minSpacing = 5.0,
-        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'เก็บสมุนไพร - Annesburg' },
+        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'Herbs - Annesburg' },
         herbs = {
             { item = 'job_mushroom', label = 'เห็ดป่า', model = 'rdr_bush_aloe_aa_sim' },
             { item = 'job_Ginseng',  label = 'โสม',     model = 'rdr_bush_sumac_aa_sim' },
@@ -108,7 +108,7 @@ Config.Zones = {
         radius = 25.0,
         scatter = 18.0,
         minSpacing = 5.0,
-        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'เก็บสมุนไพร - Rhodes' },
+        blip = { sprite = 'blip_ambient_hitching_post', color = 'COLOR_GREEN', name = 'Herbs - Rhodes' },
         herbs = {
             { item = 'job_tobacco_plant', label = 'ยาสูบ',    model = 's_indiantobacco01x' },
             { item = 'job_barley',        label = 'บาร์เลย์', model = 'crp_wheat_dry_aa_sim' },
