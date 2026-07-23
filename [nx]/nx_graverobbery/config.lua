@@ -277,7 +277,7 @@ for _, anchor in ipairs(southernAnchors) do
 
     table.insert(Config.ClusterBlips, {
         coords = anchor.coords,
-        label  = 'สุสานแดนใต้',
+        label  = 'Southern Cemetery', -- RedM เรนเดอร์ไทยบน blip ไม่ได้
         color  = Config.BlipColors.WHITE,
     })
 end
