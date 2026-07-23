@@ -523,16 +523,18 @@ end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
     if health and health > 0 then
+        -- เดิมสลับใช้ SetEntityHealth (legacy entity-health API) กับ SetAttributeCoreValue
+        -- (RDR2 core system) คนละ layer กัน ผสมกันตามเงื่อนไข "inner > 99" — แต่ inner core
+        -- แทบไม่ลดจากดาเมจทั่วไป (มันสะท้อนภาพรวมระยะยาว ไม่ใช่ HP bar ที่เห็นตอนโดนยิง) เงื่อนไข
+        -- นี้เลย true เกือบตลอดเวลาแม้เลือดต่ำจริง ทำให้วิ่งเข้า SetEntityHealth ผสมค่าคนละ scale
+        -- กับ GetPlayerHealth บ่อยเกินไป ผลรวมมีโอกาสสูงเกินเพดานแล้วโดน engine clamp เป็นเต็ม
+        -- ไม่ว่า config จะตั้ง health เท่าไหร่ก็ตาม
+        --
+        -- ใช้ core system อย่างเดียวสม่ำเสมอ (ตรงกับจุดอื่นในไฟล์นี้ เช่น adminRevive ที่ตั้ง
+        -- SetAttributeCoreValue(ped, 0, 100) ตรงๆ) + clamp เอง ไม่พึ่ง engine auto-clamp
         local inner = GetAttributeCoreValue(PlayerPedId(), 0)
-        local outter = GetPlayerHealth(PlayerId())
-
-        if inner > 99 then
-            local newHealth = outter + health
-            SetEntityHealth(PlayerPedId(), newHealth, 0)
-        else
-            local newHealth = inner + health
-            SetAttributeCoreValue(PlayerPedId(), 0, newHealth)
-        end
+        local newHealth = math.min(100, inner + health)
+        SetAttributeCoreValue(PlayerPedId(), 0, newHealth)
     end
 
     if stamina and stamina > 0 then
