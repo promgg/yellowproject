@@ -10,3 +10,12 @@ INSERT IGNORE INTO `items` (`item`, `label`, `limit`, `can_remove`, `type`, `usa
                            ('hide_small', 'หนังสัตว์ Small', '10', '1', 'item_standard', '0');
 
 UPDATE `items` SET `label` = 'น้ำดื่ม' WHERE `item` = 'water';
+
+/* ตาราง overlay ราคาเริ่มต้น (optional) — server/main.lua อ่านค่า price มาทับราคาจาก Config เฉพาะ
+   ไอเทมที่ RandomWhenStart=false เท่านั้น ไม่มีแถวก็ได้ (ใช้ราคาจาก Config) resource สร้างตารางนี้เอง
+   ตอน start ด้วย CREATE TABLE IF NOT EXISTS อยู่แล้ว — บรรทัดนี้ไว้ให้สร้างมือ/ดู schema ได้เฉยๆ */
+CREATE TABLE IF NOT EXISTS `mjdev_economy` (
+    `item` VARCHAR(50) NOT NULL,
+    `price` INT NOT NULL,
+    PRIMARY KEY (`item`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

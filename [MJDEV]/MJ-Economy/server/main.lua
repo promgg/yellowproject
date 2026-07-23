@@ -38,16 +38,29 @@ function InitEconomy()
 
     -- overlay ราคาจาก DB แบบ best-effort (เฉพาะไอเทมที่ไม่ RandomWhenStart) — ถ้า DB/ตารางมีปัญหา
     -- ก็แค่ใช้ราคาจาก Config ต่อไป DATA ไม่ว่าง (query อยู่นอก path การเติม DATA แล้ว)
+    --
+    -- ตาราง mjdev_economy เป็น overlay ราคาเริ่มต้นที่แอดมินตั้งเองได้ (optional) — resource นี้ "อ่าน
+    -- อย่างเดียว" ไม่เคยเขียนกลับ (ราคาผันผวนทุก 15 นาทีอัปเดตแค่ใน DATA ไม่ลง DB) เดิมถ้าตารางไม่มี
+    -- oxmysql จะพ่น error "Table doesn't exist" รกทุกครั้งที่ start — สร้างตารางเองด้วย IF NOT EXISTS
+    -- ก่อน SELECT ให้ self-healing (ตารางว่าง = SELECT คืน 0 แถว = ใช้ราคาจาก Config ตามปกติ ไม่ error)
     MySQL.ready(function()
-        MySQL.query('SELECT item, price FROM mjdev_economy', {}, function(rows)
-            for _, row in ipairs(rows or {}) do
-                local d = DATA[row.item]
-                if d and not isRandom[row.item] then
-                    d.Price = tonumber(row.price) or d.Price
-                    local center = math.floor((d.Min + d.Max) / 2)
-                    d.Status = (d.Price > center) and 'up' or (d.Price < center and 'down' or 'equal')
+        MySQL.query([[
+            CREATE TABLE IF NOT EXISTS `mjdev_economy` (
+                `item` VARCHAR(50) NOT NULL,
+                `price` INT NOT NULL,
+                PRIMARY KEY (`item`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ]], {}, function()
+            MySQL.query('SELECT item, price FROM mjdev_economy', {}, function(rows)
+                for _, row in ipairs(rows or {}) do
+                    local d = DATA[row.item]
+                    if d and not isRandom[row.item] then
+                        d.Price = tonumber(row.price) or d.Price
+                        local center = math.floor((d.Min + d.Max) / 2)
+                        d.Status = (d.Price > center) and 'up' or (d.Price < center and 'down' or 'equal')
+                    end
                 end
-            end
+            end)
         end)
     end)
 
