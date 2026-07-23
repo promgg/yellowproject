@@ -593,46 +593,46 @@ function isAdmin(callback)
 end
 
 -- ===== TEST COMMAND (ชั่วคราว — เอาไว้วินิจฉัยว่าเลือด "ค่อยๆ เพิ่ม" จริงหรือแค่ HUD animate) =====
--- /mjhealtest <bandage_s|bandage_xl|painkiller> — เฉพาะแอดมิน
+-- /mjhealtest <bandage_s|bandage_xl|painkiller>
+-- !! ปลด isAdmin() gate ออกชั่วคราวตามคำขอ (RegisterCommand+isAdmin เดิมกดแล้วไม่ตอบสนอง สงสัยว่า
+-- server callback ของ isAdmin ไม่กลับมา/ช้า) — ตอนนี้ใครก็เรียกคำสั่งนี้ได้ไม่จำกัดสิทธิ์ ต้องใส่การเช็ค
+-- แอดมินกลับก่อนขึ้นโปรดักชันจริง (คำสั่งนี้แค่ปรับเลือด/สแตมิน่าตัวเอง ไม่ได้แจกไอเทม/เงิน ความเสี่ยง
+-- ต่ำ แต่ก็ไม่ควรเปิดให้ทุกคนถาวร)
 -- ทำ: 1) ลดเลือดเหลือ 10% 2) debug พิมพ์ค่าก่อน/หลัง 3) จำลองใช้ไอเทม (ตรงกับ flow จริงที่ server ยิง
 -- HealAnim+HealPlayer ตอนกดไอเทม แต่ยิง TriggerEvent เองแทน ไม่ต้องมีไอเทมจริงในกระเป๋า)
 -- 4) วัดค่าเลือดทุก 250ms เป็นเวลา 2 วิหลัง progbar จบ — เช็คว่าเลือดนิ่งทันทีตั้งแต่ frame แรก
 -- (แปลว่าที่เห็นค่อยๆ เพิ่มคือ HUD bar animate เฉยๆ) หรือค่ายังขยับต่อเนื่องหลายรอบ (แปลว่ามีอะไรบาง
 -- อย่างแย่งเซ็ตค่ากลับ/regen ทับ) — ลบคำสั่งนี้ทิ้งได้หลังวินิจฉัยเสร็จ
 RegisterCommand("mjhealtest", function(_, args)
-    isAdmin(function(ok)
-        if not ok then return end
+    local item = args[1] or 'bandage_s'
+    local itemCfg = Config.Items[item]
+    if not itemCfg then
+        print(('[MJ-ReSpawn][TEST] ไม่รู้จักไอเทม "%s" — ใช้ได้: bandage_s, bandage_xl, painkiller'):format(tostring(item)))
+        return
+    end
 
-        local item = args[1] or 'bandage_s'
-        local itemCfg = Config.Items[item]
-        if not itemCfg then
-            print(('[MJ-ReSpawn][TEST] ไม่รู้จักไอเทม "%s" — ใช้ได้: bandage_s, bandage_xl, painkiller'):format(tostring(item)))
-            return
-        end
+    local ped = PlayerPedId()
 
-        local ped = PlayerPedId()
+    -- 1) ลดเลือดเหลือ 10%
+    SetAttributeCoreValue(ped, 0, 10)
+    Citizen.Wait(0)
+    print(('[MJ-ReSpawn][TEST] เริ่มเทส item=%s (คาดว่าจะเพิ่ม %d) — ตั้งเลือด 10%% แล้ว: inner=%.1f entityHealth=%d/%d')
+        :format(item, itemCfg.health, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
 
-        -- 1) ลดเลือดเหลือ 10%
-        SetAttributeCoreValue(ped, 0, 10)
-        Citizen.Wait(0)
-        print(('[MJ-ReSpawn][TEST] เริ่มเทส item=%s (คาดว่าจะเพิ่ม %d) — ตั้งเลือด 10%% แล้ว: inner=%.1f entityHealth=%d/%d')
-            :format(item, itemCfg.health, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
+    -- 3) จำลองใช้ไอเทม — เรียก event เดียวกับที่ server ยิงจริงตอนกดใช้ของ (core/server.lua:186-187)
+    TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item)
+    TriggerEvent("MJ-ReSpwan:Client:HealPlayer", itemCfg.health, itemCfg.stamina)
 
-        -- 3) จำลองใช้ไอเทม — เรียก event เดียวกับที่ server ยิงจริงตอนกดใช้ของ (core/server.lua:186-187)
-        TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item)
-        TriggerEvent("MJ-ReSpwan:Client:HealPlayer", itemCfg.health, itemCfg.stamina)
-
-        -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 250ms x 2 วิ
-        local animData = Config.Animations[itemCfg.category] or Config.Animations.heal
-        Citizen.Wait(animData.duration)
-        print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 250ms:')
-        for i = 0, 8 do
-            print(('[MJ-ReSpawn][TEST] +%dms — inner=%.1f entityHealth=%d/%d')
-                :format(i * 250, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
-            Citizen.Wait(250)
-        end
-        print('[MJ-ReSpawn][TEST] จบการวัดค่า — ถ้าเลข inner/entityHealth เท่ากันทุกบรรทัดตั้งแต่ +0ms = เซ็ตทันที (ปัญหาอยู่ที่ HUD animate) ถ้าเลขขยับขึ้นเรื่อยๆ = มีอะไรแย่งค่าอยู่')
-    end)
+    -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 250ms x 2 วิ
+    local animData = Config.Animations[itemCfg.category] or Config.Animations.heal
+    Citizen.Wait(animData.duration)
+    print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 250ms:')
+    for i = 0, 8 do
+        print(('[MJ-ReSpawn][TEST] +%dms — inner=%.1f entityHealth=%d/%d')
+            :format(i * 250, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
+        Citizen.Wait(250)
+    end
+    print('[MJ-ReSpawn][TEST] จบการวัดค่า — ถ้าเลข inner/entityHealth เท่ากันทุกบรรทัดตั้งแต่ +0ms = เซ็ตทันที (ปัญหาอยู่ที่ HUD animate) ถ้าเลขขยับขึ้นเรื่อยๆ = มีอะไรแย่งค่าอยู่')
 end, false)
 
 function StartAutoRespawn()
