@@ -637,6 +637,135 @@ AddEventHandler("admin:setJob", function(target, newjob, newgrade, newJobLabel)
     end
 end)
 
+-- ══════════════════════════════════════════════════════════════════════════
+--  เมือง / เชื้อสาย (nx_cityselect)
+--
+--  ตัว logic จริงอยู่ที่ nx_cityselect (เจ้าของข้อมูล) — ที่นี่แค่ตรวจสิทธิ์แล้วเรียก export
+--  ต่อผ่าน export ไม่ใช่ยิง net event เข้า nx_cityselect ตรงๆ เพราะ export ข้าม resource
+--  เรียกได้จากฝั่ง server เท่านั้น ผู้เล่นปลอม event ไปย้ายเมืองตัวเองไม่ได้
+--
+--  ใช้ flag CanSetJob (ไม่ได้เพิ่มคีย์ใหม่ใน Config.Perms) เพราะเป็นการกระทำระดับเดียวกัน
+--  และการเปลี่ยนเชื้อสาย = การเปลี่ยน job ของตัวละครอยู่แล้ว — กลุ่มที่ตั้งสิทธิ์ไว้เดิมจึงใช้ได้ทันที
+-- ══════════════════════════════════════════════════════════════════════════
+
+---ตรวจสิทธิ์ + ความพร้อมของ nx_cityselect ก่อนทำรายการ
+---@return boolean ok, string|nil adminName
+local function canManageCity(source)
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
+    if not (Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanSetJob) then
+        return false
+    end
+    if GetResourceState('nx_cityselect') ~= 'started' then
+        TriggerClientEvent("pNotify:SendNotification", source, {
+            text = 'nx_cityselect ไม่ได้เปิดอยู่', type = "error", timeout = 5000,
+            layout = "topRight", queue = "left"
+        })
+        return false
+    end
+    return true
+end
+
+local function notifyAdmin(source, text, kind)
+    TriggerClientEvent("pNotify:SendNotification", source, {
+        text = text, type = kind or "info", timeout = 5000, layout = "topRight", queue = "left"
+    })
+end
+
+-- ข้อความอธิบายเหตุผลที่ export ตีกลับมา ให้แอดมินรู้ว่าทำไมไม่สำเร็จ
+local NX_REASONS = {
+    invalid       = 'ข้อมูลที่เลือกไม่ถูกต้อง',
+    target_gone   = 'ไม่พบผู้เล่นคนนี้ (อาจออกจากเซิร์ฟเวอร์แล้ว)',
+    same_city     = 'ผู้เล่นอยู่เมืองนี้อยู่แล้ว',
+    same_heritage = 'ผู้เล่นเป็นเชื้อสายนี้อยู่แล้ว',
+    full          = 'เมืองนี้เต็มแล้ว',
+}
+
+RegisterNetEvent("admin:nxSetCity")
+AddEventHandler("admin:nxSetCity", function(target, cityId)
+    local _source = source
+    if not canManageCity(_source) then return end
+
+    local ok, res = pcall(function()
+        return exports['nx_cityselect']:AdminSetPlayerCity(target, cityId)
+    end)
+    if not ok or type(res) ~= 'table' then
+        notifyAdmin(_source, 'ย้ายเมืองไม่สำเร็จ (' .. tostring(res) .. ')', 'error')
+        return
+    end
+
+    if not res.ok then
+        notifyAdmin(_source, NX_REASONS[res.reason] or 'ย้ายเมืองไม่สำเร็จ', 'error')
+        return
+    end
+
+    -- badgeOk = false แปลว่าย้ายเมืองสำเร็จแล้วแต่กระเป๋าเป้าหมายเต็ม แจกบัตรใบใหม่ไม่ได้
+    -- (บัตรใบเก่าถูกลบไปแล้ว) ต้องบอกแอดมินให้รู้ ไม่ใช่ขึ้นว่าสำเร็จเฉยๆ
+    if res.badgeOk then
+        notifyAdmin(_source, 'ย้าย ' .. tostring(res.targetName) .. ' ไป ' .. tostring(res.cityLabel) .. ' เรียบร้อย', 'success')
+    else
+        notifyAdmin(_source, 'ย้าย ' .. tostring(res.targetName) .. ' ไป ' .. tostring(res.cityLabel) ..
+            ' แล้ว แต่กระเป๋าเต็ม แจกบัตรใบใหม่ไม่ได้', 'warning')
+    end
+
+    -- อัปเดตเมืองใน cache แล้ว broadcast ให้ทุก client — ไม่งั้นแถว "เมือง" ในหน้าข้อมูล
+    -- ผู้เล่นจะค้างค่าเดิมจนกว่าเป้าหมายจะรีล็อกอิน (แอดมินจะเข้าใจผิดว่าย้ายไม่ติด)
+    local targetSrc = tonumber(target)
+    if targetSrc and cachedPlayers and cachedPlayers[targetSrc] then
+        cachedPlayers[targetSrc].city = res.cityLabel
+        TriggerClientEvent("MJADMIN:UpdatePlayer", -1, targetSrc, cachedPlayers[targetSrc])
+    end
+
+    local xPlayer = VORPcore.getUser(_source)
+    xPlayer = xPlayer and xPlayer.getUsedCharacter
+    SetDistcord("MJDev-Admin ", "Admin",
+        " ``` แอดมิน : " .. (xPlayer and (xPlayer.firstname .. " " .. xPlayer.lastname) or tostring(_source)) ..
+            "\n ย้ายเมืองผู้เล่น " .. tostring(res.targetName) ..
+            " : " .. tostring(res.oldCityId or "-") .. " -> " .. tostring(cityId) ..
+            "\n ได้รับบัตรใหม่ : " .. tostring(res.badgeOk) .. " ```", 0000,
+        'https://discord.com/api/webhooks/')
+end)
+
+RegisterNetEvent("admin:nxSetHeritage")
+AddEventHandler("admin:nxSetHeritage", function(target, heritageId)
+    local _source = source
+    if not canManageCity(_source) then return end
+
+    local ok, res = pcall(function()
+        return exports['nx_cityselect']:AdminSetPlayerHeritage(target, heritageId)
+    end)
+    if not ok or type(res) ~= 'table' then
+        notifyAdmin(_source, 'เปลี่ยนเชื้อสายไม่สำเร็จ (' .. tostring(res) .. ')', 'error')
+        return
+    end
+
+    if not res.ok then
+        notifyAdmin(_source, NX_REASONS[res.reason] or 'เปลี่ยนเชื้อสายไม่สำเร็จ', 'error')
+        return
+    end
+
+    notifyAdmin(_source, 'เปลี่ยนเชื้อสายของ ' .. tostring(res.targetName) ..
+        ' เป็น ' .. tostring(res.heritageName) .. ' เรียบร้อย', 'success')
+
+    -- เชื้อสาย = job ของตัวละคร แถว "อาชีพ" ใน cache จึงเก่าไปแล้ว — อ่านค่าสดมาเขียนทับ
+    local targetSrc = tonumber(target)
+    if targetSrc and cachedPlayers and cachedPlayers[targetSrc] then
+        local tUser = VORPcore.getUser(targetSrc)
+        local tChar = tUser and tUser.getUsedCharacter
+        if tChar then
+            cachedPlayers[targetSrc].job = tChar.job and (tChar.job .. " | " .. (tChar.jobLabel or tChar.job)) or "No Job"
+            TriggerClientEvent("MJADMIN:UpdatePlayer", -1, targetSrc, cachedPlayers[targetSrc])
+        end
+    end
+
+    local xPlayer = VORPcore.getUser(_source)
+    xPlayer = xPlayer and xPlayer.getUsedCharacter
+    SetDistcord("MJDev-Admin ", "Admin",
+        " ``` แอดมิน : " .. (xPlayer and (xPlayer.firstname .. " " .. xPlayer.lastname) or tostring(_source)) ..
+            "\n เปลี่ยนเชื้อสายผู้เล่น " .. tostring(res.targetName) ..
+            " เป็น " .. tostring(res.heritageName) .. " ```", 0000,
+        'https://discord.com/api/webhooks/')
+end)
+
 RegisterNetEvent("admin:resetcol")
 AddEventHandler("admin:resetcol", function(target)
     local xPlayer = VORPcore.getUser(source).getUsedCharacter

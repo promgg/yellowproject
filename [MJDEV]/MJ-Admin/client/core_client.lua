@@ -7,6 +7,8 @@ cachedItemList = cachedItemList or {}
 cachedWeaponList = cachedWeaponList or {}
 cachedVehicleList = cachedVehicleList or {}
 cachedJobList = cachedJobList or {}
+cachedCityList = cachedCityList or {}         -- เมืองจาก nx_cityselect (dropdown ย้ายเมือง)
+cachedHeritageList = cachedHeritageList or {} -- เชื้อสายจาก nx_cityselect (dropdown เปลี่ยนเชื้อสาย)
 
 -- ===== STATE =====
 admin = admin or {}          -- กัน error: attempt to index a nil value (global 'admin')
@@ -97,7 +99,7 @@ end)
 
 -- ===== ITEMS / LISTS =====
 RegisterNetEvent("MJADMIN:updateItemList")
-AddEventHandler("MJADMIN:updateItemList", function(itemList, weaponList, vehicleList, jobList)
+AddEventHandler("MJADMIN:updateItemList", function(itemList, weaponList, vehicleList, jobList, cityList, heritageList)
     print('Updating Item List...')
 
     -- ใช้ค่าที่ส่งมาจากเซิร์ฟก่อน ถ้าไม่มีค่อย fallback ไปที่ Config
@@ -105,13 +107,20 @@ AddEventHandler("MJADMIN:updateItemList", function(itemList, weaponList, vehicle
     cachedWeaponList  = weaponList  or (Config and Config['LsitWeapons']) or cachedWeaponList or {}
     cachedVehicleList = vehicleList or (Config and Config['LsitWagons'])  or cachedVehicleList or {}
     cachedJobList     = jobList     or (Config and Config['SETJOB'])      or cachedJobList or {}
+    -- เมือง/เชื้อสายมาจาก nx_cityselect ไม่มีใน Config ของ MJ-Admin จึงไม่มี fallback
+    -- ต้องคง cache เดิมไว้เมื่อส่งมาเป็น nil เพราะมีจุดอื่นที่ยิง updateItemList โดยส่งแค่ itemList
+    -- (ถ้าเขียนทับด้วย {} dropdown จะว่างหลังเรียกจุดนั้น)
+    cachedCityList     = cityList     or cachedCityList     or {}
+    cachedHeritageList = heritageList or cachedHeritageList or {}
 
     SendNUIMessage({
-        type       = "items",
-        itemslist  = cachedItemList,
-        weaponlist = cachedWeaponList,
-        vehiclelist= cachedVehicleList,
-        joblist    = cachedJobList
+        type         = "items",
+        itemslist    = cachedItemList,
+        weaponlist   = cachedWeaponList,
+        vehiclelist  = cachedVehicleList,
+        joblist      = cachedJobList,
+        citylist     = cachedCityList,
+        heritagelist = cachedHeritageList
     })
 end)
 

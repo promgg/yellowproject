@@ -503,6 +503,16 @@ RegisterNUICallback("setJob", function(data)
     TriggerServerEvent("admin:setJob", data.playerid, data.job, data.rank, data.label)
 end)
 
+-- ── เมือง / เชื้อสาย (nx_cityselect) ─────────────────────────────────────────
+-- ตรวจสิทธิ์ + logic จริงอยู่ฝั่ง server (admin:nxSetCity -> export ของ nx_cityselect)
+RegisterNUICallback("nxSetCity", function(data)
+    TriggerServerEvent("admin:nxSetCity", data.playerid, data.cityId)
+end)
+
+RegisterNUICallback("nxSetHeritage", function(data)
+    TriggerServerEvent("admin:nxSetHeritage", data.playerid, data.heritageId)
+end)
+
 RegisterNUICallback("revive", function(data)
     -- เดิมยิง vorpmetabolism:changeValue แบบ local ด้วย = ลงที่เครื่องแอดมินเอง ไม่ใช่คนที่ถูกชุบ
     -- (และเป็น no-op อยู่แล้ว) — ตัดทิ้ง ถ้าจะเติมค่าให้คนที่ถูกชุบ ทำฝั่ง server ของ admin:revive

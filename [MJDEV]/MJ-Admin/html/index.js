@@ -99,6 +99,28 @@ $(function () {
             $("#jobs").trigger("change");
 		});
 
+			// 🔹 เมือง / เชื้อสาย (nx_cityselect) — dropdown ย้ายเมือง / เปลี่ยนเชื้อสาย
+			// เติมจากรายการที่ nx_cityselect ส่งมา ถ้า resource นั้นไม่ได้เปิด list จะว่าง
+			// แล้วโชว์เป็นบรรทัดแจ้งแทน ไม่ปล่อย dropdown เปล่าให้กดแล้วส่งค่าว่างไป server
+			$("#nxCities").html("");
+			if (i.citylist && i.citylist.length) {
+				$.each(i.citylist, function (index, c) {
+					const slots = (c.count !== undefined && c.max !== undefined) ? ` (${c.count}/${c.max})` : "";
+					$("#nxCities").append(`<option value="${c.id}">${c.label || c.name}${slots}</option>`);
+				});
+			} else {
+				$("#nxCities").append(`<option value="">— ไม่มีข้อมูลเมือง —</option>`);
+			}
+
+			$("#nxHeritages").html("");
+			if (i.heritagelist && i.heritagelist.length) {
+				$.each(i.heritagelist, function (index, h) {
+					$("#nxHeritages").append(`<option value="${h.id}">${h.name || h.label}</option>`);
+				});
+			} else {
+				$("#nxHeritages").append(`<option value="">— ไม่มีข้อมูลเชื้อสาย —</option>`);
+			}
+
 		} else if ("coords" == i.type) {
 			let e = i.coordData;
 			$(".coords").attr("coordData", e.x + ", " + e.y + ", " + e.z).html("<b>X: " + e.x.toFixed(2) + " Y: " + e.y.toFixed(2) + " Z: " + e.z.toFixed(2) + "</b>")
@@ -119,7 +141,7 @@ $(function () {
 			function (e) {
 				i(!0), id = e, $("#actions").fadeIn(), $(".playername").html(playerData[e].name), $("#server").hide(), $(".server").show();
 				var a = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-				$('.data[data-name="name"]').html(playerData[e].rpname), $('.data[data-name="license"]').html(playerData[e].identifier), $('.data[data-name="discord"]').html(playerData[e].discord), $('.data[data-name="money"]').html(a.format(Math.floor(playerData[e].cash)) + " (เงินในกระเป๋า) | " + a.format(Math.floor(playerData[e].bank)) + " (ทองคำ)"), $('.data[data-name="phone"]').html(playerData[e].phone), $('.data[data-name="jobs"]').html(playerData[e].job)
+				$('.data[data-name="name"]').html(playerData[e].rpname), $('.data[data-name="license"]').html(playerData[e].identifier), $('.data[data-name="discord"]').html(playerData[e].discord), $('.data[data-name="money"]').html(a.format(Math.floor(playerData[e].cash)) + " (เงินในกระเป๋า) | " + a.format(Math.floor(playerData[e].bank)) + " (ทองคำ)"), $('.data[data-name="phone"]').html(playerData[e].phone), $('.data[data-name="jobs"]').html(playerData[e].job), $('.data[data-name="city"]').html(playerData[e].city || "ยังไม่ได้เลือกเมือง")
 				// $('.data[data-name="name"]').html(playerData[e].rpname), $('.data[data-name="job"]').html(playerData[e].jobs), $('.data[data-name="license"]').html(playerData[e].identifier), $('.data[data-name="money"]').html(a.format(playerData[e].cash) + " (เงินในกระเป๋า) | " + a.format(playerData[e].bank) + " (ทอง)")
 			}($(this).data("playerid"))
 	}), $("body").on("click", ".banitem", function () {
@@ -247,6 +269,18 @@ $(function () {
 				let lLabel = $("select#ranks option").filter(":selected").text(); // rank label
 				$.post(`https://${GetParentResourceName()}/setJob`, JSON.stringify({ playerid: id, job: r, rank: l, label: lLabel }));
 				break;
+			case "nxSetCity": {
+				let nxCity = $("select#nxCities option").filter(":selected").val();
+				if (!nxCity) break; // ไม่มีข้อมูลเมือง (nx_cityselect ไม่ได้เปิด) — ไม่ต้องส่ง
+				$.post(`https://${GetParentResourceName()}/nxSetCity`, JSON.stringify({ playerid: id, cityId: nxCity }));
+				break;
+			}
+			case "nxSetHeritage": {
+				let nxHeritage = $("select#nxHeritages option").filter(":selected").val();
+				if (!nxHeritage) break;
+				$.post(`https://${GetParentResourceName()}/nxSetHeritage`, JSON.stringify({ playerid: id, heritageId: nxHeritage }));
+				break;
+			}
 			case "resetAccount":
 				t(a = "⚠️ ลบข้อมูล " + playerData[id].name + " ทั้งบัญชี ถาวร กู้ไม่ได้",
 				  e = "พิมพ์ชื่อตัวละครให้ตรงเป๊ะเพื่อยืนยัน", n = "text", s);

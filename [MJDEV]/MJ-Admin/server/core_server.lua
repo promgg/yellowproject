@@ -152,11 +152,42 @@ AddEventHandler("MJADMIN:RequestPlayerRank", function()
     end
 end)
 
+-- รายการเมือง/เชื้อสายสำหรับ dropdown ในหน้าจัดการผู้เล่น — ดึงสดจาก nx_cityselect
+-- (config ของเมือง/เชื้อสายอยู่ที่นั่น ไม่ก๊อปมาไว้ที่นี่ จะได้ไม่ต้องแก้ 2 ที่เวลาเพิ่มเมือง)
+-- คืนตารางว่างถ้า nx_cityselect ไม่ได้เปิด — UI จะแค่ไม่มีตัวเลือก ไม่พัง
+local function getCityLists()
+    if GetResourceState('nx_cityselect') ~= 'started' then
+        return {}, {}
+    end
+    local ok, lists = pcall(function()
+        return exports['nx_cityselect']:GetAdminLists()
+    end)
+    if not ok or type(lists) ~= 'table' then
+        print('^1[MJ-Admin]^0 ดึงรายการเมือง/เชื้อสายจาก nx_cityselect ไม่ได้: ' .. tostring(lists))
+        return {}, {}
+    end
+    return lists.cities or {}, lists.heritages or {}
+end
+
 RegisterNetEvent("MJADMIN:RequestItemList")
 AddEventHandler("MJADMIN:RequestItemList", function()
     local _source = source
-    TriggerClientEvent("MJADMIN:updateItemList", _source, itemList, Config and Config['LsitWeapons'], Config and Config['LsitWagons'], Config and Config['SETJOB'])
+    local cityList, heritageList = getCityLists()
+    TriggerClientEvent("MJADMIN:updateItemList", _source, itemList, Config and Config['LsitWeapons'], Config and Config['LsitWagons'], Config and Config['SETJOB'], cityList, heritageList)
 end)
+
+-- เมืองปัจจุบันของผู้เล่น — ใช้ตอนสร้าง cachedPlayers (ทั้งตอน SelectedCharacter และ bootstrap)
+-- ให้แถว "เมือง" ในหน้าข้อมูลผู้เล่นมีค่าตั้งแต่แรก ส่วนตอนย้ายเมืองสำเร็จ server/server.lua
+-- เขียน cachedPlayers[..].city จาก res.cityLabel ที่ export ตีกลับมาโดยตรง ไม่ต้องเรียกซ้ำ
+-- ไม่ต้องดึงเชื้อสายมาแยก เพราะเชื้อสาย = job ของตัวละคร ซึ่งโชว์อยู่แล้วในแถว "อาชีพ"
+function MJADMIN_GetPlayerCityLabel(src)
+    if GetResourceState('nx_cityselect') ~= 'started' then return nil end
+    local ok, info = pcall(function()
+        return exports['nx_cityselect']:GetPlayerCityHeritage(src)
+    end)
+    if not ok or type(info) ~= 'table' then return nil end
+    return info.cityLabel or info.cityId
+end
 
 -- เมื่อผู้เล่นเชื่อมต่อ ขอรายการผู้เล่น
 RegisterNetEvent('MJADMIN:getPlayers')
@@ -218,7 +249,8 @@ AddEventHandler("vorp:SelectedCharacter", function(source)
         name = firstname .. " | " .. lastname,
         cash = cash,
         bank = bank,
-        job = job
+        job = job,
+        city = MJADMIN_GetPlayerCityLabel(src) -- เมืองจาก nx_cityselect (nil ถ้ายังไม่ได้เลือก)
     }
 
     -- Broadcast รายชื่อผู้เล่นคนนี้ให้ทุก client
@@ -261,7 +293,8 @@ CreateThread(function()
                     cash = cash,
                     bank = bank,
                     job = job,
-                    name = firstname .. " | " .. lastname
+                    name = firstname .. " | " .. lastname,
+                    city = MJADMIN_GetPlayerCityLabel(src) -- เมืองจาก nx_cityselect
                 }
 
                 TriggerClientEvent('MJADMIN:updatePlayerRank', src, effectiveGroup)

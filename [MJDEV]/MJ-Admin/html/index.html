@@ -137,6 +137,9 @@
                                 <div id="section" style="font-size: 1.5vh;">
                                     <span class="title">อาชีพ </span>: <span class="data" data-name="jobs"></span>
                                 </div>
+                                <div id="section" style="font-size: 1.5vh;">
+                                    <span class="title">เมือง </span>: <span class="data" data-name="city"></span>
+                                </div>
                                 <div class="boximg">
                                     <img class="mj-img-avatar" src="" onerror="">
                                 </div>
@@ -183,6 +186,24 @@
                                 </select>
                             </div>
                             <button class="btn confirm" data-action="setJob"><i class="fad fa-badge-check"></i> ยืนยัน</button>
+                        </div>
+
+                        <!-- เมือง / เชื้อสาย (nx_cityselect) — ตัวเลือกถูกเติมจาก citylist/heritagelist
+                             ที่ nx_cityselect ส่งมา ไม่ได้ hardcode ไว้ที่นี่ -->
+                        <div class="sectiontitle">เมือง / เชื้อสาย <span class="playername">Players</span></div>
+                        <div id="grid-container" class="grid-container">
+                            <div id="row">
+                                <span class="description">ย้ายเมือง</span>
+                                <select name="nxCities" id="nxCities" class="uk-inputs uk-from-large" class="dropdown" style="border-radius: 5px; font-family: 'Prompt', sans-serif;">
+                                </select>
+                            </div>
+                            <button class="btn confirm" data-action="nxSetCity"><i class="fad fa-map-marked-alt"></i> ย้ายเมือง</button>
+                            <div id="row">
+                                <span class="description">เชื้อสาย</span>
+                                <select name="nxHeritages" id="nxHeritages" class="uk-inputs uk-from-large" class="dropdown" style="border-radius: 5px; font-family: 'Prompt', sans-serif;">
+                                </select>
+                            </div>
+                            <button class="btn confirm" data-action="nxSetHeritage"><i class="fad fa-feather-alt"></i> เปลี่ยนเชื้อสาย</button>
                         </div>
                         <div id="perms">
                             <div class="sectiontitle">เลื่อนตำแหน่ง/ลดระดับ</div>
