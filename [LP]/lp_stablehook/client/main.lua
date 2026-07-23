@@ -1,15 +1,28 @@
 -- ═══════════════════════════════════════════════════════════════════════════
---  เฟสแรก: dump โครงสร้างที่ kd_stable ส่งเข้า filter
+--  lp_stablehook — ปิดปุ่ม "มอบม้า/มอบเกวียน" (bequeath) ของ kd_stable
 --
---  ⚠️ ตัวนี้ "ไม่แก้อะไร" — คืนค่าเดิมกลับไปทุกครั้ง แค่พิมพ์ให้ดูว่าข้างในมีอะไร
---  พอรู้ว่าปุ่ม bequeath (มอบม้า) เก็บเป็น field ชื่ออะไร ค่อยเขียนตัวลบจริงทับไฟล์นี้
+--  ทำไมต้องทำแบบนี้:
+--  kd_stable เป็น escrow (.fxap) แก้โค้ดไม่ได้ และ "ไม่มีวิธีปิด bequeath ที่รองรับเลย"
+--  (เช็คครบแล้ว: ไม่มี config flag / ไม่มี Config restriction function / ไม่มี server filter /
+--   ไม่มี export เปลี่ยนเจ้าของม้า / Config.keys.bequeath = false ก็ทดสอบแล้วไม่มีผล)
 --
---  ดู log ที่ F8 console ในเกม (เป็น client filter ไม่ใช่ server)
+--  ทางที่ใช้ได้คือ client filter "updatePreviewPrompt" ซึ่ง:
+--      arg1 = currentPrompt  → ชื่อ prompt เป็นสตริง เช่น "bequeath"  ← ค่านี้คือค่าที่ filter คืน
+--      arg2 = itemMenuData   → { current, data, item, menu }
+--                              item.action = "bequeathHorse", menu = "horseManager"
+--
+--  คืน false แทน "bequeath" → kd_stable เอาไปเปิดหา Config.keys[...] ได้ nil
+--  → jo.prompt.create() เจอ guard `if not group or not key then return false end`
+--    (jo_libs/modules/prompt/client.lua:198) → prompt ไม่ถูกสร้าง = ผู้เล่นกดไม่ได้
+--
+--  ⚠️ ปิดได้แค่ "ปุ่มฝั่ง client" เท่านั้น — โค้ด server ของ kd_stable ที่รับคำสั่งมอบยังอยู่
+--     (escrow แก้ไม่ได้ และไม่มี hook ให้บล็อก) คนที่ยิง event เองเป็นยังทำได้
 -- ═══════════════════════════════════════════════════════════════════════════
 
 local dumped = {} -- [filterName] = จำนวนครั้งที่พิมพ์ไปแล้ว
 
--- แสดงค่าแบบย่อ ไม่ให้ string ยาวหรือ table ใหญ่ระเบิดคอนโซล
+-- ── ตัวช่วย dump (ปิดไว้ default — เปิดใน config ถ้าจะสำรวจโครงสร้างเมนูเพิ่ม) ──
+
 local function preview(v)
     local t = type(v)
     if t == 'string' then
@@ -28,7 +41,6 @@ local function preview(v)
 end
 
 local function dumpTable(tbl, indent, depth, maxDepth)
-    -- เรียงคีย์ให้อ่านง่าย (คีย์ปนตัวเลข/สตริงได้ เลยเทียบด้วย tostring)
     local keys = {}
     for k in pairs(tbl) do keys[#keys + 1] = k end
     table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
@@ -67,34 +79,82 @@ local function shouldDump(filterName)
     return (dumped[filterName] or 0) < (cfg.limitPerFilter or 2)
 end
 
--- ── ลงทะเบียน filter ─────────────────────────────────────────────────────────
--- ⚠️ filter ต้อง "คืนค่าเดิม" เสมอ ไม่งั้นเมนูของ kd_stable จะเพี้ยน/หาย
--- (jo_libs ห่อ callback ด้วย pcall อยู่แล้ว ถ้า error มันจะคงค่าเดิมไว้ให้ — แต่ก็ไม่ควรพึ่ง)
-CreateThread(function()
-    -- เผื่อ kd_stable ยังไม่ประกาศ export ตอน resource นี้เพิ่งขึ้น
-    Wait(2000)
+-- ── ปิด prompt bequeath ──────────────────────────────────────────────────────
+-- เทียบชื่อแบบ normalize (เผื่อ kd_stable เปลี่ยน case ในเวอร์ชันหน้า)
+local blockedPrompts = {}
+for _, name in ipairs(Config.BlockPrompts or {}) do
+    blockedPrompts[tostring(name):lower()] = true
+end
 
-    for _, filterName in ipairs(Config.Filters or {}) do
+local blockedCount = 0
+
+-- คืนค่าที่ควรส่งกลับให้ kd_stable สำหรับ filter updatePreviewPrompt
+local function filterPreviewPrompt(currentPrompt, itemMenuData)
+    if not Config.DisableBequeath then return currentPrompt end
+    if type(currentPrompt) ~= 'string' then return currentPrompt end
+
+    if not blockedPrompts[currentPrompt:lower()] then
+        return currentPrompt
+    end
+
+    blockedCount = blockedCount + 1
+    if Config.Debug then
+        local action = itemMenuData and itemMenuData.item and itemMenuData.item.action
+        print(('^2[lp_stablehook]^7 บล็อก prompt "%s" (action=%s) ครั้งที่ %d')
+            :format(currentPrompt, tostring(action), blockedCount))
+    end
+
+    -- false → Config.keys[false] = nil → jo.prompt.create เจอ guard แล้ว return ทันที
+    -- ไม่สร้าง prompt และไม่ไปถึง GetHashFromString ที่จะพังถ้าได้ค่าไม่ใช่สตริง
+    return false
+end
+
+-- ── ลงทะเบียน filter ─────────────────────────────────────────────────────────
+-- ⚠️ filter ต้องคืนค่าเสมอ ไม่งั้นเมนู kd_stable จะเพี้ยน
+-- (jo_libs ห่อ callback ด้วย pcall อยู่แล้ว — error จะคงค่าเดิมไว้ให้ แต่ไม่ควรพึ่ง)
+CreateThread(function()
+    Wait(2000) -- เผื่อ kd_stable ยังประกาศ export ไม่เสร็จ
+
+    -- รวมชื่อ filter ที่ต้องดัก: ตัวที่จะ dump + ตัวที่ใช้บล็อก (ไม่ให้ซ้ำ)
+    local wanted, seen = {}, {}
+    local function want(name)
+        if name and not seen[name] then
+            seen[name] = true
+            wanted[#wanted + 1] = name
+        end
+    end
+
+    want('updatePreviewPrompt') -- ตัวที่ใช้บล็อก bequeath — ต้องมีเสมอ
+    if Config.Dump and Config.Dump.enabled then
+        for _, name in ipairs(Config.Filters or {}) do want(name) end
+    end
+
+    for _, filterName in ipairs(wanted) do
         local ok, err = pcall(function()
             exports.kd_stable:registerFilter(filterName, function(value, extra)
                 if shouldDump(filterName) then
-                    -- filterYourHorseLine ส่ง (item, horseData) — โชว์ทั้งคู่
-                    -- filterHorseData ส่ง (horseData) เดี่ยวๆ — extra จะเป็น nil
                     dumpValue(filterName, 'arg1', value)
                     if extra ~= nil then
                         dumpValue(filterName, 'arg2', extra)
                     end
                 end
-                return value -- ไม่แก้อะไร คืนของเดิมกลับไป
+
+                if filterName == 'updatePreviewPrompt' then
+                    return filterPreviewPrompt(value, extra)
+                end
+
+                return value -- filter อื่นเป็นแค่การสังเกต ไม่แก้อะไร
             end)
         end)
 
-        if ok then
-            print(('^2[lp_stablehook]^7 ดัก filter "%s" แล้ว'):format(filterName))
-        else
+        if not ok then
             print(('^1[lp_stablehook]^7 ดัก filter "%s" ไม่สำเร็จ: %s'):format(filterName, tostring(err)))
+        elseif Config.Debug then
+            print(('^2[lp_stablehook]^7 ดัก filter "%s" แล้ว'):format(filterName))
         end
     end
 
-    print('^2[lp_stablehook]^7 พร้อมแล้ว — เปิดเมนูคอกม้า แล้วดู log ที่ F8')
+    if Config.DisableBequeath then
+        print('^2[lp_stablehook]^7 ปิดปุ่มมอบม้า/เกวียน (bequeath) แล้ว')
+    end
 end)
