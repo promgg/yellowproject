@@ -783,6 +783,32 @@ function GameStart()
                 Citizen.CreateThread(function()
                     Citizen.Wait(1000)
                     ActivateZoneLock()
+
+                    -- หมดเวลานับถอยหลังแล้วไม่มีใครอยู่ในโซนเลย = ไม่มีผู้เข้าร่วม ยกเลิกทิ้งทันที
+                    --
+                    -- MJ-Airdrop เป็น fork ที่ไม่มีระบบทีม (ไม่มีรายชื่อผู้สมัคร) เลยใช้ "คนที่อยู่ใน
+                    -- โซนตอนหมดเวลา" เป็นตัวนับผู้เข้าร่วมแทน — นับจาก ZonePlayers ตรงๆ ไม่ใช่
+                    -- ZoneLockAllowed เพราะถ้า Config["ZoneLockEnabled"] ปิดอยู่ ActivateZoneLock
+                    -- จะ return ทันทีโดยไม่เติม ZoneLockAllowed เลย
+                    --
+                    -- ไม่ยกเลิก = กล่อง/blip ค้างจนครบ TimeToRemove และ IsAirdropStarted ค้าง
+                    -- ทำให้จัดรอบใหม่ไม่ได้
+                    local anyone = false
+                    for aid in pairs(AirdropState or {}) do
+                        local set = ZonePlayers[tonumber(aid) or aid]
+                        if set and next(set) ~= nil then
+                            anyone = true
+                        end
+                    end
+
+                    if not anyone then
+                        TriggerClientEvent('pNotify:SendNotification', -1, {
+                            text = 'สิ้นสุดกิจกรรมแอร์ดรอป เนื่องจากไม่มีผู้เข้าร่วม',
+                            type = 'warning',
+                            timeout = 6000,
+                        })
+                        AirdropAutoDelete()
+                    end
                 end)
                 CoolDownAirdrop()
             end
