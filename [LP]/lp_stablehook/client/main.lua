@@ -88,9 +88,20 @@ end
 
 local blockedCount = 0
 
+-- ประกาศล่วงหน้า — นิยามจริงอยู่ด้านล่าง (Lua: local ต้องมีตัวตนก่อนถูกอ้างใน closure
+-- ไม่งั้นจะกลายเป็น global = nil แล้ว error ตอนเรียก)
+local hideBequeathViaMenuApi
+
 -- คืนค่าที่ควรส่งกลับให้ kd_stable สำหรับ filter updatePreviewPrompt
 local function filterPreviewPrompt(currentPrompt, itemMenuData)
     if not Config.DisableBequeath then return currentPrompt end
+
+    -- filter นี้บอกด้วยว่าตอนนี้อยู่เมนูไหน (จาก dump: menu = "horseManager")
+    -- ใช้จังหวะนี้สั่งซ่อนรายการในเมนูนั้น — เป็นจุดเดียวที่รู้ว่าเมนูย่อยถูกสร้างแล้ว
+    if type(itemMenuData) == 'table' then
+        hideBequeathViaMenuApi(itemMenuData.menu)
+    end
+
     if type(currentPrompt) ~= 'string' then return currentPrompt end
 
     if not blockedPrompts[currentPrompt:lower()] then
@@ -142,6 +153,60 @@ local function hideBlockedItems(node, depth, seen)
     end
 
     return hidden
+end
+
+-- ── ซ่อนรายการผ่าน API เมนูของ kd_stable โดยตรง ─────────────────────────────
+-- ทำไมต้องใช้วิธีนี้: รายการในเมนูย่อย "horseManager" (จัดการอุปกรณ์/ทรงผม/เกือก/มอบม้า/
+-- ปล่อยม้า) ถูกสร้างนอก hook filter ทุกตัว — filter "mainMenu" ยิงแค่ตอนเปิดเมนูโรงม้าชั้นบน
+--
+-- ทางออก: jo_libs ลงทะเบียน export "jo_menu_get" ไว้ใน "ทุก resource ที่โหลดมัน"
+--   exports("jo_menu_get", function() return jo.menu end)
+--   (jo_libs/modules/menu/client.lua:1029)
+-- ฟังก์ชันใน jo.menu เป็น closure ผูกกับตาราง `menus` ที่เป็น local ของ resource นั้นๆ
+-- เรียกผ่าน exports.kd_stable:jo_menu_get() จึงได้ API ที่คุมเมนูของ kd_stable ได้จริง
+local kdMenuApi = nil
+
+local function getKdMenu()
+    if kdMenuApi ~= nil then return kdMenuApi end
+    local ok, api = pcall(function() return exports.kd_stable:jo_menu_get() end)
+    kdMenuApi = (ok and type(api) == 'table') and api or false
+    if not kdMenuApi and Config.Debug then
+        print('^1[lp_stablehook]^7 เรียก exports.kd_stable:jo_menu_get() ไม่ได้')
+    end
+    return kdMenuApi
+end
+
+-- ทำครั้งเดียวต่อการเปิดเมนูหนึ่งรอบ — updatePreviewPrompt ยิงถี่มาก (แทบทุกเฟรม)
+-- ถ้าไม่กันจะเรียก export รัวๆ เปลืองเปล่า
+local handledMenus = {}
+
+-- (ประกาศ local ไว้ด้านบนแล้ว — ตรงนี้คือการกำหนดค่าจริง)
+function hideBequeathViaMenuApi(menuId)
+    if not Config.DisableBequeath then return end
+    if type(menuId) ~= 'string' or handledMenus[menuId] then return end
+
+    local api = getKdMenu()
+    if not api then return end
+
+    local ok, menu = pcall(function() return api.get(menuId) end)
+    if not ok or type(menu) ~= 'table' or type(menu.items) ~= 'table' then return end
+
+    local changed = 0
+    for i, item in ipairs(menu.items) do
+        if type(item) == 'table' and type(item.action) == 'string' and blockedActions[item.action] then
+            pcall(function() api.updateItem(menuId, i, 'visible', false) end)
+            changed = changed + 1
+        end
+    end
+
+    if changed > 0 then
+        pcall(function() api.refresh(menuId) end)
+        handledMenus[menuId] = true -- สำเร็จแล้วไม่ต้องทำซ้ำ
+        if Config.Debug then
+            print(('^2[lp_stablehook]^7 ซ่อนรายการ bequeath ในเมนู "%s" %d รายการ (ผ่าน jo_menu_get)')
+                :format(menuId, changed))
+        end
+    end
 end
 
 local function filterMainMenu(menu)
