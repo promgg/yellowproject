@@ -523,18 +523,22 @@ end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
     if health and health > 0 then
-        -- เดิมสลับใช้ SetEntityHealth (legacy entity-health API) กับ SetAttributeCoreValue
-        -- (RDR2 core system) คนละ layer กัน ผสมกันตามเงื่อนไข "inner > 99" — แต่ inner core
-        -- แทบไม่ลดจากดาเมจทั่วไป (มันสะท้อนภาพรวมระยะยาว ไม่ใช่ HP bar ที่เห็นตอนโดนยิง) เงื่อนไข
-        -- นี้เลย true เกือบตลอดเวลาแม้เลือดต่ำจริง ทำให้วิ่งเข้า SetEntityHealth ผสมค่าคนละ scale
-        -- กับ GetPlayerHealth บ่อยเกินไป ผลรวมมีโอกาสสูงเกินเพดานแล้วโดน engine clamp เป็นเต็ม
-        -- ไม่ว่า config จะตั้ง health เท่าไหร่ก็ตาม
+        -- ยืนยันจาก nx_hud (HUD ที่โชว์เลือดผู้เล่นจริงบนจอ พิสูจน์แล้วว่าถูก — ดู
+        -- nx_hud/client/client.lua:533-537): เลือดที่เห็นบนจอมาจาก GetEntityHealth/
+        -- GetEntityMaxHealth (entity health, max แบบ dynamic ต่อผู้เล่น) ไม่ใช่
+        -- GetAttributeCoreValue — core index 0 ไม่ใช่ตัวควบคุม HP bar ที่เห็นจริง (fix รอบก่อน
+        -- ที่เปลี่ยนไปตั้งค่า core เลยไม่มีผลกับเลือดที่เห็นเลย = "กดยาแล้วเลือดไม่เพิ่ม")
         --
-        -- ใช้ core system อย่างเดียวสม่ำเสมอ (ตรงกับจุดอื่นในไฟล์นี้ เช่น adminRevive ที่ตั้ง
-        -- SetAttributeCoreValue(ped, 0, 100) ตรงๆ) + clamp เอง ไม่พึ่ง engine auto-clamp
-        local inner = GetAttributeCoreValue(PlayerPedId(), 0)
-        local newHealth = math.min(100, inner + health)
-        SetAttributeCoreValue(PlayerPedId(), 0, newHealth)
+        -- config.health = "เปอร์เซ็นต์ของเลือดเต็มที่จะเพิ่ม" (0-100) ต้องแปลงเป็นหน่วยจริงของ
+        -- entity health ก่อนบวก เพราะ MaxHealth จริงไม่ใช่ 100 คงที่เสมอไป (เซิร์ฟนี้ตั้งไว้ที่ 600
+        -- ใน nx_hud Config.Player.HealthMax) ไม่งั้นสัดส่วนที่เพิ่มจริงจะผิดเพี้ยนจากที่ตั้งค่าไว้
+        local ped = PlayerPedId()
+        local maxHealth = GetEntityMaxHealth(ped)
+        if not maxHealth or maxHealth <= 0 then maxHealth = 100 end
+        local current = GetEntityHealth(ped)
+        local healthToAdd = (health / 100) * maxHealth
+        local newHealth = math.min(maxHealth, current + healthToAdd)
+        SetEntityHealth(ped, newHealth, 0)
     end
 
     if stamina and stamina > 0 then
