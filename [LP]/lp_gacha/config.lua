@@ -61,7 +61,12 @@ Config.Pools = {
                 { type = 'item', item = 'aed',         label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
             }},
             { chance = 20, rewards = {
-                { type = 'horse', item = 'a_c_horse_suffolkpunch_sorrel', label = 'ม้า Suffolk Punch', model = 'a_c_horse_suffolkpunch_sorrel', gender = 'male', amount = 1, rarity = 'legendary' },
+                -- ปิดรางวัลม้าไว้ก่อน (migrate bcc-stables -> kd_stable, ตาราง player_horses ที่
+                -- grantReward เดิม INSERT ตรงเข้าไปจะไม่มีใครอ่านแล้ว ม้าจะหายไปเงียบๆ) —
+                -- แทนด้วยเงินสดค่าเทียบเท่าไปก่อน จนกว่าจะรู้ export/event ที่ถูกต้องของ kd_stable
+                -- แล้วเปลี่ยน type ตรงนี้ให้เรียกมันแทน
+                -- { type = 'horse', item = 'a_c_horse_suffolkpunch_sorrel', label = 'ม้า Suffolk Punch', model = 'a_c_horse_suffolkpunch_sorrel', gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'money', item = 'cash_legendary', label = 'เงินสดก้อนโต (ของแทนม้า ปิดชั่วคราว)', amount = 3000, rarity = 'legendary' },
             }},
         },
     },
