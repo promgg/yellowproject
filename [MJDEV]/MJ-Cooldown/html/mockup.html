@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MJ-Cooldown — UI directions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="mockup.css">
+</head>
+<body data-design="3" data-theme="ember">
+    <main class="game-frame" aria-label="ตัวอย่างหน้าจอเกม">
+        <div class="scene-copy">
+            <span>VALENTINE</span>
+            <strong>Heartlands</strong>
+        </div>
+
+        <aside class="review-tools" aria-label="เลือกแบบจำลอง">
+            <div class="review-title">MJ-COOLDOWN · TIMER BADGE COLORS</div>
+            <div class="design-tabs" role="tablist">
+                <button class="design-tab active" data-theme="ember" type="button"><b>01</b> Ember Gold</button>
+                <button class="design-tab" data-theme="blood" type="button"><b>02</b> Blood Rust</button>
+                <button class="design-tab" data-theme="bone" type="button"><b>03</b> Bone Brass</button>
+            </div>
+            <label class="time-control">
+                <span>จำลองเวลา</span>
+                <input id="timeSlider" type="range" min="0" max="60" value="47">
+                <output id="timeOutput">00:47</output>
+            </label>
+            <p id="designNote">แดงเฉพาะสัญลักษณ์บาดเจ็บและใช้ทองกับเวลา อ่านง่ายและเข้าชุดกับ lp_textui มากที่สุด</p>
+        </aside>
+
+        <section class="cooldown-ui design-1" aria-label="แบบที่ 1 Compact rail">
+            <div class="injury-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.35-9.35-8.55C.64 8.85 2.54 5 6.4 5c2.08 0 3.36 1.3 3.95 2.2C10.94 6.3 12.22 5 14.3 5c3.86 0 5.76 3.85 3.75 7.45C15.7 16.65 12 21 12 21Z"/><path class="crack" d="m13.3 5.7-3 5.1 2.7 1.1-2.4 5.2"/></svg>
+            </div>
+            <div class="compact-plaque">
+                <div class="compact-copy"><span>INJURED</span><strong>ร่างกายยังบาดเจ็บ</strong></div>
+                <time class="js-time">00:47</time>
+                <div class="compact-progress"><i class="js-progress"></i></div>
+            </div>
+        </section>
+
+        <section class="cooldown-ui design-2" aria-label="แบบที่ 2 Status card">
+            <header>
+                <span class="status-pulse"></span>
+                <div><small>PLAYER CONDITION</small><strong>กำลังพักฟื้น</strong></div>
+                <time class="js-time">00:47</time>
+            </header>
+            <div class="status-body">
+                <span class="status-icon" aria-hidden="true">✚</span>
+                <p>ยังไม่พร้อมต่อสู้<br><small>ระบบจะปลดข้อจำกัดอัตโนมัติ</small></p>
+            </div>
+            <div class="status-progress"><i class="js-progress"></i></div>
+        </section>
+
+        <section class="cooldown-ui design-3" aria-label="แบบที่ 3 Timer badge">
+            <div class="timer-ring">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <circle class="ring-track" cx="24" cy="24" r="20"></circle>
+                    <circle class="ring-value js-ring" cx="24" cy="24" r="20"></circle>
+                </svg>
+                <span>✚</span>
+            </div>
+            <div class="badge-copy"><small>INJURED</small><strong>พักฟื้นอีก</strong></div>
+            <time class="js-time">00:47</time>
+        </section>
+
+        <section class="nx-hud-mock" aria-label="ตำแหน่งโดยประมาณของ nx_hud">
+            <div class="hud-top"><span>ID: 1</span><span>22/07/2026</span><b>TIME</b><span>21:37</span></div>
+            <div class="health"><i></i></div>
+            <div class="stamina"><i></i></div>
+            <div class="orbs"><i>●</i><i>●</i><i>●</i></div>
+        </section>
+        <div class="safe-label">MJ-Cooldown อยู่เหนือ nx_hud · ระยะห่าง 10px</div>
+    </main>
+    <script src="mockup.js"></script>
+</body>
+</html>
