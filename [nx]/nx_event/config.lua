@@ -54,7 +54,7 @@ Config.CollectKey = 0x17BEC168 -- ปุ่ม E
 
 -- ─── Blip บน minimap ──────────────────────────────────────────────────────
 Config.EventBlip = {
-    label = "จุดแห่งสัญญา",
+    label = "Event Point", -- RedM เรนเดอร์ไทยบน blip ไม่ได้
     scale = 0.7,
 }
 
