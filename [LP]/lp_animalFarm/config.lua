@@ -49,7 +49,7 @@ Config.Zones = {
     blip = {
       sprite = -1646261997,         -- sprite hash (int)
       scale  = 0.5,
-      label  = 'ฟาร์มสัตว์: ใบสัน',
+      label  = 'Animal Farm: Bison',
     },
   },
   ['tiger'] = {
@@ -64,7 +64,7 @@ Config.Zones = {
     blip = {
       sprite = -1646261997,
       scale  = 0.5,
-      label  = 'ฟาร์มสัตว์: เสือ',
+      label  = 'Animal Farm: Tiger',
     },
   },
   ['croc'] = {
@@ -79,7 +79,7 @@ Config.Zones = {
     blip = {
       sprite = -1646261997,
       scale  = 0.5,
-      label  = 'ฟาร์มสัตว์: จรเข้',
+      label  = 'Animal Farm: Croc',
     },
   },
 }
