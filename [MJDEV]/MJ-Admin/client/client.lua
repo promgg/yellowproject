@@ -359,21 +359,19 @@ RegisterNUICallback('stopfood', function(data)
 
 end)
 
+-- หมายเหตุ: เดิมบรรทัดพวกนี้ยิง TriggerEvent("vorpmetabolism:changeValue", ...) แบบ local
+-- ด้วย ซึ่งลงที่ "เครื่องแอดมินเอง" ไม่ใช่เป้าหมาย (กดเติมให้คนอื่น แต่ตัวเองอิ่มแทน) —
+-- ที่ผ่านมาไม่มีใครเห็นผลเพราะ handler ฝั่ง MJ-STATUS เป็น no-op มาตลอด
+-- ตอนนี้ตัดทิ้ง ให้ server เป็นคนสั่งเป้าหมายผ่าน exports ของ MJ-STATUS ทางเดียว
 RegisterNUICallback('foodall', function(data)
     if data.inputData == '1' then
         TriggerServerEvent('admin:foodall')
-        TriggerEvent("vorpmetabolism:changeValue", "Thirst", 1000)
-        TriggerEvent("vorpmetabolism:changeValue", "Hunger", 1000)
-        TriggerEvent("vorpmetabolism:changeValue", "Stress", 0)
     end
 
 end)
 
 RegisterNUICallback('food', function(data)
     TriggerServerEvent('admin:foodall', data.playerid)
-    TriggerEvent("vorpmetabolism:changeValue", "Thirst", 1000)
-    TriggerEvent("vorpmetabolism:changeValue", "Hunger", 1000)
-    TriggerEvent("vorpmetabolism:changeValue", "Stress", 0)
 end)
 
 RegisterNUICallback('stressall', function(data)
@@ -506,10 +504,9 @@ RegisterNUICallback("setJob", function(data)
 end)
 
 RegisterNUICallback("revive", function(data)
+    -- เดิมยิง vorpmetabolism:changeValue แบบ local ด้วย = ลงที่เครื่องแอดมินเอง ไม่ใช่คนที่ถูกชุบ
+    -- (และเป็น no-op อยู่แล้ว) — ตัดทิ้ง ถ้าจะเติมค่าให้คนที่ถูกชุบ ทำฝั่ง server ของ admin:revive
     TriggerServerEvent("admin:revive", data.playerid)
-    TriggerEvent("vorpmetabolism:changeValue", "Thirst", 100000)
-    TriggerEvent("vorpmetabolism:changeValue", "Hunger", 100000)
-    TriggerEvent("vorpmetabolism:changeValue", "Stress", 0)
 end)
 
 RegisterNUICallback("revivenocooldown", function(data)

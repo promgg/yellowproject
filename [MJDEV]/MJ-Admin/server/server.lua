@@ -770,17 +770,58 @@ AddEventHandler("admin:reviveall", function()
 end)
 
 
+-- ══════════════════════════════════════════════════════════════════════════
+--  ตั้งค่า อาหาร/น้ำ/ความเครียด — สั่งผ่าน MJ-STATUS (เจ้าของข้อมูลตัวจริง)
+--
+--  ของเดิมพังทั้งหมด 3 ทาง:
+--   1) ยิงไป "JKL-HudStamina:StartFunctions" และ "MJ-STATUSHUD:setStatus" — ไม่มีตัวรับ
+--      อยู่ในโปรเจกต์แล้วทั้งคู่ (MJ-STATUS ฟังชื่อ "MJ-STATUS:setStatus")
+--   2) เขียน Character.setStatus เองด้วยคีย์ที่ MJ-STATUS ไม่ใช้ (Metabolism) และสเกลผิด
+--      (1000 ทั้งที่ Config.MaxHunger = 100000) — client ถือค่าสดอยู่ รอบ save ถัดไปจึงเอา
+--      ค่าเก่าทับกลับทันที = อาการ "แอดมินเติมแล้วไม่ติด"
+--   3) ปุ่ม stress ไม่เคยแตะค่า Stress เลยสักครั้ง
+--
+--  ตอนนี้เดินทางเดียว: exports['MJ-STATUS'] ซึ่งสั่ง client แล้วให้ client เซฟกลับตามเส้นทาง
+--  save ปกติของมันเอง (clamp + อัปเดต Character.setStatus + เขียน DB ครบในที่เดียว)
+-- ══════════════════════════════════════════════════════════════════════════
+
+-- ไม่ระบุ playerId = ทุกคนที่ออนไลน์ (ปุ่มตระกูล ...all), ระบุ = เฉพาะคนนั้น
+local function needsTargets(playerId)
+    local id = tonumber(playerId)
+    if id then return { id } end
+
+    local list = {}
+    for _, p in ipairs(GetPlayers()) do
+        list[#list + 1] = tonumber(p)
+    end
+    return list
+end
+
+-- อีเวนต์กลุ่มนี้ client ยิงมาตรงๆ ได้ และรับ playerId เป็นพารามิเตอร์ ถ้าไม่เช็คสิทธิ์
+-- ใครก็สั่งเปลี่ยนค่าของคนอื่นทั้งเซิร์ฟได้ — ของเดิมไม่มีเช็คเลยสักตัว
+local function canManageNeeds(src)
+    local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(src) or 'user'
+    local perms = Config and Config["Perms"] and Config["Perms"][playerGroup]
+    return perms ~= nil and perms.CanStaminaAll == true
+end
+
+local function forEachNeedsTarget(src, playerId, fn)
+    if not canManageNeeds(src) then return end
+    for _, target in ipairs(needsTargets(playerId)) do
+        -- pcall กัน MJ-STATUS ถูกหยุด/ยังไม่ start แล้ว export หาย ทำให้ทั้ง handler ตาย
+        local ok, err = pcall(fn, target)
+        if not ok then
+            print(('^1[MJ-Admin]^0 ตั้งค่า needs ให้ id %s ไม่สำเร็จ: %s'):format(tostring(target), tostring(err)))
+        end
+    end
+end
+
 RegisterServerEvent('admin:setfoob')
 AddEventHandler('admin:setfoob', function()
-    local playerId = source
-    local UserCharacter = VORPcore.getUser(playerId).getUsedCharacter
-    local status = json.encode({
-        ['Hunger'] = 100000,
-        ['Thirst'] = 100000,
-        ['Stress'] = 0
-    })
-    UserCharacter.setStatus(status)
-    TriggerClientEvent("JKL-HudStamina:StartFunctions", playerId, status)
+    local _source = source
+    forEachNeedsTarget(_source, _source, function(target)
+        exports['MJ-STATUS']:ResetPlayerNeeds(target)
+    end)
 end)
 
 RegisterServerEvent('admin:stopfood')
@@ -805,47 +846,31 @@ AddEventHandler('admin:stopfood', function(playerId)
     end
 end)
 
+-- เติมอาหาร/น้ำเต็ม + ล้างความเครียด (ไม่ส่ง playerId = ทั้งเซิร์ฟ)
 RegisterServerEvent('admin:foodall')
 AddEventHandler('admin:foodall', function(playerId)
     local _source = source
-    local UserCharacter = VORPcore.getUser(playerId).getUsedCharacter
-    local status = json.encode({
-        ['Hunger'] = 1000,
-        ['Thirst'] = 1000,
-        ['Metabolism'] = 10000
-    })
-    UserCharacter.setStatus(status)
-    TriggerClientEvent("vorpmetabolism:changeValue", _source, "Thirst", 1000)
-    TriggerClientEvent("vorpmetabolism:changeValue", _source, "Hunger", 1000)
-    TriggerClientEvent("MJ-STATUSHUD:setStatus", _source, status)
+    forEachNeedsTarget(_source, playerId, function(target)
+        exports['MJ-STATUS']:ResetPlayerNeeds(target)
+    end)
 end)
 
+-- ล้างความเครียดอย่างเดียว (ปุ่มชื่อ stress — ของเดิมไม่เคยแตะค่า Stress เลย)
 RegisterServerEvent('admin:stressall')
 AddEventHandler('admin:stressall', function(playerId)
-    local UserCharacter = VORPcore.getUser(playerId).getUsedCharacter
-    local status = json.encode({
-        ['Hunger'] = 1000,
-        ['Thirst'] = 1000,
-        ['Metabolism'] = 10000
-    })
-    UserCharacter.setStatus(status)
-    TriggerClientEvent("vorpmetabolism:changeValue", playerId, "Thirst", 1000)
-    TriggerClientEvent("vorpmetabolism:changeValue", playerId, "Hunger", 1000)
-    TriggerClientEvent("MJ-STATUSHUD:setStatus", playerId, status)
+    local _source = source
+    forEachNeedsTarget(_source, playerId, function(target)
+        exports['MJ-STATUS']:SetPlayerNeeds(target, nil, nil, 0)
+    end)
 end)
 
+-- ล้างค่าอาหาร/น้ำให้เป็น 0 (ไม่แตะความเครียด)
 RegisterServerEvent('admin:cleanall')
 AddEventHandler('admin:cleanall', function(playerId)
-    local UserCharacter = VORPcore.getUser(playerId).getUsedCharacter
-    local status = json.encode({
-        ['Hunger'] = 0,
-        ['Thirst'] = 0,
-        ['Metabolism'] = 0
-    })
-    UserCharacter.setStatus(status)
-    TriggerClientEvent("vorpmetabolism:changeValue", playerId, "Thirst", 0)
-    TriggerClientEvent("vorpmetabolism:changeValue", playerId, "Hunger", 0)
-    TriggerClientEvent("MJ-STATUSHUD:setStatus", playerId, status)
+    local _source = source
+    forEachNeedsTarget(_source, playerId, function(target)
+        exports['MJ-STATUS']:SetPlayerNeeds(target, 0, 0, nil)
+    end)
 end)
 
 RegisterServerEvent('admin:healall')
