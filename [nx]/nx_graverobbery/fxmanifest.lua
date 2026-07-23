@@ -48,4 +48,5 @@ dependencies {
     'lp_progbar',
     'nx_cityselect',
     'pNotify',
+    'lp_eventnotify', -- eventnotify_bridge.lua เรียก export ของมันตรงๆ (หายไปจาก list เดิม)
 }

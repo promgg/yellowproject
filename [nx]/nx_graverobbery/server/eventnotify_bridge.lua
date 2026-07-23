@@ -41,7 +41,10 @@ function NX_GR.EventNotify.Refresh(villageId)
         if exports.lp_eventnotify:IsEventActive(id) then
             exports.lp_eventnotify:UpdateProgress(id, remaining)
         else
-            local label = ('%s GRAVE'):format(TOWN_CODES[villageId])
+            -- ชื่อเต็มจาก Config.Villages[id].label (เช่น "Valentine") แทนโค้ดย่อ (VLT) — fallback
+            -- เป็นโค้ดย่อกันพังถ้า Config.Villages ไม่มี entry นี้ (ไม่ควรเกิด แต่กันไว้)
+            local villageLabel = (Config.Villages[villageId] or {}).label or TOWN_CODES[villageId]
+            local label = villageLabel .. ' Grave'
             exports.lp_eventnotify:StartProgressEvent(id, label, 'hot-time', remaining, total)
         end
         wasOpen[villageId] = true
