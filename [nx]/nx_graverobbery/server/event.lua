@@ -171,10 +171,28 @@ CreateThread(function()
                         startEvent(villageId, zone, dayKey)
                     end
                 else
+                    -- ปิดรับ (seal) แล้วไม่มีใครอยู่ในวงเลย = ยกเลิกอีเวนต์ทิ้งทันที ไม่ seal
+                    --
+                    -- เดิม seal ทั้งที่ occupants ว่าง -> allowed ว่างตาม -> วงค้างอยู่จนถึง endsAt
+                    -- (อีก ~52 นาที) ใครเดินมาทีหลังโดนปฏิเสธด้วยเหตุผล 'sealed' ตลอด แถม
+                    -- lastStartedDay ถูกล็อกไว้แล้ว = วันนี้ไม่จัดซ้ำ กลายเป็นวงร้างที่ไม่มีใครเข้าได้
+                    -- (ตรงกับที่คอมเมนต์ shouldStartNow ด้านบนกังวลไว้อยู่แล้ว)
+                    local cancelled = false
                     if not state.sealed and now >= state.sealAt then
-                        sealEvent(villageId, state)
+                        if next(state.occupants) == nil then
+                            TriggerClientEvent('pNotify:SendNotification', -1, {
+                                text = ('สิ้นสุดกิจกรรมสุสาน %s เนื่องจากไม่มีผู้เข้าร่วม'):format(state.label or villageId),
+                                type = 'warning',
+                                timeout = 6000,
+                            })
+                            endEvent(villageId)
+                            cancelled = true
+                        else
+                            sealEvent(villageId, state)
+                        end
                     end
-                    if now >= state.endsAt then
+
+                    if not cancelled and now >= state.endsAt then
                         endEvent(villageId)
                     end
                 end
