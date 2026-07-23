@@ -86,11 +86,23 @@ Citizen.CreateThread(function()
 	end
 end)
 
+-- แอดมินสั่งลบคูลดาวน์ (MJ-Admin ปุ่ม "ลบคลูดาวน์" / "ชุบ [ไม่ติดคลูดาวน์]")
+--
+-- ⚠️ ต้องเก็บกวาดให้ครบเหมือนตอนคูลดาวน์หมดเองตามปกติ (ดูเธรดนับถอยหลังด้านบน)
+-- ของเดิมทำแค่ inCooldown = false กับ Cooldown = 0 ทำให้เกิด 3 อาการ:
+--   1) หลอดนับเวลาบนจอไม่หาย — ไม่เคยยิง SendNUIMessage Hide (อาการ "กดแล้วไม่มีอะไรเกิดขึ้น")
+--   2) ท่าเดินกะเผลกค้าง — ท่านี้เล่นแบบวนไม่มีจบ (duration -1, flag 31) ต้อง ClearPedTasks เอง
+--   3) Cooldown = 0 ค้างไว้ พอตายรอบหน้าตัวนับเริ่มจาก 0 -> ติดลบทันที -> เข้าเงื่อนไข
+--      "หมดเวลา" ในเธรดนับถอยหลังเลย = คูลดาวน์รอบถัดไปโดนข้ามทั้งรอบ
+--      (ตอนตายไม่ได้รีเซ็ตค่าให้ เพราะบล็อกรีเซ็ตอยู่ใต้ `if inCooldown` ซึ่งตอนนั้น false ไปแล้ว)
 RegisterNetEvent(MJDEV..":Stopinjured")
 AddEventHandler(MJDEV.. ":Stopinjured", function()
 	inCooldown = false
-	Cooldown = 0
+	Cooldown = Config['CoolDown'] * 60 -- รีเซ็ตเป็นเต็ม พร้อมใช้รอบหน้า (ไม่ใช่ 0)
 	TriggerServerEvent(MJDEV .. "SaveData", false)
+	ClearPedTasks(PlayerPedId())       -- เลิกท่าเดินกะเผลก
+	Config.DisableControl(false)       -- ปลดล็อกคอนโทรล
+	SendNUIMessage({ type = 'Hide' })  -- ซ่อนหลอดนับเวลา
 end)
 
 
@@ -149,7 +161,12 @@ Citizen.CreateThread(function()
 			while not HasAnimDictLoaded(A) do
 				Wait(500)
 			end
-			TaskPlayAnim(PlayerPedId(), A, G, 8.0, -8.0, -1, 31, 0, true, 0, false, 0, false)
+			-- เช็ค inCooldown ซ้ำหลังรอโหลด dict — ระหว่างที่รออยู่ คูลดาวน์อาจถูกลบไปแล้ว
+			-- (แอดมินกดลบ / หมดเวลาพอดี) ถ้าไม่เช็คจะเล่นท่ากะเผลกทับหลัง ClearPedTasks
+			-- แล้วค้างวนไม่จบ เพราะรอบถัดไปเข้า else ไม่มีใครมาเคลียร์ให้อีก
+			if inCooldown then
+				TaskPlayAnim(PlayerPedId(), A, G, 8.0, -8.0, -1, 31, 0, true, 0, false, 0, false)
+			end
 			Wait(5000)
 		else
 			Wait(1000)
