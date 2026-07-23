@@ -60,17 +60,70 @@ AddEventHandler("MJ-STATUS:getStatus", function()
     TriggerServerEvent("MJ-STATUS:saveStatus", PlayerStatus)
 end)
 
-RegisterNetEvent("vorpmetabolism:changeValue")
-AddEventHandler("vorpmetabolism:changeValue", function(a,b)
-    if PlayerStatus and next(PlayerStatus) and isLoggedIn then
-        if PlayerStatus.Hunger == a and PlayerStatus.Hunger > b then
-            PlayerStatus.Hunger = b
-        elseif PlayerStatus.Thirst == a and PlayerStatus.Thirst > b then
-            PlayerStatus.Thirst = b
-        elseif PlayerStatus.Stress == a and PlayerStatus.Stress < b then
-            PlayerStatus.Stress = b
-        end
+-- ── ตั้งค่า needs (ใช้ร่วมกัน: event เก่า / export / คำสั่งแอดมิน) ────────────
+-- ขอบเขตต่อคีย์ กัน exploit และกันค่าเพี้ยนหลุดไปถึง save
+local NEED_BOUNDS = {
+    Hunger = function() return Config.MinHunger or 0, Config.MaxHunger or 1000 end,
+    Thirst = function() return Config.MinThirst or 0, Config.MaxThirst or 1000 end,
+    Stress = function() return Config.MinStress or 0, Config.MaxStress or 1000 end,
+}
+
+local function applyNeed(key, value)
+    local bounds = NEED_BOUNDS[key]
+    local n = tonumber(value)
+    if not bounds or not n then return false end
+    local lo, hi = bounds()
+    PlayerStatus[key] = math.max(lo, math.min(hi, n))
+    return true
+end
+
+-- เขียนค่ากลับ server ทันที ไม่รอรอบ save ปกติ (1 นาที) — กันค่าหายถ้าผู้เล่นหลุดก่อน
+local function pushSave()
+    if PlayerStatus and next(PlayerStatus) then
+        TriggerServerEvent("MJ-STATUS:saveStatus", PlayerStatus)
     end
+end
+
+-- ตั้งค่าได้ทีละหลายคีย์ (nil = ไม่แตะคีย์นั้น) แล้วเซฟกลับทันที
+-- รีเซ็ต flag แจ้งเตือน/ตายด้วย ไม่งั้นเติมเต็มแล้วยังค้างสถานะ "เตือนไปแล้ว" จนไม่เตือนซ้ำอีก
+local function setNeeds(hunger, thirst, stress)
+    if not (PlayerStatus and next(PlayerStatus)) then return false end
+
+    local changed = false
+    if hunger ~= nil then changed = applyNeed('Hunger', hunger) or changed end
+    if thirst ~= nil then changed = applyNeed('Thirst', thirst) or changed end
+    if stress ~= nil then changed = applyNeed('Stress', stress) or changed end
+    if not changed then return false end
+
+    notifstarve, notifthirst, notifstress, isdead = false, false, false, false
+    pushSave()
+    return true
+end
+
+-- ⚠️ event นี้ "ไม่ทำอะไร" โดยตั้งใจ — อย่าเผลอไป "ซ่อม" ให้มันตั้งค่าจริง
+--
+-- โค้ดเดิมเขียน `PlayerStatus.Hunger == a` คือเอา "ตัวเลข" ไปเทียบกับ "ชื่อคีย์" (string)
+-- ซึ่งเป็น false เสมอ ทุก branch จึงไม่เคยทำงานเลยสักครั้ง = no-op มาตลอด
+--
+-- เหตุผลที่ห้ามซ่อม: ผู้เรียก event นี้ใช้ "สเกลคนละแบบ" ปนกันทั้งโปรเจกต์
+--   vorp_core/client/respawnsystem.lua  ส่ง 1000    (สเกลของ vorp_metabolism)
+--   MJ-Admin/client/client.lua (revive)  ส่ง 100000  (สเกลของ MJ-STATUS)
+-- แต่ Config.MaxHunger ของเราคือ 100000 — ถ้าทำให้ทำงาน ทุกครั้งที่เกิดใหม่จะถูกตั้งเป็น
+-- 1000/100000 = 1% ซึ่งต่ำกว่าเกณฑ์หักเลือด (Hunger <= MaxHunger*0.01) → เลือดไหลทันที
+-- หลังเกิด การปล่อยให้เป็น no-op ต่อไปจึงตรงกับพฤติกรรมที่เซิร์ฟใช้งานจริงมาตลอด
+--
+-- ใครจะตั้งค่า needs ให้ใช้ทางนี้แทน (ชัดเจน สเกลเดียว ไม่กำกวม):
+--   client: exports['MJ-STATUS']:SetNeeds(h, t, s) / :ResetNeeds()
+--   server: exports['MJ-STATUS']:SetPlayerNeeds(src, h, t, s) / :ResetPlayerNeeds(src)
+RegisterNetEvent("vorpmetabolism:changeValue")
+AddEventHandler("vorpmetabolism:changeValue", function(_a, _b)
+    -- no-op โดยตั้งใจ (ดูคอมเมนต์ด้านบน)
+end)
+
+-- server สั่งตั้งค่ามา (คำสั่งแอดมิน /resetneeds หรือ export ฝั่ง server ของ MJ-STATUS)
+RegisterNetEvent("MJ-STATUS:client:applyNeeds", function(payload)
+    if type(payload) ~= 'table' then return end
+    setNeeds(payload.Hunger, payload.Thirst, payload.Stress)
 end)
 
 
@@ -517,6 +570,22 @@ end)
 ------------------------------------------------
 exports("SetNeedsFrozen", function(frozen)
     needsFrozen = frozen and true or false
+end)
+
+------------------------------------------------
+-- Export ตั้ง/รีเซ็ตค่า อาหาร-น้ำ-ความเครียด (setter ตัวจริง)
+--
+-- หมายเหตุ: export setHunger/setThirst/setStress ด้านบนชื่อเหมือน setter แต่จริงๆ เป็น getter
+-- (ไม่รับพารามิเตอร์ แค่ return ค่า) — ห้ามแก้ชื่อพวกนั้น มี resource อื่นเรียกใช้อ่านค่าอยู่
+------------------------------------------------
+-- nil = ไม่แตะค่านั้น เช่น SetNeeds(nil, nil, 0) = รีเซ็ตแค่ความเครียด
+exports("SetNeeds", function(hunger, thirst, stress)
+    return setNeeds(hunger, thirst, stress)
+end)
+
+-- อิ่ม/น้ำเต็ม + ความเครียดต่ำสุด
+exports("ResetNeeds", function()
+    return setNeeds(Config.MaxHunger, Config.MaxThirst, Config.MinStress)
 end)
 
 AddEventHandler("onResourceStart", function(resourceName)

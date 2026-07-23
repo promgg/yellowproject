@@ -264,6 +264,76 @@ end)
 
 
 
+-- ════════════════════════════════════════════════════════════════════════════
+--  Admin: ตั้ง/รีเซ็ตค่า อาหาร-น้ำ-ความเครียด
+--
+--  ค่าจริงอยู่ฝั่ง client (PlayerStatus) — server แค่ "สั่ง" ให้ client ตั้งค่า แล้ว client
+--  จะยิง MJ-STATUS:saveStatus กลับมาเอง ซึ่งเป็นเส้นทาง save เดิมที่ clamp + อัปเดต
+--  Character.setStatus + เขียน DB อยู่แล้ว (มีผู้เขียนคนเดียว ไม่แตกเป็นสองทาง)
+--
+--  ห้ามเขียน DB ตรงนี้เอง: client ถือค่าสดอยู่ ถ้าเขียนทับฝั่ง server เฉยๆ รอบ save ถัดไป
+--  ของ client จะเอาค่าเก่าทับกลับทันที (บั๊กเดิมของ MJ-Admin ที่ "เติมแล้วไม่ติด")
+-- ════════════════════════════════════════════════════════════════════════════
+local function pushNeeds(target, hunger, thirst, stress)
+    target = tonumber(target)
+    if not target or not GetPlayerName(target) then return false end -- ออฟไลน์/id ไม่มีจริง
+
+    TriggerClientEvent("MJ-STATUS:client:applyNeeds", target, {
+        Hunger = hunger,
+        Thirst = thirst,
+        Stress = stress,
+    })
+    return true
+end
+
+-- nil = ไม่แตะค่านั้น เช่น SetPlayerNeeds(src, nil, nil, 0) = รีเซ็ตแค่ความเครียด
+exports('SetPlayerNeeds', function(target, hunger, thirst, stress)
+    return pushNeeds(target, hunger, thirst, stress)
+end)
+
+exports('ResetPlayerNeeds', function(target)
+    return pushNeeds(target, Config.MaxHunger, Config.MaxThirst, Config.MinStress)
+end)
+
+-- /resetneeds [playerId]  — ไม่ใส่ id = ตัวเอง (คอนโซลต้องใส่ id เสมอ)
+-- ตรวจสิทธิ์ด้วย ACE:  add_ace group.admin MJ-STATUS.admin allow
+RegisterCommand('resetneeds', function(src, args)
+    local fromConsole = (src == 0)
+
+    if not fromConsole and not IsPlayerAceAllowed(src, Config.AcePermission or 'MJ-STATUS.admin') then
+        TriggerClientEvent("pNotify:SendNotification", src, {
+            type = 'error', text = 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้', timeout = 4000
+        })
+        return
+    end
+
+    local target = tonumber(args[1]) or (not fromConsole and src or nil)
+    if not target then
+        print('^3[MJ-STATUS]^0 ใช้: resetneeds <playerId>')
+        return
+    end
+
+    if not pushNeeds(target, Config.MaxHunger, Config.MaxThirst, Config.MinStress) then
+        local msg = ('ไม่พบผู้เล่น id %s'):format(tostring(target))
+        if fromConsole then print('^1[MJ-STATUS]^0 ' .. msg)
+        else TriggerClientEvent("pNotify:SendNotification", src, { type='error', text=msg, timeout=4000 }) end
+        return
+    end
+
+    print(('^2[MJ-STATUS]^0 resetneeds: %s -> id %s'):format(
+        fromConsole and 'console' or (GetPlayerName(src) or '?'), tostring(target)))
+
+    TriggerClientEvent("pNotify:SendNotification", target, {
+        type = 'success', text = 'ผู้ดูแลรีเซ็ตค่าอาหาร/น้ำ/ความเครียดให้คุณแล้ว', timeout = 4000
+    })
+
+    if not fromConsole and target ~= src then
+        TriggerClientEvent("pNotify:SendNotification", src, {
+            type = 'success', text = ('รีเซ็ตค่าให้ id %s แล้ว'):format(tostring(target)), timeout = 4000
+        })
+    end
+end, false)
+
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         MySQL.ready(function()

@@ -158,6 +158,10 @@ Config.MinHunger = 0
 Config.MinStress = 0
 Config.MinStamina = 0
 
+-- ACE object สำหรับคำสั่งแอดมิน /resetneeds (เช็คด้วย IsPlayerAceAllowed)
+-- ให้สิทธิ์ใน server.cfg เช่น:  add_ace group.admin MJ-STATUS.admin allow
+Config.AcePermission = 'MJ-STATUS.admin'
+
 Config.SavePlayersStatus      = true        -- Future deprecated. Advised not to use, as it will be removed.
 -- ทุกกี่ ms ที่ server ดึงค่าสดจาก client มาเซฟลง DB (+อัปเดต object)
 -- ยิ่งถี่ ค่าตอน "ออก" ยิ่งใกล้ค่าจริง (playerDropped เซฟได้แค่ค่าล่าสุดที่ดึงมา ไม่ใช่ค่า ณ วินาทีออก)
