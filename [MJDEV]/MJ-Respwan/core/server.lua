@@ -18,6 +18,17 @@ local function NotifyClient(src, text, ntype, timeout)
     })
 end
 
+-- เช็คว่า group ที่ได้จาก character.group เป็นระดับแอดมินไหม — normalize (lower+trim) ก่อนเทียบ เพราะ
+-- ค่าจริงอาจมี casing/whitespace ไม่ตรงกับ "admin" เป๊ะๆ (เช่น "Admin") แล้วรับหลายชื่อกลุ่มที่ใช้จริงใน
+-- โปรเจกต์นี้ (ดู lp_deathmatch/server/config_server.lua: adminGroups = {'admin','superadmin'}) — ก่อน
+-- แก้ตัวนี้ MJ-Respwan เช็คแค่ playerGroup == "admin" ตรงๆ ทำให้ deny แบบเงียบสนิทถ้า group จริงไม่ตรงเป๊ะ
+local ADMIN_GROUPS = { admin = true, superadmin = true, mod = true }
+local function isAdminGroup(rawGroup)
+    if type(rawGroup) ~= 'string' then return false end
+    local normalized = rawGroup:lower():gsub('^%s+', ''):gsub('%s+$', '')
+    return ADMIN_GROUPS[normalized] == true
+end
+
 -- ยิง Discord webhook — ข้ามทันทีถ้ายังไม่ตั้ง webhook (กัน PerformHttpRequest error รัวๆ)
 local function postDiscord(payload)
     if not Config.DISCORD_WEBHOOK or Config.DISCORD_WEBHOOK == '' then return end
@@ -194,18 +205,30 @@ end)
 
 
 RegisterCommand("revive", function(source, args)
-    -- source == 0 = คอนโซล/ txAdmin (เชื่อถือได้ ให้ผ่านเลย) — ผู้เล่นต้อง group == admin
+    -- source == 0 = คอนโซล/ txAdmin (เชื่อถือได้ ให้ผ่านเลย) — ผู้เล่นต้อง group ระดับแอดมิน (isAdminGroup)
+    -- เดิมเช็ค playerGroup == "admin" ตรงๆ (raw string, case-sensitive, ไม่ trim whitespace, รับแค่
+    -- "admin" กลุ่มเดียว) ถ้าค่าจริงเป็น "Admin"/"superadmin"/มี whitespace ปน จะ deny แบบเงียบสนิท
+    -- ไม่มี output ใดๆ เลย (ตรงกับอาการที่เจอ: พิมพ์ "revive 6" กี่ครั้งก็ไม่มีอะไรเกิดขึ้น ไม่มี error)
     local isConsole = (source == 0)
     local adminUser = not isConsole and getChar(source) or nil
-    local playerGroup = adminUser and adminUser.group or nil
-    if isConsole or playerGroup == "admin" then
+    local rawGroup = adminUser and adminUser.group or nil
+
+    if isConsole or isAdminGroup(rawGroup) then
         local targetId = tonumber(args[1])
-        if targetId then
-            Core.Player.Revive(targetId)
-            local targetName = GetPlayerName(targetId)
-            sendSimpleDiscordLog("⚡ Admin Revive",
-                string.format("แอดมิน **%s** ทำการชุบชีวิตผู้เล่น **%s**", GetPlayerName(source), targetName),
-                15158332)
+        if not targetId then
+            if not isConsole then NotifyClient(source, 'ใช้งาน: revive <player id>', 'error', 3000) end
+            return
+        end
+        Core.Player.Revive(targetId)
+        local targetName = GetPlayerName(targetId)
+        sendSimpleDiscordLog("⚡ Admin Revive",
+            string.format("แอดมิน **%s** ทำการชุบชีวิตผู้เล่น **%s**", GetPlayerName(source), targetName),
+            15158332)
+    else
+        print(('[MJ-Respwan][revive] ปฏิเสธคำสั่งจาก source=%s (group ที่เจอ: "%s") — ไม่เข้าเงื่อนไข admin/superadmin/mod')
+            :format(tostring(source), tostring(rawGroup)))
+        if not isConsole then
+            NotifyClient(source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 'error', 3000)
         end
     end
 end)
@@ -214,10 +237,9 @@ RegisterServerEvent("mj:checkAdminPermission")
 AddEventHandler("mj:checkAdminPermission", function()
     local _source = source
     local User = getChar(_source)
-    local group = User and User.group or 'user' -- For example: "user", "mod", "admin", etc.
+    local rawGroup = User and User.group or nil
 
-    local isAdmin = (group == "admin" or group == "mod") -- you can customize
-    TriggerClientEvent("mj:returnAdminPermission", _source, isAdmin)
+    TriggerClientEvent("mj:returnAdminPermission", _source, isAdminGroup(rawGroup))
 end)
 
 -- ===== ขอความช่วยเหลือ (CALL FOR HELP) =====
