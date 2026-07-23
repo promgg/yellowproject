@@ -433,6 +433,15 @@ end
 -- ทำงานทันทีไม่รอ client กลับมา ไม่เปลี่ยนพฤติกรรมส่วนนี้)
 RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
     local animData = Config.Animations[category] or Config.Animations.heal
+
+    -- MJ-ReSpwan:Client:HealAnim (progbar) กับ MJ-ReSpwan:Client:HealPlayer (เซ็ตเลือดจริง)
+    -- เป็นคนละ event ที่ server ยิง "พร้อมกัน" ตอนกดใช้ (ดู core/server.lua) — เลือดเซ็ตทันที
+    -- ไม่รอ progbar เล่นจบ (ตั้งใจ, กันโกงยกเลิกท่าแล้วได้ของฟรี) ปุ่ม log นี้ช่วยยืนยันลำดับเวลาจริง
+    if Config.Debug then
+        print(('[MJ-ReSpawn][DEBUG] HealAnim เริ่ม progbar — item=%s category=%s duration=%s'):format(
+            tostring(itemName), tostring(category), tostring(animData.duration)))
+    end
+
     -- ใช้ lp_progbar แทน MJ-Progressbar — lp_progbar เป็นเจ้าของท่า/prop/ยกเลิกเต็มๆ เหมือนเดิม
     -- lp_progbar ไม่มีฟีเจอร์โชว์ไอคอนไอเทม เลยตัด icon/name ออก (พฤติกรรมอื่นคงเดิมทุกอย่าง:
     -- duration/label/canCancel/controlDisables(disableSprint)/animation/prop(boneName) — lp_progbar
@@ -449,6 +458,10 @@ RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
             prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — lp_progbar สร้าง/แปะ/ลบให้เอง
         })
     end)
+
+    if Config.Debug then
+        print('[MJ-ReSpawn][DEBUG] HealAnim/progbar คืนค่าแล้ว (จบ/ถูกยกเลิก)')
+    end
 end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:ReviveAnim", function()
@@ -530,15 +543,31 @@ RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
         -- จุดต่างจาก MJ-Respwan เดิม (บั๊กตั้งแต่แรกก่อนผมแตะ): vorp_medic บวก "+ 100" เข้ากับ
         -- GetPlayerHealth ก่อนใช้งาน (outer buffer เหนือ core ที่เต็มอยู่แล้วตอน inner>99) —
         -- MJ-Respwan เดิมขาดตัวนี้ไป ทำให้ outer ที่คำนวณผิด scale
-        local inner = GetAttributeCoreValue(PlayerPedId(), 0)
+        local ped = PlayerPedId()
+        local inner = GetAttributeCoreValue(ped, 0)
         local outter = math.floor(GetPlayerHealth(PlayerId())) + 100
+
+        if Config.Debug then
+            print(('[MJ-ReSpawn][DEBUG] HealPlayer เริ่ม — config.health=%d | ก่อน: inner(core)=%.1f entityHealth=%d/%d outer(คำนวณ)=%d'):format(
+                health, inner, GetEntityHealth(ped), GetEntityMaxHealth(ped), outter))
+        end
 
         if inner > 99 then
             local newHealth = outter + health
-            SetEntityHealth(PlayerPedId(), newHealth, 0)
+            SetEntityHealth(ped, newHealth, 0)
+            if Config.Debug then
+                Citizen.Wait(0) -- ให้ engine apply ค่าก่อนอ่านกลับ 1 เฟรม
+                print(('[MJ-ReSpawn][DEBUG] HealPlayer[branch=SetEntityHealth] สั่ง=%d -> หลัง: entityHealth=%d/%d inner(core)=%.1f'):format(
+                    newHealth, GetEntityHealth(ped), GetEntityMaxHealth(ped), GetAttributeCoreValue(ped, 0)))
+            end
         else
             local newHealth = inner + health
-            SetAttributeCoreValue(PlayerPedId(), 0, newHealth)
+            SetAttributeCoreValue(ped, 0, newHealth)
+            if Config.Debug then
+                Citizen.Wait(0)
+                print(('[MJ-ReSpawn][DEBUG] HealPlayer[branch=SetAttributeCoreValue] สั่ง=%d -> หลัง: inner(core)=%.1f entityHealth=%d/%d'):format(
+                    newHealth, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
+            end
         end
     end
 
