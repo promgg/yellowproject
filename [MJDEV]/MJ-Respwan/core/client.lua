@@ -555,38 +555,48 @@ end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
     if health and health > 0 then
-        -- 2 รอบก่อนพัง (เดาสูตรเองผิดทั้งคู่) — รอบนี้ copy pattern จาก vorp_medic:Client:HealPlayer
-        -- (client/main.lua:388-401) ตรงๆ แทน — ระบบหมอที่ proven ใช้งานได้จริงในโปรเจกต์นี้ และ
-        -- MJ-Respwan ตั้งใจ derive มาจากมันตั้งแต่ต้น (โครงสร้าง/ชื่อตัวแปรเหมือนกันเป๊ะ)
+        -- ประวัติ: 2 รอบแรกเดาสูตรเองผิด, รอบที่ 3 copy pattern if/else จาก vorp_medic:Client:HealPlayer
+        -- (client/main.lua:388-401) ซึ่งก็ยังพึ่ง native regen อยู่ดี — รอบนี้ (รอบที่ 4) เลิกพึ่ง regen
         --
-        -- จุดต่างจาก MJ-Respwan เดิม (บั๊กตั้งแต่แรกก่อนผมแตะ): vorp_medic บวก "+ 100" เข้ากับ
-        -- GetPlayerHealth ก่อนใช้งาน (outer buffer เหนือ core ที่เต็มอยู่แล้วตอน inner>99) —
-        -- MJ-Respwan เดิมขาดตัวนี้ไป ทำให้ outer ที่คำนวณผิด scale
+        -- ⚠️ เลิกใช้ if/else "แตะ core หรือ outer อย่างใดอย่างหนึ่ง" แบบเดิม
+        -- เพราะมันพึ่ง native regen เป็นตัวเชื่อมสองค่านี้ ซึ่งตอนนี้ถูกปิดถาวรไปแล้ว (48fed70):
+        --
+        -- RDR3 มีเลือด 2 ชั้น: inner core (0-100) กับ outer entity health (0-600)
+        --   * nx_hud โชว์ "เฉพาะ outer" เท่านั้น (nx_hud/client/client.lua:365-382 อ่าน GetEntityHealth
+        --     /GetEntityMaxHealth แล้วปัดเป็น % จำนวนเต็ม — ไม่เคยอ่าน core index 0 เลย) แปลว่า
+        --     1% ของหลอด = 6 หน่วย entity health
+        --   * โค้ดเดิม เมื่อ core ≤ 99 จะสั่งแค่ SetAttributeCoreValue (แตะ core อย่างเดียว ไม่แตะ outer)
+        --     แล้วปล่อยให้ native regen ค่อยๆ ไล่เติม outer ตาม core ใหม่ให้เอง = ที่มาของอาการ
+        --     "เลือดค่อยๆ เพิ่ม" เดิม พอปิด regen ทิ้ง outer เลยไม่ขยับตามอีกต่อไป หลอดบน HUD ค้าง
+        --     = อาการ "กดใช้ยาแล้วเลือดไม่ขึ้น"
+        --
+        -- แก้: เขียน "ทั้งสองชั้นตรงๆ" เหมือนที่ vorp_core ทำเองใน CoreAction.Admin.HealPlayer
+        -- (vorp_core/client/coreactions.lua:17-19 สั่ง SetAttributeCoreValue + SetEntityHealth คู่กัน)
+        -- เป็น absolute write ไม่ต้องพึ่ง regen เลย → ขึ้นทันทีและเห็นผลบนหลอดจริง
+        --
+        -- หน่วยของ Config.Items[x].health = "% ของหลอด" (สเกล 0-100 เท่ากับ core) เลยต้องคูณสเกลก่อน
+        -- ใช้กับ outer: 15 (ผ้าพันแผลเล็ก) = 15% ของ 600 = +90 entity health ไม่ใช่ +15 (ซึ่งเป็นแค่
+        -- 2.5% ของหลอด — มองแทบไม่เห็น และเป็นเหตุผลที่ดูเหมือน "ไม่ขึ้น" แม้ค่าจะขยับจริง)
         local ped = PlayerPedId()
+        local maxHealth = GetEntityMaxHealth(ped)
         local inner = GetAttributeCoreValue(ped, 0)
-        local outter = math.floor(GetPlayerHealth(PlayerId())) + 100
+        local curOuter = GetEntityHealth(ped)
 
         if Config.Debug then
-            print(('[MJ-ReSpawn][DEBUG] HealPlayer เริ่ม — config.health=%d | ก่อน: inner(core)=%.1f entityHealth=%d/%d outer(คำนวณ)=%d'):format(
-                health, inner, GetEntityHealth(ped), GetEntityMaxHealth(ped), outter))
+            print(('[MJ-ReSpawn][DEBUG] HealPlayer เริ่ม — config.health=%d (=%d%% ของหลอด) | ก่อน: inner(core)=%.1f entityHealth=%d/%d'):format(
+                health, health, inner, curOuter, maxHealth))
         end
 
-        if inner > 99 then
-            local newHealth = outter + health
-            SetEntityHealth(ped, newHealth, 0)
-            if Config.Debug then
-                Citizen.Wait(0) -- ให้ engine apply ค่าก่อนอ่านกลับ 1 เฟรม
-                print(('[MJ-ReSpawn][DEBUG] HealPlayer[branch=SetEntityHealth] สั่ง=%d -> หลัง: entityHealth=%d/%d inner(core)=%.1f'):format(
-                    newHealth, GetEntityHealth(ped), GetEntityMaxHealth(ped), GetAttributeCoreValue(ped, 0)))
-            end
-        else
-            local newHealth = inner + health
-            SetAttributeCoreValue(ped, 0, newHealth)
-            if Config.Debug then
-                Citizen.Wait(0)
-                print(('[MJ-ReSpawn][DEBUG] HealPlayer[branch=SetAttributeCoreValue] สั่ง=%d -> หลัง: inner(core)=%.1f entityHealth=%d/%d'):format(
-                    newHealth, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
-            end
+        local newInner = math.min(100, math.floor(inner + health))
+        local newOuter = math.min(maxHealth, curOuter + math.floor(health / 100 * maxHealth))
+
+        SetAttributeCoreValue(ped, 0, newInner)
+        SetEntityHealth(ped, newOuter, 0)
+
+        if Config.Debug then
+            Citizen.Wait(0) -- ให้ engine apply ค่าก่อนอ่านกลับ 1 เฟรม
+            print(('[MJ-ReSpawn][DEBUG] HealPlayer สั่ง core=%d outer=%d -> หลัง: inner(core)=%.1f entityHealth=%d/%d'):format(
+                newInner, newOuter, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
         end
     end
 
