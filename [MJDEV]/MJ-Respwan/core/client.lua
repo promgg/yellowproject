@@ -623,16 +623,25 @@ RegisterCommand("mjhealtest", function(_, args)
     TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item)
     TriggerEvent("MJ-ReSpwan:Client:HealPlayer", itemCfg.health, itemCfg.stamina)
 
-    -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 250ms x 2 วิ
+    -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 300ms จนกว่าจะนิ่ง (ไม่ขยับ 3 รอบติด) หรือครบ 15 วิ (กันลูปค้าง)
+    -- รอบก่อนหน้าวัดแค่ 2 วิแล้ว entityHealth ยังไม่นิ่ง (inner/core นิ่งทันที แต่ entityHealth ไล่ตามช้าๆ
+    -- อยู่ — ต้องสงสัย native passive regen ของเกมเองที่ไล่ entityHealth ให้ตาม core ใหม่แบบ interpolate
+    -- ไม่ใช่ HUD animate เฉยๆ) ยืดเวลาให้พอเห็นจุดที่มันนิ่งจริง จะได้รู้ค่า target สุดท้ายที่ native ไล่ไปหา
     local animData = Config.Animations[itemCfg.category] or Config.Animations.heal
     Citizen.Wait(animData.duration)
-    print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 250ms:')
-    for i = 0, 8 do
+    print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 300ms จนกว่าจะนิ่ง (สูงสุด 15 วิ):')
+    local lastHealth, stableCount, elapsed = nil, 0, 0
+    while elapsed <= 15000 and stableCount < 3 do
+        local curHealth = GetEntityHealth(ped)
         print(('[MJ-ReSpawn][TEST] +%dms — inner=%.1f entityHealth=%d/%d')
-            :format(i * 250, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
-        Citizen.Wait(250)
+            :format(elapsed, GetAttributeCoreValue(ped, 0), curHealth, GetEntityMaxHealth(ped)))
+        stableCount = (curHealth == lastHealth) and (stableCount + 1) or 0
+        lastHealth = curHealth
+        Citizen.Wait(300)
+        elapsed = elapsed + 300
     end
-    print('[MJ-ReSpawn][TEST] จบการวัดค่า — ถ้าเลข inner/entityHealth เท่ากันทุกบรรทัดตั้งแต่ +0ms = เซ็ตทันที (ปัญหาอยู่ที่ HUD animate) ถ้าเลขขยับขึ้นเรื่อยๆ = มีอะไรแย่งค่าอยู่')
+    print(('[MJ-ReSpawn][TEST] จบการวัดค่า — %s ที่ +%dms (entityHealth สุดท้าย=%d) — ถ้านิ่งแล้วค่อยนิ่ง (ไม่ใช่ตั้งแต่ +0ms) ยืนยันว่ามี native regen ไล่ค่าอยู่จริง ไม่ใช่แค่ HUD animate')
+        :format(stableCount >= 3 and 'นิ่งแล้ว' or 'ยังไม่นิ่งแม้ครบเวลาสูงสุด', elapsed, lastHealth or -1))
 end, false)
 
 function StartAutoRespawn()
