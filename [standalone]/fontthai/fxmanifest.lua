@@ -6,5 +6,6 @@ author 'Zudrangma (ฟอนต์ไทย) — แพ็คเป็น RedM'
 description 'ฟอนต์ไทย native RDR2 — สตรีม font_lib_efigs.gfx (ฝัง glyph ไทยโดย Zudrangma) ทับฟอนต์ UI ของเกม ให้ข้อความ scaleform/native ในเกมแสดงภาษาไทยได้'
 version '1.0.0'
 
--- ไฟล์ใน stream/ ถูก auto-stream เป็น game asset ทับของเกมตามชื่อ (font_lib_efigs.gfx)
--- ไม่ต้องประกาศเพิ่ม — แค่มี ensure fontthai ก็โหลดให้
+-- ไฟล์ใน stream/ ถูก auto-stream เป็น game asset (font_lib_efigs(_pc).gfx)
+-- แต่ "แค่ stream ไม่พอ" — client.lua ต้อง RegisterFontFile() ให้ engine โหลดฟอนต์จริง
+client_script 'client.lua'
