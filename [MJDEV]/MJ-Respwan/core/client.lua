@@ -523,22 +523,23 @@ end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
     if health and health > 0 then
-        -- ยืนยันจาก nx_hud (HUD ที่โชว์เลือดผู้เล่นจริงบนจอ พิสูจน์แล้วว่าถูก — ดู
-        -- nx_hud/client/client.lua:533-537): เลือดที่เห็นบนจอมาจาก GetEntityHealth/
-        -- GetEntityMaxHealth (entity health, max แบบ dynamic ต่อผู้เล่น) ไม่ใช่
-        -- GetAttributeCoreValue — core index 0 ไม่ใช่ตัวควบคุม HP bar ที่เห็นจริง (fix รอบก่อน
-        -- ที่เปลี่ยนไปตั้งค่า core เลยไม่มีผลกับเลือดที่เห็นเลย = "กดยาแล้วเลือดไม่เพิ่ม")
+        -- 2 รอบก่อนพัง (เดาสูตรเองผิดทั้งคู่) — รอบนี้ copy pattern จาก vorp_medic:Client:HealPlayer
+        -- (client/main.lua:388-401) ตรงๆ แทน — ระบบหมอที่ proven ใช้งานได้จริงในโปรเจกต์นี้ และ
+        -- MJ-Respwan ตั้งใจ derive มาจากมันตั้งแต่ต้น (โครงสร้าง/ชื่อตัวแปรเหมือนกันเป๊ะ)
         --
-        -- config.health = "เปอร์เซ็นต์ของเลือดเต็มที่จะเพิ่ม" (0-100) ต้องแปลงเป็นหน่วยจริงของ
-        -- entity health ก่อนบวก เพราะ MaxHealth จริงไม่ใช่ 100 คงที่เสมอไป (เซิร์ฟนี้ตั้งไว้ที่ 600
-        -- ใน nx_hud Config.Player.HealthMax) ไม่งั้นสัดส่วนที่เพิ่มจริงจะผิดเพี้ยนจากที่ตั้งค่าไว้
-        local ped = PlayerPedId()
-        local maxHealth = GetEntityMaxHealth(ped)
-        if not maxHealth or maxHealth <= 0 then maxHealth = 100 end
-        local current = GetEntityHealth(ped)
-        local healthToAdd = (health / 100) * maxHealth
-        local newHealth = math.min(maxHealth, current + healthToAdd)
-        SetEntityHealth(ped, newHealth, 0)
+        -- จุดต่างจาก MJ-Respwan เดิม (บั๊กตั้งแต่แรกก่อนผมแตะ): vorp_medic บวก "+ 100" เข้ากับ
+        -- GetPlayerHealth ก่อนใช้งาน (outer buffer เหนือ core ที่เต็มอยู่แล้วตอน inner>99) —
+        -- MJ-Respwan เดิมขาดตัวนี้ไป ทำให้ outer ที่คำนวณผิด scale
+        local inner = GetAttributeCoreValue(PlayerPedId(), 0)
+        local outter = math.floor(GetPlayerHealth(PlayerId())) + 100
+
+        if inner > 99 then
+            local newHealth = outter + health
+            SetEntityHealth(PlayerPedId(), newHealth, 0)
+        else
+            local newHealth = inner + health
+            SetAttributeCoreValue(PlayerPedId(), 0, newHealth)
+        end
     end
 
     if stamina and stamina > 0 then
