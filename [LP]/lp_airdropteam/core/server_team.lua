@@ -95,6 +95,25 @@ function StartTeamRound()
             Citizen.Wait(1000)
         end
         if RoundActive then
+            -- ปิดรับสมัครแล้วไม่มีใครสมัครเลย = ยกเลิกกิจกรรมทิ้ง ไม่ปล่อยให้รอบว่างรันต่อ
+            --
+            -- เดิมรอบว่างรันต่อจนครบ Config["TimeToRemove"] (30 นาที): กล่อง/blip/PTFX ค้างบนแมพ,
+            -- zone lock เปิด (ใครเดินเข้าเขตโดนดาเมจ/เด้งออก), IsAirdropStarted ค้าง = จัดรอบใหม่
+            -- หรือสั่ง /apteam ไม่ได้เลยจนกว่าจะครบเวลา
+            --
+            -- AirdropAutoDelete() (server.lua) เป็นตัวเดียวที่ล้างครบทั้ง prop/blip/zone lock/state
+            -- และเรียก EndTeamRound() ให้เอง — GameFinish() ใช้ไม่ได้ (ทิ้ง blip ค้างฝั่ง client)
+            if next(PlayerTeam) == nil then
+                DBG('Joining locked with 0 participants -> cancelling round')
+                TriggerClientEvent('pNotify:SendNotification', -1, {
+                    text = 'สิ้นสุดกิจกรรมแอร์ดรอป เนื่องจากไม่มีผู้เข้าร่วม',
+                    type = 'warning',
+                    timeout = 6000,
+                })
+                AirdropAutoDelete()
+                return
+            end
+
             JoiningLocked = true
             DBG('Zone opened (safe zone timer elapsed)')
             TriggerClientEvent('lp_airdropteam:CL:ZoneOpened', -1)
