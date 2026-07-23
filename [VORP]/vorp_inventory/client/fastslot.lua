@@ -185,3 +185,27 @@ CreateThread(function()
         end
     end
 end)
+
+-- ทางที่ 3: global hotkey  Alt(modifier) + 1..6  — ใช้ fast-slot ได้ "ทุกเมื่อ" ไม่ต้องเปิดกระเป๋า
+--
+-- ใช้ raw virtual-key (เหมือน bcc-utils/buttons) จึง "ไม่แตะ control ของเกม" เลย:
+--   ปุ่ม 1-6 เปล่า ๆ = สลับอาวุธของเกมตามปกติ (ไม่โดนกิน)
+--   Alt+1..6        = ใช้ fast-slot (เกมไม่ได้ผูก Alt+เลขไว้ จึงไม่ชนกัน)
+-- Alt ไม่กด -> sleep 250ms (เบา ไม่กิน resmon) / Alt กดค้าง -> poll ทุกเฟรมให้ตอบสนองไว
+-- useFastSlot() มี guard pause-menu + server cooldown 500ms อยู่แล้ว จึงยิงซ้ำไม่ได้
+local MODIFIER_VK = Config.FastSlotHotkeyModifierVK or 0x12 -- 0x12 = VK_MENU (Alt ซ้าย/ขวา)
+CreateThread(function()
+    while true do
+        local sleep = 250
+        if Config.FastSlotGlobalHotkey ~= false and IsRawKeyDown(MODIFIER_VK) then
+            sleep = 0
+            for i = 1, math.min(MAX_SLOTS, 9) do
+                -- VK_1..VK_9 = 0x31..0x39  →  0x30 + i
+                if IsRawKeyPressed(0x30 + i) then
+                    useFastSlot(i)
+                end
+            end
+        end
+        Wait(sleep)
+    end
+end)

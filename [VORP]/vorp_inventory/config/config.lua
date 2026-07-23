@@ -249,6 +249,14 @@ Config = {
 	-- server มี cooldown 500ms กรองให้เหลือครั้งเดียวถ้าทั้งสองทางยิงพร้อมกัน
 	-- ตอนกระเป๋าปิดไม่แตะ control ของเกมเลย ปุ่ม 1-6 จึงเป็นการเลือกอาวุธปกติของเกมเต็มที่
 	FastSlotCount = 6,
+
+	-- ===== Global hotkey: Alt + 1..6 ใช้ fast-slot ได้ "ทุกเมื่อ" (กระเป๋าเปิดหรือปิด) =====
+	-- ใช้ raw key (virtual key code) ไม่แตะ control ของเกม → Alt+เลข "ไม่ชน" ปุ่มสลับอาวุธ 1-6 ปกติ
+	--   true  = เปิด (แนะนำ) — กด Alt ค้าง แล้วกด 1-6 เพื่อใช้ของในช่องนั้นได้เลย ไม่ต้องเปิดกระเป๋า
+	--   false = ปิด — ใช้ fast-slot ได้เฉพาะตอนเปิดกระเป๋าแบบเดิม
+	FastSlotGlobalHotkey = true,
+	-- virtual key code ของปุ่ม modifier (ค่าเริ่ม 0x12 = Alt ซ้าย/ขวา / ถ้าอยากใช้ Ctrl ตั้ง 0x11 / Shift 0x10)
+	FastSlotHotkeyModifierVK = 0x12,
 	-- dropp items can have a diferent model added them here item name and object
 	spawnableProps             = {
 		default_box = "p_cottonbox01x", -- default when object is not found will always spawn this object for weapon or items
