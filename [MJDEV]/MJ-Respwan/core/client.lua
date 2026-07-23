@@ -522,30 +522,35 @@ RegisterNetEvent('MJ-ReSpwan:client:adminRevive', function()
     if not isDead then
         return
     end
-    if not isAdmin() then
-        return
-    end
 
-    DoScreenFadeOut(500)
+    -- isAdmin(callback) เป็น async (รอ server ตอบ mj:returnAdminPermission) ไม่ได้ return ค่าตรงๆ —
+    -- ของเดิม `if not isAdmin() then return end` เช็ค return value ของฟังก์ชันที่ไม่เคย return อะไรเลย
+    -- (nil เสมอ) ทำให้ `not isAdmin()` เป็น true ตลอด แล้ว return ออกก่อนถึง revive logic ทุกครั้ง —
+    -- ต้อง wrap ทั้งก้อนไว้ใน callback แทนถึงจะรอผลจริงจาก server ก่อนตัดสินใจ
+    isAdmin(function(ok)
+        if not ok then return end
 
-    Wait(1000)
+        DoScreenFadeOut(500)
 
-    NetworkResurrectLocalPlayer(pos.x, pos.y, pos.z, GetEntityHeading(PlayerPedId()), true, false)
-    SetEntityInvincible(PlayerPedId(), false)
-    ClearPedBloodDamage(PlayerPedId())
-    SetAttributeCoreValue(PlayerPedId(), 0, 100) -- SetAttributeCoreValue
-    SetAttributeCoreValue(PlayerPedId(), 1, 100) -- SetAttributeCoreValue
-    DisableNativeHealthRecharge() -- NetworkResurrectLocalPlayer รีเซ็ต native regen กลับมา ต้องปิดซ้ำ
-    Wait(1500)
+        Wait(1000)
 
-    DoScreenFadeIn(1800)
-    CloseUi()
-    EndDeathCam()
-    isDead = false
-    sentDeathLog = false
-    TriggerServerEvent("vorp:ImDead", false)
-    LocalPlayer.state:set('isDead', false, true)
-    TriggerServerEvent("mj:discordReviveLog", "ถูกแอดมินชุบชีวิต") -- เพิ่มบรรทัดนี้
+        NetworkResurrectLocalPlayer(pos.x, pos.y, pos.z, GetEntityHeading(PlayerPedId()), true, false)
+        SetEntityInvincible(PlayerPedId(), false)
+        ClearPedBloodDamage(PlayerPedId())
+        SetAttributeCoreValue(PlayerPedId(), 0, 100) -- SetAttributeCoreValue
+        SetAttributeCoreValue(PlayerPedId(), 1, 100) -- SetAttributeCoreValue
+        DisableNativeHealthRecharge() -- NetworkResurrectLocalPlayer รีเซ็ต native regen กลับมา ต้องปิดซ้ำ
+        Wait(1500)
+
+        DoScreenFadeIn(1800)
+        CloseUi()
+        EndDeathCam()
+        isDead = false
+        sentDeathLog = false
+        TriggerServerEvent("vorp:ImDead", false)
+        LocalPlayer.state:set('isDead', false, true)
+        TriggerServerEvent("mj:discordReviveLog", "ถูกแอดมินชุบชีวิต") -- เพิ่มบรรทัดนี้
+    end)
 end)
 
 RegisterNetEvent("MJ-ReSpwan:Client:HealPlayer", function(health, stamina)
