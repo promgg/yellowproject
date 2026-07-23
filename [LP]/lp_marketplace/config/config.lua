@@ -24,7 +24,7 @@ Config.Zones = {
         coords = vector3(1439.3651, 328.5001, 89.5615),
         radius = 3.0,
         item   = { enabled = false, item = '' },
-        blip   = { enabled = true,  sprite = 819673798, scale = 0.6, label = 'ตลาดกลาง' }, -- blip_shop_market_stall
+        blip   = { enabled = true,  sprite = 819673798, scale = 0.6, label = 'Marketplace' }, -- blip_shop_market_stall (RedM เรนเดอร์ไทยบน blip ไม่ได้)
         textui = 'กด [E] เพื่อเปิดตลาด',
         -- casp_coachrobbery_lenny_males_01 เดิม เป็นโมเดลเฉพาะคัตซีนภารกิจปล้นรถม้า (Lenny) ไม่ stream
         -- เป็น ped ทั่วไปนอกภารกิจ ทำให้ LoadModel timeout ไม่มี NPC ขึ้น เปลี่ยนเป็นโมเดลที่ยืนยันแล้ว
