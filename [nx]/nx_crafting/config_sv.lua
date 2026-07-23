@@ -534,7 +534,7 @@ ConfigSv["Category"] = {
                         fail_chance = 0,
                         success_rate = 100,
                         -- คราฟ 1 ครั้งได้ 10 ชิ้น (giveAmount คูณกับผลลัพธ์ — recipeOutputCount ใน server.lua)
-                        giveAmount = 10,
+                        giveAmount = 5,
                         -- max_stack = เพดาน "จำนวนที่ถือได้" ไม่ใช่จำนวนต่อครั้ง
                         -- เดิม 10 ซึ่งเท่ากับผลผลิตพอดี ทำให้คราฟได้เฉพาะตอนมี 0 ชิ้น
                         -- (เช็คคือ current + reward > max) ครั้งที่สองจะโดนบล็อกทันที
