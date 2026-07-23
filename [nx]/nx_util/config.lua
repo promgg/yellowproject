@@ -18,7 +18,7 @@ Config.AntiCombat = {
 
     -- false = ปล่อย animation แนว RP threat เช่น ล็อคคอ, มีดจี้, ปืนจ่อหัว
     -- true = บล็อก grapple/choke/lock-on/context threat action ใกล้ผู้เล่นด้วย
-    BlockRoleplayThreatActions = false,
+    BlockRoleplayThreatActions = true,
 
     -- true = debug print ตอนระบบเริ่มทำงาน
     Debug = false
