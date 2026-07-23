@@ -161,7 +161,7 @@ html, body {
 
 /* ย่อจาก 150px — พื้นที่ที่คืนมาไปชดเชยการ์ดที่แคบลงจากการเรียง 5 ใบแถวเดียว */
 .card-image {
-  height: 104px;
+  height: 170px;
   background-size: cover;
   background-position: center;
   border-bottom: 1px solid rgba(240, 202, 120, 0.25);
