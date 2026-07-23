@@ -178,6 +178,19 @@ local function StartEvent()
     SetTimeout(Config.EventDuration * 1000, function()
         if Event.active then EndEvent("timeout") end
     end)
+
+    -- ครบเวลาผ่อนผันแล้วยังไม่มีใครเข้าร่วมเลย = ยกเลิกกิจกรรมทิ้ง ไม่ปล่อยให้รันจนครบเวลาแบบว่างเปล่า
+    -- (กิจกรรมนี้ไม่มีจังหวะ "ปิดรับสมัคร" แยก เข้าร่วมได้ตลอด เลยต้องใช้เวลาผ่อนผันหลังเริ่มแทน —
+    --  ดู Config.EmptyGraceSeconds ตั้ง 0 เพื่อปิดฟีเจอร์)
+    local grace = tonumber(Config.EmptyGraceSeconds) or 0
+    if grace > 0 then
+        SetTimeout(grace * 1000, function()
+            if Event.active and next(Event.parts) == nil then
+                Notify(-1, 'สิ้นสุดกิจกรรมจุดแห่งสัญญา เนื่องจากไม่มีผู้เข้าร่วม', 'warning', 8000)
+                EndEvent("no_participants")
+            end
+        end)
+    end
 end
 
 -- ─── Time scheduler ─────────────────────────────────────────────────────────
