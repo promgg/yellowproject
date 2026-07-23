@@ -29,12 +29,28 @@ Config.AntiCombat = {
 Config.ActionDisableFlags = {
     Enable = true,
     Flags = {
-        1,  -- ADF_GRAPPLE
-        4,  -- ADF_KICK
-        5,  -- ADF_SHOVE
-        6,  -- ADF_CHOKE
-        32, -- ADF_AUTO_SHOVE
-        33, -- ADF_TACKLE
+        0,  -- ADF_MELEE           ต่อยเปล่า/ฟันระยะประชิด
+        1,  -- ADF_GRAPPLE         จับล็อกตัว
+        2,  -- ADF_ATTACK          แอ็กชันโจมตี (ดู note ด้านล่าง)
+        3,  -- ADF_KNOCKOUT        น็อกสลบ
+        4,  -- ADF_KICK            เตะ
+        5,  -- ADF_SHOVE           ผลัก
+        6,  -- ADF_CHOKE           รัดคอ
+        13, -- ADF_DISARM          ปัดอาวุธหลุดมือ
+        15, -- ADF_TAKEDOWN        ทุ่ม/จับล้ม
+        16, -- ADF_EXECUTION       ประหาร (finisher)
+        17, -- ADF_STEALTH_KILL    ลอบสังหาร
+        26, -- ADF_ARM_GRAB        คว้าแขน
+        27, -- ADF_LEG_GRAB        คว้าขา
+        28, -- ADF_KNOCKDOWN       ทำให้ล้ม
+        30, -- ADF_DEFENSIVE_AREA_AUTO_GRAPPLE  auto-grapple ในพื้นที่ป้องกัน
+        31, -- ADF_GRAPPLE_TRANSITION           เปลี่ยนท่าขณะล็อกตัว
+        32, -- ADF_AUTO_SHOVE      ผลักอัตโนมัติตอนเดินชน
+        33, -- ADF_TACKLE          พุ่งเข้าใส่
+        34, -- ADF_PAIRED_TURN_ATTACK           โจมตีคู่แบบหมุนตัว
     },
+    -- ตั้งใจ "ไม่" ปิดกลุ่มป้องกัน/ดิ้นหนี เพราะปิดแล้วผู้เล่นจะติดกับ ออกจากท่าไม่ได้:
+    --   7 BLOCKING · 8 COUNTER · 10 DODGE · 11 PARRY · 20 STRUGGLE
+    --   21 ESCAPE · 22 REVERSAL · 23 BREAKOUT · 24 RELEASE
     Debug = false,
 }
