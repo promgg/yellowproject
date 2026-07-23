@@ -18,15 +18,31 @@ local function NotifyClient(src, text, ntype, timeout)
     })
 end
 
--- เช็คว่า group ที่ได้จาก character.group เป็นระดับแอดมินไหม — normalize (lower+trim) ก่อนเทียบ เพราะ
--- ค่าจริงอาจมี casing/whitespace ไม่ตรงกับ "admin" เป๊ะๆ (เช่น "Admin") แล้วรับหลายชื่อกลุ่มที่ใช้จริงใน
--- โปรเจกต์นี้ (ดู lp_deathmatch/server/config_server.lua: adminGroups = {'admin','superadmin'}) — ก่อน
--- แก้ตัวนี้ MJ-Respwan เช็คแค่ playerGroup == "admin" ตรงๆ ทำให้ deny แบบเงียบสนิทถ้า group จริงไม่ตรงเป๊ะ
+-- เช็คว่า group เป็นระดับแอดมินไหม — normalize (lower+trim) ก่อนเทียบ เพราะค่าจริงอาจมี casing/whitespace
+-- ไม่ตรงกับ "admin" เป๊ะๆ (เช่น "Admin") แล้วรับหลายชื่อกลุ่มที่ใช้จริงในโปรเจกต์นี้ (ดู
+-- lp_deathmatch/server/config_server.lua: adminGroups = {'admin','superadmin'})
 local ADMIN_GROUPS = { admin = true, superadmin = true, mod = true }
 local function isAdminGroup(rawGroup)
     if type(rawGroup) ~= 'string' then return false end
     local normalized = rawGroup:lower():gsub('^%s+', ''):gsub('%s+$', '')
     return ADMIN_GROUPS[normalized] == true
+end
+
+-- เช็คสิทธิ์แอดมินของ source — เดิม MJ-Respwan เช็คแค่ character.group (ของตัวละครที่กำลังเล่นอยู่)
+-- แต่คำสั่ง /heal ของ vorp_core เอง (ที่ทดสอบแล้วใช้งานได้จริง) เช็คจาก Core.getUser(src).getGroup ซึ่ง
+-- เป็น group ระดับ "user/account" คนละตัวกับ character.group (vorp_core/server/commands.lua:78) —
+-- บัญชีอาจตั้ง group เป็น admin ไว้ที่ระดับ user แต่ character ปัจจุบันไม่มี/ไม่ตรง ทำให้ /heal ผ่านแต่
+-- /revive (เช็คแค่ character.group) ไม่ผ่าน ตรงกับอาการที่เจอเป๊ะ — เช็คทั้งสองระดับ ผ่านอันใดอันหนึ่งพอ
+local function isSourceAdmin(src)
+    local user = Core.getUser(src)
+    if not user then return false end
+
+    if isAdminGroup(user.getGroup) then
+        return true
+    end
+
+    local character = user.getUsedCharacter
+    return isAdminGroup(character and character.group)
 end
 
 -- ยิง Discord webhook — ข้ามทันทีถ้ายังไม่ตั้ง webhook (กัน PerformHttpRequest error รัวๆ)
@@ -205,15 +221,11 @@ end)
 
 
 RegisterCommand("revive", function(source, args)
-    -- source == 0 = คอนโซล/ txAdmin (เชื่อถือได้ ให้ผ่านเลย) — ผู้เล่นต้อง group ระดับแอดมิน (isAdminGroup)
-    -- เดิมเช็ค playerGroup == "admin" ตรงๆ (raw string, case-sensitive, ไม่ trim whitespace, รับแค่
-    -- "admin" กลุ่มเดียว) ถ้าค่าจริงเป็น "Admin"/"superadmin"/มี whitespace ปน จะ deny แบบเงียบสนิท
-    -- ไม่มี output ใดๆ เลย (ตรงกับอาการที่เจอ: พิมพ์ "revive 6" กี่ครั้งก็ไม่มีอะไรเกิดขึ้น ไม่มี error)
+    -- source == 0 = คอนโซล/ txAdmin (เชื่อถือได้ ให้ผ่านเลย) — ผู้เล่นต้องผ่าน isSourceAdmin (เช็คทั้ง
+    -- user group และ character group — ดูเหตุผลที่คอมเมนต์ isSourceAdmin ด้านบน)
     local isConsole = (source == 0)
-    local adminUser = not isConsole and getChar(source) or nil
-    local rawGroup = adminUser and adminUser.group or nil
 
-    if isConsole or isAdminGroup(rawGroup) then
+    if isConsole or isSourceAdmin(source) then
         local targetId = tonumber(args[1])
         if not targetId then
             if not isConsole then NotifyClient(source, 'ใช้งาน: revive <player id>', 'error', 3000) end
@@ -225,21 +237,18 @@ RegisterCommand("revive", function(source, args)
             string.format("แอดมิน **%s** ทำการชุบชีวิตผู้เล่น **%s**", GetPlayerName(source), targetName),
             15158332)
     else
-        print(('[MJ-Respwan][revive] ปฏิเสธคำสั่งจาก source=%s (group ที่เจอ: "%s") — ไม่เข้าเงื่อนไข admin/superadmin/mod')
-            :format(tostring(source), tostring(rawGroup)))
-        if not isConsole then
-            NotifyClient(source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 'error', 3000)
-        end
+        local user = Core.getUser(source)
+        local character = user and user.getUsedCharacter
+        print(('[MJ-Respwan][revive] ปฏิเสธคำสั่งจาก source=%s (userGroup="%s" characterGroup="%s") — ไม่เข้าเงื่อนไข admin/superadmin/mod')
+            :format(tostring(source), tostring(user and user.getGroup), tostring(character and character.group)))
+        NotifyClient(source, 'คุณไม่มีสิทธิ์ใช้คำสั่งนี้', 'error', 3000)
     end
 end)
 
 RegisterServerEvent("mj:checkAdminPermission")
 AddEventHandler("mj:checkAdminPermission", function()
     local _source = source
-    local User = getChar(_source)
-    local rawGroup = User and User.group or nil
-
-    TriggerClientEvent("mj:returnAdminPermission", _source, isAdminGroup(rawGroup))
+    TriggerClientEvent("mj:returnAdminPermission", _source, isSourceAdmin(_source))
 end)
 
 -- ===== ขอความช่วยเหลือ (CALL FOR HELP) =====
