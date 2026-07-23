@@ -109,6 +109,53 @@ local function filterPreviewPrompt(currentPrompt, itemMenuData)
     return false
 end
 
+-- ── ซ่อนรายการ bequeath ในเมนู ───────────────────────────────────────────────
+-- filter "mainMenu" (ไม่มีในเอกสาร — เจอจาก log ตอนเปิด jo debug) ถือโครงเมนูทั้งหมด
+-- ไล่หา table ที่มี field action ตรงกับ Config.BlockActions แล้วซ่อนทิ้ง
+--
+-- ใช้ visible=false + disabled=true แทนการ table.remove เพราะ item ผูกกับ id/index
+-- (จาก dump จริง: id=3, index=4) ถ้าลบ index จะเลื่อนหมด เสี่ยงเลือกเมนูผิดตัว
+local blockedActions = {}
+for _, name in ipairs(Config.BlockActions or {}) do
+    blockedActions[tostring(name)] = true
+end
+
+local MAX_WALK_DEPTH = 8
+
+local function hideBlockedItems(node, depth, seen)
+    if type(node) ~= 'table' or depth > MAX_WALK_DEPTH then return 0 end
+    if seen[node] then return 0 end -- กัน table วนอ้างตัวเอง
+    seen[node] = true
+
+    local hidden = 0
+
+    if type(node.action) == 'string' and blockedActions[node.action] then
+        node.visible  = false
+        node.disabled = true
+        hidden = hidden + 1
+    end
+
+    for _, v in pairs(node) do
+        if type(v) == 'table' then
+            hidden = hidden + hideBlockedItems(v, depth + 1, seen)
+        end
+    end
+
+    return hidden
+end
+
+local function filterMainMenu(menu)
+    if not Config.DisableBequeath then return menu end
+    if type(menu) ~= 'table' then return menu end
+
+    local hidden = hideBlockedItems(menu, 1, {})
+    if hidden > 0 and Config.Debug then
+        print(('^2[lp_stablehook]^7 ซ่อนรายการเมนู bequeath %d รายการ'):format(hidden))
+    end
+
+    return menu
+end
+
 -- ── ลงทะเบียน filter ─────────────────────────────────────────────────────────
 -- ⚠️ filter ต้องคืนค่าเสมอ ไม่งั้นเมนู kd_stable จะเพี้ยน
 -- (jo_libs ห่อ callback ด้วย pcall อยู่แล้ว — error จะคงค่าเดิมไว้ให้ แต่ไม่ควรพึ่ง)
@@ -124,7 +171,8 @@ CreateThread(function()
         end
     end
 
-    want('updatePreviewPrompt') -- ตัวที่ใช้บล็อก bequeath — ต้องมีเสมอ
+    want('updatePreviewPrompt') -- บล็อกปุ่มกด (prompt)
+    want('mainMenu')            -- ซ่อนรายการในเมนู (filter ที่ไม่มีในเอกสาร)
     if Config.Dump and Config.Dump.enabled then
         for _, name in ipairs(Config.Filters or {}) do want(name) end
     end
@@ -141,6 +189,8 @@ CreateThread(function()
 
                 if filterName == 'updatePreviewPrompt' then
                     return filterPreviewPrompt(value, extra)
+                elseif filterName == 'mainMenu' then
+                    return filterMainMenu(value)
                 end
 
                 return value -- filter อื่นเป็นแค่การสังเกต ไม่แก้อะไร
