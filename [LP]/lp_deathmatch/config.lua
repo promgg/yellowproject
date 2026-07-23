@@ -1,6 +1,6 @@
 Config = {}
 
-Config.Debug = false
+Config.Debug = true
 Config.Locale = 'th'
 
 -- หมายเหตุ: ค่า config อื่นๆ ทั้งหมด (เมือง, ตารางเวลา, อาวุธที่นับแต้มได้, คูลดาวน์, รางวัล ฯลฯ)

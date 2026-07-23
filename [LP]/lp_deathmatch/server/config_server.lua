@@ -25,7 +25,7 @@ Config.Security = {
     -- ระยะสูงสุดระหว่างผู้ฆ่า-เหยื่อที่ยอมรับได้ (กันรายงานเท็จข้ามแมพ) เผื่อ latency/กระสุนปืนระยะไกลไว้พอสมควร
     maxKillDistance = 80.0,
     -- คูลดาวน์ต่อคู่ผู้ฆ่า-เหยื่อ กันสองคนนัดกันผลัดกันตายฟาร์มแต้มไม่อั้น
-    pairCooldownMinutes = 10,
+    pairCooldownMinutes = 0,
     adminAce = 'lp_deathmatch.admin',
     adminGroups = { 'admin', 'superadmin' },
 }

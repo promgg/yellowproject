@@ -224,7 +224,7 @@ local function playBathScene(loc)
     end
     Citizen.InvokeNative(0x55546004A244302A, ped)
 
-    Wait(Config.BathHouse.soakMs or 5000)
+    -- Wait(Config.BathHouse.soakMs or 5000)
     cleanPed(PlayerPedId())
 
     -- ผ้าต้องเก็บก่อนเล่น outro ไม่งั้นค้างลอยอยู่ข้างอ่างเป็นซาก
