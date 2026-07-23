@@ -2,7 +2,7 @@ Lang = "English"
 
 Config = {
 	-- ======================= DEVELOPMENT ============================== --
-	Debug                      = false, -- If your server is live set this to false.  to true only if you are testing things
+	Debug                      = true, -- [เทส Alt+1..6 fast-slot] เปิดชั่วคราวให้เห็น log [fastslot:cl] — เทสเสร็จเปลี่ยนกลับเป็น false
 
 	InventoryOrder             = "weapons", -- Items or weapons what should should first in inventory
 

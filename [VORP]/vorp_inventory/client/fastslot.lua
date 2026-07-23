@@ -186,26 +186,42 @@ CreateThread(function()
     end
 end)
 
--- ทางที่ 3: global hotkey  Alt(modifier) + 1..6  — ใช้ fast-slot ได้ "ทุกเมื่อ" ไม่ต้องเปิดกระเป๋า
+-- ทางที่ 3: global hotkey  Alt + 1..6  — ใช้ fast-slot ได้ "ทุกเมื่อ" ไม่ต้องเปิดกระเป๋า
 --
--- ใช้ raw virtual-key (เหมือน bcc-utils/buttons) จึง "ไม่แตะ control ของเกม" เลย:
---   ปุ่ม 1-6 เปล่า ๆ = สลับอาวุธของเกมตามปกติ (ไม่โดนกิน)
---   Alt+1..6        = ใช้ fast-slot (เกมไม่ได้ผูก Alt+เลขไว้ จึงไม่ชนกัน)
--- Alt ไม่กด -> sleep 250ms (เบา ไม่กิน resmon) / Alt กดค้าง -> poll ทุกเฟรมให้ตอบสนองไว
--- useFastSlot() มี guard pause-menu + server cooldown 500ms อยู่แล้ว จึงยิงซ้ำไม่ได้
-local MODIFIER_VK = Config.FastSlotHotkeyModifierVK or 0x12 -- 0x12 = VK_MENU (Alt ซ้าย/ขวา)
-CreateThread(function()
-    while true do
-        local sleep = 250
-        if Config.FastSlotGlobalHotkey ~= false and IsRawKeyDown(MODIFIER_VK) then
-            sleep = 0
-            for i = 1, math.min(MAX_SLOTS, 9) do
-                -- VK_1..VK_9 = 0x31..0x39  →  0x30 + i
-                if IsRawKeyPressed(0x30 + i) then
-                    useFastSlot(i)
-                end
-            end
-        end
-        Wait(sleep)
+-- ใช้ native RegisterRawKeymap (event-driven) แบบเดียวกับ jo_libs/jo_radial ที่ทำงานได้จริง
+--   (เดิมลอง poll IsRawKeyDown/IsRawKeyPressed แล้ว "ไม่จับ Alt" บน build นี้ — เปลี่ยนมา event)
+--   RegisterRawKeymap(name, onKeyDown, onKeyUp, vkCode, canBeDisabled)
+-- ไม่แตะ control ของเกมเลย: ปุ่ม 1-6 เปล่า ๆ ยังสลับอาวุธปกติ / Alt+1..6 = fast-slot (เกมไม่ได้ผูก Alt+เลข)
+-- useFastSlot() มี guard pause-menu + server cooldown 500ms อยู่แล้ว
+if Config.FastSlotGlobalHotkey ~= false then
+    local resName = GetCurrentResourceName()
+    local MOD_VK = Config.FastSlotHotkeyModifierVK or 0x12 -- 0x12 = MENU (Alt)
+    local modHeld = false
+
+    local function setMod(state)
+        modHeld = state
+        dbg("modifier", state and "^2DOWN^7" or "^1UP^7")
     end
-end)
+
+    -- modifier: ดัก MENU (0x12) + เผื่อ build ที่ส่งเป็น LMENU(0xA4)/RMENU(0xA5) แยก
+    RegisterRawKeymap(resName .. ":fastslot:mod",  function() setMod(true) end, function() setMod(false) end, MOD_VK, true)
+    if MOD_VK == 0x12 then
+        RegisterRawKeymap(resName .. ":fastslot:modL", function() setMod(true) end, function() setMod(false) end, 0xA4, true)
+        RegisterRawKeymap(resName .. ":fastslot:modR", function() setMod(true) end, function() setMod(false) end, 0xA5, true)
+    end
+
+    -- เลข 1..MAX_SLOTS: ตอน "กดลง" ถ้า Alt ค้างอยู่ -> ใช้ fast-slot ช่องนั้น
+    for i = 1, math.min(MAX_SLOTS, 9) do
+        local slot = i
+        local vk = 0x30 + i -- VK_1..VK_9 = 0x31..0x39
+        RegisterRawKeymap(resName .. ":fastslot:num" .. i, function()
+            dbg(("กดเลข %d (Alt ค้าง=%s)"):format(slot, tostring(modHeld)))
+            -- fallback: เช็ค IsRawKeyDown เผื่อ event modifier พลาด (build บางตัวไม่ยิง up/down ครบ)
+            if modHeld or IsRawKeyDown(MOD_VK) or IsRawKeyDown(0xA4) or IsRawKeyDown(0xA5) then
+                dbg("^2Alt+" .. slot .. " -> ใช้ fast-slot^7")
+                useFastSlot(slot)
+            end
+        end, function() end, vk, true)
+    end
+    dbg("ลงทะเบียน global hotkey Alt+1.." .. math.min(MAX_SLOTS, 9) .. " (RegisterRawKeymap) เรียบร้อย")
+end
