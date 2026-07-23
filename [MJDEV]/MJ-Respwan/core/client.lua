@@ -391,6 +391,17 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- ยืนยันด้วย /mjhealtest แล้ว (บังคับ 0.0 ก่อนเทส 4 รอบติด — entityHealth นิ่งสนิททุกรอบ ไม่ไต่เลย):
+-- ต้นเหตุที่เลือด "ค่อยๆ เพิ่ม" หลังใช้ยา คือ native health recharge ของเกม (SetPlayerHealthRechargeMultiplier)
+-- ไม่ได้ถูกปิดจริงตอน respawn — vorp_core ปิดค่านี้แค่ครั้งเดียวตอน "vorp:initCharacter" (เลือกตัวละคร/
+-- login เท่านั้น — vorp_core/client/spawnplayer.lua:127-129) ไม่ได้ปิดซ้ำตอนตาย/เกิดใหม่ระหว่างเล่น ส่วน
+-- NetworkResurrectLocalPlayer ดูจะรีเซ็ตค่า multiplier กลับเป็นค่า default ของเกม (ไม่ใช่ 0) ทำให้ entityHealth
+-- ไหลขึ้นเองแบบ background regen เชิงเส้นคงที่ (~2.1/วิ) ไม่เกี่ยวกับ core ที่เราตั้งเลย ต้องปิดซ้ำเองทุกจุดที่
+-- ผู้เล่น "กลับมามีชีวิต" (ไม่ใช่ MJ-Respwan บั๊ก — HealPlayer เซ็ตค่าทันทีตั้งแต่ frame แรกถูกต้องอยู่แล้ว)
+local function DisableNativeHealthRecharge()
+    Citizen.InvokeNative(0x8899C244EBCF70DE, PlayerId(), 0.0) -- SetPlayerHealthRechargeMultiplier(playerId, 0.0)
+end
+
 RegisterNetEvent("vorp_core:respawnPlayer", function()
     DoScreenFadeOut(0)
     DisplayRadar(false)
@@ -399,6 +410,7 @@ RegisterNetEvent("vorp_core:respawnPlayer", function()
     EndDeathCam()
     isDead = false
     sentDeathLog = false
+    DisableNativeHealthRecharge()
 end)
 AddEventHandler('playerSpawned', function()
     DoScreenFadeOut(0)
@@ -408,6 +420,7 @@ AddEventHandler('playerSpawned', function()
     EndDeathCam()
     isDead = false
     sentDeathLog = false
+    DisableNativeHealthRecharge()
 end)
 
 local function playAnimation(dict, anim, duration)
@@ -522,6 +535,7 @@ RegisterNetEvent('MJ-ReSpwan:client:adminRevive', function()
     ClearPedBloodDamage(PlayerPedId())
     SetAttributeCoreValue(PlayerPedId(), 0, 100) -- SetAttributeCoreValue
     SetAttributeCoreValue(PlayerPedId(), 1, 100) -- SetAttributeCoreValue
+    DisableNativeHealthRecharge() -- NetworkResurrectLocalPlayer รีเซ็ต native regen กลับมา ต้องปิดซ้ำ
     Wait(1500)
 
     DoScreenFadeIn(1800)
