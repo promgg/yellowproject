@@ -38,12 +38,12 @@
   var badges = []; // [{ id, remaining, el, timerSpan, mode }]
   var ticker = null;
 
-  function metaHtml(ev) {
+  function statsHtml(ev) {
     var s = '';
-    if (ev.people) s += '<span class="badge-sep"></span><span class="badge-chip ppl">' + I_PPL + esc(ev.people) + '</span>';
+    if (ev.people) s += '<span class="badge-chip ppl">' + I_PPL + esc(ev.people) + '</span>';
     if (ev.leader && ev.leader.name !== undefined) {
       var col = ev.leader.color || '#d9b779';
-      s += '<span class="badge-sep"></span><span class="badge-chip leader"><span class="dot" style="background:' + col + ';color:' + col + '"></span>' +
+      s += '<span class="badge-chip leader"><span class="dot" style="background:' + col + '"></span>' +
            esc(ev.leader.name) + (ev.leader.score !== undefined ? ' ' + esc(ev.leader.score) : '') + '</span>';
     }
     return s;
@@ -52,19 +52,21 @@
   function createBadge(ev) {
     var badge = document.createElement('div');
     badge.className = 'badge';
-    if (ev.leader && ev.leader.color) badge.style.setProperty('--accent', ev.leader.color);
 
     var isProgress = (ev.mode === 'progress');
     var secs = isProgress ? 0 : Math.max(0, Number(ev.seconds) || 0);
-    var valInner = isProgress
-      ? '[' + (Number(ev.current) || 0) + '/' + (Number(ev.total) || 0) + ']'
-      : '<span class="eye">Ends in</span><span class="v">' + formatTime(secs) + '</span>';
+    var readoutInner = isProgress
+      ? '<span class="val">[' + (Number(ev.current) || 0) + '/' + (Number(ev.total) || 0) + ']</span>'
+      : '<span class="eye">Ends in</span><span class="val">' + formatTime(secs) + '</span>';
 
     badge.innerHTML =
       '<div class="badge-icon"><img alt="" src="' + esc(resolveIcon(ev.icon)) + '"></div>' +
       '<div class="badge-body">' +
-        '<div class="badge-label">' + esc(ev.label) + '</div>' +
-        '<div class="badge-meta"><span class="badge-val">' + valInner + '</span>' + metaHtml(ev) + '</div>' +
+        '<span class="badge-label">' + esc(ev.label) + '</span>' +
+        '<div class="badge-row2">' +
+          '<div class="badge-readout">' + readoutInner + '</div>' +
+          '<div class="stats">' + statsHtml(ev) + '</div>' +
+        '</div>' +
       '</div>';
 
     var img = badge.querySelector('img');
@@ -72,7 +74,7 @@
 
     if (isProgress) return { id: ev.id, mode: 'progress', el: badge };
 
-    var vEl = badge.querySelector('.badge-val .v');
+    var vEl = badge.querySelector('.badge-readout .val');
     if (secs <= 60) badge.classList.add('is-low');
     return { id: ev.id, remaining: secs, el: badge, timerSpan: vEl };
   }
@@ -129,7 +131,7 @@
   /* ---------------- DEV ONLY (browser preview) ---------------- */
   if (IS_BROWSER) {
     show([
-      { id: 'grave',  icon: 'hot-time',    label: 'VLT GRAVE',    mode: 'progress', current: 7, total: 10 },
+      { id: 'grave',  icon: 'hot-time',    label: 'Valentine Grave', mode: 'progress', current: 7, total: 10 },
       { id: 'hot',    icon: 'hot-time',    label: 'HOT TIME',     seconds: 1240 },
       { id: 'gold',   icon: 'golden-time', label: 'GOLDEN TIME',  seconds: 47 },
       { id: 'dm',     icon: 'deathmatch',  label: 'สมบัติแห่งสัญญา', seconds: 300, people: '24/60', leader: { name: 'วาเลนไทน์', score: 12, color: '#e0503f' } }

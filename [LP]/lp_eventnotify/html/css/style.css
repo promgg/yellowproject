@@ -1,4 +1,4 @@
-/* lp_eventnotify — badge แจ้งกิจกรรมมุมขวาบน (Plaque ธีมมืด-ทอง lp_textui) */
+/* lp_eventnotify — badge แจ้งกิจกรรมมุมขวาบน (B2 "ซ้อน 3 ชั้น" ธีมมืด-ทอง lp_textui) */
 :root {
   --gold:#f0ca78; --gold-2:#d9b779; --gold-deep:#8a6a30; --gold-dark:#4a3517;
   --bone:#e7ddcc; --muted:#9a8a72; --warn:#cf5346; --ok:#6fbf8b;
@@ -18,54 +18,60 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
   display: flex; flex-direction: column; align-items: flex-end; gap: 9px;
 }
 
-/* ── badge = plaque แนวนอน: ไอคอน + label/ค่า + (คน/ผู้นำ ถ้ามี) ── */
+/* ── badge B2: เหรียญซ้าย + [ชื่อ / แถว readout+stats] ซ้อน 3 ชั้น ── */
 .badge {
-  position: relative; display: flex; align-items: center; gap: 10px;
-  padding: 8px 13px 8px 15px; border-radius: 9px;
+  --c: var(--gold); /* สีสถานะ readout — is-low เปลี่ยนเป็นแดง */
+  position: relative; display: flex; align-items: center; gap: 11px;
+  width: 250px; padding: 9px 11px; border-radius: 9px;
   background: var(--plaque);
   box-shadow: 0 0 0 1px var(--edge), 0 6px 16px rgba(0,0,0,.45);
   font-family: var(--font-sans);
   animation: badge-in .28s cubic-bezier(.2,.8,.3,1);
 }
+.badge.is-low { --c: var(--warn); }
 .badge.badge-out { animation: badge-out .28s ease-in forwards; }
 @keyframes badge-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes badge-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
 
-/* ขีดทองซ้าย (สีตามผู้นำถ้ามี ผ่าน --accent) */
-.badge::before {
-  content: ''; position: absolute; left: 5px; top: 9px; bottom: 9px; width: 3px; border-radius: 2px;
-  background: var(--accent, linear-gradient(180deg, var(--gold), var(--gold-deep)));
-}
-
+/* เหรียญไอคอนกลม */
 .badge-icon {
-  flex: 0 0 auto; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
-  border-radius: 7px; background: rgba(0,0,0,.4); box-shadow: 0 0 0 1px var(--edge); overflow: hidden;
+  flex: 0 0 auto; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; overflow: hidden;
+  background: radial-gradient(circle at 40% 30%, #2c2417, #0a0705);
+  box-shadow: 0 0 0 1px var(--gold-deep), 0 0 0 3px rgba(0,0,0,.5), 0 0 0 4px rgba(124,85,38,.5);
 }
-.badge-icon img { width: 72%; height: 72%; object-fit: contain; display: block; }
+.badge-icon img { width: 68%; height: 68%; object-fit: contain; display: block; }
 
-.badge-body { display: flex; flex-direction: column; min-width: 0; }
+.badge-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .badge-label {
-  font-family: var(--font-serif); font-weight: 700; font-size: 13px; letter-spacing: .05em;
+  font-family: var(--font-serif); font-weight: 700; font-size: 13px; letter-spacing: .04em;
   color: var(--bone); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.badge-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
-.badge-val {
-  font-family: var(--font-serif); font-weight: 700; font-size: 12px; color: var(--gold);
-  font-variant-numeric: tabular-nums;
+
+/* แถวชั้น 3: readout (กรอบ) + stats */
+.badge-row2 { display: flex; align-items: center; gap: 9px; min-width: 0; }
+
+.badge-readout {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 7px; background: rgba(0,0,0,.5);
+  box-shadow: inset 0 0 0 1px rgba(124,85,38,.55);
 }
-.badge-val .eye {
-  font-family: var(--font-sans); font-weight: 400; font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--muted); margin-right: 4px;
+.badge-readout .eye {
+  font-family: var(--font-sans); font-weight: 400; font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted);
 }
-.badge.is-low .badge-val { color: var(--warn); }
+.badge-readout .val {
+  font-family: var(--font-serif); font-weight: 700; font-size: 13px; line-height: 1; color: var(--c);
+  font-variant-numeric: tabular-nums; text-shadow: 0 0 8px color-mix(in srgb, var(--c) 35%, transparent);
+}
 
 /* chip คน / ผู้นำ (แสดงเฉพาะเมื่อมี data) */
-.badge-chip { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-serif); font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; }
-.badge-chip svg { width: 11px; height: 11px; }
+.stats { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.badge-chip { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-serif); font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-chip svg { width: 11px; height: 11px; flex: 0 0 auto; }
 .badge-chip.ppl { color: var(--muted); }
 .badge-chip.leader { color: var(--gold-2); }
-.badge-chip.leader .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px currentColor; }
-.badge-sep { width: 1px; height: 11px; background: rgba(240,202,120,.2); }
+.badge-chip.leader .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; box-shadow: 0 0 5px currentColor; }
 
 /* ── Preview overlay (dev only) ── */
 #preview-overlay {
