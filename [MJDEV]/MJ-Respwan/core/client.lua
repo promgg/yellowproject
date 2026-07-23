@@ -442,26 +442,38 @@ end
 -- (เดิมโค้ดนี้เรียก Progress() แค่โชว์ UI แถบ แล้วแยกไปเล่นท่าเองผ่าน playAnimation() ซึ่งเป็นแค่
 -- TaskPlayAnim + Wait(duration) ตรงๆ ไม่มีจุดเช็คยกเลิกเลย — กด canCancel เท่าไหร่ก็ไม่มีผลกับท่าจริง
 -- ย้ายมาส่ง animation เข้า Progress() ตรงๆ แทน ให้ progbar (lp_progbar) เป็นเจ้าของท่าเต็มๆ รวมกลไกยกเลิก
--- (Backspace) ที่มีอยู่แล้วในตัว — ยกเลิกได้แค่ท่า/UI เท่านั้น ไอเทม/เลือดเสียไปแล้วตั้งแต่กดใช้ (server
--- ทำงานทันทีไม่รอ client กลับมา ไม่เปลี่ยนพฤติกรรมส่วนนี้)
-RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
+-- (Backspace/X) ที่มีอยู่แล้วในตัว
+--
+-- ⚠️ เปลี่ยนพฤติกรรมตามที่ขอ: เลือด "ขึ้นหลัง progbar จบ" ไม่ใช่ขึ้นทันทีตอนกดใช้แบบเดิม
+-- โมเดลใหม่:
+--   * server ยัง "หัก item ทันที" ตอนกดใช้ (กันดูป/สแปม — subItemById ใน server.lua ไม่เปลี่ยน)
+--   * server ส่ง health/stamina มากับ HealAnim event นี้เลย (เลิกยิง HealPlayer แยกพร้อมกัน)
+--   * เลือดจะถูกเซ็ตใน finish callback ของ progbar "เฉพาะตอนเล่นจบสมบูรณ์" (cancelled=false)
+--   * ถ้าผู้เล่นกดยกเลิกกลางคัน (X) -> ไม่ได้เลือด + item หายไปแล้ว (จ่ายล่วงหน้า รับผิดชอบเอง)
+-- (การตัดสินใจนี้ผู้ใช้เลือกเอง: ยกเลิก = เสีย item ไม่ได้เลือด — กันโกงแน่นหนาสุด)
+RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName, health, stamina)
     local animData = Config.Animations[category] or Config.Animations.heal
 
-    -- MJ-ReSpwan:Client:HealAnim (progbar) กับ MJ-ReSpwan:Client:HealPlayer (เซ็ตเลือดจริง)
-    -- เป็นคนละ event ที่ server ยิง "พร้อมกัน" ตอนกดใช้ (ดู core/server.lua) — เลือดเซ็ตทันที
-    -- ไม่รอ progbar เล่นจบ (ตั้งใจ, กันโกงยกเลิกท่าแล้วได้ของฟรี) ปุ่ม log นี้ช่วยยืนยันลำดับเวลาจริง
     if Config.Debug then
-        print(('[MJ-ReSpawn][DEBUG] HealAnim เริ่ม progbar — item=%s category=%s duration=%s'):format(
-            tostring(itemName), tostring(category), tostring(animData.duration)))
+        print(('[MJ-ReSpawn][DEBUG] HealAnim เริ่ม progbar — item=%s category=%s duration=%s health=%s stamina=%s'):format(
+            tostring(itemName), tostring(category), tostring(animData.duration), tostring(health), tostring(stamina)))
+    end
+
+    -- กันเซ็ตเลือดซ้ำ (finish อาจถูกเรียกได้ครั้งเดียวอยู่แล้ว แต่กันไว้เผื่อ fallback ด้านล่างชนกัน)
+    local healApplied = false
+    local function applyHeal()
+        if healApplied then return end
+        healApplied = true
+        TriggerEvent("MJ-ReSpwan:Client:HealPlayer", health, stamina)
     end
 
     -- ใช้ lp_progbar แทน MJ-Progressbar — lp_progbar เป็นเจ้าของท่า/prop/ยกเลิกเต็มๆ เหมือนเดิม
     -- lp_progbar ไม่มีฟีเจอร์โชว์ไอคอนไอเทม เลยตัด icon/name ออก (พฤติกรรมอื่นคงเดิมทุกอย่าง:
-    -- duration/label/canCancel/controlDisables(disableSprint)/animation/prop(boneName) — lp_progbar
-    -- ถูกเสริมให้รองรับ disableSprint + prop.boneName แล้ว)
-    -- pcall กัน crash กรณี lp_progbar ยังไม่ขึ้น — เลือด/ไอเทมถูกจัดการฝั่ง server ไปแล้ว ท่า/แถบพลาดได้ไม่พัง
-    pcall(function()
-        exports.lp_progbar:Progress({
+    -- duration/label/canCancel/controlDisables(disableSprint)/animation/prop(boneName))
+    -- Progress(action, finish) คืน id ทันที (non-blocking) แล้วเรียก finish(cancelled) ตอนจบ/ยกเลิก
+    -- pcall กัน crash กรณี lp_progbar ยังไม่ขึ้น
+    local ok, startedId = pcall(function()
+        return exports.lp_progbar:Progress({
             duration = animData.duration,
             label = 'Heal',
             useWhileDead = false,
@@ -469,11 +481,24 @@ RegisterNetEvent("MJ-ReSpwan:Client:HealAnim", function(category, itemName)
             controlDisables = animData.controlDisables or {},
             animation = { animDict = animData.dict, anim = animData.anim, flags = animData.flags },
             prop = animData.prop, -- ผ้าพันแผล (heal) / ขวดยา (quick) — lp_progbar สร้าง/แปะ/ลบให้เอง
-        })
+        }, function(cancelled)
+            if Config.Debug then
+                print(('[MJ-ReSpawn][DEBUG] HealAnim/progbar จบ (cancelled=%s)'):format(tostring(cancelled)))
+            end
+            if not cancelled then
+                applyHeal() -- เล่นจบสมบูรณ์เท่านั้นถึงได้เลือด
+            end
+        end)
     end)
 
-    if Config.Debug then
-        print('[MJ-ReSpawn][DEBUG] HealAnim/progbar คืนค่าแล้ว (จบ/ถูกยกเลิก)')
+    -- fallback: ถ้า lp_progbar โยน error หรือ progbar ไม่ยอมเริ่ม (คืน nil เช่น ตอนตาย/ยังไม่โหลด)
+    -- ให้เซ็ตเลือดทันที กัน item ที่หักไปแล้วสูญเปล่า (เป็นเคส error/edge เท่านั้น ไม่ใช่ flow ปกติ)
+    if not ok or not startedId then
+        if Config.Debug then
+            print(('[MJ-ReSpawn][DEBUG] HealAnim progbar ไม่เริ่ม (ok=%s id=%s) -> fallback เซ็ตเลือดทันที')
+                :format(tostring(ok), tostring(startedId)))
+        end
+        applyHeal()
     end
 end)
 
@@ -657,16 +682,16 @@ RegisterCommand("mjhealtest", function(_, args)
     print(('[MJ-ReSpawn][TEST] เริ่มเทส item=%s (คาดว่าจะเพิ่ม %d) — ตั้งเลือด 10%% แล้ว: inner=%.1f entityHealth=%d/%d')
         :format(item, itemCfg.health, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
 
-    -- 3) จำลองใช้ไอเทม — เรียก event เดียวกับที่ server ยิงจริงตอนกดใช้ของ (core/server.lua:186-187)
-    TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item)
-    TriggerEvent("MJ-ReSpwan:Client:HealPlayer", itemCfg.health, itemCfg.stamina)
+    -- 3) จำลองใช้ไอเทม — เรียก HealAnim event เดียวกับที่ server ยิงจริงตอนกดใช้ของ (core/server.lua)
+    -- ส่ง health/stamina เข้าไปกับ HealAnim เลย (flow ใหม่: เลือดขึ้นหลัง progbar จบ ไม่ยิง HealPlayer แยก
+    -- แล้ว — ถ้ายิงซ้ำจะ heal 2 เด้ง) เลยรอ progbar จบก่อนค่อยเริ่มวัด
+    TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item, itemCfg.health, itemCfg.stamina)
 
     -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 300ms จนกว่าจะนิ่ง (ไม่ขยับ 3 รอบติด) หรือครบ 15 วิ (กันลูปค้าง)
-    -- รอบก่อนหน้าวัดแค่ 2 วิแล้ว entityHealth ยังไม่นิ่ง (inner/core นิ่งทันที แต่ entityHealth ไล่ตามช้าๆ
-    -- อยู่ — ต้องสงสัย native passive regen ของเกมเองที่ไล่ entityHealth ให้ตาม core ใหม่แบบ interpolate
-    -- ไม่ใช่ HUD animate เฉยๆ) ยืดเวลาให้พอเห็นจุดที่มันนิ่งจริง จะได้รู้ค่า target สุดท้ายที่ native ไล่ไปหา
+    -- เผื่อเวลา +500ms เกิน duration ให้ finish callback ของ progbar เซ็ตเลือดเสร็จก่อนเริ่มวัด (heal
+    -- ย้ายไปอยู่ที่ตอน progbar จบแล้ว ไม่ใช่ทันทีตอนเรียก)
     local animData = Config.Animations[itemCfg.category] or Config.Animations.heal
-    Citizen.Wait(animData.duration)
+    Citizen.Wait(animData.duration + 500)
     print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 300ms จนกว่าจะนิ่ง (สูงสุด 15 วิ):')
     local lastHealth, stableCount, elapsed = nil, 0, 0
     while elapsed <= 15000 and stableCount < 3 do

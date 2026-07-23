@@ -150,10 +150,10 @@ local function getClosestPlayer(source)
     return nil
 end
 
--- กันกดใช้ยารัวๆ: server หัก item + ฟื้นเลือดทันทีก่อน client จะเล่น progressbar เสร็จ (progressbar
--- ฝั่ง client บล็อกแค่ "แถบ" ซ้อน แต่ไม่บล็อกการ "หัก item + heal" ที่ทำ server-side ไปแล้ว) — spam
--- คลิกเลยกินยาหมดสต็อกทั้งที่เห็นแถบเดียว บล็อกที่ต้นทาง (registerUsableItem) ด้วย cooldown ต่อคน
--- เท่ากับ duration ของท่านั้น (heal 5000 / quick 4000 / revive ~10000) กันไม่ให้ใช้ซ้ำระหว่างท่ายังเล่นอยู่
+-- กันกดใช้ยารัวๆ: server หัก item ทันทีตอนกดใช้ (เลือดขึ้นหลัง progbar จบฝั่ง client) — ถ้าไม่มี
+-- cooldown ตรงนี้ spam คลิกจะหัก item รัวๆ หมดสต็อกทั้งที่ท่ายังเล่นไม่จบ บล็อกที่ต้นทาง
+-- (registerUsableItem) ด้วย cooldown ต่อคนเท่ากับ duration ของท่านั้น (heal 5000 / quick 4000 /
+-- revive ~10000) กันไม่ให้ใช้ซ้ำระหว่างท่ายังเล่นอยู่
 local healCooldown = {} -- [src] = GetGameTimer() ที่ใช้ยาได้อีกครั้ง
 
 AddEventHandler('playerDropped', function()
@@ -208,10 +208,10 @@ CreateThread(function()
                     "**%s** ใช้ไอเท็ม `%s` เพื่อฟื้นฟูเลือด/สตามิน่า",
                     name, key), 3447003)
 
-                -- แนบชื่อ item จริง (key) ไปด้วย ให้ progress bar โชว์รูปไอเทมที่ใช้จริง (ดึงจาก
-                -- nui://vorp_inventory/html/img/items/<key>.png — ต้องมีไฟล์รูปชื่อตรงกับ item ใน DB)
-                TriggerClientEvent("MJ-ReSpwan:Client:HealAnim", _source, value.category, key)
-                TriggerClientEvent("MJ-ReSpwan:Client:HealPlayer", _source, value.health, value.stamina)
+                -- แนบชื่อ item จริง (key) + ค่าเลือด/สตามิน่า ไปกับ HealAnim เลย (ไม่ยิง HealPlayer แยก
+                -- แล้ว) — client จะเซ็ตเลือด "หลัง progbar เล่นจบสมบูรณ์" เท่านั้น ถ้ายกเลิกกลางคัน = ไม่ได้
+                -- เลือด แต่ item ยังถูกหักไปแล้วด้านล่าง (จ่ายล่วงหน้า กันดูป/สแปม ไม่เปลี่ยน)
+                TriggerClientEvent("MJ-ReSpwan:Client:HealAnim", _source, value.category, key, value.health, value.stamina)
             end
 
             Inv:subItemById(_source, data.item.id)
