@@ -3,7 +3,7 @@ Config = {}
 
 local second = 1000
 local minute = 60 * second
-Config.Debug = true
+Config.Debug = false
 -- ตั้งค่าจริงผ่าน convar ใน server.cfg: set mj_respwan_discord_webhook "https://discord.com/api/webhooks/..."
 Config.DISCORD_WEBHOOK = GetConvar("mj_respwan_discord_webhook", "")
 Config.SpawnTime = 5 * minute -- ===> เวลาตายรอเกิด

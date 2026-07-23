@@ -646,67 +646,6 @@ function isAdmin(callback)
     end)
 end
 
--- ===== TEST COMMAND (ชั่วคราว — เอาไว้วินิจฉัยว่าเลือด "ค่อยๆ เพิ่ม" จริงหรือแค่ HUD animate) =====
--- /mjhealtest <bandage_s|bandage_xl|painkiller>
--- !! ปลด isAdmin() gate ออกชั่วคราวตามคำขอ (RegisterCommand+isAdmin เดิมกดแล้วไม่ตอบสนอง สงสัยว่า
--- server callback ของ isAdmin ไม่กลับมา/ช้า) — ตอนนี้ใครก็เรียกคำสั่งนี้ได้ไม่จำกัดสิทธิ์ ต้องใส่การเช็ค
--- แอดมินกลับก่อนขึ้นโปรดักชันจริง (คำสั่งนี้แค่ปรับเลือด/สแตมิน่าตัวเอง ไม่ได้แจกไอเทม/เงิน ความเสี่ยง
--- ต่ำ แต่ก็ไม่ควรเปิดให้ทุกคนถาวร)
--- ทำ: 1) ลดเลือดเหลือ 10% 2) debug พิมพ์ค่าก่อน/หลัง 3) จำลองใช้ไอเทม (ตรงกับ flow จริงที่ server ยิง
--- HealAnim+HealPlayer ตอนกดไอเทม แต่ยิง TriggerEvent เองแทน ไม่ต้องมีไอเทมจริงในกระเป๋า)
--- 4) วัดค่าเลือดทุก 250ms เป็นเวลา 2 วิหลัง progbar จบ — เช็คว่าเลือดนิ่งทันทีตั้งแต่ frame แรก
--- (แปลว่าที่เห็นค่อยๆ เพิ่มคือ HUD bar animate เฉยๆ) หรือค่ายังขยับต่อเนื่องหลายรอบ (แปลว่ามีอะไรบาง
--- อย่างแย่งเซ็ตค่ากลับ/regen ทับ) — ลบคำสั่งนี้ทิ้งได้หลังวินิจฉัยเสร็จ
-RegisterCommand("mjhealtest", function(_, args)
-    local item = args[1] or 'bandage_s'
-    local itemCfg = Config.Items[item]
-    if not itemCfg then
-        print(('[MJ-ReSpawn][TEST] ไม่รู้จักไอเทม "%s" — ใช้ได้: bandage_s, bandage_xl, painkiller'):format(tostring(item)))
-        return
-    end
-
-    local ped = PlayerPedId()
-
-    -- 0) ทดลองบังคับปิด native health recharge multiplier ก่อนเทส (native เดียวกับที่ vorp_core ใช้ปิด
-    -- เองตอน spawn — [VORP]/vorp_core/client/spawnplayer.lua:127-129 — เมื่อ Config.HealthRecharge.enable
-    -- = false ใน vorp_core config ปัจจุบัน) รอบเทสก่อนหน้า entityHealth ไต่ขึ้นเชิงเส้นคงที่ ~2.1/วิ
-    -- ไม่มีทีท่าชะลอแม้ผ่านไป 15 วิ (ไม่ใช่แบบ "ไล่หาเป้าหมายแล้วช้าลง") บ่งชี้ว่าอาจเป็น native recharge
-    -- ตัวนี้เองที่ไม่ได้ถูกปิดไว้จริงตอนนี้ (เช่น re-enable กลับมาหลัง MJ-Respwan ทำ respawn เอง โดยไม่ผ่าน
-    -- flow ที่ vorp_core ปิดให้) — บังคับปิดตรงนี้เพื่อดูว่า drift หายไหม ถ้าหายแปลว่าใช่ตัวการจริง
-    Citizen.InvokeNative(0x8899C244EBCF70DE, PlayerId(), 0.0) -- SetPlayerHealthRechargeMultiplier(playerId, 0.0)
-    print('[MJ-ReSpawn][TEST] บังคับปิด SetPlayerHealthRechargeMultiplier(0.0) ก่อนเทส — เช็คว่า drift หายไหม')
-
-    -- 1) ลดเลือดเหลือ 10%
-    SetAttributeCoreValue(ped, 0, 10)
-    Citizen.Wait(0)
-    print(('[MJ-ReSpawn][TEST] เริ่มเทส item=%s (คาดว่าจะเพิ่ม %d) — ตั้งเลือด 10%% แล้ว: inner=%.1f entityHealth=%d/%d')
-        :format(item, itemCfg.health, GetAttributeCoreValue(ped, 0), GetEntityHealth(ped), GetEntityMaxHealth(ped)))
-
-    -- 3) จำลองใช้ไอเทม — เรียก HealAnim event เดียวกับที่ server ยิงจริงตอนกดใช้ของ (core/server.lua)
-    -- ส่ง health/stamina เข้าไปกับ HealAnim เลย (flow ใหม่: เลือดขึ้นหลัง progbar จบ ไม่ยิง HealPlayer แยก
-    -- แล้ว — ถ้ายิงซ้ำจะ heal 2 เด้ง) เลยรอ progbar จบก่อนค่อยเริ่มวัด
-    TriggerEvent("MJ-ReSpwan:Client:HealAnim", itemCfg.category, item, itemCfg.health, itemCfg.stamina)
-
-    -- 4) วัดค่าเลือดหลัง progbar จบ ทุก 300ms จนกว่าจะนิ่ง (ไม่ขยับ 3 รอบติด) หรือครบ 15 วิ (กันลูปค้าง)
-    -- เผื่อเวลา +500ms เกิน duration ให้ finish callback ของ progbar เซ็ตเลือดเสร็จก่อนเริ่มวัด (heal
-    -- ย้ายไปอยู่ที่ตอน progbar จบแล้ว ไม่ใช่ทันทีตอนเรียก)
-    local animData = Config.Animations[itemCfg.category] or Config.Animations.heal
-    Citizen.Wait(animData.duration + 500)
-    print('[MJ-ReSpawn][TEST] progbar จบแล้ว — เริ่มวัดค่าทุก 300ms จนกว่าจะนิ่ง (สูงสุด 15 วิ):')
-    local lastHealth, stableCount, elapsed = nil, 0, 0
-    while elapsed <= 15000 and stableCount < 3 do
-        local curHealth = GetEntityHealth(ped)
-        print(('[MJ-ReSpawn][TEST] +%dms — inner=%.1f entityHealth=%d/%d')
-            :format(elapsed, GetAttributeCoreValue(ped, 0), curHealth, GetEntityMaxHealth(ped)))
-        stableCount = (curHealth == lastHealth) and (stableCount + 1) or 0
-        lastHealth = curHealth
-        Citizen.Wait(300)
-        elapsed = elapsed + 300
-    end
-    print(('[MJ-ReSpawn][TEST] จบการวัดค่า — %s ที่ +%dms (entityHealth สุดท้าย=%d) — ถ้านิ่งแล้วค่อยนิ่ง (ไม่ใช่ตั้งแต่ +0ms) ยืนยันว่ามี native regen ไล่ค่าอยู่จริง ไม่ใช่แค่ HUD animate')
-        :format(stableCount >= 3 and 'นิ่งแล้ว' or 'ยังไม่นิ่งแม้ครบเวลาสูงสุด', elapsed, lastHealth or -1))
-end, false)
-
 function StartAutoRespawn()
     respawnReady = false -- reset ทุกครั้งที่เริ่มตายใหม่ (ปุ่ม RESPAWN เริ่มต้น disabled)
     SendButtonStates()   -- ส่งสถานะปุ่มเริ่มต้นให้ NUI
