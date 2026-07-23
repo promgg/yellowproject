@@ -74,10 +74,14 @@ local Controls = {
     INPUT_INTERACT_HIT_CARRIABLE = 0x0522B243, -- Hit carriable interaction: blocks contextual hit/carryable melee interaction.
 }
 
+-- ⚠️ DisableControlAction ปิดที่ "ปุ่ม" ไม่ใช่ที่ "เป้าหมาย" — พอบล็อกปุ่มโจมตีตอนมีผู้เล่นอยู่ใกล้
+--    ผู้เล่นจะ "ตีอะไรไม่ได้เลย" รวมถึงล่าสัตว์ที่อยู่ตรงนั้นด้วย จึงห้ามใส่ปุ่มโจมตีลงในลิสต์นี้:
+--      INPUT_MELEE_ATTACK    ฟัน/ต่อย  (ยืนยันจากเทสในเกม = ตัวที่ทำให้ตีสัตว์ไม่ได้)
+--      INPUT_MELEE_MODIFIER  โจมตีหนัก
+--      INPUT_MELEE_BLOCK     ตั้งการ์ดป้องกัน (ปิดแล้วป้องกันตัวไม่ได้ ไม่สมเหตุผล)
+--      INPUT_ATTACK / INPUT_ATTACK2  คลิกซ้าย/โจมตีรอง
+--    เหลือเฉพาะท่าก่อกวนที่ไม่ใช่ "การโจมตีปกติ"
 local AlwaysBlockedControls = {
-    Controls.INPUT_MELEE_ATTACK,
-    Controls.INPUT_MELEE_MODIFIER,
-    Controls.INPUT_MELEE_BLOCK,
     Controls.INPUT_HOGTIE,
     Controls.INPUT_INTERACT_HIT_CARRIABLE,
 }
@@ -94,10 +98,9 @@ local RoleplayThreatControls = {
     Controls.INPUT_CONTEXT_RT, -- Needed by some knife/gun threat contextual prompts.
 }
 
-local ConditionalAttackControls = {
-    Controls.INPUT_ATTACK,
-    Controls.INPUT_ATTACK2,
-}
+-- ว่างไว้โดยตั้งใจ: เดิมใส่ INPUT_ATTACK/INPUT_ATTACK2 แล้วทำให้คลิกซ้ายตีสัตว์ไม่ได้
+-- เมื่อมีผู้เล่นอื่นยืนอยู่ใกล้ ๆ (ดูคำอธิบายเหนือ AlwaysBlockedControls)
+local ConditionalAttackControls = {}
 
 local MeleeWeapons = {
     [GetHashKey('WEAPON_UNARMED')] = true,
