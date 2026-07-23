@@ -22,6 +22,23 @@ Config.Debug             = false    -- set true to see zone debug polys
 Config.ShowTerritoryHUD  = false     -- false = ปิดป้ายชื่อเมือง (จุดแดง + ชื่อเมือง) ที่โผล่ตอนเดินเข้า/ออกโซนเมือง
 
 -- ─────────────────────────────────────────────────────────────
+--  ADMIN — ย้ายเมือง / เปลี่ยนเชื้อสายของผู้เล่น
+--  ตัว UI อยู่ใน MJ-Admin (แทบ "เมือง / เชื้อสาย" ในหน้าจัดการผู้เล่น)
+--  ที่นี่เป็นแค่ฝั่ง logic — เปิดเป็น server export ให้ MJ-Admin เรียก (ดู server/sv_admin.lua)
+--
+--  สิทธิ์แอดมินตรวจที่ MJ-Admin (Config.Perms[group].CanSetJob) ไม่ได้ตรวจซ้ำที่นี่
+--  เพราะ export ข้าม resource เรียกได้จากฝั่ง server เท่านั้น — client ปลอมมาไม่ได้
+--
+--  ⚠️ ทำได้เฉพาะ "ผู้เล่นที่ออนไลน์อยู่" เพราะการหัก/แจกบัตรต้องใช้ source ผ่าน
+--     vorp_inventory และการเปลี่ยนอาชีพต้องใช้ character object — ทั้งคู่ไม่มีสำหรับคนออฟไลน์
+-- ─────────────────────────────────────────────────────────────
+Config.Admin = {
+    -- ย้ายเมืองข้ามโควตาได้ไหม (true = แอดมินย้ายเข้าเมืองที่เต็มแล้วได้)
+    -- ตัวนับ slot ยังถูกอัปเดตตามจริงทั้งสองเมืองไม่ว่าตั้งค่านี้เป็นอะไร
+    bypassCityFull = true,
+}
+
+-- ─────────────────────────────────────────────────────────────
 --  CITIES
 --  spawnPoint : where the player teleports after selecting
 --  color      : {r,g,b,a} used for territory minimap blips (0-255)

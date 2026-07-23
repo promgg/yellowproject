@@ -113,6 +113,20 @@ AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
 end)
 
 -- ─────────────────────────────────────────────────────────────
+--  EVENT: แอดมินย้ายเมืองให้ (จาก MJ-Admin) → ถอดโค้ทเมืองเก่าถ้าใส่ค้างอยู่
+--
+--  ถ้าไม่ถอด ผู้เล่นจะใส่โค้ทของเมืองที่ตัวเองไม่ได้สังกัดแล้วค้างไปเรื่อย ๆ
+--  (บัตรใบเก่าถูกลบไปแล้วด้วย จึงกดถอดเองผ่านบัตรไม่ได้อีก = ค้างถาวรจนรีล็อกอิน)
+--  ถอดกลับเป็นโค้ทจริงของผู้เล่นที่จำไว้ตอนใส่ชุดเมืองครั้งแรก
+-- ─────────────────────────────────────────────────────────────
+RegisterNetEvent("nx_cityselect:Client:CityChanged")
+AddEventHandler("nx_cityselect:Client:CityChanged", function(cityId)
+    if wearingCityId and wearingCityId ~= cityId then
+        removeCity(Lang.notify_outfit_removed or 'ถอดชุดประจำเมืองแล้ว')
+    end
+end)
+
+-- ─────────────────────────────────────────────────────────────
 --  EXPORTS: ให้ resource อื่นบังคับใส่/ถอดชุดเมืองตอนเข้า/ออกโซนกิจกรรม
 --
 --  ตัวอย่าง (ฝั่ง client ของ mj-airdrop / lp_airdropteam / nx_graverobbery):

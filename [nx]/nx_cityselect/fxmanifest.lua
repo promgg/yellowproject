@@ -26,6 +26,7 @@ server_scripts {
     'server/sv_heritage.lua',
     'server/sv_main.lua',
     'server/sv_exports.lua',
+    'server/sv_admin.lua', -- export ให้ MJ-Admin เรียก (ย้ายเมือง / เปลี่ยนเชื้อสาย)
 }
 
 ui_page 'ui/index.html'

@@ -161,6 +161,40 @@ function CityManager_AssignCity(identifier, charidentifier, cityId)
 end
 
 -- ─────────────────────────────────────────────────────────────
+--  PUBLIC (ADMIN): Force-set a player's city — overwrites an existing
+--  row instead of ignoring it.
+--
+--  ต่างจาก CityManager_AssignCity: ตัวนั้นใช้ INSERT IGNORE เป็น compare-and-set
+--  ของ "การเลือกครั้งแรก" (มีแถวอยู่แล้ว = แพ้ race, ห้ามทับ) ส่วนตัวนี้คือการ
+--  "ย้ายเมือง" โดยแอดมิน จึงต้องทับของเดิมได้จริง
+--
+--  ⚠️ ไม่ยุ่งกับตัวนับ slot เลย — ผู้เรียกต้องจัดการเอง (ดู sv_admin.lua ที่
+--     decrement เมืองเก่า + increment เมืองใหม่) แยกกันเพื่อให้ผู้เรียกคุมลำดับได้
+-- ─────────────────────────────────────────────────────────────
+function CityManager_SetPlayerCity(identifier, charidentifier, cityId)
+    MySQL.update.await(
+        [[INSERT INTO nx_player_city (identifier, charidentifier, city_id)
+          VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE city_id = VALUES(city_id), selected_at = CURRENT_TIMESTAMP]],
+        { identifier, tonumber(charidentifier), cityId }
+    )
+    return true
+end
+
+-- ─────────────────────────────────────────────────────────────
+--  PUBLIC (ADMIN): Decrement a city's slot count, never below 0
+--  (GREATEST กันค่าติดลบตอนย้ายคนออกจากเมืองที่นับรีเซ็ตไปแล้วในรอบก่อน)
+-- ─────────────────────────────────────────────────────────────
+function CityManager_DecrementCity(cityId)
+    MySQL.query.await(
+        "UPDATE nx_city_slots SET current_count = GREATEST(current_count - 1, 0) WHERE city_id = ?",
+        { cityId }
+    )
+    InvalidateSlotCache()
+    return true
+end
+
+-- ─────────────────────────────────────────────────────────────
 --  Init: ensure rows exist on resource start
 -- ─────────────────────────────────────────────────────────────
 AddEventHandler("onResourceStart", function(resourceName)

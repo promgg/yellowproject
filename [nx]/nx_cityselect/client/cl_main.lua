@@ -266,6 +266,31 @@ AddEventHandler("vorp:SelectedCharacter", function(charId)
 end)
 
 -- ─────────────────────────────────────────────────────────────
+--  EVENT: แอดมินย้ายเมือง/เปลี่ยนเชื้อสายให้ (สั่งจาก MJ-Admin -> nx_cityselect export)
+--
+--  ต้องอัปเดต state ที่ cache ไว้ในเครื่องด้วย ไม่ใช่แค่ DB — ไม่งั้น export
+--  GetCurrentCityId()/GetCurrentHeritageId() ที่ resource อื่นเรียก (nx_graverobbery,
+--  lp_airdropteam, MJ-Airdrop ฯลฯ) จะยังคืนเมืองเก่าจนกว่าผู้เล่นจะรีล็อกอิน
+--
+--  cl_outfit.lua ฟัง CityChanged ตัวเดียวกันนี้เพื่อถอดโค้ทเมืองเก่าที่ใส่ค้างอยู่
+-- ─────────────────────────────────────────────────────────────
+RegisterNetEvent("nx_cityselect:Client:CityChanged")
+AddEventHandler("nx_cityselect:Client:CityChanged", function(cityId)
+    if type(cityId) ~= "string" or cityId == "" then return end
+    playerState.hasCity = true
+    playerState.cityId  = cityId
+    TriggerEvent("nx_cityselect:Client:CityAssigned", cityId)
+end)
+
+RegisterNetEvent("nx_cityselect:Client:HeritageChanged")
+AddEventHandler("nx_cityselect:Client:HeritageChanged", function(heritageId)
+    if type(heritageId) ~= "string" or heritageId == "" then return end
+    playerState.hasHeritage = true
+    playerState.heritageId  = heritageId
+    TriggerEvent("nx_cityselect:Client:HeritageAssigned", heritageId)
+end)
+
+-- ─────────────────────────────────────────────────────────────
 --  NUI CALLBACK: Player confirms city selection
 -- ─────────────────────────────────────────────────────────────
 RegisterNUICallback("selectCity", function(data, cb)
