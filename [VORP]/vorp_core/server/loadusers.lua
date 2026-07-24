@@ -55,8 +55,23 @@ local function removePlayer(identifier, license)
         WhiteListedUsers[userid] = nil
     end
 
+    -- ── กัน session ใหม่โดนลบทิ้ง (ต้นเหตุ rollback) ────────────────────────────
+    -- _users ใช้ steam identifier เป็น key ไม่ใช่ source — ของเดิมสั่งลบทิ้งหลัง 6 วิ
+    -- โดยไม่เช็คว่าเป็น session ไหน ถ้าผู้เล่นกลับเข้ามาใหม่ภายใน 6 วิ (เช่นเกมแครชแล้ว
+    -- ต่อกลับอัตโนมัติ) ตัวจับเวลาของ session เก่าจะมาลบ user object ของ session ใหม่
+    -- ที่กำลังเล่นอยู่ กลายเป็น "ผู้เล่นผี": ออนไลน์อยู่แต่ Core.getUser() คืน nil
+    --   -> ใช้ไอเทมไม่ได้ / รับเงินโอนไม่ได้ (โค้ดเช็ค getUser แล้ว return เงียบๆ)
+    --   -> ตอนออกเกม savePlayer หา user ไม่เจอ = SaveCharacterInDb ไม่ทำงานเลย
+    --      เงิน/พิกัด/xp/job ย้อนกลับไปค่าเดิม (เสื้อผ้ารอดเพราะอยู่ตาราง outfits แยก)
+    --
+    -- แก้: จำ object ของ session ที่กำลังหลุดไว้ แล้วลบเฉพาะตอนที่ยังเป็นตัวเดียวกันจริงๆ
+    -- ใช้เทียบ "ตัว object" ไม่ใช่ source เพราะ FiveM เอา source id กลับมาใช้ซ้ำได้
+    -- (ต่อกลับเร็วๆ อาจได้เลขเดิม -> เทียบ source แล้วยังลบผิดตัวอยู่ดี)
+    -- playerJoining สร้าง User(...) ใหม่ทุกครั้ง object จึงไม่มีทางซ้ำกับของเก่า
+    local droppedUser = _users[identifier]
+
     SetTimeout(6000, function()
-        if _users[identifier] then
+        if droppedUser and _users[identifier] == droppedUser then
             _users[identifier] = nil
         end
     end)
