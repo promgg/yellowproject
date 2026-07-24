@@ -3,6 +3,15 @@ Config = {}
 Config.defaultlang = "de_lang"
 Config.Debug = true
 
+-- ===== คีย์ลัดเปิดกระเป๋า: กด Alt ค้าง + G =====
+-- ใช้วิธีจับปุ่มแบบเดียวกับ vorp_inventory (RegisterRawKeymap + virtual key code)
+-- ไม่แตะ control ของเกม → Alt+G ไม่ชนปุ่มอื่น และเปิดได้ทุกเมื่อโดยไม่ต้องเปิดกระเป๋าไปกดไอเทม
+Config.OpenKey = {
+    enabled    = true,   -- false = ปิดคีย์ลัด (ใช้วิธีกดไอเทมในกระเป๋าแบบเดิมได้ปกติ)
+    modifierVK = 0x12,   -- ปุ่ม modifier (0x12 = Alt / 0x11 = Ctrl / 0x10 = Shift)
+    keyVK      = 0x47,   -- ปุ่มหลัก (0x47 = G) — เปลี่ยนได้ เช่น 0x42 = B
+}
+
 -- Webhook Settings
 
 -- ✅ ตั้งค่าแจ้งเตือน

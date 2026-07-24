@@ -114,6 +114,48 @@ for _, backpack in ipairs(Config.Backpacks) do
     end)
 end
 
+-- ===== เปิดกระเป๋าให้ผู้เล่น (ใช้ร่วมกับคีย์ลัด Alt+G) =====
+-- ไล่หาไอเทมกระเป๋าที่ผู้เล่นถืออยู่ (แบบเดียวกับ CheckBackpack) แล้วเปิด custom inventory
+-- ตรรกะ register/open ยกมาจาก registerUsableItem callback ด้านบน — server-authoritative
+-- (ไม่เชื่อ client ว่ามีกระเป๋าไหน server หาเองจาก getItem)
+local function OpenBackpack(src)
+    for _, backpack in ipairs(Config.Backpacks) do
+        local BackPack = exports.vorp_inventory:getItem(src, backpack.BackpackItem)
+        if BackPack and BackPack.metadata and BackPack.metadata.backpackid then
+            local BackpackID = BackPack.metadata.backpackid
+            local result = MySQL.query.await("SELECT * FROM mjdev_backpack WHERE backpackid=@backpackid", { ["backpackid"] = BackpackID })
+            if #result > 0 then
+                local BackpackLimit = result[1].inventorylimit
+                local DataBackpackID = result[1].backpackid
+                if exports.vorp_inventory:isCustomInventoryRegistered(DataBackpackID) then
+                    exports.vorp_inventory:closeInventory(src, DataBackpackID)
+                    exports.vorp_inventory:openInventory(src, DataBackpackID)
+                else
+                    exports.vorp_inventory:registerInventory({
+                        id = DataBackpackID,
+                        name = backpack.BackpackName,
+                        limit = BackpackLimit,
+                        acceptWeapons = true,
+                        shared = true,
+                        ignoreItemStackLimit = true,
+                    })
+                    exports.vorp_inventory:openInventory(src, DataBackpackID)
+                end
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- คีย์ลัด Alt+G (ฝั่ง client ยิงมา) — ไม่รับพารามิเตอร์จาก client เลย กัน spoof
+RegisterServerEvent('MJ-Backpack:server:OpenViaKey', function()
+    local src = source
+    if not OpenBackpack(src) then
+        VORPcore.NotifyRightTip(src, _U('NoDatabaseFound'), 4000)
+    end
+end)
+
 function GetUniqueID()
     while true do
         Wait(500)
