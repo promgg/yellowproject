@@ -88,9 +88,21 @@ local function generateUniqueMailID(mailboxes)
     return id
 end
 
+-- ทะเบียนกล่องจดหมายผูกกับ "บัญชี" (steamID) 1 บัญชี = 1 กล่อง = 1 mailID
+-- ตั้งใจให้กล่องเป็นของบัญชี (ข้อความใน messages.json ก็คีย์ด้วย steamID เดียวกัน)
+-- ทุกตัวละครในบัญชีจึงใช้กล่องเดียวกัน — ไม่ได้แก้ตรงนี้ให้แยกต่อตัวละคร เพราะจะทำให้
+-- จดหมาย/mailID/รายชื่อผู้ติดต่อเก่าทั้งหมดหาไม่เจอ
+--
+-- แต่ฟิลด์ name ต้องรีเฟรชทุกครั้ง: ของเดิมเขียนชื่อตอนสร้างกล่องครั้งแรกครั้งเดียว
+-- พอผู้เล่นสลับไปตัวละครอื่น ชื่อในทะเบียนยังเป็นของตัวละครเดิม ทำให้ getSteamIDByName()
+-- ค้นชื่อตัวละครปัจจุบันไม่เจอ = คนอื่นส่งจดหมายหาตัวละครที่กำลังเล่นอยู่ไม่ได้เลย
 local function getOrCreateMailboxID(steamID, name)
     local mailboxes = readMailboxData()
     if mailboxes[steamID] then
+        if name and name ~= "" and mailboxes[steamID].name ~= name then
+            mailboxes[steamID].name = name
+            writeMailboxData(mailboxes)
+        end
         return mailboxes[steamID].mailID
     else
         local newID = generateUniqueMailID(mailboxes)
@@ -237,6 +249,27 @@ AddEventHandler("mailbox:getUserInfo", function()
     })
 end)
 
+-- อัปเดตชื่อในทะเบียนทันทีที่เลือก/สลับตัวละคร ไม่ต้องรอให้เจ้าตัวเปิดกล่องจดหมายก่อน
+-- (ถ้ารอ getUserInfo อย่างเดียว คนอื่นจะส่งจดหมายหาตัวละครที่เพิ่งสลับมาไม่ได้จนกว่า
+--  เจ้าตัวจะเปิดกล่องเองสักครั้ง)
+AddEventHandler("vorp:SelectedCharacter", function(source)
+    local src = source
+    local user = VORPcore.getUser(src)
+    if not user then
+        return
+    end
+    local character = user.getUsedCharacter
+    if not character then
+        return
+    end
+
+    local steamID = GetPlayerIdentifiers(src)[1]
+    if not steamID then
+        return
+    end
+    getOrCreateMailboxID(steamID, character.firstname .. " " .. character.lastname)
+end)
+
 RegisterServerEvent("mailbox:loadMessages")
 AddEventHandler("mailbox:loadMessages", function()
     local src = source
@@ -332,7 +365,12 @@ AddEventHandler("mailbox:markAsRead", function(messageId)
         return 
     end
 
-    local steamID = char.identifier
+    -- ต้องใช้คีย์เดียวกับตอนเก็บข้อความ (loadMessages/sendMessage/deleteMessage ใช้
+    -- GetPlayerIdentifiers(src)[1] ทั้งหมด) = คีย์นี้คือตัวจริงที่ messages.json ใช้อยู่
+    -- ของเดิมตรงนี้ใช้ char.identifier ซึ่ง vorp ตั้งจาก GetPlayerIdentifierByType(src,'steam')
+    -- ไม่ใช่ identifier ตัวแรกในลิสต์เสมอไป ถ้าคนละตัวจะอ่าน allMessages[...] ได้ nil
+    -- = กดอ่านแล้วไม่เคยถูกทำเครื่องหมายว่าอ่านแล้ว และตัวนับจดหมายใหม่ไม่ยอมลด
+    local steamID = GetPlayerIdentifiers(src)[1]
 
     local allMessages = readMessages()
     if not allMessages then
