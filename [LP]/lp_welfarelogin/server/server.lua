@@ -147,6 +147,21 @@ local function persist(st)
     st.dirty = false
 end
 
+-- คืน state ใน cache เฉพาะเมื่อ src ยังเป็นผู้เล่นคนเดิมจริงๆ
+-- FiveM เอา server id ของคนที่หลุดไปแล้วไปแจกให้คนใหม่ได้ ถ้า entry เก่ายังค้างอยู่ คนใหม่จะได้
+-- progress ของคนเก่าไปใช้ (เคลมของที่คนเก่าเคลมไปแล้วไม่ได้ / เคลมของที่ตัวเองยังไม่ควรได้)
+-- และ persist() จะเขียน session ของคนใหม่ลง identifier ของคนเก่า → ไม่ตรงถือว่าไม่มี cache
+local function getCache(src)
+    local st = cache[src]
+    if not st then return nil end
+    if st.identifier ~= getIdentifier(src) then
+        if st.dirty then persist(st) end -- เซฟของคนเก่าก่อนทิ้ง (เผื่อ playerDropped ไม่ทัน)
+        cache[src] = nil
+        return nil
+    end
+    return st
+end
+
 -- ปรับ state ให้ตรง welfare-day ปัจจุบัน
 --
 -- ⚠️ ผูกกับ "วันที่จริงในปฏิทิน" ไม่ใช่ streak
@@ -223,6 +238,10 @@ local function loadProgress(src, cb)
                 { identifier, 1, st.online_date })
         end
         refreshDay(st)
+        -- ยืนยันว่า src ยังเป็นคนเดิมตอน callback กลับมา: ผู้เล่นอาจหลุดกลางคันแล้ว FiveM
+        -- เอา id ไปแจกคนใหม่ระหว่างรอ MySQL ตอบ ถ้าไม่ตรงห้าม cache — ไม่งั้น entry ของคนเก่า
+        -- จะฟื้นขึ้นมาหลัง playerDropped ล้างไปแล้ว และคนใหม่จะได้ progress ผิดคน
+        if identifier ~= getIdentifier(src) then if cb then cb(nil) end return end
         cache[src] = st
         if cb then cb(st) end
     end)
@@ -286,7 +305,7 @@ local function buildState(src, st)
 end
 
 local function pushState(src)
-    local st = cache[src]; if not st then return end
+    local st = getCache(src); if not st then return end
     TriggerClientEvent('lp_welfarelogin:state', src, buildState(src, st))
 end
 
@@ -320,7 +339,7 @@ end)
 RegisterNetEvent('lp_welfarelogin:requestState', function()
     local src = source
     if not checkCooldown(src, 'requestState') then return end
-    local st = cache[src]
+    local st = getCache(src)
     if st then
         refreshDay(st)
         pushState(src)
@@ -339,7 +358,7 @@ RegisterNetEvent('lp_welfarelogin:claim', function(track, day)
     day = tonumber(day)
     if not day or day ~= math.floor(day) then return end
 
-    local st = cache[src]; if not st then return end
+    local st = getCache(src); if not st then return end
     refreshDay(st)
 
     if day < 1 or day > Config.Daily.cycleDays then return end
@@ -413,7 +432,7 @@ CreateThread(function()
         Wait(interval * 1000)
         for _, pid in ipairs(GetPlayers()) do
             local src = tonumber(pid)
-            local st  = cache[src]
+            local st  = getCache(src)
             if st then
                 refreshDay(st)                       -- จัดการเลื่อนวัน + รีเซ็ต online ข้าม 04:00
                 st.online_seconds = st.online_seconds + interval
@@ -440,7 +459,7 @@ if Config.Debug then
         if not char or (char.group ~= 'admin' and char.group ~= 'superadmin') then
             notify(src, 'welfaredebug: เฉพาะแอดมิน', 'error'); return
         end
-        local st = cache[src]
+        local st = getCache(src)
         if not st then notify(src, 'welfaredebug: เปิด /welfare ก่อน (ยังไม่โหลด progress)', 'error'); return end
         local sub = tostring(args[1] or ''):lower()
 
@@ -519,6 +538,10 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
+    -- ที่นี่อ่าน cache ตรงๆ ไม่ผ่าน getCache: ตอนหลุด VORP อาจปลด user ไปแล้ว getIdentifier
+    -- จะคืน nil ทำให้ getCache มองเป็น "คนละคน" แล้วข้ามการเซฟ → เวลาออนไลน์ที่สะสมไว้หาย
+    -- entry ตรงนี้การันตีว่าเป็นของเจ้าของจริงแล้วจาก guard ใน loadProgress/getCache
+    -- และ persist() เขียนด้วย st.identifier เสมอ จึงลงแถวถูกคนแน่นอน
     if cache[src] then persist(cache[src]) end
     cache[src]     = nil
     cooldowns[src] = nil
