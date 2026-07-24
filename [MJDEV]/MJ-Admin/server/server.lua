@@ -13,6 +13,22 @@ TriggerEvent("getCore", function(core)
 end)
 Inventory = exports.vorp_inventory:vorp_inventoryApi()
 
+-- แจ้งเตือนแอดมินว่าคำสั่งล้มเหลว — เดิมเวลาให้เงินไม่สำเร็จจะเงียบสนิท (หรือ error
+-- ตายกลางคัน) แอดมินไม่รู้ว่าเข้าเงื่อนไขไหน เลยเข้าใจผิดว่าให้เงินไปแล้ว
+function NotifyAdmin(src, text)
+    if not src or src == 0 then
+        print(('^1[MJ-Admin]^7 %s'):format(tostring(text)))
+        return
+    end
+    TriggerClientEvent("pNotify:SendNotification", src, {
+        text = text,
+        type = "error",
+        timeout = 5000,
+        layout = "topRight",
+        queue = "left"
+    })
+end
+
 RegisterCommand('tp', function(source, args, rawCommand)
     local playerGroup = admin and admin.GetPlayerGroup and admin.GetPlayerGroup(source) or 'user'
     if not (Config["Perms"][playerGroup] and Config["Perms"][playerGroup].CanTeleport) then
@@ -186,8 +202,28 @@ end)
 
 RegisterNetEvent("admin:AddCash")
 AddEventHandler("admin:AddCash", function(playerID, amount)
-    local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local xTarget = VORPcore.getUser(playerID).getUsedCharacter
+    -- ── กัน error ตอนผู้เล่นเป้าหมายไม่มี user object ────────────────────────
+    -- เดิมเขียน VORPcore.getUser(x).getUsedCharacter ตรงๆ ถ้า getUser คืน nil
+    -- (เช่นเป้าหมายเพิ่งหลุด หรือโดนบั๊ก _users ถูกลบทั้งที่ยังออนไลน์) จะ error ทันที
+    -- "attempt to index a nil value" แล้ว handler ตายกลางคัน แอดมินไม่รู้ว่าเกิดอะไรขึ้น
+    local adminUser = VORPcore.getUser(source)
+    local targetUser = VORPcore.getUser(playerID)
+    if not adminUser or not targetUser then
+        return NotifyAdmin(source, 'ไม่พบผู้เล่นเป้าหมาย (อาจหลุดไปแล้ว) — ให้เงินไม่สำเร็จ')
+    end
+    local xPlayer = adminUser.getUsedCharacter
+    local xTarget = targetUser.getUsedCharacter
+    if not xPlayer or not xTarget then
+        return NotifyAdmin(source, 'ผู้เล่นเป้าหมายยังไม่ได้เลือกตัวละคร — ให้เงินไม่สำเร็จ')
+    end
+
+    -- ตรวจจำนวนเงิน — ค่าติดลบจะกลายเป็น "ดูดเงิน" ออกจากผู้เล่นแทนที่จะให้
+    amount = tonumber(amount)
+    if not amount or amount ~= amount or math.floor(amount) <= 0 then
+        return NotifyAdmin(source, 'จำนวนเงินไม่ถูกต้อง (ต้องเป็นจำนวนเต็มบวก)')
+    end
+    amount = math.floor(amount)
+
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
@@ -212,8 +248,24 @@ end)
 
 RegisterNetEvent("admin:AddBank")
 AddEventHandler("admin:AddBank", function(playerID, amount)
-    local xPlayer = VORPcore.getUser(source).getUsedCharacter
-    local xTarget = VORPcore.getUser(playerID).getUsedCharacter
+    -- guard ชุดเดียวกับ admin:AddCash (ดูคำอธิบายที่นั่น)
+    local adminUser = VORPcore.getUser(source)
+    local targetUser = VORPcore.getUser(playerID)
+    if not adminUser or not targetUser then
+        return NotifyAdmin(source, 'ไม่พบผู้เล่นเป้าหมาย (อาจหลุดไปแล้ว) — ให้ทองไม่สำเร็จ')
+    end
+    local xPlayer = adminUser.getUsedCharacter
+    local xTarget = targetUser.getUsedCharacter
+    if not xPlayer or not xTarget then
+        return NotifyAdmin(source, 'ผู้เล่นเป้าหมายยังไม่ได้เลือกตัวละคร — ให้ทองไม่สำเร็จ')
+    end
+
+    amount = tonumber(amount)
+    if not amount or amount ~= amount or math.floor(amount) <= 0 then
+        return NotifyAdmin(source, 'จำนวนทองไม่ถูกต้อง (ต้องเป็นจำนวนเต็มบวก)')
+    end
+    amount = math.floor(amount)
+
     local nameplayer = xPlayer.firstname .. " " .. xPlayer.lastname
     local nameTarget = xTarget.firstname .. " " .. xTarget.lastname
     local ide = xTarget.identifier
