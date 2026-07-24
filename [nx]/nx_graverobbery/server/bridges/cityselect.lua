@@ -36,6 +36,14 @@ function NX_GR.CitySelect.InvalidatePlayer(source)
     villageIdCache[source] = nil
 end
 
+-- cache คีย์ด้วย source (server id) ซึ่งอยู่ยงตลอดการเชื่อมต่อ แต่เมืองผูกกับ "ตัวละคร"
+-- ถ้าไม่ล้างตอนสลับตัวละคร ตัวละครใหม่จะถูกมองว่าอยู่เมืองของตัวละครเก่าไปอีกไม่เกิน
+-- CACHE_TTL_SECONDS (ได้/ไม่ได้รับ alert ผิดเมือง) — playerDropped อย่างเดียวไม่พอ
+-- เพราะสลับตัวละครไม่ได้ตัดการเชื่อมต่อ
+AddEventHandler('vorp:SelectedCharacter', function(source)
+    NX_GR.CitySelect.InvalidatePlayer(source)
+end)
+
 function NX_GR.CitySelect.GetAllVillages()
     if NX_GR.SafeResourceStarted('nx_cityselect') then
         local ok, cities = pcall(function()
