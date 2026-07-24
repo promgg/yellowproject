@@ -212,19 +212,41 @@ function Item:getCount()
 	return self.count
 end
 
+-- ── ด่านกลาง: จำนวนต้องเป็นจำนวนเต็มบวกเท่านั้น ──────────────────────────────
+-- 🔒 ปิดช่องโหว่ "ค่าติดลบพลิกทิศ" ที่ราก: เดิม quitCount ทำ count - amount ตรงๆ
+-- ไม่เช็คเครื่องหมาย ส่ง amount = -1000 เข้ามาจึงกลายเป็น count + 1000 = ดูปไอเทม
+-- และ addCount ก็พลิกกลับด้าน (ค่าติดลบทำให้ของลดลงโดยข้ามด่าน limit ไปเลย)
+--
+-- ทางเข้าที่ client ยิงถึงได้จริงมีหลายทาง (sharePickupServerItem, serverDropItem,
+-- MoveToCustom ฯลฯ) และด่านกันของแต่ละทางใช้เครื่องหมายผิดทางเหมือนกันหมด
+--   ตัวอย่าง: if data.amount > item:getCount()  ->  -1000 > 1 = false = ผ่านด่าน
+-- กันที่ ItemClass จุดเดียวจึงปิดได้ทุกทางพร้อมกัน ไม่ต้องไล่แก้ทีละ callsite
+local function sanitizeCount(amount)
+	local n = tonumber(amount)
+	if not n or n ~= n or n == math.huge or n == -math.huge then return nil end -- nil/NaN/inf
+	n = math.floor(n)          -- ตัดทศนิยม กันเศษทำยอดเพี้ยน (เคสเดียวกับบั๊ก qty=0.0001)
+	if n <= 0 then return nil end
+	return n
+end
+
 function Item:addCount(amount, ignoreStackLimit)
-	if self.limit == -1 or (self.count + amount <= self.limit) or ignoreStackLimit then
-		self.count = self.count + amount
+	local n = sanitizeCount(amount)
+	if not n then return false end
+
+	if self.limit == -1 or (self.count + n <= self.limit) or ignoreStackLimit then
+		self.count = self.count + n
 		return true
 	end
 	return false
 end
 
 function Item:quitCount(amount)
-	if not amount then
-		return
-	end
-	self.count = self.count - amount
+	local n = sanitizeCount(amount)
+	if not n then return end
+
+	-- ห้ามให้ยอดติดลบหลุดออกไป — ผู้เรียกบางตัวไม่เช็คว่ามีของพอก่อนหัก
+	-- (เช่น subItemID / subItem สาย metadata) ถ้าปล่อยติดลบจะถูกเขียนลง DB จริง
+	self.count = math.max(0, self.count - n)
 end
 
 -- LIMIT

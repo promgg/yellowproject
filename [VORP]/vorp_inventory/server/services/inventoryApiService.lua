@@ -659,7 +659,17 @@ function InventoryAPI.subItemID(player, id, cb, allow, amount)
 	if not userInventory or not item then
 		return respond(cb, false)
 	end
-	amount = amount or 1
+	-- 🔒 เดิมไม่เช็คจำนวนเลย: หักเกินที่มีได้ (ยอดติดลบลง DB) และค่าติดลบก็เพิ่มของได้
+	-- ItemClass กันไว้อีกชั้นแล้ว แต่ต้องตอบผู้เรียกให้ตรงความจริงด้วย ไม่งั้นมันแจกของต่อ
+	amount = tonumber(amount) or 1
+	if amount ~= amount or amount <= 0 then
+		return respond(cb, false)
+	end
+	amount = math.floor(amount)
+	if amount > item:getCount() then
+		return respond(cb, false) -- ของไม่พอ
+	end
+
 	item:quitCount(amount)
 	local itemName = item:getName()
 
@@ -738,6 +748,18 @@ function InventoryAPI.subItem(source, name, amount, metadata, cb, allow, percent
 		end
 
 		local itemName <const> = itemFound:getName()
+
+		-- 🔒 สาย metadata เดิมไม่มีเช็คจำนวนเลย (ต่างจากสายไม่มี metadata ด้านล่างที่เช็คถูกอยู่แล้ว)
+		-- หัก 10 ทั้งที่มี 3 ได้ -> เขียน -7 ลง DB แล้วยังคืน true ให้ผู้เรียกแจกของต่อ = ดูปมูลค่า
+		local subAmount = tonumber(amount) or 1
+		if subAmount ~= subAmount or subAmount <= 0 then
+			return respond(cb, false)
+		end
+		subAmount = math.floor(subAmount)
+		if subAmount > itemFound:getCount() then
+			return respond(cb, false) -- ของไม่พอ
+		end
+		amount = subAmount
 
 		itemFound:quitCount(amount)
 		TriggerClientEvent("vorpCoreClient:subItem", _source, itemFound:getId(), itemFound:getCount())

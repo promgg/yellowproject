@@ -340,9 +340,20 @@ function InventoryService.subItem(source, invId, itemId, amount)
 		return false
 	end
 
-	if amount <= item:getCount() then
-		item:quitCount(amount)
+	-- 🔒 เดิม: ถ้า amount มากกว่าที่มี บล็อกนี้ถูกข้าม "แต่ฟังก์ชันยังคืน true" ตอนท้าย
+	-- ผู้เรียกจึงเข้าใจว่าหักสำเร็จแล้วแจกของต่อ = ดูป (เช่น TakeFromCustom ที่เช็ค amount
+	-- กับ item.count ที่ client ส่งมา ไม่ใช่ยอดจริงใน cache)
+	-- และ amount ติดลบก็ผ่านด่าน "amount <= getCount()" ได้ด้วย (ItemClass กันไว้อีกชั้นแล้ว)
+	amount = tonumber(amount)
+	if not amount or amount ~= amount or amount <= 0 then
+		return false
 	end
+	amount = math.floor(amount)
+	if amount > item:getCount() then
+		return false -- ของไม่พอ = หักไม่สำเร็จ ต้องบอกผู้เรียกตามจริง
+	end
+
+	item:quitCount(amount)
 
 	if item:getCount() == 0 then
 		if invId == "default" then
@@ -1277,14 +1288,55 @@ end)
 -- give ammo to player
 function InventoryService.serverGiveAmmo(ammotype, amount, target, maxcount)
 	local _source = source
+
+	-- 🔒 event นี้ client ยิงถึง (RegisterNetEvent "vorpinventory:servergiveammo")
+	-- เดิมไม่ validate อะไรเลย ช่องโหว่ 3 ชั้น:
+	--   1) amount ติดลบ: "0 > (10 - (-1000))" = "0 > 1010" = false = ผ่านด่าน
+	--      แล้วบรรทัดล่างทำ ammo - (-1000) = เพิ่มกระสุนตัวเอง และ target โดนหัก 1000
+	--      = ดูดกระสุนจากผู้เล่นคนไหนก็ได้ / กระสุนไม่จำกัด
+	--   2) maxcount มาจาก client = ส่งค่าใหญ่มาข้ามเพดานกระสุนได้
+	--      -> ใช้ SharedData.MaxAmmo ฝั่ง server แทน
+	--   3) target ไม่ถูก validate = AmmoData[target] เป็น nil แล้ว error (บรรทัดถัดไป index nil)
+	amount = tonumber(amount)
+	if not amount or amount ~= amount or amount == math.huge then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+	amount = math.floor(amount)
+	if amount <= 0 then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
+	target = tonumber(target)
+	if not target or target == _source then -- โอนให้ตัวเองไม่มีความหมาย
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
+	if type(ammotype) ~= "string" then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
+	-- ทั้งสองฝั่งต้องมี AmmoData จริง (โหลดเสร็จแล้ว/ยังออนไลน์)
+	if not AmmoData[_source] or not AmmoData[_source].ammo
+		or not AmmoData[target] or not AmmoData[target].ammo then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
+	-- เพดานจาก config ฝั่ง server ไม่เอาค่าจาก client
+	maxcount = (SharedData and SharedData.MaxAmmo and SharedData.MaxAmmo[ammotype]) or maxcount
+	maxcount = tonumber(maxcount)
+	if not maxcount or maxcount <= 0 then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
 	local player1ammo = AmmoData[_source].ammo[ammotype]
 	local player2ammo = AmmoData[target].ammo[ammotype]
 
 	if player2ammo == nil then
 		AmmoData[target].ammo[ammotype] = 0
+		player2ammo = 0
 	end
 
-	if player1ammo == nil or player2ammo == nil then
+	if player1ammo == nil then
 		TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
 		return
 	end
@@ -1326,11 +1378,29 @@ end
 
 function InventoryService.updateAmmo(ammoinfo)
 	local _source = source
+
+	-- 🔒 เดิม: charidentifier ใน WHERE มาจาก ammoinfo ที่ client ส่งมาทั้งก้อน
+	-- = เขียนทับคอลัมน์ ammo ของ "ตัวละครใดก็ได้ในทั้งเซิร์ฟ" (event นี้ client ยิงทุก 10 วิ)
+	-- และบรรทัดล่างยัด ammoinfo ทับ AmmoData[_source] ทั้งก้อน ทำให้ charidentifier
+	-- ที่ server จำไว้เพี้ยนตาม แล้ว addBullets/subBullets รอบต่อไปยิงไปผิดแถวด้วย
+	--
+	-- resolve จาก session ฝั่ง server เสมอ ทิ้งค่าที่ client ส่งมา
+	local user = Core.getUser(_source)
+	if not user then return end
+	local character = user.getUsedCharacter
+	if not character then return end
+
+	local charid = character.charIdentifier
+	if not charid then return end
+
+	if type(ammoinfo) ~= "table" or type(ammoinfo.ammo) ~= "table" then return end
+
 	local query = "UPDATE characters Set ammo=@ammo WHERE charidentifier=@charidentifier"
-	local params = { charidentifier = ammoinfo.charidentifier, ammo = json.encode(ammoinfo.ammo) }
+	local params = { charidentifier = charid, ammo = json.encode(ammoinfo.ammo) }
 	DBService.updateAsync(query, params, function(result)
 		if result and _source then
-			AmmoData[_source] = ammoinfo
+			-- เก็บเฉพาะ ammo และผูก charidentifier ฝั่ง server ไม่รับ field อื่นจาก client
+			AmmoData[_source] = { charidentifier = charid, ammo = ammoinfo.ammo }
 		end
 	end)
 end
