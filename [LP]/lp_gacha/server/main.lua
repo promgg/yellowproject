@@ -131,7 +131,28 @@ end
 -- ---------- anti-spam state ----------
 local activeSpin = {} -- [src] = true ระหว่างประมวลผลสปิน (กันซ้อน/re-entrant)
 local lastSpin   = {} -- [src] = GetGameTimer() ครั้งล่าสุด (กันถี่)
-local pending    = {} -- [src] = { xPlayer, pool, rewards, winners } รอ client ยืนยัน reveal จบ แล้วค่อยแจก
+local pending    = {} -- [src] = { xPlayer, charId, pool, rewards, winners } รอ client ยืนยัน reveal จบ แล้วค่อยแจก
+
+-- หา "ตัวตนเดียว" ที่จะใช้แจกของทั้งชุด ณ ตอนแจกจริง
+--
+-- ปัญหาเดิม: pending เก็บ xPlayer ที่ freeze ไว้ตอนสปิน แต่ item แจกเข้า src (ตัวละครที่
+-- กำลังเล่นอยู่ ณ ตอนแจก) ส่วนเงิน/ทอง/ม้าไปที่ xPlayer ตัวเก่า ถ้าผู้เล่นสลับตัวละครระหว่าง
+-- ช่วง reveal (นานได้ถึง Config.RevealFailsafeMs) ของชุดเดียวกันจะกระจายไปคนละตัวละคร
+-- เลือกทางที่ปลอดภัยกว่า: re-resolve ตัวละครสดตอนแจก ถ้าไม่ใช่ตัวเดิม = ยกเลิกทั้งชุด
+-- (ยอมเสียของ 1 ชุดที่แอดมินชดเชยย้อนหลังได้ ดีกว่าปล่อยของข้ามตัวละครซึ่งแก้คืนยากกว่า)
+local function resolveGrantIdentity(src, p)
+    local User = Core.getUser(src)
+    local live = User and User.getUsedCharacter
+    if not live then
+        -- resolve ไม่ได้ = เส้นทาง playerDropped (ผู้เล่นออกไปแล้ว) ตัวละครเปลี่ยนไม่ได้อยู่แล้ว
+        -- ใช้ snapshot ต่อได้ตามเดิม เพื่อไม่ให้ตั๋วที่หักไปแล้วหายฟรี
+        return p.xPlayer
+    end
+    if tostring(live.charIdentifier) ~= tostring(p.charId) then
+        return nil -- สลับตัวละครระหว่างรอ reveal
+    end
+    return live
+end
 
 -- แจกของจริง + log + ประกาศ (idempotent — เคลียร์ pending ก่อน กันแจกซ้ำ)
 -- เรียกได้จาก: revealDone (ปกติ) / failsafe timer / playerDropped — ตัวไหนถึงก่อนได้หมด
@@ -140,14 +161,25 @@ local function doGrant(src)
     if not p then return end
     pending[src] = nil
 
-    for _, reward in ipairs(p.rewards) do
-        grantReward(src, p.xPlayer, reward)
+    local xPlayer = resolveGrantIdentity(src, p)
+    if not xPlayer then
+        -- ไม่แจกครึ่ง ๆ กลาง ๆ ข้ามตัวละคร — ทิ้งทั้งชุดแล้ว print ไว้ให้แอดมินตามชดเชยได้
+        print(('^3[lp_gacha]^7 ยกเลิกแจกรางวัล: src %d สลับตัวละครระหว่างเผยผล (char %s) รางวัลที่ค้าง %d ชิ้น')
+            :format(src, tostring(p.charId), #p.rewards))
+        for _, w in ipairs(p.winners) do
+            print(('^3[lp_gacha]^7   - %s x%d'):format(w.label or w.item, w.amount))
+        end
+        return
     end
-    logGrant(src, p.xPlayer, p.pool, p.winners)
+
+    for _, reward in ipairs(p.rewards) do
+        grantReward(src, xPlayer, reward)
+    end
+    logGrant(src, xPlayer, p.pool, p.winners)
 
     -- ประกาศทั้งเซิร์ฟถ้าได้ของหายาก (dedupe ต่อชนิด) — ยิงตอนแจก = หลังเผยผล ไม่สปอยล์
     if Config.Broadcast and Config.Broadcast.Enable then
-        local pname = ((p.xPlayer.firstname or '') .. ' ' .. (p.xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
+        local pname = ((xPlayer.firstname or '') .. ' ' .. (xPlayer.lastname or '')):gsub('^%s+', ''):gsub('%s+$', '')
         if pname == '' then pname = 'ผู้เล่น' end
         local announced = {}
         for _, w in ipairs(p.winners) do
@@ -204,6 +236,8 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
         local User = Core.getUser(src)
         if not User then return end
         local xPlayer = User.getUsedCharacter
+        -- ยังไม่ได้เลือกตัวละคร = ไม่มีตัวตนให้ผูกรางวัล ต้องหยุดก่อนหักตั๋ว กันตั๋วหายฟรี
+        if not (xPlayer and xPlayer.charIdentifier) then return end
 
         -- re-check จำนวนตั๋วจริง ณ ตอนสปิน (ไม่เชื่อค่าตอนเปิด NUI)
         local have = exports.vorp_inventory:getItemCount(src, nil, pool.ticket) or 0
@@ -243,7 +277,8 @@ RegisterNetEvent('lp_gacha:spin', function(poolId, qty)
 
         -- เก็บ pending ไว้ แจกจริงตอน client ยิง revealDone (อนิเมชันเผยผลจบ)
         -- reveal สุ่มเลขทีละใบ ความยาวไม่คงที่ ใช้ callback แม่นกว่า timer ตายตัว
-        pending[src] = { xPlayer = xPlayer, pool = pool, rewards = rewards, winners = winners }
+        -- เก็บ charId ไว้เทียบตอนแจก (doGrant) ว่ายังเป็นตัวละครเดิมที่จ่ายตั๋วไปอยู่ไหม
+        pending[src] = { xPlayer = xPlayer, charId = xPlayer.charIdentifier, pool = pool, rewards = rewards, winners = winners }
 
         -- ส่งผลให้ client เล่นอนิเมชัน (ตั๋วหักไปแล้ว remaining ถูกต้อง)
         local remaining = exports.vorp_inventory:getItemCount(src, nil, pool.ticket) or 0
