@@ -139,13 +139,25 @@ local function persist(st)
 end
 
 local function loadPlayer(src, cb)
-    if cache[src] then if cb then cb(cache[src]) end return end
+    -- FiveM เอา server id ของคนที่หลุดไปแล้วไปแจกให้คนใหม่ได้ ถ้า entry เก่ายังค้างอยู่ใน cache
+    -- คนใหม่จะเข้า fast path แล้วได้ progress ของคนเก่าไปเลย (ไม่โหลดแถวตัวเอง) และ persist()
+    -- จะเขียน session ของคนใหม่ลง identifier ของคนเก่า → ต้องเทียบ identifier ทุกครั้งก่อนใช้ cache
+    local identifier = getIdentifier(src)
+    if cache[src] then
+        if identifier and cache[src].identifier == identifier then
+            if cb then cb(cache[src]) end return
+        end
+        if cache[src].dirty then persist(cache[src]) end -- เซฟของคนเก่าก่อนทิ้ง (เผื่อ playerDropped ไม่ทัน)
+        cache[src] = nil -- คนละคน = ถือว่าไม่มี cache ต้องโหลดใหม่
+    end
     if loading[src] then loading[src][#loading[src] + 1] = cb; return end -- คิวไว้ ให้โหลดครั้งเดียว
     loading[src] = { cb }
 
-    local identifier = getIdentifier(src)
     local function finish(st)
         local cbs = loading[src]; loading[src] = nil
+        -- ยืนยันอีกรอบตอน callback กลับมา: ผู้เล่นอาจหลุดกลางคันแล้ว id ถูกรีไซเคิลให้คนใหม่
+        -- ระหว่างรอ MySQL ตอบ ถ้าไม่ตรงห้าม cache (ไม่งั้น entry ผีจะฟื้นหลัง playerDropped ล้างไปแล้ว)
+        if st and st.identifier ~= getIdentifier(src) then st = nil end
         cache[src] = st
         for _, c in ipairs(cbs or {}) do if c then c(st) end end
     end
