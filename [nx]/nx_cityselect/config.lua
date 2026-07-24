@@ -14,11 +14,7 @@ Config.OutfitAnim = {
     duration = 1000,  -- ความยาวท่า (ms)
     swapAt   = 450,   -- สลับ/ถอดโค้ทตอนกี่ ms (รอให้มือขยับขึ้นก่อน ซ่อนจังหวะ swap)
 }
--- หมวดเสื้อผ้าที่บัตรประจำเมืองจะเปลี่ยน — ค่าเดิมคือ "Shirt" แต่เสื้อเชิ้ตชั้นในโดนโค้ททับ
--- มองไม่เห็น จึงเปลี่ยนเป็น "Coat" ให้เห็นผลจริง (ชื่อหมวดต้องตรงกับ metaPedCategoryTags
--- ของ vorp_character เช่น Coat / Shirt / Vest / Hat)
-Config.OutfitCategory    = "Coat"
-Config.Debug             = false    -- set true to see zone debug polys
+Config.Debug             = false    -- set true to see zone debug polys (+ เปิดคำสั่ง /nxcapture)
 Config.ShowTerritoryHUD  = false     -- false = ปิดป้ายชื่อเมือง (จุดแดง + ชื่อเมือง) ที่โผล่ตอนเดินเข้า/ออกโซนเมือง
 
 -- ─────────────────────────────────────────────────────────────
@@ -45,12 +41,22 @@ Config.Admin = {
 --  badgeItem  : item name in DB for this city's badge
 --  zones      : polygon points {x,y} that define city territory
 --  minZ/maxZ  : Z-axis range for PolyZone
---  outfitTag  : RDR2 MetaPed tag { drawable, albedo, normal, material, palette, tint0, tint1, tint2 }
---               ของหมวด Config.OutfitCategory (ตอนนี้ = "Coat")
---               วิธีเก็บค่า: ตั้ง Config.Debug = true → ใส่โค้ทที่อยากได้ในร้านตัดเสื้อ
---               (เช่น Irwin Coat variation 9) → พิมพ์ /nxcapture ในเกม → ก๊อปบรรทัด
---               outfitTag = {...} ที่ปรินต์ออกมา มาวางทับของเมืองนั้น
---               ⚠️ ค่าด้านล่างยังเป็น hash ของ "เสื้อเชิ้ต" เดิม ต้อง capture โค้ทใหม่มาแทน
+--  outfitPieces : ชุดยูนิฟอร์มประจำเมือง "เต็มตัว" — [หมวด] = { male = tag, female = tag }
+--               tag = MetaPed { drawable, albedo, normal, material, palette, tint0, tint1, tint2 }
+--               ชื่อหมวดต้องตรงกับ Config.ComponentCategories ของ vorp_character
+--               (Boots/Pant/Shirt/NeckTies/Vest/Coat/Gunbelt/Holster/Glove/Hat)
+--
+--               ลำดับที่เขียนในตาราง = ลำดับที่ใส่จริง (ชั้นใน -> ชั้นนอก) ให้ชิ้นที่ทับได้
+--               ถูก apply ทีหลัง เช่น Coat ต้องมาหลัง Shirt/Vest
+--
+--               วิธีเก็บค่า: ตั้ง Config.Debug = true → ไปแต่งชุดที่อยากได้ให้ครบในร้านตัดเสื้อ
+--               → พิมพ์ /nxcapture ในเกม (ไม่ต้องระบุหมวด = ดึงทุกชิ้นที่ใส่อยู่)
+--               → ก๊อปบรรทัด male/female ของแต่ละหมวดมาวางทับ ทำทั้งตัวชาย/หญิง
+--
+--               ⚠️ อย่าใส่ bodies_upper / bodies_lower ที่ /nxcapture ปรินต์มาด้วย —
+--               สองอันนั้นคือ "ลำตัวผู้เล่น" ไม่ใช่เสื้อผ้า ถ้าใส่จะไปทับหุ่นของผู้เล่น
+--               และถอดคืนไม่ได้ (ไม่มีใน Config.ComponentCategories ของ vorp_character
+--               → RemoveClothingTag return ทันที)
 -- ─────────────────────────────────────────────────────────────
 Config.Cities = {
     {
@@ -69,11 +75,48 @@ Config.Cities = {
         },
         minZ   = 90.0,
         maxZ   = 160.0,
-        outfitTag = {
-            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 1669565057, tint0 = 19, tint1 = 6, tint2 = 108 },
-            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 1669565057, tint0 = 19, tint1 = 6, tint2 = 108 },
+        outfitPieces = {
+            Boots = {
+                male   = { drawable = 570901230, albedo = 156330831, normal = -1244093686, material = 1835793308, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+                female = { drawable = 1739826358, albedo = 2098923495, normal = -1450802617, material = -660553634, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            Pant = {
+                male   = { drawable = 49171585, albedo = 997122237, normal = -1978740444, material = -5372764, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+                female = { drawable = 809337770, albedo = 32929181, normal = 209177305, material = 812512749, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+            },
+            Shirt = {
+                male   = { drawable = 1670239909, albedo = -1413470364, normal = 1820672085, material = 89808908, palette = -1436165981, tint0 = 21, tint1 = 21, tint2 = 21 },
+                female = { drawable = 2081749793, albedo = 1968030311, normal = 1568868614, material = 39011893, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            NeckTies = {
+                male   = { drawable = -2132161912, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 35, tint1 = 52, tint2 = 37 },
+                female = { drawable = -309105399, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 35, tint1 = 37, tint2 = 53 },
+            },
+            Vest = {
+                male   = { drawable = -207285285, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+                female = { drawable = 1839388868, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+            },
+            Coat = {
+                male   = { drawable = 1918612039, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+                female = { drawable = -145015698, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+            },
+            Gunbelt = {
+                male   = { drawable = -969725370, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+                female = { drawable = 1799053413, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+            },
+            Holster = {
+                male   = { drawable = 529903196, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+                female = { drawable = -115903381, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+            },
+            Glove = {
+                male   = { drawable = -1051085845, albedo = 1025495494, normal = -2033404262, material = -1863347056, palette = 1064202495, tint0 = 35, tint1 = 35, tint2 = 35 },
+                female = { drawable = -1065644097, albedo = 1025495494, normal = -2033404262, material = -1863347056, palette = 1064202495, tint0 = 35, tint1 = 35, tint2 = 35 },
+            },
+            Hat = {
+                male   = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+                female = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 35, tint2 = 35 },
+            },
         },
-        outfitProps = {},
     },
     {
         id          = "rhodes",
@@ -91,11 +134,48 @@ Config.Cities = {
         },
         minZ   = 55.0,
         maxZ   = 110.0,
-        outfitTag = {
-            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 864404955, tint0 = 77, tint1 = 248, tint2 = 249 },
-            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = 864404955, tint0 = 77, tint1 = 248, tint2 = 249 },
+        outfitPieces = {
+            Boots = {
+                male   = { drawable = 570901230, albedo = 156330831, normal = -1244093686, material = 1835793308, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+                female = { drawable = 1739826358, albedo = 2098923495, normal = -1450802617, material = -660553634, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            Pant = {
+                male   = { drawable = 49171585, albedo = 997122237, normal = -1978740444, material = -5372764, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+                female = { drawable = 809337770, albedo = 32929181, normal = 209177305, material = 812512749, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+            },
+            Shirt = {
+                male   = { drawable = 1670239909, albedo = -1413470364, normal = 1820672085, material = 89808908, palette = -1436165981, tint0 = 21, tint1 = 21, tint2 = 21 },
+                female = { drawable = 2081749793, albedo = 1968030311, normal = 1568868614, material = 39011893, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            NeckTies = {
+                male   = { drawable = -2132161912, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 51, tint1 = 56, tint2 = 46 },
+                female = { drawable = -309105399, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 51, tint1 = 46, tint2 = 54 },
+            },
+            Vest = {
+                male   = { drawable = -207285285, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 50, tint2 = 51 },
+                female = { drawable = 1839388868, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 50, tint2 = 51 },
+            },
+            Coat = {
+                male   = { drawable = 1918612039, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 50, tint2 = 51 },
+                female = { drawable = -145015698, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 50, tint2 = 51 },
+            },
+            Gunbelt = {
+                male   = { drawable = -969725370, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+                female = { drawable = 1799053413, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+            },
+            Holster = {
+                male   = { drawable = 529903196, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+                female = { drawable = -115903381, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+            },
+            Glove = {
+                male   = { drawable = 346821689, albedo = -1090463359, normal = -98301946, material = -175495124, palette = 1064202495, tint0 = 51, tint1 = 51, tint2 = 51 },
+                female = { drawable = -1065644097, albedo = 1025495494, normal = -2033404262, material = -1863347056, palette = 1064202495, tint0 = 51, tint1 = 51, tint2 = 51 },
+            },
+            Hat = {
+                male   = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+                female = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 51, tint2 = 51 },
+            },
         },
-        outfitProps = {},
     },
     {
         id          = "annesburg",
@@ -113,11 +193,48 @@ Config.Cities = {
         },
         minZ   = 20.0,
         maxZ   = 90.0,
-        outfitTag = {
-            male   = { drawable = -2039557141, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 8 },
-            female = { drawable = -1023318859, albedo = 1054177455, normal = 1553188703, material = -1784791249, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 8 },
+        outfitPieces = {
+            Boots = {
+                male   = { drawable = 570901230, albedo = 156330831, normal = -1244093686, material = 1835793308, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+                female = { drawable = 1739826358, albedo = 2098923495, normal = -1450802617, material = -660553634, palette = 0, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            Pant = {
+                male   = { drawable = 49171585, albedo = 997122237, normal = -1978740444, material = -5372764, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+                female = { drawable = 809337770, albedo = 32929181, normal = 209177305, material = 812512749, palette = 1064202495, tint0 = 56, tint1 = 56, tint2 = 56 },
+            },
+            Shirt = {
+                male   = { drawable = 1670239909, albedo = -1413470364, normal = 1820672085, material = 89808908, palette = -1436165981, tint0 = 21, tint1 = 21, tint2 = 21 },
+                female = { drawable = 2081749793, albedo = 1968030311, normal = 1568868614, material = 39011893, palette = -783849117, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            NeckTies = {
+                male   = { drawable = -2132161912, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 0, tint1 = 52, tint2 = 0 },
+                female = { drawable = -309105399, albedo = -1390082636, normal = -1141160052, material = -608196087, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
+            Vest = {
+                male   = { drawable = -207285285, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+                female = { drawable = 1839388868, albedo = 1917849421, normal = -485057230, material = -20232835, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
+            Coat = {
+                male   = { drawable = 1918612039, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+                female = { drawable = -145015698, albedo = -1423795424, normal = 497751307, material = -814987834, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
+            Gunbelt = {
+                male   = { drawable = -969725370, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+                female = { drawable = 1799053413, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
+            Holster = {
+                male   = { drawable = 529903196, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+                female = { drawable = -115903381, albedo = -2031034190, normal = -2017747600, material = 1650298362, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
+            Glove = {
+                male   = { drawable = -1051085845, albedo = 1025495494, normal = -2033404262, material = -1863347056, palette = 1064202495, tint0 = 0, tint1 = 0, tint2 = 0 },
+                female = { drawable = -1065644097, albedo = 1025495494, normal = -2033404262, material = -1863347056, palette = 1064202495, tint0 = 0, tint1 = 0, tint2 = 0 },
+            },
+            Hat = {
+                male   = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+                female = { drawable = 129650281, albedo = -1192852743, normal = -1271924982, material = -1721060075, palette = 1064202495, tint0 = 56, tint1 = 0, tint2 = 0 },
+            },
         },
-        outfitProps = {},
     },
 }
 

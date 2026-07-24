@@ -349,12 +349,12 @@ AddEventHandler("onResourceStart", function(resourceName)
                 return
             end
 
+            -- ส่งแค่ id/ชื่อ — ตัวชุดจริง client อ่านจาก Config.CitiesById เอง (config เป็น
+            -- shared_script อยู่แล้ว) ไม่ต้องยัดตาราง 10 ชิ้น × 2 เพศ ผ่าน network ทุกครั้งที่กดบัตร
             TriggerClientEvent("nx_cityselect:Client:ApplyOutfit", source, {
-                cityId      = citySnapshot.id,
-                outfitTag   = citySnapshot.outfitTag,
-                outfitProps = citySnapshot.outfitProps,
-                cityName    = citySnapshot.name,
-                label       = citySnapshot.label,
+                cityId   = citySnapshot.id,
+                cityName = citySnapshot.name,
+                label    = citySnapshot.label,
             })
         end, "nx_cityselect")
     end

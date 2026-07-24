@@ -1,43 +1,75 @@
 -- client/cl_outfit.lua
--- ใส่/ถอด "ชุดประจำเมือง" (โค้ท) — ใช้ได้ 2 ทาง:
+-- ใส่/ถอด "ชุดยูนิฟอร์มประจำเมือง" (เต็มตัว 10 ชิ้น) — ใช้ได้ 2 ทาง:
 --   1) กดใช้บัตรประจำเมือง (toggle ใส่/ถอด)
 --   2) resource อื่นเรียก export ตอนเข้า/ออกโซนกิจกรรม (mj-airdrop / lp_airdropteam /
 --      nx_graverobbery) ที่บังคับให้ใส่ชุดเมืองตัวเอง
 --
 -- RDR2 civilian clothing เป็น MetaPed asset-hash tag ของ vorp_character
--- เราใช้ export กลาง SetClothingTag/GetClothingTag/RemoveClothingTag ที่รับ category ได้
--- ตอนนี้ category = "Coat" (บัตรเปลี่ยนโค้ท ไม่ใช่เสื้อเชิ้ตชั้นในที่โดนโค้ททับบัง)
-
-local OUTFIT_CATEGORY = Config.OutfitCategory or "Coat"
+-- ใช้ export กลาง SetClothingTag/GetClothingTag/RemoveClothingTag ที่รับ category ได้
+--
+-- ชุดของแต่ละเมืองอยู่ที่ Config.Cities[i].outfitPieces (ดูคอมเมนต์ใน config.lua)
+-- ทั้ง 3 เมืองใช้ชิ้นเดียวกันหมด ต่างกันที่ tint = สีประจำเมือง
 
 -- สถานะร่วมของทั้งไฟล์ (badge และ zone-export ใช้ตัวเดียวกัน = แหล่งความจริงเดียว):
 --   wearingCityId : เมืองของชุดที่ใส่อยู่ตอนนี้ (nil = ใส่ชุดตัวเอง)
---   previousTag   : โค้ทเดิมของผู้เล่นก่อนใส่ชุดเมืองครั้งแรก (nil = เดิมไม่ได้ใส่โค้ท)
+--   previousTags  : ชุดเดิมของผู้เล่นก่อนใส่ชุดเมืองครั้งแรก
+--                   [หมวด] = tag  |  [หมวด] = false หมายถึง "เดิมไม่ได้ใส่ชิ้นนี้" (ต้องถอดตอนคืนชุด)
 local wearingCityId = nil
-local previousTag = nil
+local previousTags = nil
 
--- เลือก tag ตามเพศ — โค้ทชาย/หญิงคน hash กัน ใส่ผิดเพศจะไม่ขึ้น
-local function pickTag(outfitTag)
-    if not outfitTag then return nil end
-    -- รองรับทั้ง { male=, female= } และ tag เดี่ยว (เผื่อ config ยังไม่แยกเพศ)
-    if outfitTag.male or outfitTag.female then
-        return IsPedMale(PlayerPedId()) and outfitTag.male or outfitTag.female
+-- เลือก tag ตามเพศ — ชิ้นชาย/หญิงคน hash กัน ใส่ผิดเพศจะไม่ขึ้น
+local function pickTag(piece)
+    if not piece then return nil end
+    -- รองรับทั้ง { male=, female= } และ tag เดี่ยว (เผื่อ config บางชิ้นไม่แยกเพศ)
+    if piece.male or piece.female then
+        return IsPedMale(PlayerPedId()) and piece.male or piece.female
     end
-    return outfitTag
+    return piece
 end
 
--- สลับ/ถอดโค้ทจริง — tag = nil หมายถึง "เดิมไม่ได้ใส่โค้ท" → ถอด component ออก
--- ไม่ใช่ apply nil (apply nil ไม่ทำอะไร โค้ทเมืองจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
-local function swapCoat(tag)
+-- ลำดับการใส่ต้องคงที่ ชั้นใน -> ชั้นนอก (Coat ต้องมาหลัง Shirt/Vest ไม่งั้นทับกันผิด)
+-- pairs() ไม่การันตีลำดับ จึงต้องอ่านลำดับจากที่เขียนไว้ใน config ผ่าน metatable ไม่ได้ —
+-- ใช้ลำดับตายตัวตรงนี้แทน แล้วค่อยเติมหมวดที่ config มีแต่ไม่อยู่ในลิสต์ต่อท้าย
+local WEAR_ORDER = { "Boots", "Pant", "Shirt", "NeckTies", "Vest", "Coat",
+                     "Gunbelt", "Holster", "Glove", "Hat" }
+
+local function orderedCategories(pieces)
+    local seen, out = {}, {}
+    for _, cat in ipairs(WEAR_ORDER) do
+        if pieces[cat] then
+            seen[cat] = true
+            out[#out + 1] = cat
+        end
+    end
+    -- หมวดที่เพิ่มใน config ภายหลังแต่ยังไม่ได้ใส่ใน WEAR_ORDER — ต่อท้ายไว้ ไม่ให้ตกหล่น
+    local extra = {}
+    for cat in pairs(pieces) do
+        if not seen[cat] then extra[#extra + 1] = cat end
+    end
+    table.sort(extra) -- เรียงชื่อให้ผลลัพธ์คงที่ทุกครั้ง
+    for _, cat in ipairs(extra) do out[#out + 1] = cat end
+    return out
+end
+
+-- ใส่/ถอดชิ้นเดียว — tag = false/nil หมายถึง "ต้องไม่มีชิ้นนี้" → ถอด component ออก
+-- (apply nil ไม่ทำอะไร ชิ้นเดิมจะค้าง = ถอดแล้วไม่กลับชุดเดิม)
+local function applyPiece(category, tag)
     if tag then
-        exports.vorp_character:SetClothingTag(OUTFIT_CATEGORY, tag)
+        exports.vorp_character:SetClothingTag(category, tag)
     else
-        exports.vorp_character:RemoveClothingTag(OUTFIT_CATEGORY)
+        exports.vorp_character:RemoveClothingTag(category)
     end
 end
 
--- เล่นท่าจัดเสื้อแล้วสลับโค้ทกลางท่า ให้มือบังจังหวะ swap แทนการเฟดจอดำ
-local function playSwapAnim(tag, notifyText)
+-- ใส่/ถอดทั้งชุดตามลำดับ
+local function applyOutfit(categories, tagOf)
+    for _, cat in ipairs(categories) do
+        applyPiece(cat, tagOf(cat))
+    end
+end
+
+-- เล่นท่าจัดเสื้อแล้วสลับชุดกลางท่า ให้มือบังจังหวะ swap แทนการเฟดจอดำ
+local function playSwapAnim(categories, tagOf, notifyText)
     local ped = PlayerPedId()
     local a = Config.OutfitAnim
 
@@ -48,12 +80,12 @@ local function playSwapAnim(tag, notifyText)
     if HasAnimDictLoaded(a.dict) then
         TaskPlayAnim(ped, a.dict, a.anim, 8.0, -8.0, a.duration, a.flag, 0, false, false, false)
         Wait(a.swapAt)
-        swapCoat(tag)
+        applyOutfit(categories, tagOf)
         Wait(a.duration - a.swapAt)
         RemoveAnimDict(a.dict)
     else
         -- โหลดท่าไม่ขึ้น — สลับเลยไม่มีท่า (ยังทำงานได้ ไม่ค้าง)
-        swapCoat(tag)
+        applyOutfit(categories, tagOf)
     end
 
     if notifyText and notifyText ~= "" then
@@ -63,37 +95,77 @@ end
 
 -- ── หัวใจร่วม: ใส่/ถอดชุดเมือง (idempotent) ──────────────────────────────────
 -- ตั้งสถานะแบบ sync ทันที แล้วเล่นท่า/สลับใน thread เพื่อไม่ block ผู้เรียก export
--- คืน true = เริ่มใส่/ถอดแล้ว, false = ทำไม่ได้ (ไม่มีเมือง/ไม่มี tag/สถานะซ้ำ)
+-- คืน true = เริ่มใส่/ถอดแล้ว, false = ทำไม่ได้ (ไม่มีเมือง/ไม่มีชุด/สถานะซ้ำ)
 local function wearCity(cityId, notifyText)
     cityId = cityId or exports.nx_cityselect:GetCurrentCityId()
     if not cityId then return false end
 
     local city = Config.CitiesById and Config.CitiesById[cityId]
-    if not city or not city.outfitTag then return false end
+    local pieces = city and city.outfitPieces
+    if not pieces or not next(pieces) then return false end
 
     if wearingCityId == cityId then return true end -- ใส่ชุดเมืองนี้อยู่แล้ว
 
-    local tag = pickTag(city.outfitTag)
-    if not tag then return false end
+    local categories = orderedCategories(pieces)
 
-    -- จำโค้ทเดิมเฉพาะครั้งแรกที่เริ่มใส่ชุดเมือง (ยังไม่ได้ใส่ชุดเมืองใด ๆ)
-    -- ถ้าสลับจากเมือง A ไป B ให้คง previousTag เดิมไว้ (โค้ทจริงของผู้เล่น)
+    -- จำชุดเดิมเฉพาะครั้งแรกที่เริ่มใส่ชุดเมือง (ยังไม่ได้ใส่ชุดเมืองใด ๆ)
+    -- ถ้าสลับจากเมือง A ไป B ให้คง previousTags เดิมไว้ (ชุดจริงของผู้เล่น)
+    --
+    -- เก็บ false เมื่อเดิมไม่ได้ใส่ชิ้นนั้น เพื่อให้ตอนคืนชุดรู้ว่าต้อง "ถอด" ไม่ใช่ "ข้าม"
+    -- (ถ้าข้าม ชิ้นของเมืองจะค้างอยู่บนตัวถาวร)
     if wearingCityId == nil then
-        previousTag = exports.vorp_character:GetClothingTag(OUTFIT_CATEGORY)
+        previousTags = {}
+        for _, cat in ipairs(categories) do
+            local ok, tag = pcall(function()
+                return exports.vorp_character:GetClothingTag(cat)
+            end)
+            previousTags[cat] = (ok and type(tag) == 'table' and tag.drawable) and tag or false
+        end
+    else
+        -- สลับเมือง: หมวดที่เมืองใหม่มีแต่เมืองเก่าไม่มี ยังไม่เคยถูกจำ ต้องจำเพิ่ม
+        -- ไม่งั้นตอนถอดจะไม่มีข้อมูลของหมวดนั้น = ชิ้นเมืองใหม่ค้างบนตัว
+        for _, cat in ipairs(categories) do
+            if previousTags[cat] == nil then
+                local ok, tag = pcall(function()
+                    return exports.vorp_character:GetClothingTag(cat)
+                end)
+                previousTags[cat] = (ok and type(tag) == 'table' and tag.drawable) and tag or false
+            end
+        end
     end
 
     wearingCityId = cityId
-    CreateThread(function() playSwapAnim(tag, notifyText) end)
+    CreateThread(function()
+        playSwapAnim(categories, function(cat) return pickTag(pieces[cat]) end, notifyText)
+    end)
     return true
 end
 
 local function removeCity(notifyText)
     if wearingCityId == nil then return false end -- ไม่ได้ใส่ชุดเมืองอยู่
 
-    local tag = previousTag
+    local restore = previousTags or {}
+    -- คืนทุกหมวดที่เคยจำไว้ (ครอบคลุมเคยสลับหลายเมืองด้วย เพราะ previousTags สะสมไว้)
+    local categories = {}
+    for _, cat in ipairs(WEAR_ORDER) do
+        if restore[cat] ~= nil then categories[#categories + 1] = cat end
+    end
+    for cat in pairs(restore) do
+        local inList = false
+        for _, c in ipairs(categories) do
+            if c == cat then inList = true break end
+        end
+        if not inList then categories[#categories + 1] = cat end
+    end
+
     wearingCityId = nil
-    previousTag = nil
-    CreateThread(function() playSwapAnim(tag, notifyText) end)
+    previousTags = nil
+    CreateThread(function()
+        playSwapAnim(categories, function(cat)
+            local tag = restore[cat]
+            return tag or nil -- false -> nil = ถอดชิ้นนั้นออก
+        end, notifyText)
+    end)
     return true
 end
 
@@ -113,11 +185,11 @@ AddEventHandler("nx_cityselect:Client:ApplyOutfit", function(outfitData)
 end)
 
 -- ─────────────────────────────────────────────────────────────
---  EVENT: แอดมินย้ายเมืองให้ (จาก MJ-Admin) → ถอดโค้ทเมืองเก่าถ้าใส่ค้างอยู่
+--  EVENT: แอดมินย้ายเมืองให้ (จาก MJ-Admin) → ถอดชุดเมืองเก่าถ้าใส่ค้างอยู่
 --
---  ถ้าไม่ถอด ผู้เล่นจะใส่โค้ทของเมืองที่ตัวเองไม่ได้สังกัดแล้วค้างไปเรื่อย ๆ
+--  ถ้าไม่ถอด ผู้เล่นจะใส่ชุดของเมืองที่ตัวเองไม่ได้สังกัดแล้วค้างไปเรื่อย ๆ
 --  (บัตรใบเก่าถูกลบไปแล้วด้วย จึงกดถอดเองผ่านบัตรไม่ได้อีก = ค้างถาวรจนรีล็อกอิน)
---  ถอดกลับเป็นโค้ทจริงของผู้เล่นที่จำไว้ตอนใส่ชุดเมืองครั้งแรก
+--  ถอดกลับเป็นชุดจริงของผู้เล่นที่จำไว้ตอนใส่ชุดเมืองครั้งแรก
 -- ─────────────────────────────────────────────────────────────
 RegisterNetEvent("nx_cityselect:Client:CityChanged")
 AddEventHandler("nx_cityselect:Client:CityChanged", function(cityId)
@@ -150,6 +222,7 @@ end)
 exports('IsWearingCityOutfit', function()
     return wearingCityId
 end)
+
 
 -- ─────────────────────────────────────────────────────────────
 --  DEBUG: เก็บค่า tag ของชิ้นที่ใส่อยู่ (Config.Debug = true)
