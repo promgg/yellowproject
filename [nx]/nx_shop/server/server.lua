@@ -404,6 +404,17 @@ RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
         return
     end
 
+    -- ต้องหยิบ character ใหม่ตรงนี้: buildOrder()/canCarryOrder() มี await คั่น (heldCounts รอ
+    -- getUserInventoryItems, canCarry* เรียกข้าม resource) และ getUsedCharacter คืน "สำเนา" ที่
+    -- copy money มาแบบ by-value ตัวที่ resolve ไว้ตั้งแต่ต้น handler จึงค้างยอดเงินเก่าไว้
+    -- (TOCTOU: จ่ายเงินไปกับ resource อื่นระหว่างรอ แล้วเช็คตรงนี้ยังผ่านด้วยยอดก่อนหน้า)
+    user = Core.getUser(source)
+    character = user and user.getUsedCharacter
+    if not character then
+        finish(false, Config.Text.NotAllowed)
+        return
+    end
+
     if chargeCash > 0 then
         if useBank then
             if not (store.payment and store.payment.allowBank) then
@@ -433,8 +444,10 @@ RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
                 return
             end
 
+            -- removeCurrency เขียนทะลุถึง object จริง + DB ให้แล้ว ไม่ต้องหักซ้ำที่นี่
+            -- (character เป็นสำเนา การเขียน .money ใส่สำเนาไม่มีผลใดๆ แต่ถ้าวันไหนเปลี่ยนเป็น
+            --  อ้างถึง object จริง บรรทัดแบบนี้จะกลายเป็นหักเงินสองเด้งทันที)
             character.removeCurrency(0, chargeCash)
-            character.money = character.money - chargeCash
         end
     end
 
@@ -450,8 +463,9 @@ RegisterServerEvent('nx_shop:server:buy', function(storeId, cart, useBank)
                     }
                 )
             else
+                -- addCurrency คืนเงินเข้า object จริง + DB ให้แล้ว การบวกกลับใส่สำเนาไม่มีผล
+                -- (และจะกลายเป็นคืนเงินสองเด้งถ้า getUsedCharacter เลิกคืนสำเนาเมื่อไหร่)
                 character.addCurrency(0, chargeCash)
-                character.money = character.money + chargeCash
             end
         end
 
