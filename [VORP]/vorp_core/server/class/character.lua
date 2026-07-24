@@ -386,15 +386,42 @@ function Character(data)
         TriggerClientEvent("vorp:updateUi", self.source, json.encode(nuipost))
     end
 
-    self.addCurrency = function(currency, quantity) --add check for security
+    -- ── ด่านกลางของทุกการเปลี่ยนแปลงเงิน ────────────────────────────────────────
+    -- 🔒 กันช่องโหว่ "ค่าติดลบพลิกทิศ": ก่อนหน้านี้ทั้ง add/removeCurrency ไม่ validate
+    -- อะไรเลย (คอมเมนต์ "--add check for security" ของผู้เขียนเดิมค้างไว้ไม่เคยทำ)
+    -- ผลคือ removeCurrency(0, -1000000) ทำ money - (-1000000) = "เพิ่ม" เงินหนึ่งล้าน
+    --
+    -- ผู้เรียกที่ทะลุมาถึงตรงนี้ได้จาก client มีจริง เช่น callback PayToShop ของ
+    -- vorp_character ที่เอา arguments.amount จาก client มาใช้ตรงๆ (Core.Callback ถูก
+    -- dispatch จาก RegisterNetEvent "vorp:TriggerServerCallback" = client ยิงถึง)
+    -- และ SaveCurrency() เขียนลง DB ทันที ของที่ได้จึงถาวร
+    --
+    -- กันที่นี่จุดเดียวปิดได้ทุกทางเข้าพร้อมกัน — ผู้เรียกทุกตัวในเซิร์ฟผ่านทางนี้หมด
+    local function sanitizeAmount(quantity, who)
+        local n = tonumber(quantity)
+        -- nil / ไม่ใช่ตัวเลข / NaN (n ~= n) / inf / ติดลบ = ผิดจริง ต้อง log ไว้ตามรอย
+        if not n or n ~= n or n == math.huge or n == -math.huge or n < 0 then
+            print(("^1[vorp_core] %s: จำนวนไม่ถูกต้อง (%s) — ปฏิเสธ charid=%s^0")
+                :format(who, tostring(quantity), tostring(self.charIdentifier)))
+            return nil
+        end
+        -- 0 = ไม่ต้องทำอะไร แต่ไม่ใช่ความผิด (บาง caller ส่งมาตามปกติ) เงียบไว้ ไม่งั้น log ท่วม
+        if n == 0 then return nil end
+        return n
+    end
+
+    self.addCurrency = function(currency, quantity)
+        local amount = sanitizeAmount(quantity, "addCurrency")
+        if not amount then return end
+
         if currency == 0 then
-            self.money = self.money + quantity
+            self.money = self.money + amount
             SetState(self.source, "Character", "Money", self.money)
         elseif currency == 1 then
-            self.gold = self.gold + quantity
+            self.gold = self.gold + amount
             SetState(self.source, "Character", "Gold", self.gold)
         elseif currency == 2 then
-            self.rol = self.rol + quantity
+            self.rol = self.rol + amount
             SetState(self.source, "Character", "Rol", self.rol)
         end
         self.updateCharUi()
@@ -402,14 +429,20 @@ function Character(data)
     end
 
     self.removeCurrency = function(currency, quantity)
+        local amount = sanitizeAmount(quantity, "removeCurrency")
+        if not amount then return end
+
+        -- กันยอดติดลบด้วย: ผู้เรียกหลายตัวเช็คยอดจาก "สำเนา" ของ character ที่ค้างมา
+        -- ตั้งแต่ก่อน await (getUsedCharacter คืน snapshot ไม่ใช่ตัวจริง) เช็คจึงผ่านทั้งที่
+        -- เงินจริงถูกหักไปแล้วโดย resource อื่นระหว่างนั้น — clamp ที่นี่กันยอดติดลบหลุดลง DB
         if currency == 0 then
-            self.money = self.money - quantity
+            self.money = math.max(0, self.money - amount)
             SetState(self.source, "Character", "Money", self.money)
         elseif currency == 1 then
-            self.gold = self.gold - quantity
+            self.gold = math.max(0, self.gold - amount)
             SetState(self.source, "Character", "Gold", self.gold)
         elseif currency == 2 then
-            self.rol = self.rol - quantity
+            self.rol = math.max(0, self.rol - amount)
             SetState(self.source, "Character", "Rol", self.rol)
         end
 
@@ -534,9 +567,24 @@ function Character(data)
             return s:sub(1, maxChars) -- fallback: สตริงไม่ใช่ UTF-8 ตัด byte ตรงๆ
         end
 
+        -- คอลัมน์ JSON (status) ตัดกลางไม่ได้ — จะได้ JSON พังที่ decode ไม่ออกตอนโหลด
+        -- ถ้ายาวเกินคอลัมน์ให้ทิ้งเป็น '{}' แทน: เสีย status ไปรอบเดียว ดีกว่าปล่อยให้
+        -- UPDATE ทั้งก้อนถูกปฏิเสธ (= money/xp/coords/skills ทั้ง session ไม่เซฟ)
+        local function clampJson(s, maxChars)
+            if type(s) ~= 'string' then return s end
+            if (utf8.len(s) or #s) <= maxChars then return s end
+            print(("^1[vorp_core] status ยาวเกิน %d ตัวอักษร (charid=%s) — เซฟเป็น {} แทน กันทั้ง UPDATE พัง^0")
+                :format(maxChars, tostring(self.charIdentifier)))
+            return '{}'
+        end
+
         MySQL.update("UPDATE characters SET `group` =@group ,`money` =@money ,`gold` =@gold ,`rol` =@rol ,`xp` =@xp ,`healthouter` =@healthouter ,`healthinner` =@healthinner ,`staminaouter` =@staminaouter ,`staminainner` =@staminainner ,`job` =@job , `status` =@status ,`firstname` =@firstname , `lastname` =@lastname , `jobgrade` =@jobgrade , `coords` =@coords , `isdead` =@isdead , `joblabel` =@joblabel, `age` =@age, `gender`=@gender, `character_desc`=@charDescription,`nickname`=@nickname,`steamname`=@steamname, `slots` =@slots, `skills`=@skills, `multijobs`=@multijobs  WHERE `identifier` =@identifier AND `charidentifier` =@charidentifier",
             {
-                group = self.group,
+                -- clamp ทุกคอลัมน์ที่มีขอบเขตความยาว (ขนาดตาม DDL.sql ของตาราง characters)
+                -- คอลัมน์ไหนล้นแม้ตัวเดียว MySQL strict mode ปฏิเสธ UPDATE ทั้งก้อน
+                -- = money/gold/xp/coords/skills ไม่ถูกเซฟเลย ซึ่งคือ failure mode เดียวกับ
+                -- บั๊ก long-name money-dupe ที่แก้ไปแล้ว แค่คนละคอลัมน์
+                group = clampChars(self.group, 10),      -- varchar(10)
                 money = self.money,
                 gold = self.gold,
                 rol = self.rol,
@@ -545,18 +593,18 @@ function Character(data)
                 healthinner = self.healthInner,
                 staminaouter = self.staminaOuter,
                 staminainner = self.staminaInner,
-                job = self.job,
-                status = self.status,
+                job = clampChars(self.job, 50),          -- varchar(50)
+                status = clampJson(self.status, 140),    -- varchar(140) — JSON ตัดกลางไม่ได้
                 firstname = clampChars(self.firstname, 40),
                 lastname = clampChars(self.lastname, 40),
                 jobgrade = self.jobgrade,
                 coords = self.coords,
                 isdead = self.isdead,
-                joblabel = self.joblabel,
+                joblabel = clampChars(self.joblabel, 255), -- varchar(255)
                 identifier = self.identifier,
                 charidentifier = self.charIdentifier,
                 age = self.age,
-                gender = self.gender,
+                gender = clampChars(self.gender, 50),    -- varchar(50)
                 charDescription = self.charDescription,
                 nickname = clampChars(self.nickname, 40),
                 steamname = clampChars(self.steamname, 40),
