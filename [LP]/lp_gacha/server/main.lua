@@ -73,30 +73,18 @@ local function grantReward(src, xPlayer, reward)
         xPlayer.addCurrency(1, reward.amount)
 
     elseif t == 'horse' then
-        -- แจกม้าเข้าระบบ kd_stable โดยตรงในฐานข้อมูล (kd_stable ไม่มี export ฝั่ง server ตาม docs)
-        -- ตารางหลัก kd_horses (เจ้าของ+model+คอก) → ได้ auto-increment id → สร้างแถวสถิติ kd_horses_stats
+        -- แจกม้าผ่าน event ทางการของ kd_stable (client:addHorse ตาม docs jumpon-studios)
+        -- kd_stable จะ spawn/register + คำนวณ stat/สีตาม model + save DB + อัปเดต cache ให้เอง
+        -- (เดิม INSERT DB ดิบ → cache ในหน่วยความจำของ kd_stable ไม่รู้จัก ม้าเลยไม่ขึ้นในเมนู)
         local horseName = ('Paradise-%04d'):format(math.random(0, 9999))
-        local isFemale  = (reward.gender == 'female') and 1 or 0
-        local stable    = reward.stable or Config.HorseStable or 'valentine'
-        local horseId = MySQL.insert.await(
-            'INSERT INTO `kd_horses` (identifier, charid, stable, model, isFemale, name, speed, acceleration, handling, favourite, isDead, isOut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)',
-            {
-                xPlayer.identifier, xPlayer.charIdentifier, stable, reward.model or reward.item, isFemale, horseName,
-                tonumber(reward.speed) or 4, tonumber(reward.acceleration) or 4, tonumber(reward.handling) or 2,
-            }
-        )
-        if horseId then
-            -- แถวสถิติเริ่มต้น (kd_stable ผูกด้วย horseid) — ใช้ INSERT IGNORE เพราะ kd_stable
-            -- สร้างแถว stats ให้เองอัตโนมัติ (trigger/logic) ตอน INSERT kd_horses อยู่แล้ว
-            -- ถ้าไม่ IGNORE จะ error 'Duplicate entry' แล้วทำให้ loop grant ของทั้ง batch หยุดกลางคัน
-            MySQL.query.await(
-                'INSERT IGNORE INTO `kd_horses_stats` (horseid, distance, lastNewShoes, bonding, speedTraining, accelerationTraining, handlingTraining, stamina, health) VALUES (?, 0, 0, 250, 0, 0, 0, 350, 350)',
-                { horseId }
-            )
-            dbg(('แจกม้า kd_stable สำเร็จ: horseId=%s model=%s -> charid=%s'):format(tostring(horseId), reward.model or reward.item, tostring(xPlayer.charIdentifier)))
-        else
-            dbg('^1แจกม้าล้มเหลว: INSERT kd_horses ไม่คืน id^7')
-        end
+        TriggerClientEvent('lp_gacha:grantHorse', src, {
+            model      = reward.model or reward.item,
+            name       = horseName,
+            gender     = reward.gender or 'male',
+            age        = tonumber(reward.age) or 2,
+            noDieByAge = reward.noDieByAge ~= false, -- ค่าเริ่ม true: ม้ารางวัลไม่ตายเพราะแก่
+        })
+        dbg(('ส่งแจกม้าให้ client (kd_stable:addHorse): model=%s name=%s'):format(reward.model or reward.item, horseName))
 
     elseif t == 'weapon' then
         local canCarry = exports.vorp_inventory:canCarryWeapons(src, 1, nil, reward.item)
