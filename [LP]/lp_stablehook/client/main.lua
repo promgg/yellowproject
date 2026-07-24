@@ -104,6 +104,23 @@ local function filterPreviewPrompt(currentPrompt, itemMenuData)
 
     if type(currentPrompt) ~= 'string' then return currentPrompt end
 
+    -- ── ซ่อนปุ่มซื้อม้าราคา "ทอง" ────────────────────────────────────────────
+    -- ยืนยันจาก dump: หน้าซื้อม้า prompt ชื่อ "buy" เหมือนกันทั้งเงินสด/ทอง แยกไม่ได้
+    -- ด้วยชื่อ prompt — ต้องดูที่ itemMenuData.price (มี gold เท่านั้น = ม้าราคาทองล้วน)
+    -- คืน false → prompt ไม่ถูกสร้าง = ปุ่ม BUY WITH GOLD หาย (ม้าราคาเงินสดไม่โดน)
+    if Config.DisableGoldBuy and currentPrompt:lower() == 'buy' and type(itemMenuData) == 'table' then
+        local price = itemMenuData.price
+        if type(price) ~= 'table' and type(itemMenuData.item) == 'table' then
+            price = itemMenuData.item.price
+        end
+        if type(price) == 'table' and price.gold and not price.money then
+            if Config.Debug then
+                print('^2[lp_stablehook]^7 ซ่อนปุ่มซื้อม้าราคาทอง (gold-priced)')
+            end
+            return false
+        end
+    end
+
     if not blockedPrompts[currentPrompt:lower()] then
         return currentPrompt
     end
