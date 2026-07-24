@@ -2,6 +2,15 @@ local T = Translation.Langs[Lang]
 local random = math.random(1, #Config.SpawnPosition)
 local Core = exports.vorp_core:GetCore()
 
+-- ตัวละครที่ถูกเลือกแล้วต่อ session — ต้องประกาศบนสุด เพราะทั้ง saveCharacter,
+-- deleteCharacter และ vorp_CharSelectedCharacter ด้านล่างต้องอ่านค่านี้
+-- (เดิมประกาศไว้กลางไฟล์ ทำให้ handler ที่อยู่เหนือมันมองไม่เห็น = เป็น nil global)
+--
+-- ⚠️ ต้องล้างตอน playerDropped ด้วย: key เป็น source ซึ่ง FiveM เอากลับมาใช้ซ้ำได้
+-- ถ้าไม่ล้าง ผู้เล่นใหม่ที่ได้ source เดิมจะโดนปฏิเสธการเลือกตัวละครเงียบๆ
+-- (setUsedCharacter ไม่เคยรัน -> getUsedCharacter คืน nil -> ไม่เซฟอะไรเลยทั้ง session)
+local charSelected = {}
+
 
 local function ConvertTable(comps, compTints)
 	local NewComps = {}
@@ -124,7 +133,33 @@ end
 
 RegisterServerEvent("vorpcharacter:saveCharacter", function(data)
 	local _source = source
-	Core.getUser(_source).addCharacter(data)
+
+	-- ── กันสร้างตัวละครกลาง session ────────────────────────────────────────
+	-- 🔒 ช่องโหว่เดิม: event นี้ไม่มี guard เลยสักชั้น (ไม่เช็ค user, ไม่เช็คว่าอยู่ในเกมแล้ว,
+	-- ไม่เช็คลิมิตจำนวนตัวละคร) ผู้เล่นที่กำลังเล่นอยู่ยิง event นี้ได้ตลอดเวลา
+	-- addCharacter() จะ INSERT ตัวละครใหม่ค่าเริ่มต้น แล้ว "สลับตัวละครที่ใช้อยู่" ไปเป็นตัวใหม่
+	-- ผลคือตัวจริงหยุดถูกเซฟทันที — ทุกอย่างตั้งแต่ login (เงิน/xp/ของ/พิกัด) หายตอนออก
+	-- และยังทะลุ Config.MaxCharacters ไปด้วย
+	local user = Core.getUser(_source)
+	if not user then return end
+
+	-- อยู่ในเกมแล้ว (เลือกตัวละครไปแล้ว) = ไม่ใช่ขั้นตอนสร้างตัว ปฏิเสธ
+	if charSelected[_source] then
+		print(("^1[vorp_character] saveCharacter: src %s อยู่ในเกมแล้ว ปฏิเสธการสร้างตัวละคร^0"):format(tostring(_source)))
+		return
+	end
+
+	-- ลิมิตจำนวนตัวละครต่อบัญชี — เดิมบังคับแค่ฝั่ง client (client.lua:654 วนตาม MaxCharacters)
+	-- ใช้ API ตัวเดียวกับที่ selectCharacter ในไฟล์นี้ใช้อยู่ (GetPlayerData / Core.maxCharacters)
+	local existing = GetPlayerData(_source)
+	local maxChars = Core.maxCharacters(_source)
+	if existing and maxChars and #existing >= maxChars then
+		print(("^1[vorp_character] saveCharacter: src %s มีตัวละครครบลิมิตแล้ว (%d)^0")
+			:format(tostring(_source), maxChars))
+		return
+	end
+
+	user.addCharacter(data)
 	Wait(600)
 	local iniPos, iniHead = iniSpawn()
 	TriggerClientEvent("vorp:initCharacter", _source, iniPos, iniHead, false)
@@ -137,7 +172,29 @@ RegisterServerEvent("vorpcharacter:deleteCharacter", function(selectedChar)
 	local _source = source
 	local user = Core.getUser(_source)
 	if user then
-		local charid = selectedChar.charIdentifier
+		local charid = selectedChar and selectedChar.charIdentifier
+		if not charid then return end
+
+		-- ── กันลบตัวละครที่กำลังเล่นอยู่ ─────────────────────────────────────
+		-- 🔒 เดิม event นี้ยิงได้ตลอดเวลารวมถึงตอนอยู่ในเกม = DELETE แถวตัวละครที่ใช้อยู่
+		-- ตัว object ในหน่วยความจำยังอยู่ แล้ว SaveCharacterInDb ก็ยิง UPDATE ไปที่แถวที่หายแล้ว
+		-- (0 rows affected เงียบๆ) — ข้อมูลทั้ง session หายและกู้ไม่ได้
+		if charSelected[_source] then
+			print(("^1[vorp_character] deleteCharacter: src %s อยู่ในเกมแล้ว ปฏิเสธการลบ^0"):format(tostring(_source)))
+			return
+		end
+
+		-- ต้องเป็นตัวละครของบัญชีตัวเองเท่านั้น — เดิมเชื่อ charIdentifier จาก client ตรงๆ
+		-- จึงลบตัวละครของคนอื่นได้ถ้ารู้/เดา charIdentifier
+		local owns = false
+		for _, c in pairs(user.getUserCharacters or {}) do
+			if tonumber(c.charIdentifier) == tonumber(charid) then owns = true break end
+		end
+		if not owns then
+			print(("^1[vorp_character] deleteCharacter: src %s ไม่ได้เป็นเจ้าของ charid %s ปฏิเสธ^0")
+				:format(tostring(_source), tostring(charid)))
+			return
+		end
 		local SteamName = GetPlayerName(_source)
 		local SteamId = GetPlayerIdentifiers(_source)[1]
 		local description = "SteamID : " .. SteamId .. "\n" .. "Steam Name : " .. SteamName .. "\n" ..
@@ -148,8 +205,6 @@ RegisterServerEvent("vorpcharacter:deleteCharacter", function(selectedChar)
 	end
 end)
 
--- only allow the player to use this once since they have to leave to change characters, can be removed once theres a way to allow changing characters in run time
-local charSelected <const> = {}
 RegisterServerEvent("vorp_CharSelectedCharacter", function(charid)
 	local _source = source
 	if charSelected[_source] then return print("player has already selected a character") end
@@ -160,6 +215,16 @@ RegisterServerEvent("vorp_CharSelectedCharacter", function(charid)
 		charSelected[_source] = true
 		user.setUsedCharacter(charid)
 	end
+end)
+
+-- ── ล้าง state ต่อ session ตอนผู้เล่นออก ──────────────────────────────────────
+-- 🔒 ทั้ง resource นี้ "ไม่มี playerDropped เลยสักตัว" มาก่อน ทำให้ charSelected โตขึ้น
+-- เรื่อยๆ ไม่มีวันถูกล้าง และเนื่องจาก key เป็น source ที่ FiveM เอากลับมาใช้ซ้ำได้
+-- ผู้เล่นใหม่ที่ได้ source เดิมจะโดน "player has already selected a character" ปฏิเสธ
+-- -> setUsedCharacter ไม่เคยรัน -> getUsedCharacter คืน nil ทั้ง session
+-- -> savePlayer ตอนออกไม่เซฟอะไรเลย (ผู้เล่นเป็น "ผี" อยู่ในเกมแต่ไม่มีตัวละครฝั่ง server)
+AddEventHandler('playerDropped', function()
+	charSelected[source] = nil
 end)
 
 
@@ -233,7 +298,24 @@ Core.Callback.Register("vorp_character:callback:PayToShop", function(source, cal
 	end
 	local character = user.getUsedCharacter
 	local money = character.money
-	local amountToPay = tonumber(arguments.amount)
+
+	-- ── ตรวจจำนวนเงินที่ client ส่งมา ────────────────────────────────────────
+	-- 🔒 ช่องโหว่เดิม: amountToPay มาจาก client ตรงๆ ไม่ตรวจอะไรเลย
+	-- ส่งค่าติดลบมา -> เงื่อนไข "money < -1000000" เป็นเท็จ = ผ่านด่านเช็คเงินพอ
+	-- -> removeCurrency(0, -1000000) ทำ money - (-1000000) = เพิ่มเงินหนึ่งล้าน
+	-- และ SaveCurrency() เขียนลง DB ทันที = เงินไม่จำกัด ทำซ้ำได้ไม่มี cooldown
+	--
+	-- callback นี้ client ยิงถึงจริง: Core.Callback ถูก dispatch จาก
+	-- RegisterNetEvent("vorp:TriggerServerCallback") ไม่ใช่ server-only
+	-- (vorp_core มี guard ซ้ำอีกชั้นแล้ว แต่ต้องกันที่นี่ด้วย ไม่งั้นด่าน "เงินพอ" ยังพลิกได้)
+	local amountToPay = tonumber(arguments and arguments.amount)
+	if not amountToPay or amountToPay ~= amountToPay          -- nil / NaN
+		or amountToPay == math.huge or amountToPay == -math.huge -- inf
+		or amountToPay < 0 then
+		print(("^1[vorp_character] PayToShop: จำนวนเงินไม่ถูกต้อง (%s) จาก src %s^0")
+			:format(tostring(arguments and arguments.amount), tostring(source)))
+		return callback(false)
+	end
 
 	if money < amountToPay then
 		SetTimeout(5000, function()
