@@ -229,10 +229,16 @@ DoBuyInner = function(src, listingId, buyQty)
 
     local totalPrice = listing.price * buyQty
 
-    -- validate เงินพอซื้อ totalPrice
-    -- ต้องหยิบ Character ใหม่หลัง query listing ก่อน: GetCharacter คืน "สำเนา" ที่ copy
-    -- money/gold มาแบบ by-value ตัวที่หยิบไว้ตอนต้นฟังก์ชันจึงค้างยอดเก่าตั้งแต่ก่อน await
-    -- (TOCTOU: ใช้เงินไปกับ resource อื่นระหว่างรอ query แล้วเช็คนี้ยังผ่านด้วยยอดก่อนหน้า)
+    -- กระเป๋าต้องรับของได้ก่อนคิดเงิน ไม่งั้นจ่ายแล้ว InvAddItem คืน false = เสียเงินฟรี
+    -- (เป็น await เลยต้องอยู่ก่อนด่านเช็คยอดเงิน ไม่ใช่หลัง)
+    if not InvCanCarry(src, listing.item_name, buyQty) then
+        Notify(src, Config.Locale.buy_fail)
+        return
+    end
+
+    -- ต้องหยิบ Character ใหม่หลัง await ทุกครั้ง: GetCharacter คืน "สำเนา" ที่ copy money/gold
+    -- มาแบบ by-value ตัวที่หยิบไว้ตอนต้นฟังก์ชันจึงค้างยอดเก่าตั้งแต่ก่อน query listing
+    -- (TOCTOU: ใช้เงินไปกับ resource อื่นระหว่างรอ await แล้วเช็คนี้ยังผ่านด้วยยอดก่อนหน้า)
     Character = GetCharacter(src)
     if not Character then return false end
 
@@ -244,6 +250,27 @@ DoBuyInner = function(src, listingId, buyQty)
 
     local tax = CalcTax(totalPrice)
 
+    -- 🔒 หักเงินตรงนี้ ก่อนเขียน DB — จากด่านเช็คยอดข้างบนถึงบรรทัดนี้ไม่มี await คั่น
+    -- จึงไม่มีช่องให้แทรกใช้เงินที่อื่น
+    --
+    -- เดิมเขียน DB ก่อน (mark sold / ลด quantity / insert แถว sold ซึ่งเป็น await หลายตัว)
+    -- แล้วหักเงินท้ายสุด ระหว่างรอ await ผู้เล่นใช้เงินกับ resource อื่นได้ พอกลับมา
+    -- removeCurrency จะถูก clamp เหลือ 0 (vorp_core กันติดลบไว้) = ได้ของโดยจ่ายไม่ครบ
+    local buyerCharId = Character.charIdentifier
+    Character.removeCurrency(CurrencyType(listing.currency), totalPrice)
+
+    -- คืนเงินให้ "ตัวละครที่จ่ายไป" เท่านั้น กันคืนผิดตัวถ้าสลับตัวละครระหว่างรอ DB
+    local function refundBuyer(reason)
+        local back = GetCharacter(src)
+        if back and tostring(back.charIdentifier) == tostring(buyerCharId) then
+            back.addCurrency(CurrencyType(listing.currency), totalPrice)
+        else
+            Log('buy', '⚠️ คืนเงินไม่ได้',
+                ('charid **%s** จ่าย %d (%s) แล้ว %s แต่ตัวละครหลุด/สลับ ต้องคืนมือ'):format(
+                    tostring(buyerCharId), totalPrice, listing.currency, reason))
+        end
+    end
+
     if buyQty == listing.quantity then
         -- ── ซื้อทั้งหมด: atomic mark sold (guard ด้วย quantity เดิมกัน race กับ partial buy) ──
         local affected = MySQL.update.await(
@@ -251,6 +278,7 @@ DoBuyInner = function(src, listingId, buyQty)
             { 'sold', Character.charIdentifier, GetPlayerName(src), listingId, 'active', listing.quantity })
 
         if not affected or affected == 0 then
+            refundBuyer('mark-sold ไม่ผ่าน (มีคนซื้อตัดหน้า)')
             Notify(src, Config.Locale.buy_fail)
             return
         end
@@ -261,6 +289,7 @@ DoBuyInner = function(src, listingId, buyQty)
             { buyQty, listingId, 'active', buyQty })
 
         if not affected or affected == 0 then
+            refundBuyer('ลด quantity ไม่ผ่าน (ของหมด/มีคนซื้อตัดหน้า)')
             Notify(src, Config.Locale.buy_fail)
             return
         end
@@ -275,9 +304,28 @@ DoBuyInner = function(src, listingId, buyQty)
               buyQty, listing.price, listing.currency, 'sold' })
     end
 
-    -- หักเงินผู้ซื้อ + ให้ของ
-    Character.removeCurrency(CurrencyType(listing.currency), totalPrice)
-    InvAddItem(src, listing.item_name, buyQty)
+    -- ให้ของ (เงินหักไปแล้วก่อนเขียน DB) — เช็คผลด้วย เดิมทิ้ง return ทิ้งเลย
+    -- เช็ค InvCanCarry ไปแล้วข้างบน เคสนี้จึงเหลือแค่ของหลุด (ตัวละครหลุดกลางทาง/inventory ล่ม)
+    -- ถ้าให้ของไม่ได้ต้องคืนเงิน + คืน listing ให้ขายต่อได้ ไม่ใช่กินทั้งเงินทั้งของ
+    if not InvAddItem(src, listing.item_name, buyQty) then
+        refundBuyer('เพิ่มไอเทมเข้ากระเป๋าไม่ได้')
+        if buyQty == listing.quantity then
+            MySQL.update.await(
+                'UPDATE lp_marketplace SET status=?,buyer_id=NULL,buyer_name=NULL,sold_at=NULL WHERE id=? AND status=?',
+                { 'active', listingId, 'sold' })
+        else
+            MySQL.update.await('UPDATE lp_marketplace SET quantity=quantity+? WHERE id=? AND status=?',
+                { buyQty, listingId, 'active' })
+            -- ลบแถว sold ที่เพิ่ง INSERT ไป ไม่งั้นผู้ขาย claim เงินของดีลที่ล้มได้
+            MySQL.update.await(
+                'DELETE FROM lp_marketplace WHERE seller_id=? AND buyer_id=? AND item_name=? AND quantity=? AND price=? AND status=? ORDER BY id DESC LIMIT 1',
+                { listing.seller_id, buyerCharId, listing.item_name, buyQty, listing.price, 'sold' })
+        end
+        Log('buy', '⚠️ ซื้อล้ม', ('คืนเงิน+คืนประกาศ id %s ให้ charid %s'):format(
+            tostring(listingId), tostring(buyerCharId)))
+        Notify(src, Config.Locale.buy_fail)
+        return
+    end
 
     Notify(src, Config.Locale.buy_success, 'success')
     TriggerClientEvent('lp_marketplace:refreshBuy', src)

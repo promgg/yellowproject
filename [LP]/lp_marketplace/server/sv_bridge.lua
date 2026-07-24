@@ -56,6 +56,23 @@ function InvAddItem(source, itemName, amount)
     return Citizen.Await(p)
 end
 
+-- ── Inventory: กระเป๋ารับของได้ไหม (เช็คก่อนคิดเงิน) ─────────────────────────
+-- ต้องเช็คทั้งลิมิตต่อไอเทม (canCarryItem) และลิมิตรวม/น้ำหนัก (canCarryItems)
+-- ไม่งั้นจ่ายเงินไปแล้ว addItem คืน false = เสียเงินฟรี
+function InvCanCarry(source, itemName, amount)
+    local p = promise.new()
+    local ok = pcall(function()
+        exports.vorp_inventory:canCarryItem(source, itemName, amount, function(canItem)
+            if not canItem then return p:resolve(false) end
+            exports.vorp_inventory:canCarryItems(source, amount, function(canWeight)
+                p:resolve(canWeight == true)
+            end)
+        end)
+    end)
+    if not ok then p:resolve(false) end
+    return Citizen.Await(p)
+end
+
 -- ── Inventory: full item list (สำหรับ inventory picker ใน SELL tab) ──────────
 function InvGetAll(source)
     local p = promise.new()
