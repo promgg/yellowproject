@@ -190,16 +190,31 @@ RegisterServerEvent('vorp_bank:UpgradeSafeBox', function(slotsToBuy, bankName)
         return Notify({ source = _source, text = T.invalid, time = 4000, type = "error" })
     end
 
-    -- เขียน DB ก่อน แล้วเช็คผลสำเร็จ ค่อยหักเงิน — ถ้า DB เขียนไม่ผ่านจะไม่มีการหักเงิน (กันเสียเงินฟรี)
+    -- หักเงินก่อน แล้วค่อยเขียน DB — ถ้าเขียนไม่ผ่านคืนเงินให้ (แบบเดียวกับ depositcash/depositgold)
+    --
+    -- เดิมเขียน DB ก่อนแล้วหักเงินทีหลัง ซึ่งเปิดช่องไว้: UPDATE เป็น await ระหว่างนั้นผู้เล่น
+    -- ใช้เงินกับ resource อื่นได้ พอกลับมา removeCurrency จะ clamp เหลือ 0 (ไม่ติดลบ)
+    -- แต่ได้ช่องเซฟครบทั้งที่จ่ายไม่ครบ = ซื้อช่องถูกกว่าราคาจริง
+    -- removeCurrency ทำงานทันทีไม่มี await คั่นจากด่านเช็คยอดข้างบน จึงไม่มีช่องให้แทรกอีก
+    Character.removeCurrency(0, amountToPay)
+
     local affected = MySQL.update.await("UPDATE bank_users SET invspace=@invspace WHERE charidentifier=@charidentifier AND name = @name", {
         charidentifier = charidentifier, invspace = FinalSlots, name = name
     })
     if not affected or affected == 0 then
+        -- resolve ใหม่: ถ้าสลับตัวละครระหว่างรอ UPDATE เงินคืนต้องเข้าตัวที่จ่ายไป ไม่ใช่ตัวที่อยู่ตอนนี้
+        local refundTo = resolveRequest(_source, bankName)
+        if refundTo and refundTo.charIdentifier == charidentifier then
+            refundTo.addCurrency(0, amountToPay)
+        else
+            -- คนจ่ายไม่ออนไลน์/สลับตัวไปแล้ว คืนอัตโนมัติไม่ได้ ต้องมี log ให้แอดมินตามคืน
+            logTx(charidentifier, "upgrade_safebox_refund_failed",
+                ("bank=%s $%d คืนไม่ได้ (ตัวละครหลุด/สลับ) ต้องคืนมือ"):format(bankName, amountToPay))
+        end
         upgradeInProgress[_source] = nil
         return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
     end
 
-    Character.removeCurrency(0, amountToPay)
     local bankId = "vorp_banking_" .. bankName .. "_" .. charidentifier
     registerStorage(bankName, bankId, currentspace)
     exports.vorp_inventory:updateCustomInventorySlots(bankId, FinalSlots)
