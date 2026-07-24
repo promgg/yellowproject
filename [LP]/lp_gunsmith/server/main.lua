@@ -255,6 +255,14 @@ local function handleComponentChange(source, weaponId, weaponName, slot, newComp
     price = tonumber(price) or 0
     if price < 0 then price = 0 end
 
+    -- Re-resolve หลัง await: fetchOwnedWeapon() ไป query DB มา และ getUsedCharacter คืน "สำเนา"
+    -- ที่ copy money มาแบบ by-value ตัวที่ resolve ไว้ก่อน query จึงค้างยอดเงินเก่า (TOCTOU:
+    -- ใช้เงินไปกับ resource อื่นระหว่างรอ query แล้วเช็คตรงนี้ยังผ่านด้วยยอดก่อนหน้า)
+    character = getCharacter(source)
+    if not character then
+        return finishRequest(source, false, Config.Text.Error)
+    end
+
     if price > 0 then
         if not character.money or character.money < price then
             return finishRequest(source, false, Config.Text.NoMoney)
@@ -267,8 +275,10 @@ local function handleComponentChange(source, weaponId, weaponName, slot, newComp
     end
 
     if price > 0 then
+        -- removeCurrency เขียนทะลุถึง object จริง + DB ให้แล้ว ไม่ต้องหักซ้ำ (character เป็นสำเนา
+        -- การเขียน .money ใส่สำเนาจึงไม่มีผล แต่จะกลายเป็นหักเงินสองเด้งทันทีถ้าวันไหน
+        -- getUsedCharacter เลิกคืนสำเนาแล้วคืน object จริง)
         character.removeCurrency(0, price)
-        character.money = character.money - price
     end
 
     MySQL.update('UPDATE loadout SET components = @components, comps = @comps WHERE id = @id AND charidentifier = @charid', {
@@ -279,8 +289,9 @@ local function handleComponentChange(source, weaponId, weaponName, slot, newComp
     }, function(affected)
         if not affected or affected == 0 then
             if price > 0 then
+                -- addCurrency คืนเงินเข้า object จริง + DB ให้แล้ว บวกกลับใส่สำเนาไม่มีผล
+                -- (และจะกลายเป็นคืนเงินสองเด้งถ้าสำเนากลายเป็น object จริงในอนาคต)
                 character.addCurrency(0, price)
-                character.money = character.money + price
             end
             print(('[lp_gunsmith] ERROR: loadout UPDATE affected 0 rows for weaponId=%s charid=%s, refunded $%s')
                 :format(tostring(weaponId), tostring(character.charIdentifier), tostring(price)))
