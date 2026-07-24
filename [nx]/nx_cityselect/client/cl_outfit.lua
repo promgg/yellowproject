@@ -156,17 +156,70 @@ end)
 --  ใส่โค้ทที่อยากได้ในร้านตัดเสื้อ → /nxcapture → ได้บรรทัด male=/female= วางลง config
 -- ─────────────────────────────────────────────────────────────
 if Config.Debug then
+    -- แปลง tag เป็นบรรทัด config พร้อมก๊อป
+    local function tagToLine(genderKey, tag)
+        return ('%s = { drawable = %s, albedo = %s, normal = %s, material = %s, palette = %s, tint0 = %s, tint1 = %s, tint2 = %s },')
+            :format(genderKey, tag.drawable, tag.albedo, tag.normal, tag.material, tag.palette,
+                    tag.tint0, tag.tint1, tag.tint2)
+    end
+
+    -- /nxcapture           → ดึง "ทุกชิ้นที่ใส่อยู่" ทุกหมวด
+    -- /nxcapture Coat      → ดึงเฉพาะหมวดที่ระบุ (พฤติกรรมเดิม)
     RegisterCommand('nxcapture', function(_, args)
-        local category = args[1] or OUTFIT_CATEGORY
-        local tag = exports.vorp_character:GetClothingTag(category)
-        if not tag then
-            print(('^1[nx_cityselect]^7 ไม่พบชิ้นในหมวด "%s" — ตอนนี้ไม่ได้ใส่อยู่'):format(category))
+        local genderKey = IsPedMale(PlayerPedId()) and "male" or "female"
+
+        -- ระบุหมวดมา = ทำแบบเดิม ทีละหมวด
+        if args[1] then
+            local category = args[1]
+            local tag = exports.vorp_character:GetClothingTag(category)
+            if not tag then
+                print(('^1[nx_cityselect]^7 ไม่พบชิ้นในหมวด "%s" — ตอนนี้ไม่ได้ใส่อยู่'):format(category))
+                return
+            end
+            print(('^2[nx_cityselect]^7 %s (%s) ที่ใส่อยู่:'):format(category, genderKey))
+            print(tagToLine(genderKey, tag))
             return
         end
-        local genderKey = IsPedMale(PlayerPedId()) and "male" or "female"
-        local line = ('%s = { drawable = %s, albedo = %s, normal = %s, material = %s, palette = %s, tint0 = %s, tint1 = %s, tint2 = %s },')
-            :format(genderKey, tag.drawable, tag.albedo, tag.normal, tag.material, tag.palette, tag.tint0, tag.tint1, tag.tint2)
-        print(('^2[nx_cityselect]^7 %s (%s) ที่ใส่อยู่:'):format(category, genderKey))
-        print(line)
+
+        -- ไม่ระบุหมวด = กวาดทุกชิ้นที่ใส่อยู่
+        --
+        -- ⚠️ ห้ามใช้ Config.ComponentCategories ตรงๆ — Config ในไฟล์นี้เป็นของ nx_cityselect
+        -- ไม่ใช่ของ vorp_character (แต่ละ resource มี Config ของตัวเอง แยกกันสิ้นเชิง)
+        -- ใช้ export GetAllPlayerComponents แทน ซึ่งคืน CachedComponents ที่ key เป็นชื่อหมวด
+        -- ของ "ชิ้นที่ใส่อยู่จริง" อยู่แล้ว — ตรงกว่าและไม่ต้องวนหมวดที่ไม่ได้ใส่ทิ้งเปล่า
+        local ok, comps = pcall(function()
+            return exports.vorp_character:GetAllPlayerComponents()
+        end)
+        if not ok or type(comps) ~= 'table' then
+            print('^1[nx_cityselect]^7 เรียก GetAllPlayerComponents ไม่ได้ — ระบุหมวดเองเช่น /nxcapture Coat')
+            return
+        end
+
+        -- เรียงชื่อหมวดให้ผลลัพธ์คงที่ทุกครั้ง (pairs ไม่การันตีลำดับ)
+        local names = {}
+        for name in pairs(comps) do names[#names + 1] = name end
+        table.sort(names)
+
+        print(('^2[nx_cityselect]^7 ===== ชิ้นที่ใส่อยู่ทั้งหมด (%s) ====='):format(genderKey))
+
+        local found = 0
+        for _, name in ipairs(names) do
+            -- pcall กัน GetClothingTag พังกับบางหมวด (เช่นหมวดที่ไม่ใช่เสื้อผ้าอย่าง Eyes/Heads)
+            -- ไม่งั้นเจอหมวดเดียวมีปัญหาแล้วหยุดทั้งลูป ไม่ได้ชิ้นที่เหลือเลย
+            local ok, tag = pcall(function()
+                return exports.vorp_character:GetClothingTag(name)
+            end)
+            if ok and type(tag) == 'table' and tag.drawable then
+                found = found + 1
+                print(('^3-- %s^7'):format(name))
+                print(tagToLine(genderKey, tag))
+            end
+        end
+
+        if found == 0 then
+            print('^1[nx_cityselect]^7 ไม่พบชิ้นที่ใส่อยู่เลยสักหมวด')
+        else
+            print(('^2[nx_cityselect]^7 ===== รวม %d ชิ้น ====='):format(found))
+        end
     end, false)
 end
