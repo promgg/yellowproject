@@ -162,6 +162,15 @@ RegisterServerEvent('vorp_bank:UpgradeSafeBox', function(slotsToBuy, bankName)
         return Notify({ source = _source, text = T.invOpenFail, time = 4000, type = "error" })
     end
 
+    -- ต้อง resolve ตัวละครใหม่หลัง await ทุกครั้ง: getUsedCharacter คืน "สำเนา" ที่ copy money
+    -- มาแบบ by-value ตัวแปร Character ที่ capture ไว้ตั้งแต่ก่อน query จึงถือยอดเงินเก่าค้างอยู่
+    -- (TOCTOU: ถ้าใช้เงินไปกับ resource อื่นระหว่างรอ query เช็คนี้จะยังผ่านด้วยยอดเก่า)
+    Character = resolveRequest(_source, bankName)
+    if not Character then
+        upgradeInProgress[_source] = nil
+        return
+    end
+
     local money       = Character.money -- อ่านสดตอนนี้ ไม่ใช้ค่าที่ capture ไว้ก่อนรอ query
     local amountToPay = costslot * slotsToBuy
     local FinalSlots  = currentspace + slotsToBuy
