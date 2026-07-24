@@ -42,7 +42,7 @@ Config.WeaponComp = {
     horse: ต้องมี model + gender (ชื่อม้าถูกสุ่มเป็น Paradise-<4หลัก> ตอนแจก)
 ]]
 Config.Pools = {
-    -- ===== กาชาโปรโมทเซิร์ฟ =====
+    -- ===== ตั๋วกาชาโปรโมทเซิร์ฟ =====
     promo = {
         ticket = 'gacha_promo',
         label  = 'กาชาโปรโมทเซิร์ฟ',
@@ -58,41 +58,47 @@ Config.Pools = {
                 { type = 'item', item = 'mat_diamond', label = 'เพชร',   amount = 2, rarity = 'rare' },
                 { type = 'item', item = 'mat_ruby',    label = 'ทับทิม', amount = 2, rarity = 'rare' },
                 { type = 'item', item = 'mat_emerald', label = 'มรกต',   amount = 2, rarity = 'rare' },
-                { type = 'item', item = 'aed',         label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
             }},
             { chance = 20, rewards = {
-                -- ปิดรางวัลม้าไว้ก่อน (migrate bcc-stables -> kd_stable, ตาราง player_horses ที่
-                -- grantReward เดิม INSERT ตรงเข้าไปจะไม่มีใครอ่านแล้ว ม้าจะหายไปเงียบๆ) —
-                -- แทนด้วยเงินสดค่าเทียบเท่าไปก่อน จนกว่าจะรู้ export/event ที่ถูกต้องของ kd_stable
-                -- แล้วเปลี่ยน type ตรงนี้ให้เรียกมันแทน
-                -- { type = 'horse', item = 'a_c_horse_suffolkpunch_sorrel', label = 'ม้า Suffolk Punch', model = 'a_c_horse_suffolkpunch_sorrel', gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'money', item = 'cash_legendary', label = 'เงินสดก้อนโต (ของแทนม้า ปิดชั่วคราว)', amount = 3000, rarity = 'legendary' },
+                { type = 'item',  item = 'aed', label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
+                -- ม้า Turkoman - Gold (จาก kd_stable overwriteConfig index 8) — ดู grantReward ฝั่ง server ว่าเข้า kd_stable ถูกไหม
+                { type = 'horse', item = 'a_c_horse_turkoman_gold', label = 'ม้า Turkoman - Gold', model = 'a_c_horse_turkoman_gold', gender = 'male', amount = 1, rarity = 'legendary' },
             }},
         },
     },
 
-    -- ===== กาชาสนับสนุน =====
+    -- ===== สุ่มม้า (ใช้ทอง จากการเติมเงินเพื่อสุ่ม) =====
     support = {
         ticket = 'gacha_support',
-        label  = 'กาชาสนับสนุน',
+        label  = 'สุ่มม้า',
         tiers  = {
             { chance = 50, rewards = {
-                { type = 'item', item = 'food_bread',  label = 'ขนมปัง',           amount = 5, rarity = 'basic'    },
-                { type = 'item', item = 'water',       label = 'น้ำดื่ม',           amount = 5, rarity = 'basic'    },
-                { type = 'item', item = 'bandage_s',   label = 'ผ้าพันแผลเล็ก',     amount = 5, rarity = 'common'   },
-                { type = 'item', item = 'bandage_xl',  label = 'ผ้าพันแผลใหญ่',     amount = 5, rarity = 'common'   },
-                { type = 'item', item = 'painkiller',  label = 'ยาขวดรักษาแผลใหญ่', amount = 5, rarity = 'uncommon' },
+                { type = 'item', item = 'food_bread',        label = 'ขนมปัง',           amount = 5, rarity = 'basic'    },
+                { type = 'item', item = 'food_oxtail_soup',  label = 'ซุปหางวัว',         amount = 5, rarity = 'basic'    },
+                { type = 'item', item = 'food_orange_juice', label = 'น้ำส้ม',            amount = 5, rarity = 'basic'    },
+                { type = 'item', item = 'gun_oil',           label = 'น้ำมันขัดปืน',      amount = 5, rarity = 'common'   },
+                { type = 'item', item = 'cigar',             label = 'ซิการ์',            amount = 5, rarity = 'common'   },
+                { type = 'item', item = 'water',             label = 'น้ำดื่ม',           amount = 5, rarity = 'basic'    },
+                { type = 'item', item = 'bandage_s',         label = 'ผ้าพันแผลเล็ก',     amount = 5, rarity = 'common'   },
+                { type = 'item', item = 'bandage_xl',        label = 'ผ้าพันแผลใหญ่',     amount = 5, rarity = 'common'   },
+                { type = 'item', item = 'painkiller',        label = 'ยาขวดรักษาแผลใหญ่', amount = 5, rarity = 'uncommon' },
             }},
             { chance = 30, rewards = {
                 { type = 'item', item = 'mat_diamond', label = 'เพชร',   amount = 2, rarity = 'rare' },
                 { type = 'item', item = 'mat_ruby',    label = 'ทับทิม', amount = 2, rarity = 'rare' },
                 { type = 'item', item = 'mat_emerald', label = 'มรกต',   amount = 2, rarity = 'rare' },
-                { type = 'item', item = 'aed',         label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
             }},
             { chance = 20, rewards = {
+                { type = 'item',  item = 'aed',        label = 'กล่องชุบเพื่อน',           amount = 1, rarity = 'epic'      },
                 { type = 'item',  item = 'bonus_gun5',  label = 'สมุดคัมภีร์ (+5% ตีปืน)',   amount = 1, rarity = 'legendary' },
-                { type = 'item',  item = 'bonus_gun10', label = 'ไม้กางเขนทอง (+10% ตีปืน)', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_arabian_white', label = 'ม้า Arabian White', model = 'a_c_horse_arabian_white', gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'item',  item = 'bonus_gun10', label = 'ม้ากางเขนทอง (+10% ตีปืน)', amount = 1, rarity = 'legendary' },
+                -- ม้ากาชา 6 ตัว (จาก kd_stable overwriteConfig index 10-15) — แต่ละตัว weight เท่ากัน
+                { type = 'horse', item = 'a_c_horse_americanpaint_greyovero', label = 'ม้า American Paint - Grey Overo', model = 'a_c_horse_americanpaint_greyovero', gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_andalusian_perlino',      label = 'ม้า Andalusian - Perlino',        model = 'a_c_horse_andalusian_perlino',      gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_appaloosa_leopard',       label = 'ม้า Appaloosa - Leopard',         model = 'a_c_horse_appaloosa_leopard',       gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_belgian_blondchestnut',   label = 'ม้า Belgian Draft - Blond Chestnut', model = 'a_c_horse_belgian_blondchestnut', gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_breton_steelgrey',        label = 'ม้า Breton - Steel Grey',         model = 'a_c_horse_breton_steelgrey',        gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_kentuckysaddle_black',    label = 'ม้า Kentucky Saddler - Black',    model = 'a_c_horse_kentuckysaddle_black',    gender = 'male', amount = 1, rarity = 'legendary' },
             }},
         },
     },

@@ -73,6 +73,11 @@ local function grantReward(src, xPlayer, reward)
         xPlayer.addCurrency(1, reward.amount)
 
     elseif t == 'horse' then
+        -- ⚠️⚠️ ต้องยืนยันตาราง/schema ของ kd_stable ก่อนใช้จริง ⚠️⚠️
+        -- kd_stable (jumpon-studios) เป็นระบบม้าคนละตัว + server code encrypted (FXAP) อ่าน schema ไม่ได้
+        -- docs ก็ยืนยันว่า "ไม่มี export ฝั่ง server สำหรับแจกม้า" → ต้อง INSERT ตารางของ kd_stable เองให้ถูก
+        -- ตอนนี้ยัง INSERT เข้า `player_horses` (ตารางเก่าของ vorp/bcc-stables) ซึ่ง kd_stable "อาจไม่อ่าน"
+        -- → ถ้า kd_stable ใช้ตารางชื่ออื่น ม้าจะหายเงียบ ๆ  ยืนยันชื่อตาราง+คอลัมน์แล้วค่อยแก้บรรทัดล่างนี้
         local horseName = ('Paradise-%04d'):format(math.random(0, 9999))
         MySQL.query.await(
             'INSERT INTO `player_horses` (identifier, charid, name, model, gender, captured) VALUES (?, ?, ?, ?, ?, ?)',
