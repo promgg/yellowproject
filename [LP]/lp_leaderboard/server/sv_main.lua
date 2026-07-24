@@ -133,9 +133,19 @@ MySQL.ready(function()
     local function countMap(t) local n = 0; for _ in pairs(t) do n = n + 1 end; return n end
 
     local pending = 2 + #gatherJobIds
-    local function onOneLoaded()
+    -- มีตารางไหนโหลดไม่สำเร็จแม้แต่ตารางเดียว = cache ในหน่วยความจำไม่ใช่ภาพจริงของ DB
+    local loadFailed = false
+    local function onOneLoaded(ok)
+        if not ok then loadFailed = true end
         pending = pending - 1
         if pending <= 0 then
+            if loadFailed then
+                -- ห้ามตั้ง ready: flushDirty() จะเอา cache ที่ว่าง/ไม่ครบไป INSERT ... ON DUPLICATE KEY
+                -- UPDATE ทับแถวจริงใน DB ทันทีที่มีคนฆ่ากันครั้งแรก = สถิติของทุกคนโดนรีเซ็ตเป็น 0
+                -- ปล่อยให้พังแบบเห็นชัด (เปิดบอร์ดไม่ได้ + log) ดีกว่าเงียบแล้วข้อมูลหาย
+                logTx('db-error', 'โหลดตารางไม่ครบ — ปิดการบันทึกลง DB (ready=false) กันเขียนทับข้อมูลจริง ให้ restart resource หลังแก้ DB')
+                return
+            end
             ready = true
             boardsDirty = true
             -- observability: log จำนวนที่โหลดเข้ามาเสมอ (ไม่ผูก Debug) — ข้อ E
@@ -147,37 +157,40 @@ MySQL.ready(function()
     end
 
     MySQL.query('SELECT charid, name, kills, deaths, score FROM lp_leaderboard_kills', {}, function(rows)
-        if not rows then logTx('db-error', 'โหลด lp_leaderboard_kills คืน nil (query fail?)') end
+        local ok = rows ~= nil
+        if not ok then logTx('db-error', 'โหลด lp_leaderboard_kills คืน nil (query fail?)') end
         for _, r in ipairs(rows or {}) do
             killStats[tostring(r.charid)] = {
                 name = r.name, kills = tonumber(r.kills) or 0,
                 deaths = tonumber(r.deaths) or 0, score = tonumber(r.score) or 0,
             }
         end
-        onOneLoaded()
+        onOneLoaded(ok)
     end)
 
     MySQL.query('SELECT city, label, entries, wins, losses FROM lp_leaderboard_cities', {}, function(rows)
-        if not rows then logTx('db-error', 'โหลด lp_leaderboard_cities คืน nil (query fail?)') end
+        local ok = rows ~= nil
+        if not ok then logTx('db-error', 'โหลด lp_leaderboard_cities คืน nil (query fail?)') end
         for _, r in ipairs(rows or {}) do
             cityStats[tostring(r.city)] = {
                 label = r.label, entries = tonumber(r.entries) or 0,
                 wins = tonumber(r.wins) or 0, losses = tonumber(r.losses) or 0,
             }
         end
-        onOneLoaded()
+        onOneLoaded(ok)
     end)
 
     for _, catId in ipairs(gatherJobIds) do
         local job = Config.GatherJobs[catId]
         MySQL.query('SELECT charid, name, score, count FROM ' .. job.table, {}, function(rows)
-            if not rows then logTx('db-error', ('โหลด %s คืน nil (query fail?)'):format(job.table)) end
+            local ok = rows ~= nil
+            if not ok then logTx('db-error', ('โหลด %s คืน nil (query fail?)'):format(job.table)) end
             for _, r in ipairs(rows or {}) do
                 gatherStats[catId][tostring(r.charid)] = {
                     name = r.name, score = tonumber(r.score) or 0, count = tonumber(r.count) or 0,
                 }
             end
-            onOneLoaded()
+            onOneLoaded(ok)
         end)
     end
 end)
