@@ -134,7 +134,28 @@ end
 
 function InventoryService.giveMoneyToPlayer(target, amount)
 	local _source <const> = source
-	local _target <const> = target
+	local _target <const> = tonumber(target)
+
+	-- ── ตรวจค่าที่ client ส่งมา (เดิมไม่ตรวจอะไรเลย) ──────────────────────────
+	-- event นี้เป็น RegisterServerEvent = client ยิงค่าอะไรเข้ามาก็ได้
+	-- ของเดิมส่ง amount ติดลบแล้ว "ดูดเงินจากคนอื่นเข้าตัวเอง" ได้ทันที เพราะ
+	--   sourceMoney < amount  ->  100 < -1000  = false (ผ่านด่าน)
+	--   removeCurrency(0, -1000) -> money - (-1000) = +1000 เข้าตัวเอง
+	--   addCurrency(0, -1000)    -> เป้าหมายโดนหัก 1000
+	-- และ addCurrency/removeCurrency ใน vorp_core เขียนลง DB ทันที (write-through)
+	-- = ขโมยเงินถาวรจบในคลิกเดียว (vorp_core เองคอมเมนต์ค้างไว้ว่า "add check for security")
+	amount = tonumber(amount)
+	if not amount or amount ~= amount then -- nil หรือ NaN
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+	amount = math.floor(amount) -- ตัดทศนิยม กันเศษสตางค์ทำยอดเพี้ยน
+	if amount <= 0 then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+	if not _target or _target == _source then -- โอนให้ตัวเองไม่มีความหมาย
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
+
 	local user <const> = Core.getUser(_source)
 	local targetUser <const> = Core.getUser(_target)
 
@@ -143,6 +164,9 @@ function InventoryService.giveMoneyToPlayer(target, amount)
 	end
 	local sourceCharacter <const> = user.getUsedCharacter
 	local targetCharacter <const> = targetUser.getUsedCharacter
+	if not sourceCharacter or not targetCharacter then
+		return TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
+	end
 	local sourceMoney <const> = sourceCharacter.money
 	local charid <const> = sourceCharacter.charIdentifier
 	if not InventoryService.CheckNewPlayer(_source, charid) then
@@ -157,20 +181,37 @@ function InventoryService.giveMoneyToPlayer(target, amount)
 	if SvUtils.InProcessing(_source) then return end
 	SvUtils.ProcessUser(_source)
 
+	-- ── ห่อ pcall ให้ปลดล็อกเสมอ (เดิมล็อกค้างถาวรได้) ────────────────────────
+	-- ProcessUser() ตั้งล็อกไว้ ถ้าโค้ดตรงกลาง error ก่อนถึง Trem() ล็อกจะค้าง
+	-- แล้วทุก action ใน inventory ของคนนั้นถูกบล็อกหมด "รวมถึงการใช้ไอเทม"
+	-- (ใช้ยาแล้วไม่มีอะไรเกิดขึ้น) จนกว่าจะ relog — เคสจริงที่ทำให้ error คือ
+	-- เป้าหมายหลุดกลางคัน -> getSourceInfo(_target) คืน nil -> เอา nil ไปต่อสตริง
+	local ok, err = pcall(function()
+		sourceCharacter.removeCurrency(0, amount)
+		targetCharacter.addCurrency(0, amount)
+		Core.NotifyRightTip(_source, T.YouPaid .. amount .. " ID: " .. _target, 3000)
+		Core.NotifyRightTip(_target, T.YouReceived .. amount .. " ID: " .. _source, 3000)
 
-	sourceCharacter.removeCurrency(0, amount)
-	targetCharacter.addCurrency(0, amount)
-	Core.NotifyRightTip(_source, T.YouPaid .. amount .. " ID: " .. _target, 3000)
-	Core.NotifyRightTip(_target, T.YouReceived .. amount .. " ID: " .. _source, 3000)
+		-- getSourceInfo คืน nil ทั้งชุดถ้าผู้เล่นหลุดไปแล้ว — ใส่ค่าสำรองกันต่อสตริงพัง
+		local charname, _, steamname = getSourceInfo(_source)
+		local charname2, _, steamname2 = getSourceInfo(_target)
+		charname   = charname or "unknown"
+		steamname  = steamname or "unknown"
+		charname2  = charname2 or "unknown"
+		steamname2 = steamname2 or "unknown"
 
+		local title <const> = T.givemoney
+		local description <const> = "**" .. T.WebHookLang.amount .. "**: `" .. amount .. "`\n **" .. T.WebHookLang.charname .. ":** `" .. charname .. "` \n**" .. T.WebHookLang.Steamname .. "** `" .. steamname .. "` \n**" .. T.to .. "** `" .. charname2 .. "`\n**" .. T.WebHookLang.Steamname .. "** `" .. steamname2 .. "` \n"
+		local info <const> = { source = _source, name = Logs.WebHook.webhookname, title = title, description = description, webhook = Logs.WebHook.webhook, color = Logs.WebHook.colorgiveMoney, }
+		SvUtils.SendDiscordWebhook(info)
+	end)
 
-	local charname <const>, _, steamname <const> = getSourceInfo(_source)
-	local charname2 <const>, _, steamname2 <const> = getSourceInfo(_target)
-	local title <const> = T.givemoney
-	local description <const> = "**" .. T.WebHookLang.amount .. "**: `" .. amount .. "`\n **" .. T.WebHookLang.charname .. ":** `" .. charname .. "` \n**" .. T.WebHookLang.Steamname .. "** `" .. steamname .. "` \n**" .. T.to .. "** `" .. charname2 .. "`\n**" .. T.WebHookLang.Steamname .. "** `" .. steamname2 .. "` \n"
-	local info <const> = { source = _source, name = Logs.WebHook.webhookname, title = title, description = description, webhook = Logs.WebHook.webhook, color = Logs.WebHook.colorgiveMoney, }
-	SvUtils.SendDiscordWebhook(info)
+	if not ok then
+		print(("^1[vorp_inventory]^7 giveMoneyToPlayer ผิดพลาด (src=%s -> %s, %s): %s")
+			:format(tostring(_source), tostring(_target), tostring(amount), tostring(err)))
+	end
 
+	-- ต้องทำงานเสมอไม่ว่าด้านบนจะพังหรือไม่ ไม่งั้นผู้เล่นใช้ inventory ไม่ได้ถาวร
 	TriggerClientEvent("vorp_inventory:ProcessingReady", _source)
 	SvUtils.Trem(_source)
 end
