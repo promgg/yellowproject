@@ -28,6 +28,22 @@ end
 
 -- โหมดผสม: ปล่อยให้ native task ทำงานเต็ม แล้วสลับเฉพาะช่วงสู้ปลา (state 7) เป็น lp_minigame
 local hybridRunning = false
+
+-- เวลาที่เพิ่งเข้า state 12 (ปลาขึ้นมาแล้ว กำลังเล่นอนิเมชันดึง/ชูปลา)
+-- ประกาศระดับไฟล์เพราะใช้ 2 ที่: ลูปหลัก (กั้นปุ่มเก็บ/ปล่อย) และ thread โชว์ prompt
+-- (ไม่ให้โชว์ปุ่มที่กดไม่ได้) — ดู Config.LandingInputLockMs
+local landedAt = nil
+
+-- การกดเก็บ/ปล่อยปลาที่กดมาระหว่างช่วงล็อก ("keep"/"throw"/nil)
+-- เก็บไว้ทำตอนหมดล็อก ไม่ทิ้งทิ้งไป (ดูเหตุผลในลูปหลัก state 12)
+local pendingLanding = nil
+
+-- true = อยู่ในช่วงอนิเมชันดึงปลาขึ้น ยังกดเก็บ/ปล่อยไม่ได้
+local function landingLocked()
+    if not landedAt then return false end
+    local lockMs = Config.LandingInputLockMs or 0
+    return lockMs > 0 and (GetGameTimer() - landedAt) < lockMs
+end
 local function hybridEnabled()
     local H = Config.HybridMinigame
     return H ~= nil and H.Enabled == true
@@ -125,6 +141,8 @@ AddEventHandler("lp_fishing:resetFishing", function()
     status = nil
     currentLure = nil
     hybridRunning = false
+    landedAt = nil
+    pendingLanding = nil
 end)
 
 Core.Callback.Register("lp_fishing:checkRodAndBait", function(CB, UsableBait)
@@ -172,6 +190,8 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
     fishing = true
     local sleep = 1500
     ready = false
+    landedAt = nil       -- เริ่มตกปลารอบใหม่ ล้างตัวจับเวลาของรอบก่อน
+    pendingLanding = nil -- และล้างการกดที่ค้างจากรอบก่อน
 
     while fishing do
         Citizen.Wait(0)
@@ -475,7 +495,36 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
             end
 
             if FISHING_GET_MINIGAME_STATE() == 12 then
-                if IsControlJustPressed(0, GetHashKey("INPUT_ATTACK")) then
+                -- เฟรมแรกที่เข้า state 12 = เริ่มอนิเมชันดึงปลาขึ้น จำเวลาไว้กั้นปุ่ม
+                if not landedAt then landedAt = GetGameTimer() end
+
+                -- กันกดคลิกซ้าย/ขวาข้ามอนิเมชัน — โดยเฉพาะเคสกดคลิกซ้ายพร้อมจังหวะ
+                -- ที่กด space จบมินิเกมพอดี ซึ่งจะถูกนับเป็น "เพิ่งกด" ในเฟรมแรกของ
+                -- state 12 ทันทีที่ NUI ของมินิเกมคืน focus ให้เกม
+                local inputLocked = landingLocked()
+
+                -- ⚠️ ห้าม "ทิ้ง" การกดระหว่างล็อกเฉยๆ — IsControlJustPressed เป็น edge-trigger
+                -- กดระหว่างล็อกแล้วไม่เก็บไว้ = event หายเลย ผู้เล่นต้องปล่อยแล้วกดใหม่
+                -- ถ้าไม่รู้ตัว (prompt ก็ถูกซ่อนช่วงล็อกอีก) จะค้างใน state 12 พร้อม fishing = true
+                -- แล้วเหวี่ยงเบ็ดรอบใหม่ไม่ได้ เพราะ UseBait โดน "if fishing then return end" บล็อก
+                --
+                -- จึงบัฟเฟอร์การกดไว้ พอหมดเวลาล็อกค่อยทำงานให้ (กดตอนไหนก็ติด ไม่ต้องกดซ้ำ)
+                if inputLocked then
+                    if IsControlJustPressed(0, GetHashKey("INPUT_ATTACK")) then
+                        pendingLanding = "keep"
+                    elseif IsControlJustPressed(0, GetHashKey("INPUT_AIM")) then
+                        pendingLanding = "throw"
+                    end
+                end
+
+                local doKeep  = (not inputLocked) and
+                    (pendingLanding == "keep" or IsControlJustPressed(0, GetHashKey("INPUT_ATTACK")))
+                local doThrow = (not inputLocked) and (not doKeep) and
+                    (pendingLanding == "throw" or IsControlJustPressed(0, GetHashKey("INPUT_AIM")))
+
+                if doKeep or doThrow then pendingLanding = nil end
+
+                if doKeep then
                     if fishing then
                         FISHING_SET_TRANSITION_FLAG(32)
                         fishing = false
@@ -499,7 +548,7 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                     end
                 end
 
-                if IsControlJustPressed(0, GetHashKey("INPUT_AIM")) then
+                if doThrow then
                     if fishing then
                         fishing = false
                         currentLure = nil
@@ -525,6 +574,11 @@ RegisterNetEvent("lp_fishing:UseBait", function(UsableBait)
                     Citizen.Wait(3000)
                     DeleteEntity(entity)
                 end
+            else
+                -- ออกจาก state 12 แล้ว — ล้างตัวจับเวลา ให้ปลาตัวถัดไปโดนล็อกปุ่มใหม่
+                -- (ถ้าไม่ล้าง ตัวที่ 2 เป็นต้นไปจะกดข้ามอนิเมชันได้ทันที)
+                landedAt = nil
+                pendingLanding = nil
             end
 
             if FISHING_GET_MINIGAME_STATE() == 11 then
@@ -577,7 +631,9 @@ CreateThread(function()
             UiPromptSetActiveGroupThisFrame(fishing_data.prompt_hook.group, VarString(10, "LITERAL_STRING", T.MiniGame), 0, 0, 0, 0)
         elseif state == 12 then
             sleep = 0
-            if fishs[GetEntityModel(FISHING_GET_FISH_HANDLE())] ~= nil then
+            -- ระหว่างอนิเมชันดึงปลาขึ้น ปุ่มเก็บ/ปล่อยยังกดไม่ได้ (ดู landingLocked)
+            -- ไม่โชว์ prompt ช่วงนี้ ไม่งั้นผู้เล่นเห็นปุ่มแล้วกดไม่ติด นึกว่าค้าง
+            if not landingLocked() and fishs[GetEntityModel(FISHING_GET_FISH_HANDLE())] ~= nil then
                 UiPromptSetActiveGroupThisFrame(fishing_data.prompt_finish.group, VarString(10, "LITERAL_STRING",
                     T.FishName ..
                     " : " ..
