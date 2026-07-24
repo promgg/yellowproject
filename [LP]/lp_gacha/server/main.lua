@@ -86,9 +86,11 @@ local function grantReward(src, xPlayer, reward)
             }
         )
         if horseId then
-            -- แถวสถิติเริ่มต้น (kd_stable ผูกด้วย horseid) — ค่าอ้างอิงจากม้าใหม่ในตาราง (bonding 250 / stamina-health 350)
+            -- แถวสถิติเริ่มต้น (kd_stable ผูกด้วย horseid) — ใช้ INSERT IGNORE เพราะ kd_stable
+            -- สร้างแถว stats ให้เองอัตโนมัติ (trigger/logic) ตอน INSERT kd_horses อยู่แล้ว
+            -- ถ้าไม่ IGNORE จะ error 'Duplicate entry' แล้วทำให้ loop grant ของทั้ง batch หยุดกลางคัน
             MySQL.query.await(
-                'INSERT INTO `kd_horses_stats` (horseid, distance, lastNewShoes, bonding, speedTraining, accelerationTraining, handlingTraining, stamina, health) VALUES (?, 0, 0, 250, 0, 0, 0, 350, 350)',
+                'INSERT IGNORE INTO `kd_horses_stats` (horseid, distance, lastNewShoes, bonding, speedTraining, accelerationTraining, handlingTraining, stamina, health) VALUES (?, 0, 0, 250, 0, 0, 0, 350, 350)',
                 { horseId }
             )
             dbg(('แจกม้า kd_stable สำเร็จ: horseId=%s model=%s -> charid=%s'):format(tostring(horseId), reward.model or reward.item, tostring(xPlayer.charIdentifier)))
@@ -189,8 +191,12 @@ local function doGrant(src)
         return
     end
 
+    -- แจกแต่ละรางวัลแบบแยกกัน (pcall) — ถ้ารางวัลหนึ่งพัง (เช่น DB error) จะไม่ทำให้รางวัลที่เหลือใน batch หลุด
     for _, reward in ipairs(p.rewards) do
-        grantReward(src, xPlayer, reward)
+        local ok, err = pcall(grantReward, src, xPlayer, reward)
+        if not ok then
+            print(('^1[lp_gacha]^7 grantReward ล้มเหลว: %s (reward=%s)'):format(tostring(err), reward.label or reward.item or '?'))
+        end
     end
     logGrant(src, xPlayer, p.pool, p.winners)
 
