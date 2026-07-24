@@ -138,6 +138,12 @@
         </section>
     </main>
 
+    <!-- Peek hotbar: แถบ fast-slot ลอยแบบ read-only โผล่ตอนกด Alt ค้าง (อยู่นอก inventory-root
+         จึงโชว์ได้ตอนกระเป๋าปิด) เฟดเข้า/ออกด้วย class is-visible ไม่แย่ง focus เกม -->
+    <aside id="fast-peek" class="fast-peek" aria-hidden="true">
+        <div id="fast-peek-slots" class="fast-slots"></div>
+    </aside>
+
     <script src="js/vendor/jquery-3.3.1.min.js"></script>
     <script src="js/vendor/jquery-ui.js"></script>
     <script src="app.js"></script>

@@ -101,6 +101,35 @@ input {
     background-size: 100% 100%;
 }
 
+/* Peek hotbar — แถบ fast-slot ลอยขวาจอตอนกด Alt ค้าง (โชว์แม้กระเป๋าปิด)
+   เฟดเข้า/ออกด้วย opacity, pointer-events:none = คลิกทะลุ ไม่แย่ง input เกม */
+.fast-peek {
+    position: fixed;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+    width: 108px;
+    height: 607px;
+    padding: 8px 8px 7px;
+    box-sizing: border-box;
+    background-image: url("assets/fastslot-bg.png");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 40;
+}
+
+.fast-peek.is-visible {
+    opacity: 1;
+}
+
+/* ช่องใน peek เป็น read-only ไม่ต้องมี cursor pointer/drag */
+.fast-peek .fast-slot {
+    cursor: default;
+}
+
 .fast-slots {
     display: grid;
     grid-template-rows: repeat(6, 1fr);

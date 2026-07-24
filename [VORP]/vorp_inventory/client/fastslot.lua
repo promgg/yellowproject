@@ -198,9 +198,22 @@ if Config.FastSlotGlobalHotkey ~= false then
     local MOD_VK = Config.FastSlotHotkeyModifierVK or 0x12 -- 0x12 = MENU (Alt)
     local modHeld = false
 
+    -- peek hotbar: กด Alt ค้าง -> โชว์แถบ fast-slot เฟดขึ้น / ปล่อย -> เฟดหาย (NUI ทำ transition เอง)
+    local function sendPeek(show)
+        if Config.FastSlotPeek == false then return end
+        SendNUIMessage({ action = "fastslotPeek", show = show })
+    end
+
     local function setMod(state)
         modHeld = state
         dbg("modifier", state and "^2DOWN^7" or "^1UP^7")
+        if state then
+            -- กระเป๋าเปิดอยู่แล้วโชว์ fast-panel เต็ม ไม่ต้อง peek ซ้อน
+            if InInventory == true then return end
+            sendPeek(true)
+        else
+            sendPeek(false)
+        end
     end
 
     -- modifier: ดัก MENU (0x12) + เผื่อ build ที่ส่งเป็น LMENU(0xA4)/RMENU(0xA5) แยก
@@ -224,4 +237,15 @@ if Config.FastSlotGlobalHotkey ~= false then
         end, function() end, vk, true)
     end
     dbg("ลงทะเบียน global hotkey Alt+1.." .. math.min(MAX_SLOTS, 9) .. " (RegisterRawKeymap) เรียบร้อย")
+
+    -- Alt+X: ปิด peek ทันที "แม้ยังกด Alt ค้างอยู่" (ปล่อย Alt ก็ปิดเองผ่าน setMod อยู่แล้ว)
+    -- 0x58 = VK_X — เช็คว่า Alt ค้างจริงก่อน ไม่งั้นกด X เปล่าๆ จะไปสั่งปิด peek ที่ไม่ได้เปิด
+    if Config.FastSlotPeek ~= false then
+        RegisterRawKeymap(resName .. ":fastslot:peekHide", function()
+            if modHeld or IsRawKeyDown(MOD_VK) or IsRawKeyDown(0xA4) or IsRawKeyDown(0xA5) then
+                dbg("Alt+X -> ปิด peek")
+                sendPeek(false)
+            end
+        end, function() end, 0x58, true)
+    end
 end

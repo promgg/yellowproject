@@ -257,6 +257,14 @@ Config = {
 	FastSlotGlobalHotkey = true,
 	-- virtual key code ของปุ่ม modifier (ค่าเริ่ม 0x12 = Alt ซ้าย/ขวา / ถ้าอยากใช้ Ctrl ตั้ง 0x11 / Shift 0x10)
 	FastSlotHotkeyModifierVK = 0x12,
+
+	-- ===== Peek hotbar: กด Alt ค้าง = โชว์แถบ fast-slot ลอยขึ้นมา (เฟดเข้า) =====
+	--   กด Alt ค้าง       -> แถบ fast-slot เฟดขึ้นให้ดู (ตอนกระเป๋าปิดอยู่)
+	--   ปล่อย Alt          -> เฟดหาย
+	--   กด Alt+X           -> เฟดหาย (ปิดทั้งที่ยังกด Alt ค้างอยู่)
+	--   true  = เปิด (แนะนำ)   false = ปิด (fast-slot โชว์เฉพาะตอนเปิดกระเป๋าแบบเดิม)
+	-- ไม่แย่ง focus เกม (แค่โชว์ภาพผ่าน NUI) ผู้เล่นยังขยับ/ทำอย่างอื่นได้ปกติระหว่างกด Alt ค้าง
+	FastSlotPeek = true,
 	-- dropp items can have a diferent model added them here item name and object
 	spawnableProps             = {
 		default_box = "p_cottonbox01x", -- default when object is not found will always spawn this object for weapon or items

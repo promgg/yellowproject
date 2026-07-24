@@ -91,6 +91,8 @@ function cacheElements() {
     els.root = document.getElementById("inventory-root");
     els.inventoryClose = document.getElementById("inventory-close");
     els.fastSlots = document.getElementById("fast-slots");
+    els.fastPeek = document.getElementById("fast-peek");
+    els.fastPeekSlots = document.getElementById("fast-peek-slots");
     els.inventoryGridWrap = document.getElementById("inventory-grid-wrap");
     els.inventoryGrid = document.getElementById("inventory-grid");
     els.inventoryEmpty = document.getElementById("inventory-empty");
@@ -220,6 +222,41 @@ function renderFastSlots() {
 
         els.fastSlots.appendChild(button);
     });
+
+    renderFastPeek();
+}
+
+// Peek hotbar (อ่านอย่างเดียว) — mirror ช่องเดียวกับ fast-panel แต่ไม่มี drag/click
+// ใช้ตอนกด Alt ค้าง โชว์ลอยขวาจอโดยไม่ต้องเปิดกระเป๋า
+function renderFastPeek() {
+    if (!els.fastPeekSlots) return;
+    const slots = normalizeFastSlots();
+    els.fastPeekSlots.innerHTML = "";
+
+    slots.forEach((slot) => {
+        const div = document.createElement("div");
+        const item = slot.item;
+        div.className = "fast-slot";
+        div.dataset.slot = String(slot.slot);
+        div.classList.toggle("is-filled", Boolean(item));
+        div.innerHTML = `<span class="fast-slot-number">${slot.slot}</span>`;
+
+        if (item) {
+            const normalized = normalizeItem(item, slot.slot);
+            div.appendChild(createImage(normalized, normalized.label));
+            div.insertAdjacentHTML("beforeend", `<span class="fast-slot-amount">${formatAmount(normalized, true)}</span>`);
+            div.insertAdjacentHTML("beforeend", `<span class="fast-slot-label">${escapeHtml(normalized.label)}</span>`);
+        }
+
+        els.fastPeekSlots.appendChild(div);
+    });
+}
+
+function setFastPeek(show) {
+    if (!els.fastPeek) return;
+    if (show) renderFastPeek(); // ให้ค่าล่าสุดเสมอตอนโผล่
+    els.fastPeek.classList.toggle("is-visible", Boolean(show));
+    els.fastPeek.setAttribute("aria-hidden", show ? "false" : "true");
 }
 
 function beginFastSlotDrag(event, payload, element) {
@@ -1248,6 +1285,9 @@ function handleMessage(event) {
             break;
         case "inventoryPreferences":
             applyInventoryPreferences(data.preferences || data);
+            break;
+        case "fastslotPeek":
+            setFastPeek(data.show);
             break;
         default:
             break;
