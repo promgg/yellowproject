@@ -773,14 +773,31 @@ function InventoryService.sharePickupServerItem(data)
 	if not user then return end
 
 	local Character = user.getUsedCharacter
+	if not Character then return end
 	local sourceInventory = UsersInventories.default[Character.identifier]
+	if not sourceInventory then return end
 	local item = sourceInventory[data.id]
 
-	if not item and data.weaponId == 1 then return end
+	-- เดิม: `if not item and data.weaponId == 1 then return end` — เงื่อนไขกลับด้าน
+	-- ถ้าไอเทมไม่มีจริงและ weaponId ~= 1 จะหลุดไปเรียก item:getCount() บน nil
+	if not item then return end
 
-	if data.amount > item:getCount() then return end
+	-- 🔒 amount ต้องเป็นจำนวนเต็มบวก และมีของพอจริง
+	-- เดิมเทียบ `data.amount > item:getCount()` ตรงๆ ค่าติดลบจึงผ่านด่าน
+	local amount = tonumber(data.amount)
+	if not amount or amount ~= amount or amount == math.huge then return end
+	amount = math.floor(amount)
+	if amount <= 0 or amount > item:getCount() then return end
+	data.amount = amount
 
-	local result = InventoryService.subItem(_source, "default", data.id, data.amount)
+	-- 🔒 ชื่อ/metadata/degradation ของกองที่ตกพื้นต้องมาจากไอเทมจริงในกระเป๋า
+	-- ไม่ใช่จาก client เดิมส่ง id ของขนมปัง แต่แปะ name = "gold_bar" มาด้วยได้
+	-- แล้ว shareData เก็บชื่อจาก client ตรงๆ พอไปเก็บของคืนจึงได้ gold_bar (เสกไอเทม)
+	data.name        = item:getName()
+	data.metadata    = item:getMetadata()
+	data.degradation = item:getDegradation()
+
+	local result = InventoryService.subItem(_source, "default", data.id, amount)
 	if not result then return end
 
 	local charname, _, steamname = getSourceInfo(_source)
@@ -811,7 +828,12 @@ function InventoryService.shareMoneyPickupServer(data)
 	local handle = data.handle
 	local money = Character.money
 
-	if amount > money then return end
+	-- 🔒 ค่าติดลบผ่านด่าน `amount > money` ได้ (vorp_core กันซ้ำอีกชั้นแล้ว
+	-- แต่ที่นี่ยังสร้างกองเงินติดลบทิ้งไว้บนพื้น) — ตัดตั้งแต่ต้นทาง
+	amount = tonumber(amount)
+	if not amount or amount ~= amount or amount == math.huge then return end
+	if amount <= 0 or amount > money then return end
+	data.amount = amount
 
 	Character.removeCurrency(0, amount)
 	local uid = SvUtils.GenerateUniqueID()
@@ -844,7 +866,12 @@ function InventoryService.shareGoldPickupServer(data)
 
 	local Character = user.getUsedCharacter
 	local gold = Character.gold
-	if data.amount > gold then return end
+
+	-- 🔒 เหตุผลเดียวกับ shareMoneyPickupServer — กันค่าติดลบ/NaN ก่อนสร้างกองบนพื้น
+	local amount = tonumber(data.amount)
+	if not amount or amount ~= amount or amount == math.huge then return end
+	if amount <= 0 or amount > gold then return end
+	data.amount = amount
 
 	Character.removeCurrency(1, data.amount)
 	local uid = SvUtils.GenerateUniqueID()
@@ -1035,9 +1062,18 @@ function InventoryService.GiveItem(itemId, amount, target)
 	local user1 = Core.getUser(_target)
 
 	if not user or not user1 then return end
+	if _target == _source then return end
+
+	-- 🔒 amount ต้องเป็นจำนวนเต็มบวก — ด่านข้างล่างใช้ `item:getCount() < amount`
+	-- ค่าติดลบจึงผ่าน แล้วไปหักของฝั่งผู้รับแทน
+	amount = tonumber(amount)
+	if not amount or amount ~= amount or amount == math.huge then return end
+	amount = math.floor(amount)
+	if amount <= 0 then return end
 
 	local character = user.getUsedCharacter
 	local targetCharacter = user1.getUsedCharacter
+	if not character or not targetCharacter then return end
 	local charid = character.charIdentifier
 	local targetCharId = targetCharacter.charIdentifier
 	local sourceInventory = UsersInventories.default[character.identifier]
@@ -1057,11 +1093,17 @@ function InventoryService.GiveItem(itemId, amount, target)
 	local item = sourceInventory[itemId]
 	local itemName = item:getName()
 	local svItem = ServerItems[itemName]
+	-- ⚠️ ทางออกสองทางนี้เดิม return เฉยๆ ทั้งที่จับ ProcessUser ไปแล้ว
+	-- ล็อกจึงค้างถาวร = ผู้เล่นใช้ไอเทม/ให้ของไม่ได้อีกเลยจนกว่าจะรีล็อก
 	if not svItem or not item then
+		TriggerClientEvent("vorp_inventory:transactionCompleted", _source)
+		SvUtils.Trem(_source)
 		return
 	end
 	-- does source ave this amount of items ?
 	if item:getCount() < amount then
+		TriggerClientEvent("vorp_inventory:transactionCompleted", _source)
+		SvUtils.Trem(_source)
 		return print("tried to give more than you have possible cheat")
 	end
 
@@ -1707,15 +1749,37 @@ function InventoryService.DiscordLogs(inventory, itemName, amount, playerName, a
 	end
 end
 
-local function CanProceed(item, amount, sourceIdentifier, sourceName)
+local function CanProceed(item, amount, sourceIdentifier, sourceName, sourceCharId)
+	if not item or not item.id then return false end
+
+	-- 🔒 amount ต้องเป็นจำนวนเต็มบวก — ด่านข้างล่างเทียบ `< amount` ค่าติดลบจึงผ่านทุกด่าน
+	local n = tonumber(amount)
+	if not n or n ~= n or n == math.huge then return false end
+	if math.floor(n) ~= n or n <= 0 then return false end
+
 	if item.type == "item_weapon" then
-		if not UsersWeapons.default[item.id] then
+		local weapon = UsersWeapons.default[item.id]
+		if not weapon then
 			print("Player: " .. sourceName .. " is trying to add weapons to a custom inventory that he does not have, possible Cheat!!")
 			return false
 		end
+
+		-- 🔒 เดิมเช็คแค่ "ปืนกระบอกนี้มีอยู่ในเซิร์ฟ" ไม่ได้เช็คว่าเป็นของคนที่ส่ง event มา
+		-- ส่ง item.id ของปืนคนอื่นเข้ามาจึงโยกปืนชาวบ้านเข้าตู้/ยัดใส่คนอื่นได้
+		if sourceCharId and tostring(weapon.charId) ~= tostring(sourceCharId) then
+			print(("^1[vorp_inventory] %s พยายามโยกปืน id %s ที่ไม่ใช่ของตัวเอง — ปฏิเสธ^0")
+				:format(sourceName, tostring(item.id)))
+			return false
+		end
+		if weapon.getPropietary and weapon:getPropietary() and weapon:getPropietary() ~= sourceIdentifier then
+			print(("^1[vorp_inventory] %s พยายามโยกปืน id %s ข้ามบัญชี — ปฏิเสธ^0")
+				:format(sourceName, tostring(item.id)))
+			return false
+		end
+
 		local weaponCount = 0
-		for _, weapon in pairs(UsersWeapons.default) do
-			if weapon.name == item.name then
+		for _, w in pairs(UsersWeapons.default) do
+			if w.name == item.name and tostring(w.charId) == tostring(sourceCharId) then
 				weaponCount = weaponCount + 1
 			end
 		end
@@ -1760,7 +1824,7 @@ function InventoryService.MoveToCustom(obj)
 	local IsBlackListed = InventoryService.CheckIsBlackListed(invId, string.lower(item.name)) -- lower so we can checkitems and weapons
 
 
-	if not CanProceed(item, amount, sourceIdentifier, sourceName) then
+	if not CanProceed(item, amount, sourceIdentifier, sourceName, sourceCharIdentifier) then
 		return
 	end
 
@@ -1973,17 +2037,30 @@ function InventoryService.MoveToPlayer(obj)
 	local data = json.decode(obj)
 	local item = data.item
 	local amount = tonumber(data.number)
-	local sourceCharacter = Core.getUser(_source).getUsedCharacter
+	local sourceUser = Core.getUser(_source)
+	if not sourceUser then return end
+	local sourceCharacter = sourceUser.getUsedCharacter
+	if not sourceCharacter then return end
 	local sourceName = sourceCharacter.firstname .. ' ' .. sourceCharacter.lastname
 	local invId = "default"
-	local target = data.info.target
+	local target = tonumber(data.info and data.info.target)
 	local messages = {
 		weapons = T.weaponsLimitExceeded,
 		items = T.itemsLimitExceeded,
 		cooldown = T.cooldownMessage
 	}
 
-	if not CanProceed(item, amount, sourceCharacter.identifier, sourceName) then
+	-- 🔒 target มาจาก client เหมือน TakeFromPlayer — ต้องมีสิทธิ์ล้วงกระเป๋าคนนั้นจริง
+	-- ถึงจะยัดของใส่ให้ได้ ไม่งั้นยิง event ใส่ผู้เล่นคนไหนก็ได้ (ยัดของผิดกฎ/ของอันตรายให้คนอื่น)
+	if not target or target == _source then return end
+	if not HasLootSession(_source, target) then
+		print(("^1[vorp_inventory] MoveToPlayer: src %s ไม่มีสิทธิ์เข้าถึงกระเป๋า %s — ปฏิเสธ^0")
+			:format(tostring(_source), tostring(target)))
+		return
+	end
+	if not Core.getUser(target) then return end
+
+	if not CanProceed(item, amount, sourceCharacter.identifier, sourceName, sourceCharacter.charIdentifier) then
 		return
 	end
 
@@ -2062,10 +2139,52 @@ function InventoryService.TakeFromPlayer(obj)
 	local data = json.decode(obj)
 	local item = data.item
 	local amount = tonumber(data.number)
-	local sourceCharacter = Core.getUser(_source).getUsedCharacter
+	local sourceUser = Core.getUser(_source)
+	if not sourceUser then return end
+	local sourceCharacter = sourceUser.getUsedCharacter
+	if not sourceCharacter then return end
 	local sourceName = sourceCharacter.firstname .. ' ' .. sourceCharacter.lastname
 	local invId = "default"
-	local target = data.info.target
+	local target = tonumber(data.info and data.info.target)
+
+	-- ── ตรวจสิทธิ์ + ตรวจของจริง ก่อนแตะอะไรทั้งสิ้น ──────────────────────────
+	-- 🔒 เดิม: target มาจาก client ตรงๆ ไม่เคยตรวจว่ามีสิทธิ์ล้วงกระเป๋าคนนั้นไหม
+	-- และ item.name/metadata/count ก็มาจาก client ทั้งหมด ไม่เคยเทียบกับของจริงในกระเป๋า
+	-- เป้าหมาย -> ยิง event เองเพื่อดูดของจากผู้เล่นออนไลน์คนไหนก็ได้ และถ้าส่งชื่อไอเทม
+	-- ที่เป้าหมายไม่มี addItem จะแจกของให้ตัวเองก่อน แล้ว subItem หาไม่เจอ = เสกของจากอากาศ
+	if not target or target == _source then return end
+	if not HasLootSession(_source, target) then
+		print(("^1[vorp_inventory] TakeFromPlayer: src %s ไม่มีสิทธิ์ล้วงกระเป๋า %s — ปฏิเสธ^0")
+			:format(tostring(_source), tostring(target)))
+		return
+	end
+
+	local targetUser = Core.getUser(target)
+	if not targetUser or not targetUser.getUsedCharacter then return end
+
+	if type(item) ~= "table" or not item.id then return end
+
+	-- อ่าน "ของจริง" จากกระเป๋าเป้าหมายด้วย id แล้วใช้ค่าจากตัวจริงเท่านั้น
+	-- (ชื่อ/metadata/จำนวน ที่ client ส่งมาถูกทิ้งทั้งหมด)
+	local targetIdentifier = targetUser.getUsedCharacter.identifier
+	local targetInv = UsersInventories.default[targetIdentifier]
+	local realItem = targetInv and targetInv[item.id]
+	if not realItem then
+		return Core.NotifyObjective(_source, T.notEnoughItems, 2000)
+	end
+
+	if item.type ~= "item_weapon" then
+		item = {
+			id = realItem:getId(),
+			name = realItem:getName(),
+			label = realItem:getLabel(),
+			type = item.type,
+			metadata = realItem:getMetadata(),
+			count = realItem:getCount(),
+			degradation = item.degradation,
+		}
+	end
+
 	local IsBlackListed = PlayerBlackListedItems[string.lower(item.name)]
 	local messages = {
 		weapons = T.weaponsLimitExceeded,
@@ -2114,21 +2233,32 @@ function InventoryService.TakeFromPlayer(obj)
 			return Core.NotifyObjective(_source, T.notEnoughItems, 2000)
 		end
 
-		InventoryAPI.addItem(_source, item.name, amount, item.metadata, function(res)
-			if res then
-				InventoryAPI.subItem(target, item.name, amount, item.metadata, function(result)
-					if result then
-						InventoryService.reloadInventory(target, "default", "player", _source)
-						InventoryService.DiscordLogs(invId, item.name, amount, sourceName, "Take")
-						Core.NotifyRightTip(_source, T.takenFromPlayer .. " " .. amount .. " " .. item.label, 2000)
-						Core.NotifyRightTip(target, T.itemsTakenFromPlayer .. " " .. item.label, 2000)
-					end
-					SvUtils.Trem(_source)
-				end, true)
-			else
+		-- ── หักจากเป้าหมายก่อน แล้วค่อยแจกให้ตัวเอง ────────────────────────────
+		-- 🔒 เดิมสลับกัน: addItem ให้ตัวเองก่อน แล้วค่อย subItem จากเป้าหมาย และผลของ
+		-- subItem ถูกใช้แค่ตัดสินใจว่าจะโชว์ข้อความไหม ไม่มีการย้อนกลับเลย
+		-- ถ้า sub ล้มเหลว (ของไม่พอ/ชื่อไม่ตรง) ของยังเข้ากระเป๋าตัวเองไปแล้ว = เสกของ
+		-- ตอนนี้หักก่อน ถ้าหักไม่ได้ก็จบ ไม่มีของงอกจากไหน
+		InventoryAPI.subItem(target, item.name, amount, item.metadata, function(subOk)
+			if not subOk then
 				SvUtils.Trem(_source)
+				return Core.NotifyObjective(_source, T.notEnoughItems, 2000)
 			end
-		end, true, item.degradation)
+
+			InventoryAPI.addItem(_source, item.name, amount, item.metadata, function(addOk)
+				if addOk then
+					InventoryService.reloadInventory(target, "default", "player", _source)
+					InventoryService.DiscordLogs(invId, item.name, amount, sourceName, "Take")
+					Core.NotifyRightTip(_source, T.takenFromPlayer .. " " .. amount .. " " .. item.label, 2000)
+					Core.NotifyRightTip(target, T.itemsTakenFromPlayer .. " " .. item.label, 2000)
+				else
+					-- แจกไม่สำเร็จ (กระเป๋าเต็ม/ชน stack limit) ต้องคืนให้เป้าหมาย
+					-- ไม่งั้นของหายไปเฉยๆ ทั้งที่หักไปแล้ว
+					InventoryAPI.addItem(target, item.name, amount, item.metadata, function() end, true, item.degradation)
+					Core.NotifyObjective(_source, T.cantCarryItemStack, 2000)
+				end
+				SvUtils.Trem(_source)
+			end, true, item.degradation)
+		end, true)
 	end
 end
 

@@ -60,6 +60,28 @@ UsableItemsFunctions = {}
 PlayerItemsLimit     = {}
 CoolDownStarted      = {}
 AmmoData             = {}
+
+-- ── สิทธิ์ล้วงกระเป๋าผู้เล่นอื่น ───────────────────────────────────────────────
+-- 🔒 เดิม TakeFromPlayer/MoveToPlayer เชื่อ target ที่ client ส่งมาตรงๆ ไม่มีการตรวจเลย
+-- ว่าคนยิง event มีสิทธิ์ล้วงกระเป๋าคนนั้นจริงไหม (ไม่เช็คระยะ ไม่เช็ค session ไม่เช็คอะไรเลย)
+-- = ยิง event จากที่ไหนก็ได้เพื่อดูดของจากผู้เล่นออนไลน์คนไหนก็ได้
+--
+-- resource ที่จะให้ล้วงได้ต้องเรียก export openPlayerInventory ก่อนเสมอ (ตำรวจค้นตัว/ปล้น ฯลฯ)
+-- ตรงนั้นคือจุดที่ "ตัดสินใจว่าอนุญาต" อยู่แล้ว จึงบันทึกสิทธิ์ไว้ที่นั่นแล้วมาตรวจที่นี่
+-- [src] = { target = เป้าหมาย, expires = หมดอายุ }
+PlayerLootSession    = {}
+PLAYER_LOOT_TTL      = 300 -- วินาที กันสิทธิ์ค้างถาวรถ้า UI ปิดผิดทาง
+
+-- true = src มีสิทธิ์ล้วงกระเป๋า target อยู่ตอนนี้
+function HasLootSession(src, target)
+	local s = PlayerLootSession[src]
+	if not s then return false end
+	if os.time() >= s.expires then
+		PlayerLootSession[src] = nil
+		return false
+	end
+	return tonumber(s.target) == tonumber(target)
+end
 ---@type table<string, table<number, table<number, Item>>> contain users inventory items
 UsersInventories     = { default = {} }
 
@@ -1531,6 +1553,10 @@ function InventoryAPI.deleteWeapon(player, weaponid, cb)
 	local query = 'DELETE FROM loadout WHERE id = @id'
 	local params = { id = weaponid }
 	DBService.deleteAsync(query, params, function(r) end)
+	-- แถวใน DB ถูกลบแล้ว แต่เดิมยังทิ้ง object ค้างไว้ในตาราง (แค่ล้าง propietary)
+	-- ตัวที่ค้างยังถูกนับโดยลูป pairs(UsersWeapons.default) เช่น getUserTotalCountWeapons
+	-- ทำให้ช่อง/น้ำหนักปืนของผู้เล่นเพี้ยนไปเรื่อยๆ จนกว่าจะรีสตาร์ทเซิร์ฟ
+	userWeapons[weaponid] = nil
 	return respond(cb, true)
 end
 
@@ -2172,6 +2198,11 @@ function InventoryAPI.openPlayerInventory(data, callback)
 	if not _target then return false end
 	InventoryAPI.closeInventory(target)
 	local charid = _target.getUsedCharacter.charIdentifier
+
+	-- บันทึกสิทธิ์ล้วงกระเป๋า: resource ที่เรียก export นี้คือคนตัดสินใจว่าอนุญาตแล้ว
+	-- (ผ่านเงื่อนไขของมันเอง เช่น เป็นตำรวจ/มัดตัวไว้/อยู่ในระยะ) TakeFromPlayer และ
+	-- MoveToPlayer จะตรวจสิทธิ์นี้ก่อนย้ายของ ไม่เชื่อ target ที่ client ส่งมาอีกต่อไป
+	PlayerLootSession[source] = { target = target, expires = os.time() + PLAYER_LOOT_TTL }
 
 	PlayerBlackListedItems = data.blacklist or {}
 

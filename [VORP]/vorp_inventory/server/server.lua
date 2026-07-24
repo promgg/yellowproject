@@ -51,6 +51,17 @@ AddEventHandler('playerDropped', function()
             AmmoData[_source] = nil
         end
 
+        -- ล้างสิทธิ์ล้วงกระเป๋า ทั้งของคนที่ออก และของคนที่กำลังล้วงคนที่ออกอยู่
+        -- ไม่งั้นสิทธิ์ค้าง แล้วพอ FiveM เอา source กลับมาใช้ซ้ำ คนใหม่จะโดนล้วงได้ทันที
+        if PlayerLootSession then
+            PlayerLootSession[_source] = nil
+            for src, sess in pairs(PlayerLootSession) do
+                if tonumber(sess.target) == tonumber(_source) then
+                    PlayerLootSession[src] = nil
+                end
+            end
+        end
+
         for i, value in pairs(InventoryBeingUsed) do
             if value == _source then
                 InventoryBeingUsed[i] = nil
