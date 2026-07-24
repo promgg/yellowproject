@@ -72,20 +72,11 @@ Config.Dump = {
 -- รอบนี้ดักให้ครบทุก client filter ที่เอกสารระบุ จะได้จบในรอบเดียว ไม่ต้องลองหลายรอบ
 -- (แต่ละตัวพิมพ์แค่ limitPerFilter ครั้งแล้วหยุด เลยไม่ท่วมคอนโซล)
 -- ตัวที่น่าจะใช่ที่สุดคือ updatePreviewPrompt (currentPrompt, itemMenuData) = prompt โดยตรง
+-- 🔎 รอบนี้หา "ปุ่มซื้อด้วยทอง" ในหน้าซื้อม้าใหม่ — ลดเหลือ filter ที่เกี่ยวกับ prompt/ปุ่ม
+--    เท่านั้น คอนโซลจะได้ไม่ท่วมด้วยข้อมูลม้า (พวก filterHorseData/filterYourHorseLine)
+--    ถ้าเปิดหน้าซื้อแล้วไม่เห็น updatePreviewPrompt โผล่เลย = ปุ่มทองไม่ผ่าน filter นี้
 Config.Filters = {
-    -- ดัก/ดูไปแล้วรอบก่อน (ไม่เจอปุ่ม) — คงไว้เผื่อเทียบ
-    'filterYourHorseLine',
-    'filterHorseData',
-
-    -- เกี่ยวกับ prompt / การแสดงผลรายการม้า
-    'updatePreviewPrompt',
-    'updateItemHorseAvailable',
-
-    -- ที่เหลือ กวาดให้ครบเผื่อปุ่มไปโผล่ที่ไหน
+    'updatePreviewPrompt',   -- ตัวหลักที่คุมชื่อ prompt (ปุ่ม)
+    'updateItemHorseAvailable', -- แถวม้าในหน้าซื้อ (เผื่อปุ่ม/ราคาผูกตรงนี้)
     'canAccessToStable',
-    'generateHorseStatisticsForMenu',
-    'isSameMenu',
-    'updateLangForNUI',
-    'updateHorseDataBeforeSpawn',
-    'canFleeHorse',
 }
