@@ -102,9 +102,15 @@ AddEventHandler("MJ-STATUS:saveStatus", function(status)
         return
     end
 
-    local identifier = Character.identifier or Character.charIdentifier
+    -- ⚠️ ต้องใช้ "ทั้งคู่" ในการระบุแถว
+    -- identifier    = steam id  -> ใช้ร่วมกันทุกตัวละครในบัญชีเดียวกัน
+    -- charidentifier = id ตัวละคร -> ตัวที่ระบุแถวได้จริง
+    -- เดิม WHERE identifier อย่างเดียว = status ของตัวละครที่เล่นอยู่ทับ "ทุกตัวละคร"
+    -- ในบัญชีนั้น (สลับตัวละครแล้วค่าหิว/น้ำ/เครียดเพี้ยนตามตัวที่เล่นล่าสุด)
+    local identifier = Character.identifier
+    local charIdentifier = Character.charIdentifier
 
-    if not identifier then
+    if not identifier or not charIdentifier then
         print("^1[MJ-STATUS]^0 Identifier not found")
         return
     end
@@ -139,10 +145,11 @@ AddEventHandler("MJ-STATUS:saveStatus", function(status)
     end
 
     MySQL.Async.execute(
-        'UPDATE characters SET status = @status WHERE identifier = @identifier',
+        'UPDATE characters SET status = @status WHERE identifier = @identifier AND charidentifier = @charidentifier',
         {
             ['@status'] = statusJSON,
-            ['@identifier'] = identifier
+            ['@identifier'] = identifier,
+            ['@charidentifier'] = charIdentifier
         },
         function(rowsChanged)
 
@@ -217,8 +224,12 @@ AddEventHandler('playerDropped', function(reason)
     local Character = User.getUsedCharacter
     if not Character then return end
 
+    -- ต้องระบุด้วย charidentifier ด้วย ไม่งั้นทับ status ทุกตัวละครในบัญชี (ดูคอมเมนต์ที่ saveStatus)
     local identifier = Character.identifier
+    local charIdentifier = Character.charIdentifier
     local s_status = Character.status
+
+    if not identifier or not charIdentifier then return end
 
     -- ไม่มีค่าจริง = ไม่แตะ DB (กันเขียนเต็มทับ) — ค่าจาก save รอบก่อนยังอยู่ครบ
     if type(s_status) ~= "string" or #s_status <= 5 then return end
@@ -226,9 +237,10 @@ AddEventHandler('playerDropped', function(reason)
     if not ok or type(statusData) ~= "table" then return end
     if not (statusData.Hunger and statusData.Thirst and statusData.Stress) then return end
 
-    MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier', {
+    MySQL.Async.execute('UPDATE characters SET status = @status WHERE identifier = @identifier AND charidentifier = @charidentifier', {
         ['@status'] = json.encode(statusData),
-        ['@identifier'] = identifier
+        ['@identifier'] = identifier,
+        ['@charidentifier'] = charIdentifier
     }, function(rowsChanged)
         if rowsChanged and rowsChanged > 0 then
             print("Successfully saved status for character: " .. tostring(identifier))
