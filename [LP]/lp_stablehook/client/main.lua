@@ -94,11 +94,11 @@ local hideBequeathViaMenuApi
 
 -- คืนค่าที่ควรส่งกลับให้ kd_stable สำหรับ filter updatePreviewPrompt
 local function filterPreviewPrompt(currentPrompt, itemMenuData)
-    if not Config.DisableBequeath then return currentPrompt end
-
-    -- filter นี้บอกด้วยว่าตอนนี้อยู่เมนูไหน (จาก dump: menu = "horseManager")
-    -- ใช้จังหวะนี้สั่งซ่อนรายการในเมนูนั้น — เป็นจุดเดียวที่รู้ว่าเมนูย่อยถูกสร้างแล้ว
-    if type(itemMenuData) == 'table' then
+    -- ซ่อน "รายการมอบม้าในเมนู" เป็นเรื่องเฉพาะ bequeath จึง gate ด้วย flag ตัวเอง
+    -- (การบล็อก prompt ด้านล่างไม่ gate ตรงนี้แล้ว — มันอิงจาก blockedPrompts ซึ่งสร้าง
+    --  ตาม flag ในไฟล์ config อยู่แล้ว ทำให้ปิดปุ่มทอง/มอบม้าได้อิสระต่อกัน)
+    if Config.DisableBequeath and type(itemMenuData) == 'table' then
+        -- filter นี้บอกด้วยว่าตอนนี้อยู่เมนูไหน (จาก dump: menu = "horseManager")
         hideBequeathViaMenuApi(itemMenuData.menu)
     end
 
