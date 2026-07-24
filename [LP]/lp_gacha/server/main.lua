@@ -73,16 +73,28 @@ local function grantReward(src, xPlayer, reward)
         xPlayer.addCurrency(1, reward.amount)
 
     elseif t == 'horse' then
-        -- ⚠️⚠️ ต้องยืนยันตาราง/schema ของ kd_stable ก่อนใช้จริง ⚠️⚠️
-        -- kd_stable (jumpon-studios) เป็นระบบม้าคนละตัว + server code encrypted (FXAP) อ่าน schema ไม่ได้
-        -- docs ก็ยืนยันว่า "ไม่มี export ฝั่ง server สำหรับแจกม้า" → ต้อง INSERT ตารางของ kd_stable เองให้ถูก
-        -- ตอนนี้ยัง INSERT เข้า `player_horses` (ตารางเก่าของ vorp/bcc-stables) ซึ่ง kd_stable "อาจไม่อ่าน"
-        -- → ถ้า kd_stable ใช้ตารางชื่ออื่น ม้าจะหายเงียบ ๆ  ยืนยันชื่อตาราง+คอลัมน์แล้วค่อยแก้บรรทัดล่างนี้
+        -- แจกม้าเข้าระบบ kd_stable โดยตรงในฐานข้อมูล (kd_stable ไม่มี export ฝั่ง server ตาม docs)
+        -- ตารางหลัก kd_horses (เจ้าของ+model+คอก) → ได้ auto-increment id → สร้างแถวสถิติ kd_horses_stats
         local horseName = ('Paradise-%04d'):format(math.random(0, 9999))
-        MySQL.query.await(
-            'INSERT INTO `player_horses` (identifier, charid, name, model, gender, captured) VALUES (?, ?, ?, ?, ?, ?)',
-            { xPlayer.identifier, xPlayer.charIdentifier, horseName, reward.model or reward.item, reward.gender or 'male', 0 }
+        local isFemale  = (reward.gender == 'female') and 1 or 0
+        local stable    = reward.stable or Config.HorseStable or 'valentine'
+        local horseId = MySQL.insert.await(
+            'INSERT INTO `kd_horses` (identifier, charid, stable, model, isFemale, name, speed, acceleration, handling, favourite, isDead, isOut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)',
+            {
+                xPlayer.identifier, xPlayer.charIdentifier, stable, reward.model or reward.item, isFemale, horseName,
+                tonumber(reward.speed) or 4, tonumber(reward.acceleration) or 4, tonumber(reward.handling) or 2,
+            }
         )
+        if horseId then
+            -- แถวสถิติเริ่มต้น (kd_stable ผูกด้วย horseid) — ค่าอ้างอิงจากม้าใหม่ในตาราง (bonding 250 / stamina-health 350)
+            MySQL.query.await(
+                'INSERT INTO `kd_horses_stats` (horseid, distance, lastNewShoes, bonding, speedTraining, accelerationTraining, handlingTraining, stamina, health) VALUES (?, 0, 0, 250, 0, 0, 0, 350, 350)',
+                { horseId }
+            )
+            dbg(('แจกม้า kd_stable สำเร็จ: horseId=%s model=%s -> charid=%s'):format(tostring(horseId), reward.model or reward.item, tostring(xPlayer.charIdentifier)))
+        else
+            dbg('^1แจกม้าล้มเหลว: INSERT kd_horses ไม่คืน id^7')
+        end
 
     elseif t == 'weapon' then
         local canCarry = exports.vorp_inventory:canCarryWeapons(src, 1, nil, reward.item)

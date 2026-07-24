@@ -11,6 +11,7 @@ Config.Discord = {
 
 Config.QtyMax        = 100  -- เพดานจำนวนต่อการเปิด 1 ครั้ง (เพดานจริงยังถูกจำกัดด้วยจำนวนตั๋วที่ถืออยู่อีกชั้น)
 Config.SpinCooldown  = 2000 -- ms เว้นระยะระหว่างการกดสปินแต่ละ batch ต่อผู้เล่น (กันสแปม)
+Config.HorseStable   = 'valentine' -- คอกที่ม้ารางวัลจะเข้า (คอลัมน์ kd_horses.stable) — ต้องตรงกับ id คอกใน kd_stable
 
 -- แจกของหลังอนิเมชันเผยผลจบ (NUI ยิง revealDone มา) กันผู้เล่นเห็นของเข้ากระเป๋าก่อนหลอดจบ
 -- ค่านี้คือ "failsafe" เท่านั้น: ถ้า NUI ไม่ยิง revealDone ใน N ms (หลุด/error) server แจกเอง
@@ -62,7 +63,7 @@ Config.Pools = {
             { chance = 20, rewards = {
                 { type = 'item',  item = 'aed', label = 'กล่องชุบเพื่อน', amount = 1, rarity = 'epic' },
                 -- ม้า Turkoman - Gold (จาก kd_stable overwriteConfig index 8) — ดู grantReward ฝั่ง server ว่าเข้า kd_stable ถูกไหม
-                { type = 'horse', item = 'a_c_horse_turkoman_gold', label = 'ม้า Turkoman - Gold', model = 'a_c_horse_turkoman_gold', gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_turkoman_gold', label = 'ม้า Turkoman - Gold', model = 'a_c_horse_turkoman_gold', gender = 'male', speed = 7, acceleration = 6, handling = 2, amount = 1, rarity = 'legendary' },
             }},
         },
     },
@@ -93,12 +94,12 @@ Config.Pools = {
                 { type = 'item',  item = 'bonus_gun5',  label = 'สมุดคัมภีร์ (+5% ตีปืน)',   amount = 1, rarity = 'legendary' },
                 { type = 'item',  item = 'bonus_gun10', label = 'ม้ากางเขนทอง (+10% ตีปืน)', amount = 1, rarity = 'legendary' },
                 -- ม้ากาชา 6 ตัว (จาก kd_stable overwriteConfig index 10-15) — แต่ละตัว weight เท่ากัน
-                { type = 'horse', item = 'a_c_horse_americanpaint_greyovero', label = 'ม้า American Paint - Grey Overo', model = 'a_c_horse_americanpaint_greyovero', gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_andalusian_perlino',      label = 'ม้า Andalusian - Perlino',        model = 'a_c_horse_andalusian_perlino',      gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_appaloosa_leopard',       label = 'ม้า Appaloosa - Leopard',         model = 'a_c_horse_appaloosa_leopard',       gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_belgian_blondchestnut',   label = 'ม้า Belgian Draft - Blond Chestnut', model = 'a_c_horse_belgian_blondchestnut', gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_breton_steelgrey',        label = 'ม้า Breton - Steel Grey',         model = 'a_c_horse_breton_steelgrey',        gender = 'male', amount = 1, rarity = 'legendary' },
-                { type = 'horse', item = 'a_c_horse_kentuckysaddle_black',    label = 'ม้า Kentucky Saddler - Black',    model = 'a_c_horse_kentuckysaddle_black',    gender = 'male', amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_americanpaint_greyovero', label = 'ม้า American Paint - Grey Overo', model = 'a_c_horse_americanpaint_greyovero', gender = 'male', speed = 6, acceleration = 7, handling = 2, amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_andalusian_perlino',      label = 'ม้า Andalusian - Perlino',        model = 'a_c_horse_andalusian_perlino',      gender = 'male', speed = 6, acceleration = 6, handling = 2, amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_appaloosa_leopard',       label = 'ม้า Appaloosa - Leopard',         model = 'a_c_horse_appaloosa_leopard',       gender = 'male', speed = 6, acceleration = 7, handling = 2, amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_belgian_blondchestnut',   label = 'ม้า Belgian Draft - Blond Chestnut', model = 'a_c_horse_belgian_blondchestnut', gender = 'male', speed = 6, acceleration = 6, handling = 2, amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_breton_steelgrey',        label = 'ม้า Breton - Steel Grey',         model = 'a_c_horse_breton_steelgrey',        gender = 'male', speed = 6, acceleration = 6, handling = 2, amount = 1, rarity = 'legendary' },
+                { type = 'horse', item = 'a_c_horse_kentuckysaddle_black',    label = 'ม้า Kentucky Saddler - Black',    model = 'a_c_horse_kentuckysaddle_black',    gender = 'male', speed = 6, acceleration = 7, handling = 2, amount = 1, rarity = 'legendary' },
             }},
         },
     },
