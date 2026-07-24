@@ -230,6 +230,12 @@ DoBuyInner = function(src, listingId, buyQty)
     local totalPrice = listing.price * buyQty
 
     -- validate เงินพอซื้อ totalPrice
+    -- ต้องหยิบ Character ใหม่หลัง query listing ก่อน: GetCharacter คืน "สำเนา" ที่ copy
+    -- money/gold มาแบบ by-value ตัวที่หยิบไว้ตอนต้นฟังก์ชันจึงค้างยอดเก่าตั้งแต่ก่อน await
+    -- (TOCTOU: ใช้เงินไปกับ resource อื่นระหว่างรอ query แล้วเช็คนี้ยังผ่านด้วยยอดก่อนหน้า)
+    Character = GetCharacter(src)
+    if not Character then return false end
+
     local balance = GetBalance(Character, listing.currency)
     if balance < totalPrice then
         Notify(src, Config.Locale.not_enough_money)
