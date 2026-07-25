@@ -20,36 +20,55 @@ end
 
 -- แจกม้าจากกาชา: spawn ม้าตาม model แล้วส่งเข้า kd_stable ผ่าน event ทางการ kd_stable:client:addHorse
 -- (ตาม docs jumpon-studios) — kd_stable จะ register เป็นม้าของผู้เล่น + save DB + คำนวณ stat/สีตาม model
--- แล้วอัปเดต cache เอง ทำให้ "ม้าขึ้นในเมนูทันที" (วิธี INSERT DB ดิบ cache ไม่รู้จัก ม้าไม่โผล่)
+--
+-- ⚠️ ต้องทำ "ทีละตัว" (queue): ถ้าออกม้าหลายตัวใน batch เดียว server จะยิง grantHorse หลาย event
+--    พร้อมกันในเฟรมเดียว → spawn ped + addHorse รัว ๆ ที่จุดเดียวกัน → kd_stable ประมวลผลไม่ทัน
+--    (race) ม้าจะเข้า DB ไม่ครบ (เช่นส่ง 10 เข้า 9) — เข้าคิวแล้วปล่อยทีละตัว เว้นระยะ กันตกหล่น
+local horseQueue = {}
+local horseProcessing = false
+
+local function processHorseQueue()
+    if horseProcessing then return end
+    horseProcessing = true
+    CreateThread(function()
+        while #horseQueue > 0 do
+            local data = table.remove(horseQueue, 1)
+            local model = joaat(data.model)
+            RequestModel(model)
+            local t = GetGameTimer()
+            while not HasModelLoaded(model) and (GetGameTimer() - t) < 8000 do Wait(20) end
+
+            if HasModelLoaded(model) then
+                local playerPed = PlayerPedId()
+                local fwd = GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 2.5, 0.0) -- วางหน้า player 2.5m
+                local horse = CreatePed(model, fwd.x, fwd.y, fwd.z, GetEntityHeading(playerPed), true, false, false, false)
+                SetModelAsNoLongerNeeded(model)
+                if horse and horse ~= 0 and DoesEntityExist(horse) then
+                    Citizen.InvokeNative(0x9587913B9E772D29, horse, 0) -- PlaceEntityOnGroundProperly
+                    if data.gender == 'female' then
+                        Citizen.InvokeNative(0x5653AB26C82938CF, horse, 41611, 1.0) -- SetCharExpression (เพศเมีย)
+                        Citizen.InvokeNative(0xCC8CA3E88256E58F, horse, false, true, true, true, false) -- UpdatePedVariation
+                    end
+                    -- ส่งต่อให้ kd_stable จัดการ (register + save + จัดการ ped ม้าต่อเอง)
+                    TriggerEvent('kd_stable:client:addHorse', horse, data.name or 'Paradise', data.age or 2, data.noDieByAge ~= false)
+                    Wait(1500) -- ให้ kd_stable ประมวลผล addHorse + save เสร็จก่อนตัวต่อไป (กัน race)
+                else
+                    print('^1[lp_gacha]^7 สร้าง ped ม้าไม่สำเร็จ: ' .. tostring(data.model))
+                    Wait(200)
+                end
+            else
+                print('^1[lp_gacha]^7 โหลดโมเดลม้าไม่สำเร็จ: ' .. tostring(data.model))
+                Wait(200)
+            end
+        end
+        horseProcessing = false
+    end)
+end
+
 RegisterNetEvent('lp_gacha:grantHorse', function(data)
     if type(data) ~= 'table' or not data.model then return end
-
-    local model = joaat(data.model)
-    RequestModel(model)
-    local t = GetGameTimer()
-    while not HasModelLoaded(model) and (GetGameTimer() - t) < 8000 do Wait(20) end
-    if not HasModelLoaded(model) then
-        print('^1[lp_gacha]^7 โหลดโมเดลม้าไม่สำเร็จ: ' .. tostring(data.model))
-        return
-    end
-
-    local playerPed = PlayerPedId()
-    local fwd = GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 2.5, 0.0) -- วางหน้า player 2.5m
-    local horse = CreatePed(model, fwd.x, fwd.y, fwd.z, GetEntityHeading(playerPed), true, false, false, false)
-    SetModelAsNoLongerNeeded(model)
-    if not horse or horse == 0 or not DoesEntityExist(horse) then
-        print('^1[lp_gacha]^7 สร้าง ped ม้าไม่สำเร็จ: ' .. tostring(data.model))
-        return
-    end
-    Citizen.InvokeNative(0x9587913B9E772D29, horse, 0) -- PlaceEntityOnGroundProperly
-
-    if data.gender == 'female' then
-        Citizen.InvokeNative(0x5653AB26C82938CF, horse, 41611, 1.0) -- SetCharExpression (เพศเมีย)
-        Citizen.InvokeNative(0xCC8CA3E88256E58F, horse, false, true, true, true, false) -- UpdatePedVariation
-    end
-
-    -- ส่งต่อให้ kd_stable จัดการ (register + save + จัดการ ped ม้าต่อเอง)
-    TriggerEvent('kd_stable:client:addHorse', horse, data.name or 'Paradise', data.age or 2, data.noDieByAge ~= false)
+    horseQueue[#horseQueue + 1] = data
+    processHorseQueue()
 end)
 
 -- server สั่งเปิด (มาจากการใช้ตั๋ว, source ถูก validate ฝั่ง server แล้ว)
